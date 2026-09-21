@@ -1,0 +1,17 @@
+[Unit]
+Description=DAO DEV Next.js application
+After=network.target
+
+[Service]
+Type=simple
+User=dao
+WorkingDirectory=/opt/dao/current/dao-frontend
+EnvironmentFile=/etc/dao/dao-dev.env
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1 --port 3000
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
