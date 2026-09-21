@@ -9,6 +9,7 @@ export function createDaoApi(services: BackendServices, resolveActor: (authoriza
   async function json(request: Request) { return await request.json() as Record<string, unknown>; }
   return {
     async createProject(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.createProject(services, a, i)))); },
+    async addProjectRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.addProjectRequest(services, a, i)))); },
     async submitBid(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.submitBid(services,a,String(i.versionId)))); },
     async awardRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.awardRequest(services,a,i)))); },
     async signedUpload(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.signedUpload(services,a,i as never)))); },
