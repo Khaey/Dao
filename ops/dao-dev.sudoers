@@ -1,0 +1,2 @@
+# Minimal deployment controls for the unprivileged dao user.
+dao ALL=(root) NOPASSWD: /usr/bin/systemctl restart dao-dev.service, /usr/bin/systemctl is-active dao-dev.service, /usr/bin/systemctl status dao-dev.service
