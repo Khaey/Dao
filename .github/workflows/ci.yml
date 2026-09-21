@@ -1,0 +1,75 @@
+name: DAO CI and DEV deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      E2E_ENABLED: ${{ vars.E2E_ENABLED || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            dao-backend/package-lock.json
+            dao-frontend/package-lock.json
+      - name: Backend install and tests
+        working-directory: dao-backend
+        run: |
+          npm ci
+          npm test
+          npm run test:local
+      - name: Frontend install and build
+        working-directory: dao-frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Install Playwright browser
+        working-directory: dao-frontend
+        run: npx playwright install --with-deps chromium
+      - name: Playwright desktop and mobile
+        if: ${{ env.E2E_ENABLED == 'true' }}
+        working-directory: dao-frontend
+        env:
+          PLAYWRIGHT_CLIENT_EMAIL: ${{ secrets.PLAYWRIGHT_CLIENT_EMAIL }}
+          PLAYWRIGHT_CLIENT_PASSWORD: ${{ secrets.PLAYWRIGHT_CLIENT_PASSWORD }}
+          PLAYWRIGHT_TRADE_ID: ${{ secrets.PLAYWRIGHT_TRADE_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
+        run: npm run test:e2e
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            dao-frontend/test-results
+            dao-frontend/playwright-report
+          if-no-files-found: ignore
+
+  deploy-dev:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Deploy verified revision over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          script_stop: true
+          script: |
+            bash /opt/dao/deploy-dev.sh ${{ github.sha }}
