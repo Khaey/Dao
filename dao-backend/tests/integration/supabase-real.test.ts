@@ -29,11 +29,13 @@ test('autonomous Supabase integration', async () => {
     const targeted=await insert('publications',{project_id:projectB,project_version_id:versionB,visibility:'targeted',safe_title:'Targeted',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
     await insert('publication_recipients',{publication_id:targeted,contractor_id:actors.plumberA.contractorId,source:'targeted'});
     const bid=await insert('bids',{project_id:project,contractor_id:actors.plumberB.contractorId});
-    const submitted=await insert('bid_versions',{bid_id:bid,project_id:project,contractor_id:actors.plumberB.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'submitted',submitted_at:new Date().toISOString()}); actors.submittedVersion=submitted;
+    const submitted=await insert('bid_versions',{bid_id:bid,project_id:project,contractor_id:actors.plumberB.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'draft'}); actors.submittedVersion=submitted;
     const item=await insert('bid_items',{bid_version_id:submitted,project_id:project,contractor_id:actors.plumberB.contractorId,request_version_id:rv,request_id:request,price_millimes:1000,duration_days:1,inclusions:'test'});
     const bid2=await insert('bids',{project_id:project,contractor_id:actors.plumberA.contractorId});
-    const submitted2=await insert('bid_versions',{bid_id:bid2,project_id:project,contractor_id:actors.plumberA.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'submitted',submitted_at:new Date().toISOString()});
+    const submitted2=await insert('bid_versions',{bid_id:bid2,project_id:project,contractor_id:actors.plumberA.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'draft'});
     const item2=await insert('bid_items',{bid_version_id:submitted2,project_id:project,contractor_id:actors.plumberA.contractorId,request_version_id:rv,request_id:request,price_millimes:1100,duration_days:1,inclusions:'test'});
+    const preSubmit=await admin.from('bid_versions').update({status:'submitted',submitted_at:new Date().toISOString()}).eq('id',submitted).eq('status','draft').select('id').single(); assert.ifError(preSubmit.error);
+    const preSubmit2=await admin.from('bid_versions').update({status:'submitted',submitted_at:new Date().toISOString()}).eq('id',submitted2).eq('status','draft').select('id').single(); assert.ifError(preSubmit2.error);
     const award=await insert('awards',{project_id:project,contractor_id:actors.plumberB.contractorId});
     const award2=await insert('awards',{project_id:project,contractor_id:actors.plumberA.contractorId});
     const login=async(a:any)=>{const userClient=createClient(url,pub);const r=await userClient.auth.signInWithPassword({email:a.email,password});assert.ifError(r.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+r.data.session!.access_token}}});};
