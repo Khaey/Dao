@@ -1,0 +1,8 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { AwardService } from '../src/services/AwardService.js';
+import { BidService } from '../src/services/BidService.js';
+import { DocumentService } from '../src/services/DocumentService.js';
+const fake=(table,rows={})=>({from(t){assert.equal(t,table);return {insert:(x)=>({select:()=>({single:async()=>({data:{...x,id:'1'},error:null})})}),update:()=>({eq:()=>({eq:()=>({select:()=>({single:async()=>({data:{id:'v',status:'submitted'},error:null})})})})}),select:()=>({eq:()=>({single:async()=>({data:rows,error:null})})})}}});
+test('BidService submits a draft idempotently',async()=>{const s=new BidService(fake('bid_versions'));const x=await s.submit('v');assert.equal(x.status,'submitted')});
+test('AwardService delegates uniqueness to DB',async()=>{const s=new AwardService(fake('award_items'));assert.equal((await s.award({request_id:'r'})).request_id,'r')});
+test('DocumentService refuses unapproved documents',async()=>{const s=new DocumentService(fake('bid_documents',{status:'quarantined',object_path:'x'}),{});await assert.rejects(()=>s.signedDownload('d'),/not approved/)});
