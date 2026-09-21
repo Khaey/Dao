@@ -1,0 +1,20 @@
+import { test, expect } from '@playwright/test';
+test('Client crée un projet et ajoute une demande', async ({ page }, testInfo) => {
+  const email = process.env.PLAYWRIGHT_CLIENT_EMAIL;
+  const password = process.env.PLAYWRIGHT_CLIENT_PASSWORD;
+  test.skip(!email || !password, 'PLAYWRIGHT_CLIENT_EMAIL/PASSWORD requis pour le test E2E réel');
+  await page.goto('/auth/login');
+  await page.getByPlaceholder('Votre email').fill(email!);
+  await page.getByPlaceholder('Mot de passe').fill(password!);
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/app\/projects/);
+  await page.goto('/app/projects/new');
+  await page.getByRole('button', { name: 'Continuer vers les demandes' }).click();
+  await expect(page).toHaveURL(/\/app\/projects\/[^/]+/);
+  await page.getByPlaceholder('Métier / trade UUID').fill(process.env.PLAYWRIGHT_TRADE_ID || '');
+  await page.getByPlaceholder('Ex. Plomberie complète').fill('Plomberie test E2E');
+  await page.getByPlaceholder('Décrivez le périmètre').fill('Demande créée par Playwright');
+  await page.getByRole('button', { name: 'Ajouter la demande' }).click();
+  await expect(page.getByText('Demande 1')).toBeVisible();
+  await page.screenshot({ path: `test-results/${testInfo.project.name}-projects-flow.png`, fullPage: true });
+});
