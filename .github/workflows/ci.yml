@@ -67,9 +67,8 @@ jobs:
       - name: Deploy verified revision over SSH
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host: ${{ secrets.DEV_SSH_HOST }}
-          username: ${{ secrets.DEV_SSH_USER }}
+          host: 137.74.168.122
+          username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
-          script_stop: true
           script: |
             bash /opt/dao/deploy-dev.sh ${{ github.sha }}
