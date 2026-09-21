@@ -23,11 +23,9 @@ export class DocumentService {
     if (!actorId) throw new DomainError('Authentication required','UNAUTHENTICATED');
     const { data: doc, error } = await this.db.from('bid_documents').select('*').eq('id',id).single();
     if (error) throw error; if (!doc || doc.status !== 'approved') throw new DomainError('Document is not approved','DOCUMENT_NOT_APPROVED');
-    const { data: version, error: versionError } = await this.db.from('bid_versions').select('contractor_id,project_id,status').eq('id',doc.bid_version_id).single();
-    if (versionError) throw versionError;
-    const { data: grants } = await this.db.from('document_grants').select('user_id').eq('document_id',id).eq('user_id',actorId).is('revoked_at',null);
-    const allowed = version?.contractor_id === actorId || (version?.status === 'submitted' && (grants?.length || 0) > 0);
-    if (!allowed) throw new DomainError('Document access denied','FORBIDDEN');
+    // bid_documents are authorized by their own RLS policy: owner contractor,
+    // submitted-offer project owner, or DAO staff. document_grants is only for
+    // generic project documents and must never widen bid-document access.
     const { data: signed, error: signedError } = await this.storage.from('dao-private').createSignedUrl(doc.object_path, expiresIn);
     if (signedError) throw signedError; return signed.signedUrl;
   }
