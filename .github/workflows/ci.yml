@@ -71,4 +71,7 @@ jobs:
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
           script: |
+            if [ -f /opt/dao/current/ops/deploy-dev.sh ]; then
+              install -m 0750 /opt/dao/current/ops/deploy-dev.sh /opt/dao/deploy-dev.sh
+            fi
             bash /opt/dao/deploy-dev.sh ${{ github.sha }}
