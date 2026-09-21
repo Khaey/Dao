@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 const vars = ['DAO_SUPABASE_URL','DAO_SUPABASE_PUBLISHABLE_KEY','DAO_SUPABASE_SECRET_KEY',
   'DAO_TEST_CLIENT_EMAIL','DAO_TEST_CLIENT_PASSWORD','DAO_TEST_ARTISAN_EMAIL','DAO_TEST_ARTISAN_PASSWORD',
+  'DAO_TEST_TARGETED_EMAIL','DAO_TEST_TARGETED_PASSWORD',
   'DAO_TEST_DUAL_EMAIL','DAO_TEST_DUAL_PASSWORD','DAO_TEST_OTHER_EMAIL','DAO_TEST_OTHER_PASSWORD',
   'DAO_TEST_PROJECT_ID','DAO_TEST_TEMP_PROJECT_ID','DAO_TEST_REQUEST_ID','DAO_TEST_AWARD_ID','DAO_TEST_BID_ITEM_ID',
   'DAO_TEST_BID_VERSION_ID','DAO_TEST_DRAFT_BID_ID','DAO_TEST_SUBMITTED_BID_ID','DAO_TEST_DOCUMENT_ID',
@@ -27,6 +28,7 @@ test('Supabase real MVP integration', async()=>{
   const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
   const client=await login(url,key,process.env.DAO_TEST_CLIENT_EMAIL!,process.env.DAO_TEST_CLIENT_PASSWORD!);
   const artisan=await login(url,key,process.env.DAO_TEST_ARTISAN_EMAIL!,process.env.DAO_TEST_ARTISAN_PASSWORD!);
+  const targetedActor=await login(url,key,process.env.DAO_TEST_TARGETED_EMAIL!,process.env.DAO_TEST_TARGETED_PASSWORD!);
   const dual=await login(url,key,process.env.DAO_TEST_DUAL_EMAIL!,process.env.DAO_TEST_DUAL_PASSWORD!);
   const other=await login(url,key,process.env.DAO_TEST_OTHER_EMAIL!,process.env.DAO_TEST_OTHER_PASSWORD!);
   const project=process.env.DAO_TEST_PROJECT_ID!, request=process.env.DAO_TEST_REQUEST_ID!;
@@ -40,7 +42,7 @@ test('Supabase real MVP integration', async()=>{
   assert.ifError(dualRolesError);
   assert.deepEqual((dualRoles ?? []).map((r:any)=>r.role).sort(),['client','contractor']);
   assert.equal(await count(client,'publications',publication),1);
-  assert.equal(await count(artisan,'publications',targeted),1);
+  assert.equal(await count(targetedActor,'publications',targeted),1);
   assert.equal(await count(other,'publications',targeted),0);
   assert.equal(await count(other,'publications',inviteOnly),0);
   const objectPath=`bid/${process.env.DAO_TEST_BID_VERSION_ID!}/integration-${Date.now()}.pdf`;
