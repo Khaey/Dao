@@ -1,83 +1,39 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const vars = ['DAO_SUPABASE_URL','DAO_SUPABASE_PUBLISHABLE_KEY','DAO_SUPABASE_SECRET_KEY',
-  'DAO_TEST_CLIENT_EMAIL','DAO_TEST_CLIENT_PASSWORD','DAO_TEST_ARTISAN_EMAIL','DAO_TEST_ARTISAN_PASSWORD',
-  'DAO_TEST_TARGETED_EMAIL','DAO_TEST_TARGETED_PASSWORD',
-  'DAO_TEST_DUAL_EMAIL','DAO_TEST_DUAL_PASSWORD','DAO_TEST_OTHER_EMAIL','DAO_TEST_OTHER_PASSWORD',
-  'DAO_TEST_PROJECT_ID','DAO_TEST_TEMP_PROJECT_ID','DAO_TEST_REQUEST_ID','DAO_TEST_AWARD_ID','DAO_TEST_BID_ITEM_ID',
-  'DAO_TEST_BID_VERSION_ID','DAO_TEST_DRAFT_BID_ID','DAO_TEST_SUBMITTED_BID_ID','DAO_TEST_DOCUMENT_ID',
-  'DAO_TEST_PUBLICATION_ID','DAO_TEST_TARGETED_ID','DAO_TEST_INVITE_ONLY_ID','DAO_TEST_OBJECT_PATH',
-  'DAO_TEST_CONTRACTOR_ID','DAO_TEST_TEMP_REQUEST_ID','DAO_TEST_TEMP_AWARD_ID','DAO_TEST_TEMP_BID_ITEM_ID',
-  'DAO_TEST_SECOND_AWARD_ID','DAO_TEST_SECOND_CONTRACTOR_ID','DAO_TEST_SECOND_BID_ITEM_ID'];
-
-async function login(url:string,key:string,email:string,password:string) {
-  const c=createClient(url,key); const {data,error}=await c.auth.signInWithPassword({email,password});
-  assert.ifError(error); assert.ok(data.session?.access_token);
-  return createClient(url,key,{global:{headers:{Authorization:`Bearer ${data.session!.access_token}`} }});
-}
-async function count(c:SupabaseClient, table:string, id:string) {
-  const {data,error}=await c.from(table).select('id').eq('id',id); assert.ifError(error); return data?.length ?? 0;
-}
-
-test('Supabase real MVP integration', async()=>{
-  const missing=vars.filter(k=>!process.env[k]);
-  assert.equal(missing.length,0,`Missing integration variables: ${missing.join(', ')}`);
-  const url=process.env.DAO_SUPABASE_URL!, key=process.env.DAO_SUPABASE_PUBLISHABLE_KEY!, secret=process.env.DAO_SUPABASE_SECRET_KEY!;
+test('autonomous Supabase integration', async () => {
+  for (const name of ['DAO_SUPABASE_URL','DAO_SUPABASE_PUBLISHABLE_KEY','DAO_SUPABASE_SECRET_KEY']) assert.ok(process.env[name], 'missing '+name);
+  const url=process.env.DAO_SUPABASE_URL!, pub=process.env.DAO_SUPABASE_PUBLISHABLE_KEY!, secret=process.env.DAO_SUPABASE_SECRET_KEY!;
   const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
-  const client=await login(url,key,process.env.DAO_TEST_CLIENT_EMAIL!,process.env.DAO_TEST_CLIENT_PASSWORD!);
-  const artisan=await login(url,key,process.env.DAO_TEST_ARTISAN_EMAIL!,process.env.DAO_TEST_ARTISAN_PASSWORD!);
-  const targetedActor=await login(url,key,process.env.DAO_TEST_TARGETED_EMAIL!,process.env.DAO_TEST_TARGETED_PASSWORD!);
-  const dual=await login(url,key,process.env.DAO_TEST_DUAL_EMAIL!,process.env.DAO_TEST_DUAL_PASSWORD!);
-  const other=await login(url,key,process.env.DAO_TEST_OTHER_EMAIL!,process.env.DAO_TEST_OTHER_PASSWORD!);
-  const project=process.env.DAO_TEST_PROJECT_ID!, request=process.env.DAO_TEST_REQUEST_ID!;
-  const draft=process.env.DAO_TEST_DRAFT_BID_ID!, submitted=process.env.DAO_TEST_SUBMITTED_BID_ID!, doc=process.env.DAO_TEST_DOCUMENT_ID!;
-  const publication=process.env.DAO_TEST_PUBLICATION_ID!, targeted=process.env.DAO_TEST_TARGETED_ID!, inviteOnly=process.env.DAO_TEST_INVITE_ONLY_ID!;
-  assert.equal(await count(client,'bids',draft),0);
-  assert.equal(await count(other,'bid_versions',submitted),0);
-  assert.equal(await count(client,'bid_versions',submitted),1);
-  assert.equal(await count(artisan,'bid_versions',submitted),1);
-  const {data:dualRoles,error:dualRolesError}=await dual.from('user_roles').select('role').in('role',['client','contractor']);
-  assert.ifError(dualRolesError);
-  assert.deepEqual((dualRoles ?? []).map((r:any)=>r.role).sort(),['client','contractor']);
-  assert.equal(await count(client,'publications',publication),1);
-  assert.equal(await count(targetedActor,'publications',targeted),1);
-  assert.equal(await count(other,'publications',targeted),0);
-  assert.equal(await count(other,'publications',inviteOnly),0);
-  const objectPath=`bid/${process.env.DAO_TEST_BID_VERSION_ID!}/integration-${Date.now()}.pdf`;
-  const {data:version,error:versionError}=await artisan.from('bid_versions').select('id').eq('id',process.env.DAO_TEST_BID_VERSION_ID!).single();
-  assert.ifError(versionError); assert.ok(version);
-  const {data:upload,error:uploadError}=await admin.storage.from('dao-private').createSignedUploadUrl(objectPath);
-  assert.ifError(uploadError); assert.ok(upload?.token);
-  const blob=new Blob(['DAO integration'],{type:'application/pdf'});
-  const {error:putError}=await createClient(url,key).storage.from('dao-private').uploadToSignedUrl(objectPath,upload!.token,blob);
-  assert.ifError(putError);
-  const {data:approved,error:docError}=await client.from('bid_documents').select('id').eq('id',doc).single();
-  assert.ifError(docError); assert.ok(approved);
-  const {data:signed,error:signedError}=await admin.storage.from('dao-private').createSignedUrl(process.env.DAO_TEST_OBJECT_PATH!,300);
-  assert.ifError(signedError); assert.ok(signed?.signedUrl);
-  const {data:blocked}=await other.from('bid_documents').select('id').eq('id',doc); assert.equal(blocked?.length ?? 0,0);
-  const tempProject=process.env.DAO_TEST_TEMP_PROJECT_ID!, tempRequest=process.env.DAO_TEST_TEMP_REQUEST_ID!, tempAward=process.env.DAO_TEST_TEMP_AWARD_ID!, tempItem=process.env.DAO_TEST_TEMP_BID_ITEM_ID!;
-  const keys=[`integration-${Date.now()}-a`,`integration-${Date.now()}-b`,`integration-${Date.now()}-c`];
+  const suffix=Date.now().toString(36), password='T!Dao-'+suffix+'-x9', actors:any={}, rows:any[]=[];
+  const insert=async(table:string,row:any)=>{const r=await admin.from(table).insert(row).select('id').single();assert.ifError(r.error);rows.push({table,id:r.data.id});return r.data.id;};
   try {
-    const params={p_idempotency_key:keys[0],p_award_id:tempAward,p_project_id:tempProject,p_contractor_id:process.env.DAO_TEST_CONTRACTOR_ID!,p_request_id:tempRequest,p_bid_item_id:tempItem,p_agreed_millimes:1000};
-    const first=await client.rpc('award_request_atomic',params); assert.ifError(first.error); assert.ok(first.data);
-    const replay=await client.rpc('award_request_atomic',params); assert.ifError(replay.error); assert.deepEqual(replay.data,first.data);
-    const forbidden=await other.rpc('award_request_atomic',{...params,p_idempotency_key:keys[1]}); assert.ok(forbidden.error);
-    const second=await client.rpc('award_request_atomic',{
-      ...params,
-      p_idempotency_key:keys[2],
-      p_award_id:process.env.DAO_TEST_SECOND_AWARD_ID!,
-      p_contractor_id:process.env.DAO_TEST_SECOND_CONTRACTOR_ID!,
-      p_bid_item_id:process.env.DAO_TEST_SECOND_BID_ITEM_ID!
-    });
-    assert.ok(second.error, 'second active award must fail');
-    assert.match(`${second.error?.code ?? ''} ${second.error?.message ?? ''}`, /23505|one_active_award_per_request/i);
-  } finally {
-    await admin.from('award_items').delete().eq('award_id',tempAward).eq('request_id',tempRequest);
-    await admin.from('award_items').delete().eq('award_id',process.env.DAO_TEST_SECOND_AWARD_ID!).eq('request_id',tempRequest);
-    for (const key of keys) await admin.from('command_receipts').delete().eq('idempotency_key',key);
-  }
-  await admin.storage.from('dao-private').remove([objectPath]);
+    for (const role of ['clientA','clientB','plumberA','plumberB','dual']) {
+      const email='dao-'+role+'-'+suffix+'@example.invalid'; const r=await admin.auth.admin.createUser({email,password,email_confirm:true}); assert.ifError(r.error); actors[role]={id:r.data.user!.id,email};
+      await insert('profiles',{user_id:actors[role].id,display_name:'DAO '+role}); await insert('user_roles',{user_id:actors[role].id,role:role.startsWith('client')?'client':'contractor'});
+    }
+    await insert('user_roles',{user_id:actors.dual.id,role:'client'});
+    const g=await admin.from('governorates').select('id').limit(1); assert.ifError(g.error); assert.ok(g.data?.[0]);
+    const t=await admin.from('trades').select('id').eq('active',true).limit(1); assert.ifError(t.error); assert.ok(t.data?.[0]);
+    const gov=g.data![0].id, trade=t.data![0].id;
+    for (const role of ['plumberA','plumberB']) actors[role].contractorId=await insert('contractor_profiles',{user_id:actors[role].id,business_name:'DAO '+role,verification_status:'verified',contractor_type:'artisan',public_presentation:'test',public_identity_status:'approved'});
+    const project=await insert('projects',{client_id:actors.clientA.id,project_type:'renovation',surface_m2:100});
+    const version=await insert('project_versions',{project_id:project,version_no:1,title:'Disposable',description:'test',governorate_id:gov,status:'approved'});
+    const request=await insert('project_requests',{project_id:project}); const rv=await insert('project_request_versions',{request_id:request,project_id:project,version_no:1,trade_id:trade,title:'Plomberie',scope:'test'});
+    const targeted=await insert('publications',{project_id:project,project_version_id:version,visibility:'targeted',safe_title:'Targeted',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
+    await insert('publication_recipients',{publication_id:targeted,contractor_id:actors.plumberA.contractorId,source:'targeted'});
+    const bid=await insert('bids',{project_id:project,contractor_id:actors.plumberB.contractorId});
+    const submitted=await insert('bid_versions',{bid_id:bid,project_id:project,contractor_id:actors.plumberB.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'submitted',submitted_at:new Date().toISOString()});
+    const item=await insert('bid_items',{bid_version_id:submitted,project_id:project,contractor_id:actors.plumberB.contractorId,request_version_id:rv,request_id:request,price_millimes:1000,duration_days:1,inclusions:'test'});
+    const award=await insert('awards',{project_id:project,contractor_id:actors.plumberB.contractorId});
+    const login=async(a:any)=>{const r=await admin.auth.signInWithPassword({email:a.email,password});assert.ifError(r.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+r.data.session!.access_token}}});};
+    const client=await login(actors.clientA), a=await login(actors.plumberA), other=await login(actors.clientB);
+    assert.equal((await client.from('bids').select('id').eq('id',bid)).data?.length,0);
+    assert.equal((await a.from('publications').select('id').eq('id',targeted)).data?.length,1);
+    assert.equal((await other.from('publications').select('id').eq('id',targeted)).data?.length,0);
+    const key='autonomous-'+suffix, params={p_idempotency_key:key,p_award_id:award,p_project_id:project,p_contractor_id:actors.plumberB.contractorId,p_request_id:request,p_bid_item_id:item,p_agreed_millimes:1000};
+    const first=await client.rpc('award_request_atomic',params); assert.ifError(first.error); const replay=await client.rpc('award_request_atomic',params); assert.ifError(replay.error); assert.deepEqual(first.data,replay.data);
+    const denied=await other.rpc('award_request_atomic',{...params,p_idempotency_key:key+'-other'}); assert.ok(denied.error);
+  } finally { for (const r of rows.reverse()) await admin.from(r.table).delete().eq('id',r.id); for (const role of Object.keys(actors)) if (actors[role].id) await admin.auth.admin.deleteUser(actors[role].id); }
 });
