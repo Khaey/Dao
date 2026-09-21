@@ -20,9 +20,13 @@ test('autonomous Supabase integration', async () => {
     for (const role of ['plumberA','plumberB']) actors[role].contractorId=await insert('contractor_profiles',{user_id:actors[role].id,business_name:'DAO '+role,verification_status:'verified',contractor_type:'artisan',public_presentation:'test',public_identity_status:'approved'});
     const project=await insert('projects',{client_id:actors.clientA.id,project_type:'renovation',surface_m2:100});
     const version=await insert('project_versions',{project_id:project,version_no:1,title:'Disposable',description:'test',governorate_id:gov,status:'approved'});
+    const projectB=await insert('projects',{client_id:actors.clientA.id,project_type:'renovation',surface_m2:90});
+    const versionB=await insert('project_versions',{project_id:projectB,version_no:1,title:'Targeted disposable',description:'test',governorate_id:gov,status:'approved'});
+    const projectC=await insert('projects',{client_id:actors.clientA.id,project_type:'renovation',surface_m2:80});
+    const versionC=await insert('project_versions',{project_id:projectC,version_no:1,title:'Invite disposable',description:'test',governorate_id:gov,status:'approved'});
     const request=await insert('project_requests',{project_id:project}); const rv=await insert('project_request_versions',{request_id:request,project_id:project,version_no:1,trade_id:trade,title:'Plomberie',scope:'test'});
     const publicPub=await insert('publications',{project_id:project,project_version_id:version,visibility:'public',safe_title:'Public',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
-    const targeted=await insert('publications',{project_id:project,project_version_id:version,visibility:'targeted',safe_title:'Targeted',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
+    const targeted=await insert('publications',{project_id:projectB,project_version_id:versionB,visibility:'targeted',safe_title:'Targeted',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
     await insert('publication_recipients',{publication_id:targeted,contractor_id:actors.plumberA.contractorId,source:'targeted'});
     const bid=await insert('bids',{project_id:project,contractor_id:actors.plumberB.contractorId});
     const submitted=await insert('bid_versions',{bid_id:bid,project_id:project,contractor_id:actors.plumberB.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'submitted',submitted_at:new Date().toISOString()}); actors.submittedVersion=submitted;
@@ -39,7 +43,7 @@ test('autonomous Supabase integration', async () => {
     assert.equal((await a.from('publications').select('id').eq('id',targeted)).data?.length,1);
     assert.equal((await other.from('publications').select('id').eq('id',targeted)).data?.length,0);
     assert.equal((await dual.from('user_roles').select('role').in('role',['client','contractor'])).data?.length,2);
-    const invite=await insert('publications',{project_id:project,project_version_id:version,visibility:'invite_only',safe_title:'Invite',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
+    const invite=await insert('publications',{project_id:projectC,project_version_id:versionC,visibility:'invite_only',safe_title:'Invite',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
     await insert('publication_recipients',{publication_id:invite,contractor_id:actors.plumberB.contractorId,source:'invitation'});
     assert.equal((await b.from('publications').select('id').eq('id',invite)).data?.length,1);
     assert.equal((await other.from('publications').select('id').eq('id',invite)).data?.length,0);
