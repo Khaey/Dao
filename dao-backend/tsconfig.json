@@ -1,1 +1,1 @@
-{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","outDir":"dist","rootDir":".","strict":false,"skipLibCheck":true},"include":["src/**/*.ts","tests/**/*.ts"]}
+{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","outDir":"dist","rootDir":".","strict":false,"skipLibCheck":true,"lib":["ES2022","DOM"]},"include":["src/**/*.ts","app/**/*.ts","tests/**/*.ts"]}
