@@ -8,7 +8,8 @@ const vars = ['DAO_SUPABASE_URL','DAO_SUPABASE_PUBLISHABLE_KEY','DAO_SUPABASE_SE
   'DAO_TEST_PROJECT_ID','DAO_TEST_REQUEST_ID','DAO_TEST_AWARD_ID','DAO_TEST_BID_ITEM_ID',
   'DAO_TEST_BID_VERSION_ID','DAO_TEST_DRAFT_BID_ID','DAO_TEST_SUBMITTED_BID_ID','DAO_TEST_DOCUMENT_ID',
   'DAO_TEST_PUBLICATION_ID','DAO_TEST_TARGETED_ID','DAO_TEST_INVITE_ONLY_ID','DAO_TEST_OBJECT_PATH',
-  'DAO_TEST_CONTRACTOR_ID','DAO_TEST_SECOND_BID_ITEM_ID'];
+  'DAO_TEST_CONTRACTOR_ID','DAO_TEST_SECOND_BID_ITEM_ID',
+  'DAO_TEST_TEMP_REQUEST_ID','DAO_TEST_TEMP_AWARD_ID','DAO_TEST_TEMP_BID_ITEM_ID'];
 
 async function login(url:string,key:string,email:string,password:string) {
   const c=createClient(url,key); const {data,error}=await c.auth.signInWithPassword({email,password});
@@ -28,7 +29,7 @@ test('Supabase real MVP integration', async()=>{
   const artisan=await login(url,key,process.env.DAO_TEST_ARTISAN_EMAIL!,process.env.DAO_TEST_ARTISAN_PASSWORD!);
   const dual=await login(url,key,process.env.DAO_TEST_DUAL_EMAIL!,process.env.DAO_TEST_DUAL_PASSWORD!);
   const other=await login(url,key,process.env.DAO_TEST_OTHER_EMAIL!,process.env.DAO_TEST_OTHER_PASSWORD!);
-  const project=process.env.DAO_TEST_PROJECT_ID!, request=process.env.DAO_TEST_REQUEST_ID!, award=process.env.DAO_TEST_AWARD_ID!, item=process.env.DAO_TEST_BID_ITEM_ID!;
+  const project=process.env.DAO_TEST_PROJECT_ID!, request=process.env.DAO_TEST_REQUEST_ID!;
   const draft=process.env.DAO_TEST_DRAFT_BID_ID!, submitted=process.env.DAO_TEST_SUBMITTED_BID_ID!, doc=process.env.DAO_TEST_DOCUMENT_ID!;
   const publication=process.env.DAO_TEST_PUBLICATION_ID!, targeted=process.env.DAO_TEST_TARGETED_ID!, inviteOnly=process.env.DAO_TEST_INVITE_ONLY_ID!;
   assert.equal(await count(client,'bids',draft),0);
@@ -53,12 +54,17 @@ test('Supabase real MVP integration', async()=>{
   const {data:signed,error:signedError}=await admin.storage.from('dao-private').createSignedUrl(process.env.DAO_TEST_OBJECT_PATH!,300);
   assert.ifError(signedError); assert.ok(signed?.signedUrl);
   const {data:blocked}=await other.from('bid_documents').select('id').eq('id',doc); assert.equal(blocked?.length ?? 0,0);
-  const params={p_idempotency_key:`integration-${Date.now()}-a`,p_award_id:award,p_project_id:project,p_contractor_id:process.env.DAO_TEST_CONTRACTOR_ID!,p_request_id:request,p_bid_item_id:item,p_agreed_millimes:1000};
-  const first=await client.rpc('award_request_atomic',params); assert.ifError(first.error); assert.ok(first.data);
-  const replay=await client.rpc('award_request_atomic',params); assert.ifError(replay.error); assert.deepEqual(replay.data,first.data);
-  const forbidden=await other.rpc('award_request_atomic',{...params,p_idempotency_key:`integration-${Date.now()}-b`}); assert.ok(forbidden.error);
-  const second=await client.rpc('award_request_atomic',{...params,p_idempotency_key:`integration-${Date.now()}-c`,p_bid_item_id:process.env.DAO_TEST_SECOND_BID_ITEM_ID!}); assert.ok(second.error);
+  const tempRequest=process.env.DAO_TEST_TEMP_REQUEST_ID!, tempAward=process.env.DAO_TEST_TEMP_AWARD_ID!, tempItem=process.env.DAO_TEST_TEMP_BID_ITEM_ID!;
+  const keys=[`integration-${Date.now()}-a`,`integration-${Date.now()}-b`,`integration-${Date.now()}-c`];
+  try {
+    const params={p_idempotency_key:keys[0],p_award_id:tempAward,p_project_id:project,p_contractor_id:process.env.DAO_TEST_CONTRACTOR_ID!,p_request_id:tempRequest,p_bid_item_id:tempItem,p_agreed_millimes:1000};
+    const first=await client.rpc('award_request_atomic',params); assert.ifError(first.error); assert.ok(first.data);
+    const replay=await client.rpc('award_request_atomic',params); assert.ifError(replay.error); assert.deepEqual(replay.data,first.data);
+    const forbidden=await other.rpc('award_request_atomic',{...params,p_idempotency_key:keys[1]}); assert.ok(forbidden.error);
+    const second=await client.rpc('award_request_atomic',{...params,p_idempotency_key:keys[2],p_bid_item_id:process.env.DAO_TEST_SECOND_BID_ITEM_ID!}); assert.ok(second.error);
+  } finally {
+    await admin.from('award_items').delete().eq('award_id',tempAward).eq('request_id',tempRequest);
+    for (const key of keys) await admin.from('command_receipts').delete().eq('idempotency_key',key);
+  }
   await admin.storage.from('dao-private').remove([objectPath]);
-  await admin.from('command_receipts').delete().eq('idempotency_key',params.p_idempotency_key);
 });
-
