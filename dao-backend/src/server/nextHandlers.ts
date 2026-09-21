@@ -1,11 +1,13 @@
 import type { BackendServices } from './actions.js';
 import * as actions from './actions.js';
-import type { AuthenticatedActor } from './auth.js';
+import { requireActor, type AuthenticatedActor } from './auth.js';
 
 /** Adapter used from Next.js App Router route.ts files. The caller supplies a
  * server-side JWT resolver (typically supabase.auth.getUser(token)). */
 export function createDaoApi(services: BackendServices, resolveActor: (authorization: string | null) => Promise<AuthenticatedActor | null>) {
-  async function actor(request: Request) { return resolveActor(request.headers.get('authorization')); }
+  async function actor(request: Request): Promise<AuthenticatedActor> {
+    return requireActor(await resolveActor(request.headers.get('authorization')));
+  }
   async function json(request: Request) { return await request.json() as Record<string, unknown>; }
   return {
     async createProject(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.createProject(services, a, i)))); },
