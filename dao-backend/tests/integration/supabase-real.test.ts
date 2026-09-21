@@ -42,8 +42,8 @@ test('autonomous Supabase integration', async () => {
     assert.equal((await client.from('bids').select('id').eq('id',bid)).data?.length,0);
     assert.equal((await b.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
     assert.equal((await a.from('bid_versions').select('id').eq('id',submitted2)).data?.length,1);
-    await new BidService(b).submitForActor(submitted,actors.plumberB.id);
-    await new BidService(a).submitForActor(submitted2,actors.plumberA.id);
+    await new BidService(b).submitForActor(submitted,actors.plumberB.contractorId);
+    await new BidService(a).submitForActor(submitted2,actors.plumberA.contractorId);
     assert.equal((await client.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
     assert.equal((await other.from('bid_versions').select('id').eq('id',submitted)).data?.length,0);
     assert.equal((await other.from('publications').select('id').eq('id',publicPub)).data?.length,1);
