@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { BidService } from '../../src/services/BidService.js';
 
 test('autonomous Supabase integration', async () => {
   for (const name of ['DAO_SUPABASE_URL','DAO_SUPABASE_PUBLISHABLE_KEY','DAO_SUPABASE_SECRET_KEY']) assert.ok(process.env[name], 'missing '+name);
@@ -34,13 +35,17 @@ test('autonomous Supabase integration', async () => {
     const bid2=await insert('bids',{project_id:project,contractor_id:actors.plumberA.contractorId});
     const submitted2=await insert('bid_versions',{bid_id:bid2,project_id:project,contractor_id:actors.plumberA.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'draft'});
     const item2=await insert('bid_items',{bid_version_id:submitted2,project_id:project,contractor_id:actors.plumberA.contractorId,request_version_id:rv,request_id:request,price_millimes:1100,duration_days:1,inclusions:'test'});
-    const preSubmit=await admin.from('bid_versions').update({status:'submitted',submitted_at:new Date().toISOString()}).eq('id',submitted).eq('status','draft').select('id').single(); assert.ifError(preSubmit.error);
-    const preSubmit2=await admin.from('bid_versions').update({status:'submitted',submitted_at:new Date().toISOString()}).eq('id',submitted2).eq('status','draft').select('id').single(); assert.ifError(preSubmit2.error);
     const award=await insert('awards',{project_id:project,contractor_id:actors.plumberB.contractorId});
     const award2=await insert('awards',{project_id:project,contractor_id:actors.plumberA.contractorId});
     const login=async(a:any)=>{const userClient=createClient(url,pub);const r=await userClient.auth.signInWithPassword({email:a.email,password});assert.ifError(r.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+r.data.session!.access_token}}});};
     const client=await login(actors.clientA), a=await login(actors.plumberA), b=await login(actors.plumberB), other=await login(actors.clientB), dual=await login(actors.dual);
     assert.equal((await client.from('bids').select('id').eq('id',bid)).data?.length,0);
+    assert.equal((await b.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
+    assert.equal((await a.from('bid_versions').select('id').eq('id',submitted2)).data?.length,1);
+    await new BidService(b).submitForActor(submitted,actors.plumberB.id);
+    await new BidService(a).submitForActor(submitted2,actors.plumberA.id);
+    assert.equal((await client.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
+    assert.equal((await other.from('bid_versions').select('id').eq('id',submitted)).data?.length,0);
     assert.equal((await other.from('publications').select('id').eq('id',publicPub)).data?.length,1);
     assert.equal((await a.from('publications').select('id').eq('id',targeted)).data?.length,1);
     assert.equal((await other.from('publications').select('id').eq('id',targeted)).data?.length,0);
