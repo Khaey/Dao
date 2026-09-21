@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const vars = ['DAO_SUPABASE_URL','DAO_SUPABASE_PUBLISHABLE_KEY','DAO_SUPABASE_SECRET_KEY',
   'DAO_TEST_CLIENT_EMAIL','DAO_TEST_CLIENT_PASSWORD','DAO_TEST_ARTISAN_EMAIL','DAO_TEST_ARTISAN_PASSWORD',
   'DAO_TEST_DUAL_EMAIL','DAO_TEST_DUAL_PASSWORD','DAO_TEST_OTHER_EMAIL','DAO_TEST_OTHER_PASSWORD',
-  'DAO_TEST_PROJECT_ID','DAO_TEST_REQUEST_ID','DAO_TEST_AWARD_ID','DAO_TEST_BID_ITEM_ID',
+  'DAO_TEST_PROJECT_ID','DAO_TEST_TEMP_PROJECT_ID','DAO_TEST_REQUEST_ID','DAO_TEST_AWARD_ID','DAO_TEST_BID_ITEM_ID',
   'DAO_TEST_BID_VERSION_ID','DAO_TEST_DRAFT_BID_ID','DAO_TEST_SUBMITTED_BID_ID','DAO_TEST_DOCUMENT_ID',
   'DAO_TEST_PUBLICATION_ID','DAO_TEST_TARGETED_ID','DAO_TEST_INVITE_ONLY_ID','DAO_TEST_OBJECT_PATH',
   'DAO_TEST_CONTRACTOR_ID','DAO_TEST_TEMP_REQUEST_ID','DAO_TEST_TEMP_AWARD_ID','DAO_TEST_TEMP_BID_ITEM_ID',
@@ -36,7 +36,9 @@ test('Supabase real MVP integration', async()=>{
   assert.equal(await count(other,'bid_versions',submitted),0);
   assert.equal(await count(client,'bid_versions',submitted),1);
   assert.equal(await count(artisan,'bid_versions',submitted),1);
-  assert.equal(await count(dual,'projects',project),1);
+  const {data:dualRoles,error:dualRolesError}=await dual.from('user_roles').select('role').in('role',['client','contractor']);
+  assert.ifError(dualRolesError);
+  assert.deepEqual((dualRoles ?? []).map((r:any)=>r.role).sort(),['client','contractor']);
   assert.equal(await count(client,'publications',publication),1);
   assert.equal(await count(artisan,'publications',targeted),1);
   assert.equal(await count(other,'publications',targeted),0);
@@ -54,10 +56,10 @@ test('Supabase real MVP integration', async()=>{
   const {data:signed,error:signedError}=await admin.storage.from('dao-private').createSignedUrl(process.env.DAO_TEST_OBJECT_PATH!,300);
   assert.ifError(signedError); assert.ok(signed?.signedUrl);
   const {data:blocked}=await other.from('bid_documents').select('id').eq('id',doc); assert.equal(blocked?.length ?? 0,0);
-  const tempRequest=process.env.DAO_TEST_TEMP_REQUEST_ID!, tempAward=process.env.DAO_TEST_TEMP_AWARD_ID!, tempItem=process.env.DAO_TEST_TEMP_BID_ITEM_ID!;
+  const tempProject=process.env.DAO_TEST_TEMP_PROJECT_ID!, tempRequest=process.env.DAO_TEST_TEMP_REQUEST_ID!, tempAward=process.env.DAO_TEST_TEMP_AWARD_ID!, tempItem=process.env.DAO_TEST_TEMP_BID_ITEM_ID!;
   const keys=[`integration-${Date.now()}-a`,`integration-${Date.now()}-b`,`integration-${Date.now()}-c`];
   try {
-    const params={p_idempotency_key:keys[0],p_award_id:tempAward,p_project_id:project,p_contractor_id:process.env.DAO_TEST_CONTRACTOR_ID!,p_request_id:tempRequest,p_bid_item_id:tempItem,p_agreed_millimes:1000};
+    const params={p_idempotency_key:keys[0],p_award_id:tempAward,p_project_id:tempProject,p_contractor_id:process.env.DAO_TEST_CONTRACTOR_ID!,p_request_id:tempRequest,p_bid_item_id:tempItem,p_agreed_millimes:1000};
     const first=await client.rpc('award_request_atomic',params); assert.ifError(first.error); assert.ok(first.data);
     const replay=await client.rpc('award_request_atomic',params); assert.ifError(replay.error); assert.deepEqual(replay.data,first.data);
     const forbidden=await other.rpc('award_request_atomic',{...params,p_idempotency_key:keys[1]}); assert.ok(forbidden.error);
