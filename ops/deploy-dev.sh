@@ -20,7 +20,7 @@ cd "$RELEASE/dao-backend" && "$NPM_PATH" ci
 cd "$RELEASE/dao-frontend" && "$NPM_PATH" ci && "$NPM_PATH" run build
 ln -sfn "$RELEASE" "$APP_ROOT/current"
 sudo -n /usr/bin/systemctl restart dao-dev.service
-sudo -n /usr/bin/systemctl is-active --quiet dao-dev.service
+sudo -n /usr/bin/systemctl is-active dao-dev.service
 
 # Keep the last five releases for rollback.
 ls -1dt "$APP_ROOT"/releases/* | tail -n +6 | xargs -r rm -rf
