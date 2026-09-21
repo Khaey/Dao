@@ -8,8 +8,8 @@ const vars = ['DAO_SUPABASE_URL','DAO_SUPABASE_PUBLISHABLE_KEY','DAO_SUPABASE_SE
   'DAO_TEST_PROJECT_ID','DAO_TEST_REQUEST_ID','DAO_TEST_AWARD_ID','DAO_TEST_BID_ITEM_ID',
   'DAO_TEST_BID_VERSION_ID','DAO_TEST_DRAFT_BID_ID','DAO_TEST_SUBMITTED_BID_ID','DAO_TEST_DOCUMENT_ID',
   'DAO_TEST_PUBLICATION_ID','DAO_TEST_TARGETED_ID','DAO_TEST_INVITE_ONLY_ID','DAO_TEST_OBJECT_PATH',
-  'DAO_TEST_CONTRACTOR_ID','DAO_TEST_SECOND_BID_ITEM_ID',
-  'DAO_TEST_TEMP_REQUEST_ID','DAO_TEST_TEMP_AWARD_ID','DAO_TEST_TEMP_BID_ITEM_ID'];
+  'DAO_TEST_CONTRACTOR_ID','DAO_TEST_TEMP_REQUEST_ID','DAO_TEST_TEMP_AWARD_ID','DAO_TEST_TEMP_BID_ITEM_ID',
+  'DAO_TEST_SECOND_AWARD_ID','DAO_TEST_SECOND_CONTRACTOR_ID','DAO_TEST_SECOND_BID_ITEM_ID'];
 
 async function login(url:string,key:string,email:string,password:string) {
   const c=createClient(url,key); const {data,error}=await c.auth.signInWithPassword({email,password});
@@ -61,9 +61,18 @@ test('Supabase real MVP integration', async()=>{
     const first=await client.rpc('award_request_atomic',params); assert.ifError(first.error); assert.ok(first.data);
     const replay=await client.rpc('award_request_atomic',params); assert.ifError(replay.error); assert.deepEqual(replay.data,first.data);
     const forbidden=await other.rpc('award_request_atomic',{...params,p_idempotency_key:keys[1]}); assert.ok(forbidden.error);
-    const second=await client.rpc('award_request_atomic',{...params,p_idempotency_key:keys[2],p_bid_item_id:process.env.DAO_TEST_SECOND_BID_ITEM_ID!}); assert.ok(second.error);
+    const second=await client.rpc('award_request_atomic',{
+      ...params,
+      p_idempotency_key:keys[2],
+      p_award_id:process.env.DAO_TEST_SECOND_AWARD_ID!,
+      p_contractor_id:process.env.DAO_TEST_SECOND_CONTRACTOR_ID!,
+      p_bid_item_id:process.env.DAO_TEST_SECOND_BID_ITEM_ID!
+    });
+    assert.ok(second.error, 'second active award must fail');
+    assert.match(`${second.error?.code ?? ''} ${second.error?.message ?? ''}`, /23505|one_active_award_per_request/i);
   } finally {
     await admin.from('award_items').delete().eq('award_id',tempAward).eq('request_id',tempRequest);
+    await admin.from('award_items').delete().eq('award_id',process.env.DAO_TEST_SECOND_AWARD_ID!).eq('request_id',tempRequest);
     for (const key of keys) await admin.from('command_receipts').delete().eq('idempotency_key',key);
   }
   await admin.storage.from('dao-private').remove([objectPath]);
