@@ -39,9 +39,17 @@ test('autonomous Supabase integration', async () => {
     const award2=await insert('awards',{project_id:project,contractor_id:actors.plumberA.contractorId});
     const login=async(a:any)=>{const userClient=createClient(url,pub);const r=await userClient.auth.signInWithPassword({email:a.email,password});assert.ifError(r.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+r.data.session!.access_token}}});};
     const client=await login(actors.clientA), a=await login(actors.plumberA), b=await login(actors.plumberB), other=await login(actors.clientB), dual=await login(actors.dual);
+    const createdProject=await client.rpc('create_project_draft',{p_project_type:'repair',p_surface_m2:42,p_desired_start_date:null,p_indicative_budget_millimes:null,p_governorate_id:gov});
+    assert.ifError(createdProject.error); assert.ok(createdProject.data?.id); rows.push({table:'projects',id:createdProject.data.id});
+    assert.equal((await admin.from('projects').select('client_id').eq('id',createdProject.data.id).single()).data?.client_id,actors.clientA.id);
+    const createdRequest=await client.rpc('add_project_request',{p_project_id:createdProject.data.id,p_trade_id:trade,p_title:'Demande autonome',p_scope:'test'});
+    assert.ifError(createdRequest.error); assert.ok(createdRequest.data?.id); rows.push({table:'project_requests',id:createdRequest.data.id});
+    const linked=await admin.from('project_request_versions').select('id,request_id,project_id').eq('request_id',createdRequest.data.id).single(); assert.ifError(linked.error); assert.equal(linked.data?.project_id,createdProject.data.id);
+    const deniedRequest=await other.rpc('add_project_request',{p_project_id:createdProject.data.id,p_trade_id:trade,p_title:'Interdit',p_scope:'test'}); assert.ok(deniedRequest.error);
     assert.equal((await client.from('bids').select('id').eq('id',bid)).data?.length,0);
     assert.equal((await b.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
     assert.equal((await a.from('bid_versions').select('id').eq('id',submitted2)).data?.length,1);
+    await assert.rejects(()=>new BidService(a).submitForActor(submitted,actors.plumberA.contractorId));
     await new BidService(b).submitForActor(submitted,actors.plumberB.contractorId);
     await new BidService(a).submitForActor(submitted2,actors.plumberA.contractorId);
     assert.equal((await client.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
