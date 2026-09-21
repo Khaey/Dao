@@ -1,5 +1,7 @@
 # Tables MVP — 43 tables applicatives
 
+Catalogue vérifié contre les migrations appliquées jusqu’à `202609210005_public_rpc_facades.sql`. Les deux façades RPC publiques et les fonctions `dao_private` ne sont pas des tables. Supabase Auth et Storage restent des services gérés séparément.
+
 1. `governorates`
 2. `delegations`
 3. `localities`
