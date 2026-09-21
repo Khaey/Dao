@@ -6,8 +6,8 @@ export class BidService {
   async get(id: string) { const { data, error } = await this.db.from('bids').select('*').eq('id',id).single(); if(error) throw error; return data; }
   async updateDraft(versionId: string, patch: Record<string, unknown>) { const { data, error } = await this.db.from('bid_versions').update(patch).eq('id',versionId).eq('status','draft').select().single(); if(error) throw error; if(!data) throw new DomainError('Bid version is not a draft','BID_NOT_DRAFT'); return data; }
   async addItem(input: Record<string, unknown>) { const { data, error } = await this.db.from('bid_items').insert(input).select().single(); if(error) throw error; return data; }
-  async submitForActor(versionId: string, actorId: string) {
-    const { data, error } = await this.db.rpc('submit_bid_version', { p_version_id: versionId, p_contractor_id: actorId });
+  async submitForActor(versionId: string, _contractorId?: string) {
+    const { data, error } = await this.db.rpc('submit_bid_version', { p_version_id: versionId });
     if (error) throw error;
     return data;
   }
