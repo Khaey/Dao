@@ -10,13 +10,17 @@ Le MVP utilise un seul runtime Next.js (`dao-frontend`). Les Route Handlers `/ap
 
 Un push sur `main` lance `.github/workflows/ci.yml` : `npm ci`, tests backend/services/routes, PGlite, build frontend, puis Playwright desktop/mobile lorsque les secrets E2E sont configurés. Les screenshots, traces et rapports sont publiés comme artifacts. Le déploiement DEV ne démarre qu’après succès du job `verify`.
 
-Secrets GitHub attendus : `DEV_SSH_HOST`, `DEV_SSH_USER`, `DEV_SSH_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `DAO_SUPABASE_SECRET_KEY`, `PLAYWRIGHT_CLIENT_EMAIL`, `PLAYWRIGHT_CLIENT_PASSWORD`, `PLAYWRIGHT_TRADE_ID`.
+Secrets GitHub attendus : `DEV_SSH_HOST`, `DEV_SSH_USER` (valeur `dao`), `DEV_SSH_KEY` (clé privée dédiée dont la clé publique est installée pour `dao`), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `DAO_SUPABASE_SECRET_KEY`, `PLAYWRIGHT_CLIENT_EMAIL`, `PLAYWRIGHT_CLIENT_PASSWORD`, `PLAYWRIGHT_TRADE_ID`. Le déploiement ne se connecte jamais en root.
 
 ## VPS
 
-Installer le service `ops/dao-dev.service` et le `Caddyfile` sur le VPS, avec un fichier `/etc/dao/dao-dev.env` lisible uniquement par l’utilisateur de service. Caddy expose `https://dao-dev.logiclab.fr` et reverse-proxy vers `127.0.0.1:3000`. WireGuard n’est pas modifié.
+L’installation initiale se fait en une commande root, après avoir copié `ops/` sur le VPS : `DAO_DEPLOY_PUBLIC_KEY='ssh-ed25519 ...' bash ops/bootstrap-dev.sh`. Le script est idempotent : il crée/configure `dao`, `/opt/dao`, `/opt/dao/releases`, `/etc/dao`, installe le service, le Caddyfile, le sudoers minimal et le script de déploiement. Il vérifie les chemins réels de `node`, `npm`, `git` et `caddy`, puis ne modifie jamais WireGuard.
 
-Logs : `journalctl -u dao-dev.service -f`.
+Compléter ensuite `/etc/dao/dao-dev.env` hors Git avec `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` et `DAO_SUPABASE_SECRET_KEY`. La clé privée reste uniquement dans les secrets GitHub Actions. Le fichier `/etc/sudoers.d/dao-dev` autorise à `dao` uniquement `systemctl restart/is-active/status dao-dev.service`; aucun sudo général n’est accordé.
+
+Caddy expose `https://dao-dev.logiclab.fr` et reverse-proxy vers `127.0.0.1:3000`. Le service démarre automatiquement après reboot. WireGuard n’est pas modifié.
+
+Logs : `journalctl -u dao-dev.service -f` et `journalctl -u caddy -f`.
 
 ## Rollback
 
