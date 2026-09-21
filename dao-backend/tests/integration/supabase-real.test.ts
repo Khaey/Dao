@@ -45,6 +45,8 @@ test('autonomous Supabase integration', async () => {
     const createdRequest=await client.rpc('add_project_request',{p_project_id:createdProject.data.id,p_trade_id:trade,p_title:'Demande autonome',p_scope:'test'});
     assert.ifError(createdRequest.error); assert.ok(createdRequest.data?.id); rows.push({table:'project_requests',id:createdRequest.data.id});
     const linked=await admin.from('project_request_versions').select('id,request_id,project_id').eq('request_id',createdRequest.data.id).single(); assert.ifError(linked.error); assert.equal(linked.data?.project_id,createdProject.data.id);
+    const createdVersion=await admin.from('project_versions').select('id').eq('project_id',createdProject.data.id).single(); assert.ifError(createdVersion.error); assert.ok(createdVersion.data?.id);
+    const versionLink=await admin.from('project_version_requests').select('id').eq('project_id',createdProject.data.id).eq('project_version_id',createdVersion.data.id).eq('request_version_id',linked.data.id).single(); assert.ifError(versionLink.error); assert.ok(versionLink.data?.id);
     const deniedRequest=await other.rpc('add_project_request',{p_project_id:createdProject.data.id,p_trade_id:trade,p_title:'Interdit',p_scope:'test'}); assert.ok(deniedRequest.error);
     assert.equal((await client.from('bids').select('id').eq('id',bid)).data?.length,0);
     assert.equal((await b.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
