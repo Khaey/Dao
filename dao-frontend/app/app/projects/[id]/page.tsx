@@ -40,6 +40,8 @@ export default function ProjectDetail() {
   const [trade, setTrade] = useState('');
   const [title, setTitle] = useState('');
   const [scope, setScope] = useState('');
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +55,7 @@ export default function ProjectDetail() {
     const [projectResult, projectVersionsResult, requestsResult, requestVersionsResult, tradesResult] = await Promise.all([
       supabase.from('projects').select('*').eq('id', id).single(),
       supabase.from('project_versions').select('*').eq('project_id', id).order('version_no', { ascending: false }).limit(1),
-      supabase.from('project_requests').select('id,status,created_at').eq('project_id', id).order('created_at', { ascending: true }),
+      supabase.from('project_requests').select('id,status,created_at').eq('project_id', id).neq('status', 'withdrawn').order('created_at', { ascending: true }),
       supabase.from('project_request_versions').select('id,request_id,version_no,trade_id,title,scope,budget_millimes').eq('project_id', id).order('version_no', { ascending: false }),
       supabase.from('trades').select('id,name_fr').eq('active', true).order('name_fr'),
     ]);
@@ -106,22 +108,64 @@ export default function ProjectDetail() {
 
   useEffect(() => { void load(); }, [id]);
 
-  async function addRequest(event: FormEvent<HTMLFormElement>) {
+  async function submitRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true); setError(''); setSuccess('');
     const { data: sessionData } = await supabaseBrowser().auth.getSession();
     const session = sessionData.session;
     if (!session) { setError('Session expirée.'); setSaving(false); return; }
+    const editing = Boolean(editingRequestId);
     const response = await fetch('/api/projects/requests', {
-      method: 'POST',
+      method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ project_id: id, trade_id: trade, title, scope }),
+      body: JSON.stringify(editing
+        ? { request_id: editingRequestId, trade_id: trade, title, scope }
+        : { project_id: id, trade_id: trade, title, scope }),
     });
     const { data, error: responseError } = await response.json();
-    if (!response.ok || !data) { setError(responseError || 'Ajout refusé.'); setSaving(false); return; }
-    setTrade(''); setTitle(''); setScope(''); setSuccess('Demande ajoutée.');
+    if (!response.ok || !data) { setError(responseError || (editing ? 'Modification refusée.' : 'Ajout refusé.')); setSaving(false); return; }
+    setTrade(''); setTitle(''); setScope(''); setEditingRequestId(null);
+    setSuccess(editing ? 'Demande modifiée.' : 'Demande ajoutée.');
     await load();
     setSaving(false);
+  }
+
+  function editRequest(request: RequestView) {
+    setEditingRequestId(request.id);
+    setTrade(request.trade_id ?? '');
+    setTitle(request.title ?? '');
+    setScope(request.scope ?? '');
+    setSuccess('');
+    setError('');
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function cancelEdit() {
+    setEditingRequestId(null);
+    setTrade('');
+    setTitle('');
+    setScope('');
+    setError('');
+    setSuccess('');
+  }
+
+  async function deleteRequest(request: RequestView) {
+    if (!window.confirm(`Supprimer la demande « ${request.title ?? 'sans titre'} » ?`)) return;
+    setDeletingRequestId(request.id); setError(''); setSuccess('');
+    const { data: sessionData } = await supabaseBrowser().auth.getSession();
+    const session = sessionData.session;
+    if (!session) { setError('Session expirée.'); setDeletingRequestId(null); return; }
+    const response = await fetch('/api/projects/requests', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ request_id: request.id }),
+    });
+    const { data, error: responseError } = await response.json();
+    if (!response.ok || !data) { setError(responseError || 'Suppression refusée.'); setDeletingRequestId(null); return; }
+    if (editingRequestId === request.id) cancelEdit();
+    setSuccess('Demande supprimée.');
+    await load();
+    setDeletingRequestId(null);
   }
 
   function reuseRequest(request: RequestView) {
@@ -182,7 +226,11 @@ export default function ProjectDetail() {
                   <span>Budget lot : <strong className="font-medium text-ink">{formatTnd(request.budget_millimes)}</strong></span>
                   {request.created_at && <span>Ajoutée le {formatDate(request.created_at)}</span>}
                 </div>
-                <button type="button" onClick={() => reuseRequest(request)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-semibold hover:border-teal hover:text-teal">Dupliquer</button>
+                <div className="flex flex-wrap gap-2">
+                  {project.status === 'draft' && request.status === 'open' && <button type="button" onClick={() => editRequest(request)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-semibold hover:border-teal hover:text-teal">Modifier</button>}
+                  <button type="button" onClick={() => reuseRequest(request)} className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-semibold hover:border-teal hover:text-teal">Dupliquer</button>
+                  {project.status === 'draft' && request.status === 'open' && <button type="button" disabled={deletingRequestId === request.id} onClick={() => void deleteRequest(request)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">{deletingRequestId === request.id ? 'Suppression…' : 'Supprimer'}</button>}
+                </div>
               </div>
             </article>)}
           </div>}
@@ -190,20 +238,22 @@ export default function ProjectDetail() {
 
       <div ref={formRef}>
         <Card>
-          <h2 className="font-semibold">Ajouter une demande</h2>
-          <p className="mt-1 text-xs text-black/45">Décris un lot précis : métier, intitulé et périmètre.</p>
-          <form onSubmit={addRequest} className="mt-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="font-semibold">{editingRequestId ? 'Modifier la demande' : 'Ajouter une demande'}</h2><p className="mt-1 text-xs text-black/45">{editingRequestId ? 'Les modifications créent une nouvelle version du lot.' : 'Décris un lot précis : métier, intitulé et périmètre.'}</p></div>
+            {editingRequestId && <button type="button" onClick={cancelEdit} className="text-xs font-semibold text-black/45 hover:text-ink">Annuler</button>}
+          </div>
+          <form onSubmit={submitRequest} className="mt-4 space-y-3">
             <label className="block"><span className="mb-1.5 block text-xs font-medium">Métier</span><select aria-label="Métier" className="w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none ring-teal/20 focus:ring-4" value={trade} onChange={(event) => setTrade(event.target.value)} required><option value="">Choisir un métier</option>{trades.map((item) => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></label>
             <label className="block"><span className="mb-1.5 block text-xs font-medium">Intitulé</span><Input placeholder="Ex. Plomberie complète de la salle de bain" value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-medium">Périmètre des travaux</span><textarea className="min-h-32 w-full resize-y rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none ring-teal/20 focus:ring-4" placeholder="Ex. Dépose de l'existant, alimentation EF/EC, évacuations, pose des sanitaires, essais et remise en état…" value={scope} onChange={(event) => setScope(event.target.value)} required /></label>
             {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
             {success && <p className="text-xs text-teal" role="status">{success}</p>}
-            <Button className="w-full" disabled={saving}>{saving ? 'Ajout…' : 'Ajouter la demande'}</Button>
+            <Button className="w-full" disabled={saving}>{saving ? (editingRequestId ? 'Enregistrement…' : 'Ajout…') : (editingRequestId ? 'Enregistrer les modifications' : 'Ajouter la demande')}</Button>
           </form>
         </Card>
         <Card className="mt-4">
           <h3 className="text-sm font-semibold">Options à venir</h3>
-          <p className="mt-2 text-xs leading-5 text-black/50">Modification versionnée, retrait d’un lot, budget par lot, pièces jointes/photos et génération assistée du cahier des charges seront branchés sur le même écran.</p>
+          <p className="mt-2 text-xs leading-5 text-black/50">Les prochaines options seront le budget par lot, les pièces jointes/photos et la génération assistée du cahier des charges.</p>
         </Card>
       </div>
     </div>
