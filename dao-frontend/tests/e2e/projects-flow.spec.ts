@@ -1,8 +1,8 @@
 import { test, expect, type Browser, type Page } from '@playwright/test';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 async function login(page:Page,email:string,password:string){await page.goto('/auth/login');await page.getByPlaceholder('Votre email').fill(email);await page.getByPlaceholder('Mot de passe').fill(password);await page.getByRole('button',{name:'Se connecter'}).click();await expect(page).toHaveURL(/\/app\/projects/);}
-function rememberProject(id:string){const file=process.env.DAO_E2E_STATE_FILE;if(!file)return;const state=JSON.parse(readFileSync(file,'utf8'));state.projects=[...(state.projects||[]),id];appendFileSync(file,'');require('node:fs').writeFileSync(file,JSON.stringify(state));}
+function rememberProject(id:string){const file=process.env.DAO_E2E_STATE_FILE;if(!file)return;const state=JSON.parse(readFileSync(file,'utf8'));state.projects=[...(state.projects||[]),id];writeFileSync(file,JSON.stringify(state));}
 test('Client → reviewer DAO → publication DEV',async({browser},testInfo)=>{
  const clientEmail=process.env.PLAYWRIGHT_CLIENT_EMAIL,clientPassword=process.env.PLAYWRIGHT_CLIENT_PASSWORD,reviewerEmail=process.env.PLAYWRIGHT_REVIEWER_EMAIL,reviewerPassword=process.env.PLAYWRIGHT_REVIEWER_PASSWORD;
  test.skip(!clientEmail||!clientPassword||!reviewerEmail||!reviewerPassword,'E2E users were not provisioned');
