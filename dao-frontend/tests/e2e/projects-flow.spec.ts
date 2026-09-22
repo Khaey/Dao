@@ -50,7 +50,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByRole('button', { name: 'Modifier', exact: true }).click();
   await client.getByLabel('Intitulé du lot').fill('Lot plomberie E2E version 2');
   await client.getByRole('button', { name: 'Enregistrer les modifications' }).click();
-  await expect(client.getByText('Version 2')).toBeVisible();
+  await expect(client.getByText('Version 2', { exact: true })).toBeVisible();
   await expect(client.getByText('Historique (2)')).toBeVisible();
   await client.getByRole('link', { name: 'Revoir le DAO' }).click();
   await client.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
