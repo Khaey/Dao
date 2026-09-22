@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { ProjectService, PublicationService, BidService, AwardService, DocumentService } from '../services/index.js';
+import { ProjectService, PublicationService, BidService, AwardService, DocumentService, ProfileService, AIService } from '../services/index.js';
 import { createDaoApi } from './nextHandlers.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
@@ -15,7 +15,8 @@ export function createRequestApi(request: Request) {
   const storageAdmin = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } }).storage;
   const services = {
     projects: new ProjectService(db), publications: new PublicationService(db), bids: new BidService(db),
-    awards: new AwardService(db), documents: new DocumentService(db, storageAdmin)
+    awards: new AwardService(db), documents: new DocumentService(db, storageAdmin),
+    profiles: new ProfileService(db), ai: new AIService(db)
   };
   return createDaoApi(services, async (header) => {
     if (!header?.startsWith('Bearer ')) return null;
