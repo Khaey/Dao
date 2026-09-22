@@ -40,6 +40,7 @@ export default function ProjectDetail() {
   const [trade, setTrade] = useState('');
   const [title, setTitle] = useState('');
   const [scope, setScope] = useState('');
+  const [budget, setBudget] = useState('');
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,12 +120,12 @@ export default function ProjectDetail() {
       method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify(editing
-        ? { request_id: editingRequestId, trade_id: trade, title, scope }
+        ? { request_id: editingRequestId, trade_id: trade, title, scope, budget_millimes: budget ? Math.round(Number(budget) * 1000) : null }
         : { project_id: id, trade_id: trade, title, scope }),
     });
     const { data, error: responseError } = await response.json();
     if (!response.ok || !data) { setError(responseError || (editing ? 'Modification refusée.' : 'Ajout refusé.')); setSaving(false); return; }
-    setTrade(''); setTitle(''); setScope(''); setEditingRequestId(null);
+    setTrade(''); setTitle(''); setScope(''); setBudget(''); setEditingRequestId(null);
     setSuccess(editing ? 'Demande modifiée.' : 'Demande ajoutée.');
     await load();
     setSaving(false);
@@ -135,6 +136,7 @@ export default function ProjectDetail() {
     setTrade(request.trade_id ?? '');
     setTitle(request.title ?? '');
     setScope(request.scope ?? '');
+    setBudget(request.budget_millimes == null ? '' : String(Number(request.budget_millimes) / 1000));
     setSuccess('');
     setError('');
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -145,6 +147,7 @@ export default function ProjectDetail() {
     setTrade('');
     setTitle('');
     setScope('');
+    setBudget('');
     setError('');
     setSuccess('');
   }
@@ -172,6 +175,7 @@ export default function ProjectDetail() {
     setTrade(request.trade_id ?? '');
     setTitle(request.title ? `${request.title} - copie` : '');
     setScope(request.scope ?? '');
+    setBudget(request.budget_millimes == null ? '' : String(Number(request.budget_millimes) / 1000));
     setSuccess('');
     setError('');
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -245,6 +249,7 @@ export default function ProjectDetail() {
           <form onSubmit={submitRequest} className="mt-4 space-y-3">
             <label className="block"><span className="mb-1.5 block text-xs font-medium">Métier</span><select aria-label="Métier" className="w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none ring-teal/20 focus:ring-4" value={trade} onChange={(event) => setTrade(event.target.value)} required><option value="">Choisir un métier</option>{trades.map((item) => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></label>
             <label className="block"><span className="mb-1.5 block text-xs font-medium">Intitulé</span><Input placeholder="Ex. Plomberie complète de la salle de bain" value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-medium">Budget indicatif du lot (TND)</span><Input type="number" min="0" step="0.001" placeholder="Ex. 25000" value={budget} onChange={(event) => setBudget(event.target.value)} /></label>
             <label className="block"><span className="mb-1.5 block text-xs font-medium">Périmètre des travaux</span><textarea className="min-h-32 w-full resize-y rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none ring-teal/20 focus:ring-4" placeholder="Ex. Dépose de l'existant, alimentation EF/EC, évacuations, pose des sanitaires, essais et remise en état…" value={scope} onChange={(event) => setScope(event.target.value)} required /></label>
             {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
             {success && <p className="text-xs text-teal" role="status">{success}</p>}
