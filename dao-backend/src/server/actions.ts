@@ -4,13 +4,9 @@ import { PublicationService } from '../services/PublicationService.js';
 import { BidService } from '../services/BidService.js';
 import { AwardService } from '../services/AwardService.js';
 import { DocumentService } from '../services/DocumentService.js';
-
 export type BackendServices = { projects: ProjectService; publications: PublicationService; bids: BidService; awards: AwardService; documents: DocumentService };
-
-export async function createProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
-  requireActor(actor);
-  return s.projects.create({ ...input, client_id: actor.id });
-}
+export async function createProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.projects.create({ ...input, client_id: actor.id }); }
+export async function updateProjectDraft(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.projects.updateDraft(input); }
 export async function addProjectRequest(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.projects.addRequest(input); }
 export async function updateProjectRequest(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.projects.updateRequest(input); }
 export async function withdrawProjectRequest(s: BackendServices, actor: AuthenticatedActor, requestId: string) { requireActor(actor); return s.projects.withdrawRequest(requestId); }
