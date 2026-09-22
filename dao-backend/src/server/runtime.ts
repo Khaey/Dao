@@ -9,7 +9,7 @@ export function createRequestApi(request: Request) {
   const key = env('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
   const secret = env('DAO_SUPABASE_SECRET_KEY');
   const authorization = request.headers.get('authorization');
-  const db = createClient(url, key, { global: { headers: authorization ? { authorization } : {} } });
+  const db = createClient(url, key, { global: { headers: authorization ? { Authorization: authorization } : {} } });
   // db is JWT-scoped. storageAdmin is server-only and is used only after
   // authorization has succeeded through db/RLS.
   const storageAdmin = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } }).storage;
@@ -20,8 +20,8 @@ export function createRequestApi(request: Request) {
   return createDaoApi(services, async (header) => {
     if (!header?.startsWith('Bearer ')) return null;
     const token = header.slice(7);
-    const authClient = createClient(url, key, { global: { headers: { authorization: header } } });
-    const { data, error } = await authClient.auth.getUser(token);
+    const authClient = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } } });
+    const { data, error } = await authClient.auth.getUser();
     if (error || !data.user) return null;
     return { id: data.user.id };
   });
