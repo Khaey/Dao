@@ -121,7 +121,7 @@ export default function ProjectDetail() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify(editing
         ? { request_id: editingRequestId, trade_id: trade, title, scope, budget_millimes: budget ? Math.round(Number(budget) * 1000) : null }
-        : { project_id: id, trade_id: trade, title, scope }),
+        : { project_id: id, trade_id: trade, title, scope, budget_millimes: budget ? Math.round(Number(budget) * 1000) : null }),
     });
     const { data, error: responseError } = await response.json();
     if (!response.ok || !data) { setError(responseError || (editing ? 'Modification refusée.' : 'Ajout refusé.')); setSaving(false); return; }
