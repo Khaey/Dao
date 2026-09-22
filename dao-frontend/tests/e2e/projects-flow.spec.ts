@@ -76,7 +76,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   const correctionClient = await correctionContext.newPage();
   await login(correctionClient, clientEmail!, clientPassword!);
   await correctionClient.goto('/app/projects/' + projectId);
-  await expect(correctionClient.getByText('Corrections demandées')).toBeVisible();
+  await expect(correctionClient.getByText('Corrections demandées').first()).toBeVisible();
   await expect(correctionClient.getByText('À corriger : précisez le périmètre du lot.')).toBeVisible();
   await correctionClient.getByRole('button', { name: 'Corriger le DAO' }).click();
   await expect(correctionClient.getByRole('link', { name: 'Revoir le DAO' })).toBeVisible();
