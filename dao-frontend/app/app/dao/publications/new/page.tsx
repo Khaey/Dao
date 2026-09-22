@@ -1,8 +1,8 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {useSearchParams,useRouter} from 'next/navigation';
-import {supabaseBrowser} from '../../../../lib/supabase-browser';
-import {Button,Card} from '../../../../components/ui';
+import {supabaseBrowser} from '../../../../../lib/supabase-browser';
+import {Button,Card} from '../../../../../components/ui';
 export default function NewPublication(){const params=useSearchParams();const router=useRouter();const projectId=params.get('project_id')||'';const [rows,setRows]=useState<any[]>([]);const [contractors,setContractors]=useState<any[]>([]);const [visibility,setVisibility]=useState('public');const [selected,setSelected]=useState<string[]>([]);const [recipients,setRecipients]=useState<string[]>([]);const [error,setError]=useState('');const [saving,setSaving]=useState(false);
  useEffect(()=>{if(!projectId)return;void(async()=>{const s=supabaseBrowser();const {data}=await s.from('project_requests').select('id').eq('project_id',projectId).eq('status','open');setRows(data??[]);setSelected((data??[]).map((x:any)=>x.id));const {data:cs}=await s.from('contractor_profiles').select('id,public_name,trade_id').eq('verification_status','verified').order('public_name');setContractors(cs??[])})()},[projectId]);
  async function submit(){setSaving(true);const {data}=await supabaseBrowser().auth.getSession();if(!data.session){setError('Session expirée.');return}const r=await fetch('/api/publications',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${data.session.access_token}`},body:JSON.stringify({project_id:projectId,visibility,request_ids:selected,contractor_ids:contractors.filter((x:any)=>recipients.includes(x.id)).map((x:any)=>x.id)})});const b=await r.json();if(!r.ok){setError(b.error||'Publication refusée.');setSaving(false);return}router.push('/app/dao/review')}
