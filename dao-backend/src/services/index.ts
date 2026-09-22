@@ -5,5 +5,6 @@ export { AwardService } from './AwardService.js';
 export { DocumentService } from './DocumentService.js';
 export { NotificationService } from './NotificationService.js';
 export { AIService } from './AIService.js';
+export { ProfileService } from './ProfileService.js';
 export { requireActor } from '../server/auth.js';
 export * from '../server/actions.js';
