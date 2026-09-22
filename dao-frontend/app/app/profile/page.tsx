@@ -5,10 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { Badge, Button, Card, Input } from '../../../components/ui';
-import { statusLabel } from '../../../lib/utils';
 
-type ProfileRow = { display_name: string | null };
-type ContactRow = { phone_e164: string | null; contact_email: string | null };
 type RoleRow = { role: string };
 type ProjectRow = { status: string | null };
 
@@ -34,15 +31,9 @@ function readError(body: unknown, fallback: string) {
     : fallback;
 }
 
-function formatActivityStatus(status: string | null) {
-  return status ? (statusLabel[status] ?? status) : 'Non renseigné';
-}
-
 export default function Profile() {
   const router = useRouter();
   const [user, setUser] = useState<{ email?: string | null } | null>(null);
-  const [profile, setProfile] = useState<ProfileRow | null>(null);
-  const [contact, setContact] = useState<ContactRow | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [name, setName] = useState('');
@@ -82,8 +73,6 @@ export default function Profile() {
       setError('Impossible de charger toutes les informations de votre espace.');
     }
     setActivityError(projectResult.error ? 'Votre activité sera disponible dès que la session sera actualisée.' : '');
-    setProfile(profileResult.data);
-    setContact(contactResult.data);
     setName(profileResult.data?.display_name ?? currentUser.email?.split('@')[0] ?? '');
     setPhone(contactResult.data?.phone_e164 ?? '');
     setRoles((roleResult.data ?? []).map((row: RoleRow) => row.role));
@@ -289,14 +278,12 @@ export default function Profile() {
           <label className="block text-sm font-semibold">Confirmer le mot de passe<Input aria-label="Confirmer le mot de passe" type="password" minLength={8} value={passwordConfirmation} onChange={event => setPasswordConfirmation(event.target.value)} required /></label>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
             <Button disabled={passwordSaving}>{passwordSaving ? 'Mise à jour…' : 'Changer le mot de passe'}</Button>
-            <Button type="button" className="bg-white text-ink ring-1 ring-black/10 hover:bg-sand" onClick={() => void signOut}>Se déconnecter</Button>
+            <Button type="button" className="bg-white text-ink ring-1 ring-black/10 hover:bg-sand" onClick={() => void signOut()}>Se déconnecter</Button>
             {securityMessage && <p className="text-sm text-teal" role="status">{securityMessage}</p>}
           </div>
         </form>
         <p className="mt-4 text-xs text-black/45">Déconnectez-vous après une utilisation sur un appareil partagé.</p>
       </Card>
-
-      <p className="text-xs text-black/45">Statut de compte : {formatActivityStatus('open') === 'Ouvert' ? 'actif' : 'actif'}.</p>
     </section>
   );
 }
