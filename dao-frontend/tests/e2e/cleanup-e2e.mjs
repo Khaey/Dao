@@ -32,6 +32,22 @@ for (const publicationId of publicationIds) {
   await removeRows('publications', 'id=eq.' + publicationId);
 }
 
+// Bids reference projects, so remove this run's offer graph before projects.
+for (const profileId of contractorProfileIds) {
+  const bids = await rows('bids', 'contractor_id=eq.' + profileId + '&select=id');
+  const bidIds = ids(bids);
+  const bidVersions = bidIds.length ? await rows('bid_versions', inQuery('bid_id', bidIds) + '&select=id') : [];
+  const bidVersionIds = ids(bidVersions);
+  if (bidVersionIds.length) {
+    await removeRows('bid_documents', inQuery('bid_version_id', bidVersionIds));
+    await removeRows('bid_group_items', inQuery('bid_version_id', bidVersionIds));
+    await removeRows('bid_groups', inQuery('bid_version_id', bidVersionIds));
+    await removeRows('bid_items', inQuery('bid_version_id', bidVersionIds));
+    await removeRows('bid_versions', inQuery('id', bidVersionIds));
+  }
+  if (bidIds.length) await removeRows('bids', inQuery('id', bidIds));
+}
+
 for (const projectId of projectIds) {
   const documents = await rows('documents', 'project_id=eq.' + projectId + '&select=id,object_path');
   for (const document of documents) {
