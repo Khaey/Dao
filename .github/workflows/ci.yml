@@ -46,7 +46,9 @@ jobs:
       DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
       DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
       DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
-      PLAYWRIGHT_BASE_URL: https://dao-dev.logiclab.fr
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       DAO_E2E_STATE_FILE: /tmp/dao-e2e-${{ github.run_id }}.json
     steps:
       - uses: actions/checkout@v4

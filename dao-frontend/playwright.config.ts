@@ -5,6 +5,6 @@ export default defineConfig({
   webServer: { command: 'npm run dev', url: 'http://127.0.0.1:3000', reuseExistingServer: true },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
-    { name: 'mobile', use: { ...devices['iPhone 12'], viewport: { width: 390, height: 844 } } },
+    { name: 'mobile', use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 } } },
   ],
 });
