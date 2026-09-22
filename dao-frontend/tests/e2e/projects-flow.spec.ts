@@ -85,7 +85,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await screenshot(client, testInfo, 'project-documents');
   await client.getByRole('button', { name: 'DAO' }).click();
   await screenshot(client, testInfo, 'project-dao');
-  await client.getByRole('link', { name: 'Revoir le DAO' }).click();
+  await client.getByRole('link', { name: 'Revoir le DAO' }).first().click();
   await screenshot(client, testInfo, 'dao-review');
   await client.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
   await expect(client.getByText('Validation client').first()).toBeVisible();
