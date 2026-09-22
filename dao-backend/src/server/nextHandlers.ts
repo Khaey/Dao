@@ -12,6 +12,8 @@ export function createDaoApi(services: BackendServices, resolveActor: (authoriza
   return {
     async createProject(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.createProject(services, a, i)))); },
     async addProjectRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.addProjectRequest(services, a, i)))); },
+    async updateProjectRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.updateProjectRequest(services, a, i)))); },
+    async withdrawProjectRequest(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.withdrawProjectRequest(services, a, String(i.request_id)))); },
     async submitBid(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.submitBid(services,a,String(i.versionId)))); },
     async awardRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.awardRequest(services,a,i)))); },
     async signedUpload(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.signedUpload(services,a,i as never)))); },
