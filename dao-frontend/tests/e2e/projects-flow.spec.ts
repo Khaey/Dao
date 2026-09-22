@@ -92,14 +92,14 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await artisan.getByRole('button', { name: 'Enregistrer le brouillon' }).click();
   await expect(artisan.getByRole('status')).toContainText('Brouillon enregistré');
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
-  await expect(artisan.getByRole('status')).toContainText('offre a été soumise');
+  await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
   await expect(artisan.getByRole('button', { name: 'Soumettre l’offre' })).toBeVisible();
   await artisan.getByLabel('Prix proposé (TND)').fill('26000');
   await artisan.getByLabel('Délai (jours)').fill('22');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
-  await expect(artisan.getByRole('status')).toContainText('offre a été soumise');
+  await expect(artisan.getByText(/Version 2 soumise/)).toBeVisible();
   await artisan.screenshot({ path: `test-results/${testInfo.project.name}-artisan-offer.png`, fullPage: true });
   await artisan.goto('/app/artisan');
   await expect(artisan.getByText('Offre envoyée').first()).toBeVisible();
