@@ -71,7 +71,7 @@ jobs:
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
           script: |
-            if [ -f /opt/dao/current/ops/deploy-dev.sh ]; then
-              install -m 0750 /opt/dao/current/ops/deploy-dev.sh /opt/dao/deploy-dev.sh
-            fi
+            git -C /opt/dao/current fetch origin main
+            git -C /opt/dao/current show ${{ github.sha }}:ops/deploy-dev.sh > /opt/dao/deploy-dev.sh
+            chmod 0750 /opt/dao/deploy-dev.sh
             bash /opt/dao/deploy-dev.sh ${{ github.sha }}
