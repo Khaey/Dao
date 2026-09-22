@@ -39,6 +39,8 @@ for (const profileId of contractorProfileIds) {
   const bidVersions = bidIds.length ? await rows('bid_versions', inQuery('bid_id', bidIds) + '&select=id') : [];
   const bidVersionIds = ids(bidVersions);
   if (bidVersionIds.length) {
+    const bidDocuments = await rows('bid_documents', inQuery('bid_version_id', bidVersionIds) + '&select=object_path');
+    for (const document of bidDocuments) if (document.object_path) await api('/storage/v1/object/dao-private/' + document.object_path.split('/').map(encodeURIComponent).join('/'), { method: 'DELETE' });
     await removeRows('bid_documents', inQuery('bid_version_id', bidVersionIds));
     await removeRows('bid_group_items', inQuery('bid_version_id', bidVersionIds));
     await removeRows('bid_groups', inQuery('bid_version_id', bidVersionIds));
