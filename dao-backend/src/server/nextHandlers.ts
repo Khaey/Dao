@@ -7,6 +7,8 @@ export function createDaoApi(services: BackendServices, resolveActor: (authoriza
   return {
     async createProject(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.createProject(services, a, i)))); },
     async updateProjectDraft(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.updateProjectDraft(services, a, i)))); },
+    async submitProjectForReview(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.submitProjectForReview(services,a,String(i.project_id)))); },
+    async reviewProject(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.reviewProject(services,a,i)))); },
     async addProjectRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.addProjectRequest(services, a, i)))); },
     async updateProjectRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.updateProjectRequest(services, a, i)))); },
     async withdrawProjectRequest(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.withdrawProjectRequest(services, a, String(i.request_id)))); },
