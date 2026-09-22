@@ -61,14 +61,14 @@ export default function RoleNav() {
   const linkClass = (href: string) => pathname.startsWith(href) ? 'font-semibold text-ink' : 'hover:text-ink';
 
   return (
-    <div className="flex items-center gap-4">
-      {ready && <nav className="flex flex-wrap justify-end gap-4 text-sm text-black/60">
+    <div className="flex items-center gap-3">
+      {ready && <nav className="flex flex-wrap justify-end gap-3 text-sm text-black/60">
         {hasClient && <Link href="/app/projects" className={linkClass('/app/projects')}>Mes projets</Link>}
         {hasContractor && <Link href="/app/artisan" className={linkClass('/app/artisan')}>Espace artisan</Link>}
         {hasStaff && <Link href="/app/dao/review" className={linkClass('/app/dao')}>Revue DAO</Link>}
         <Link href="/app/profile" className={linkClass('/app/profile')}>Mon espace</Link>
       </nav>}
-      <button type="button" onClick={() => void signOut()} className="hidden rounded-lg border border-black/10 px-3 py-2 text-xs font-semibold text-black/60 hover:border-teal hover:text-teal sm:inline-flex">
+      <button type="button" onClick={() => void signOut()} className="inline-flex shrink-0 rounded-lg border border-black/10 px-3 py-2 text-xs font-semibold text-black/60 hover:border-teal hover:text-teal">
         Déconnexion
       </button>
       <span className="sr-only">{email} {roles.map(role => labels[role] ?? role).join(', ')}</span>
