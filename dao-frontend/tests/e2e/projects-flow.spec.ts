@@ -54,7 +54,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(client.getByText('Historique (2)')).toBeVisible();
   await client.getByRole('link', { name: 'Revoir le DAO' }).click();
   await client.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(client.getByText('Validation client')).toBeVisible();
+  await expect(client.getByText('Validation client').first()).toBeVisible();
   await client.close();
   await clientContext.close();
 
@@ -82,7 +82,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(correctionClient.getByText('Version 2').first()).toBeVisible();
   await correctionClient.getByRole('link', { name: 'Revoir le DAO' }).click();
   await correctionClient.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(correctionClient.getByText('Validation client')).toBeVisible();
+  await expect(correctionClient.getByText('Validation client').first()).toBeVisible();
   await correctionContext.close();
 
   const finalReviewerContext = await browser.newContext();
