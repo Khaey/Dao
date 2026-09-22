@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {supabaseBrowser} from '../../../lib/supabase-browser';
-import {Badge,Button,Card} from '../../../components/ui';
+import {supabaseBrowser} from '../../../../lib/supabase-browser';
+import {Badge,Button,Card} from '../../../../components/ui';
 export default function DaoReview(){const [rows,setRows]=useState<any[]>([]);const [loading,setLoading]=useState(true);const [message,setMessage]=useState('');
  async function load(){const {data}=await supabaseBrowser().from('project_versions').select('id,project_id,title,description,status,version_no').in('status',['client_review','dao_review']).order('created_at',{ascending:true});setRows(data??[]);setLoading(false)}
  useEffect(()=>{void load()},[]);
