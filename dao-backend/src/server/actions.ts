@@ -10,6 +10,8 @@ export async function updateProjectDraft(s: BackendServices, actor: Authenticate
 export async function addProjectRequest(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.projects.addRequest(input); }
 export async function updateProjectRequest(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.projects.updateRequest(input); }
 export async function withdrawProjectRequest(s: BackendServices, actor: AuthenticatedActor, requestId: string) { requireActor(actor); return s.projects.withdrawRequest(requestId); }
+export async function submitProjectForReview(s: BackendServices, actor: AuthenticatedActor, id: string) { requireActor(actor); return s.projects.submitForReview(id); }
+export async function reviewProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.projects.review(String(input.project_id), Boolean(input.approve), input.comment as string | undefined); }
 export async function confirmProject(s: BackendServices, actor: AuthenticatedActor, id: string) { requireActor(actor); return s.projects.confirmClient(id, actor.id); }
 export async function submitForDaoReview(s: BackendServices, actor: AuthenticatedActor, id: string) { requireActor(actor); return s.projects.submitForDaoReview(id, actor.id); }
 export async function publishProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) { requireActor(actor); return s.publications.publish({ ...input, actor_id: actor.id }); }
