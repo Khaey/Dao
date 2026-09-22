@@ -4,13 +4,15 @@ Le backend D.A.O utilise Next.js/TypeScript, Supabase PostgreSQL, Auth, Storage 
 
 ## État validé
 
-- migrations Supabase jusqu’à `202609220006_bid_rpc_hardening.sql` ;
+- migrations Supabase jusqu’à `202609220007_priority1_client_workflow.sql` (appliquée sur DEV) ;
 - services/routes compilés ;
-- tests services/routes : 8/8 ;
-- suite PGlite : 77/77 ;
+- tests services/routes : 9/9 ;
+- suite PGlite : 78/78 ;
 - test autonome Supabase réel : 1 test, 1 pass, 0 fail avec les trois variables configurées ;
 - parcours frontend artisan branché sur les RPC d’offre ;
 - aucune clé privilégiée dans le navigateur.
+
+La tranche Priority 1 ajoute les commandes serveur de profil, correction après rejet, archivage, détails privés, documents de projet et propositions IA mock. Les dates de fin de projet/version/publication sont facultatives et validées côté PostgreSQL. Le compte peut cumuler les rôles client et contractor sans que le navigateur ne fournisse une identité d’autorité.
 
 ## Sécurité
 
