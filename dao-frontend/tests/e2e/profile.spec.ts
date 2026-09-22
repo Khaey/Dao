@@ -17,7 +17,7 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page 
   await page.goto('/app/profile');
 
   await expect(page.getByRole('heading', { name: 'Votre espace D.A.O' })).toBeVisible();
-  await expect(page.getByRole('main').getByText(email!, { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByText(email!, { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Espace client', { exact: true })).toBeVisible();
   await expect(page.getByText('Mes projets', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
