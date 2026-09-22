@@ -114,8 +114,8 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(correctionClient.getByText('À corriger : précisez le périmètre du lot.')).toBeVisible();
   await screenshot(correctionClient, testInfo, 'corrections-demandees');
   await correctionClient.getByRole('button', { name: 'Corriger le DAO' }).click();
-  await expect(correctionClient.getByRole('link', { name: 'Revoir le DAO' })).toBeVisible();
-  await correctionClient.getByRole('link', { name: 'Revoir le DAO' }).click();
+  await expect(correctionClient.getByRole('link', { name: 'Revoir le DAO' }).first()).toBeVisible();
+  await correctionClient.getByRole('link', { name: 'Revoir le DAO' }).first().click();
   await correctionClient.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
   await expect(correctionClient.getByText('Validation client').first()).toBeVisible();
   await correctionContext.close();
