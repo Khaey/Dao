@@ -62,5 +62,5 @@ async function create(email, role) {
   );
 }
 
-await create(`dao-e2e-client-${runId}@logiclab.invalid`, 'client');
-await create(`dao-e2e-reviewer-${runId}@logiclab.invalid`, 'dao_reviewer');
+await create(`dao-e2e-client-${runKey}@logiclab.invalid`, 'client');
+await create(`dao-e2e-reviewer-${runKey}@logiclab.invalid`, 'dao_reviewer');
