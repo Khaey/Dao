@@ -1,34 +1,16 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Browser, type Page } from '@playwright/test';
+import { appendFileSync, readFileSync } from 'node:fs';
 
-test('Client prépare un projet et ses demandes', async ({ page }, testInfo) => {
-  const email = process.env.PLAYWRIGHT_CLIENT_EMAIL;
-  const password = process.env.PLAYWRIGHT_CLIENT_PASSWORD;
-  test.skip(!email || !password, 'PLAYWRIGHT_CLIENT_EMAIL/PASSWORD requis pour le test E2E réel');
-
-  await page.goto('/auth/login');
-  await page.getByPlaceholder('Votre email').fill(email!);
-  await page.getByPlaceholder('Mot de passe').fill(password!);
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/app\/projects/);
-
-  await page.goto('/app/projects/new');
-  await page.getByLabel('Titre du projet').fill('Projet E2E D.A.O');
-  await page.getByLabel('Description').fill('Validation du parcours de préparation.');
-  await page.getByLabel('Type').selectOption('construction');
-  await page.getByLabel('Surface (m²)').fill('180');
-  await page.getByLabel('Budget indicatif (TND)').fill('150000');
-  await page.getByLabel('Date souhaitée').fill('2027-06-01');
-  await page.getByLabel('Gouvernorat').selectOption({ index: 1 });
-  await page.getByLabel('Délégation').selectOption({ index: 1 });
-  await page.getByLabel('Localité').selectOption({ index: 1 });
-  await page.getByRole('button', { name: 'Créer le projet et ajouter les demandes' }).click();
-  await expect(page).toHaveURL(/\/app\/projects\/[^/]+/);
-
-  await page.getByLabel('Métier').selectOption({ index: 1 });
-  await page.getByLabel('Intitulé').fill('Plomberie test E2E');
-  await page.getByLabel('Budget indicatif du lot (TND)').fill('25000');
-  await page.getByLabel('Périmètre des travaux').fill('Demande créée par Playwright');
-  await page.getByRole('button', { name: 'Ajouter la demande' }).click();
-  await expect(page.getByText('Plomberie test E2E')).toBeVisible();
-  await page.screenshot({ path: `test-results/${testInfo.project.name}-projects-flow.png`, fullPage: true });
+async function login(page:Page,email:string,password:string){await page.goto('/auth/login');await page.getByPlaceholder('Votre email').fill(email);await page.getByPlaceholder('Mot de passe').fill(password);await page.getByRole('button',{name:'Se connecter'}).click();await expect(page).toHaveURL(/\/app\/projects/);}
+function rememberProject(id:string){const file=process.env.DAO_E2E_STATE_FILE;if(!file)return;const state=JSON.parse(readFileSync(file,'utf8'));state.projects=[...(state.projects||[]),id];appendFileSync(file,'');require('node:fs').writeFileSync(file,JSON.stringify(state));}
+test('Client → reviewer DAO → publication DEV',async({browser},testInfo)=>{
+ const clientEmail=process.env.PLAYWRIGHT_CLIENT_EMAIL,clientPassword=process.env.PLAYWRIGHT_CLIENT_PASSWORD,reviewerEmail=process.env.PLAYWRIGHT_REVIEWER_EMAIL,reviewerPassword=process.env.PLAYWRIGHT_REVIEWER_PASSWORD;
+ test.skip(!clientEmail||!clientPassword||!reviewerEmail||!reviewerPassword,'E2E users were not provisioned');
+ const clientContext=await browser.newContext();const client=await clientContext.newPage();await login(client,clientEmail!,clientPassword!);
+ await client.goto('/app/projects/new');await client.getByLabel('Titre du projet').fill('DAO E2E DEV');await client.getByLabel('Description').fill('Projet E2E client reviewer publication');await client.getByLabel('Gouvernorat').selectOption({index:1});await client.getByLabel('Délégation').selectOption({index:1});await client.getByLabel('Localité').selectOption({index:1});await client.getByLabel('Budget indicatif (TND)').fill('150000');await client.getByRole('button',{name:'Créer le projet et ajouter les demandes'}).click();await expect(client).toHaveURL(/\/app\/projects\/[^/]+/);const projectId=client.url().split('/').pop()!;rememberProject(projectId);
+ await client.getByLabel('Métier').selectOption({index:1});await client.getByLabel('Intitulé').fill('Lot plomberie E2E');await client.getByLabel('Budget indicatif du lot (TND)').fill('25000');await client.getByLabel('Périmètre des travaux').fill('Installation plomberie complète');await client.getByRole('button',{name:'Ajouter la demande'}).click();await expect(client.getByText('Lot plomberie E2E')).toBeVisible();
+ await client.getByRole('link',{name:'Revoir le DAO'}).click();await client.getByRole('button',{name:'Soumettre pour revue DAO'}).click();await expect(client.getByText('Validation client')).toBeVisible();await client.close();await clientContext.close();
+ const reviewerContext=await browser.newContext();const reviewer=await reviewerContext.newPage();await login(reviewer,reviewerEmail!,reviewerPassword!);await reviewer.goto('/app/dao/review');await expect(reviewer.getByText('DAO E2E DEV')).toBeVisible();await reviewer.getByLabel('Commentaire de revue').fill('Commentaire E2E DAO');await reviewer.getByRole('button',{name:'Passer en revue DAO'}).click();await expect(reviewer.getByText('dao_review')).toBeVisible();await reviewer.getByLabel('Commentaire de revue').fill('Validation finale E2E');await reviewer.getByRole('button',{name:'Approuver'}).click();
+ await reviewer.goto(`/app/dao/publications/new?project_id=${projectId}`);await reviewer.getByRole('button',{name:'Publier le DAO'}).click();await expect(reviewer).toHaveURL(/\/app\/publications\/[^/]+/);const publicationUrl=reviewer.url();await expect(reviewer.getByText('DAO E2E DEV')).toBeVisible();await reviewer.screenshot({path:`test-results/${testInfo.project.name}-published.png`,fullPage:true});await reviewerContext.close();
+ const finalContext=await browser.newContext();const final=await finalContext.newPage();await login(final,clientEmail!,clientPassword!);await final.goto(publicationUrl);await expect(final.getByText('DAO E2E DEV')).toBeVisible();await finalContext.close();
 });
