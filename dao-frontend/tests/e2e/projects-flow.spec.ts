@@ -17,6 +17,10 @@ function rememberProject(id: string) {
   writeFileSync(file, JSON.stringify(state));
 }
 
+function screenshot(page: Page, testInfo: { project: { name: string } }, name: string) {
+  return page.screenshot({ path: `test-results/${testInfo.project.name}-${name}.png`, fullPage: true });
+}
+
 test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, testInfo) => {
   const clientEmail = process.env.PLAYWRIGHT_CLIENT_EMAIL;
   const clientPassword = process.env.PLAYWRIGHT_CLIENT_PASSWORD;
@@ -29,30 +33,60 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   const clientContext = await browser.newContext();
   const client = await clientContext.newPage();
   await login(client, clientEmail!, clientPassword!);
+  await client.goto('/app');
+  await expect(client.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+  await screenshot(client, testInfo, 'dashboard');
+  await client.goto('/app/projects');
+  await screenshot(client, testInfo, 'projects');
+
   const projectTitle = `DAO E2E DEV ${testInfo.project.name}`;
   await client.goto('/app/projects/new');
+  await screenshot(client, testInfo, 'new-project-step1');
   await client.getByLabel('Titre du projet').fill(projectTitle);
   await client.getByLabel('Description').fill('Projet E2E client reviewer publication');
+  await client.getByLabel('Type de projet').selectOption('renovation');
+  await client.getByLabel('Surface (m²)').fill('180');
+  await client.getByRole('button', { name: 'Continuer' }).click();
   await client.getByLabel('Gouvernorat').selectOption({ index: 1 });
+  await expect(client.getByLabel('Délégation')).toBeEnabled();
   await client.getByLabel('Délégation').selectOption({ index: 1 });
+  await expect(client.getByLabel('Localité')).toBeEnabled();
   await client.getByLabel('Localité').selectOption({ index: 1 });
+  await client.getByRole('button', { name: 'Continuer' }).click();
   await client.getByLabel('Budget indicatif (TND)').fill('150000');
+  await client.getByRole('button', { name: 'Continuer' }).click();
+  await expect(client.getByRole('heading', { name: 'Vérifiez les informations' })).toBeVisible();
+  await screenshot(client, testInfo, 'new-project-summary');
   await client.getByRole('button', { name: 'Créer le projet et ajouter les demandes' }).click();
   await expect(client).toHaveURL(/\/app\/projects\/(?!new(?:\/|$))[^/?#]+/);
   const projectId = client.url().split('/').pop()!;
   rememberProject(projectId);
+  await screenshot(client, testInfo, 'project-overview');
+
+  await client.getByRole('button', { name: /^Lots/ }).click();
+  await screenshot(client, testInfo, 'project-lots');
+  await screenshot(client, testInfo, 'project-add-lot');
   await client.getByLabel('Métier').selectOption({ index: 1 });
   await client.getByLabel('Intitulé du lot').fill('Lot plomberie E2E');
   await client.getByLabel('Budget indicatif du lot (TND)').fill('25000');
   await client.getByLabel('Périmètre des travaux').fill('Installation plomberie complète');
   await client.getByRole('button', { name: 'Ajouter la demande' }).click();
   await expect(client.getByText('Lot plomberie E2E')).toBeVisible();
-  await client.getByRole('button', { name: 'Modifier', exact: true }).click();
+  await screenshot(client, testInfo, 'project-lots-filled');
+  await client.getByTitle('Modifier').click();
   await client.getByLabel('Intitulé du lot').fill('Lot plomberie E2E version 2');
   await client.getByRole('button', { name: 'Enregistrer les modifications' }).click();
-  await expect(client.getByText('Version 2', { exact: true })).toBeVisible();
-  await expect(client.getByText('Historique (2)')).toBeVisible();
+  await expect(client.getByText('v2', { exact: true })).toBeVisible();
+  await client.getByRole('button', { name: 'Historique' }).click();
+  await screenshot(client, testInfo, 'project-history');
+  await client.getByRole('button', { name: /Lot plomberie E2E version 2/ }).click();
+  await expect(client.getByText(/v2/)).toBeVisible();
+  await client.getByRole('button', { name: 'Documents' }).click();
+  await screenshot(client, testInfo, 'project-documents');
+  await client.getByRole('button', { name: 'DAO' }).click();
+  await screenshot(client, testInfo, 'project-dao');
   await client.getByRole('link', { name: 'Revoir le DAO' }).click();
+  await screenshot(client, testInfo, 'dao-review');
   await client.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
   await expect(client.getByText('Validation client').first()).toBeVisible();
   await client.close();
@@ -78,9 +112,9 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await correctionClient.goto('/app/projects/' + projectId);
   await expect(correctionClient.getByText('Corrections demandées').first()).toBeVisible();
   await expect(correctionClient.getByText('À corriger : précisez le périmètre du lot.')).toBeVisible();
+  await screenshot(correctionClient, testInfo, 'corrections-demandees');
   await correctionClient.getByRole('button', { name: 'Corriger le DAO' }).click();
   await expect(correctionClient.getByRole('link', { name: 'Revoir le DAO' })).toBeVisible();
-  await expect(correctionClient.getByText('Version 2').first()).toBeVisible();
   await correctionClient.getByRole('link', { name: 'Revoir le DAO' }).click();
   await correctionClient.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
   await expect(correctionClient.getByText('Validation client').first()).toBeVisible();
@@ -99,6 +133,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await finalReviewCard.getByRole('button', { name: 'Approuver' }).click();
   await expect(finalReviewCard).not.toBeVisible();
   await finalReviewer.goto('/app/dao/publications/new?project_id=' + projectId);
+  await screenshot(finalReviewer, testInfo, 'publication-review');
   await finalReviewer.getByRole('button', { name: 'Publier le DAO' }).click();
   await expect(finalReviewer).toHaveURL(/\/app\/publications\/[^/]+/);
   const publicationUrl = finalReviewer.url();
@@ -108,7 +143,6 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   state.publications = [...(state.publications || []), publicationId];
   writeFileSync(stateFile, JSON.stringify(state));
   await expect(finalReviewer.getByText(projectTitle)).toBeVisible();
-  await finalReviewer.screenshot({ path: `test-results/${testInfo.project.name}-published.png`, fullPage: true });
   await finalReviewerContext.close();
 
   const artisanContext = await browser.newContext();
@@ -128,15 +162,12 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
-  await expect(artisan.getByRole('button', { name: 'Soumettre l’offre' })).toBeVisible();
   await artisan.getByLabel('Prix proposé (TND)').fill('26000');
   await artisan.getByLabel('Délai (jours)').fill('22');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByText(/Version 2 soumise/)).toBeVisible();
-  await artisan.screenshot({ path: `test-results/${testInfo.project.name}-artisan-offer.png`, fullPage: true });
-  await artisan.goto('/app/artisan');
-  await expect(artisan.getByText('Offre envoyée').first()).toBeVisible();
+  await screenshot(artisan, testInfo, 'artisan-offer');
   await artisanContext.close();
 
   const finalContext = await browser.newContext();

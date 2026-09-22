@@ -2,288 +2,32 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, LockKeyhole, LogOut, Pencil, ShieldCheck, UserRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
-import { Badge, Button, Card, Input } from '../../../components/ui';
+import { Badge, Button, Card, Input, SectionHeading } from '../../../components/ui';
 
-type RoleRow = { role: string };
-type ProjectRow = { status: string | null };
+type RoleRow = { role: string }; type ProjectRow = { status: string | null };
+const roleLabels: Record<string, string> = { client: 'Espace client', contractor: 'Espace artisan', dao_reviewer: 'Revue DAO', dao_admin: 'Administration DAO' };
+const roleDescriptions: Record<string, string> = { client: 'Préparer vos projets et suivre vos lots.', contractor: 'Consulter les DAO et envoyer vos offres.', dao_reviewer: 'Contrôler les dossiers avant publication.', dao_admin: 'Administrer la plateforme D.A.O.' };
+const order = ['client', 'contractor', 'dao_reviewer', 'dao_admin'];
 
-const roleLabels: Record<string, string> = {
-  client: 'Espace client',
-  contractor: 'Espace artisan',
-  dao_reviewer: 'Revue DAO',
-  dao_admin: 'Administration DAO',
-};
-
-const roleDescriptions: Record<string, string> = {
-  client: 'Préparez vos projets et suivez vos demandes de travaux.',
-  contractor: 'Consultez les DAO accessibles et envoyez vos offres.',
-  dao_reviewer: 'Contrôlez les dossiers avant leur publication.',
-  dao_admin: 'Gérez la plateforme et les accès DAO.',
-};
-
-const roleOrder = ['client', 'contractor', 'dao_reviewer', 'dao_admin'];
-
-function readError(body: unknown, fallback: string) {
-  return body && typeof body === 'object' && 'error' in body && typeof body.error === 'string'
-    ? body.error
-    : fallback;
-}
+function errorFrom(body: unknown, fallback: string) { return body && typeof body === 'object' && 'error' in body && typeof body.error === 'string' ? body.error : fallback; }
 
 export default function Profile() {
-  const router = useRouter();
-  const [user, setUser] = useState<{ email?: string | null } | null>(null);
-  const [roles, setRoles] = useState<string[]>([]);
-  const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [password, setPassword] = useState('');
-  const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [activityError, setActivityError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [securityMessage, setSecurityMessage] = useState('');
-
-  async function load() {
-    setLoading(true);
-    setError('');
-    const supabase = supabaseBrowser();
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    const currentUser = userData.user;
-    setUser(currentUser);
-
-    const [profileResult, contactResult, roleResult, projectResult] = await Promise.all([
-      supabase.from('profiles').select('display_name').eq('user_id', currentUser.id).maybeSingle(),
-      supabase.from('profile_contacts').select('phone_e164,contact_email').eq('user_id', currentUser.id).maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', currentUser.id),
-      supabase.from('projects').select('status').order('created_at', { ascending: false }),
-    ]);
-
-    if (profileResult.error || contactResult.error || roleResult.error) {
-      setError('Impossible de charger toutes les informations de votre espace.');
-    }
-    setActivityError(projectResult.error ? 'Votre activité sera disponible dès que la session sera actualisée.' : '');
-    setName(profileResult.data?.display_name ?? currentUser.email?.split('@')[0] ?? '');
-    setPhone(contactResult.data?.phone_e164 ?? '');
-    setRoles((roleResult.data ?? []).map((row: RoleRow) => row.role));
-    setProjects(projectResult.data ?? []);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    void load();
-  }, []);
-
-  async function save(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    setError('');
-    setSuccess('');
-    const { data } = await supabaseBrowser().auth.getSession();
-    if (!data.session) {
-      setError('Session expirée. Reconnectez-vous.');
-      setSaving(false);
-      return;
-    }
-
-    const response = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + data.session.access_token,
-      },
-      body: JSON.stringify({ display_name: name.trim(), phone_e164: phone.trim() || null }),
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setError(readError(body, 'Impossible de mettre à jour le profil.'));
-    } else {
-      setSuccess('Profil mis à jour.');
-      await load();
-    }
-    setSaving(false);
-  }
-
-  async function changePassword(event: FormEvent) {
-    event.preventDefault();
-    setSecurityMessage('');
-    setError('');
-    if (password.length < 8) {
-      setError('Le nouveau mot de passe doit contenir au moins 8 caractères.');
-      return;
-    }
-    if (password !== passwordConfirmation) {
-      setError('Les deux mots de passe ne correspondent pas.');
-      return;
-    }
-
-    setPasswordSaving(true);
-    const { error: updateError } = await supabaseBrowser().auth.updateUser({ password });
-    if (updateError) {
-      setError(updateError.message || 'Impossible de changer le mot de passe.');
-    } else {
-      setPassword('');
-      setPasswordConfirmation('');
-      setSecurityMessage('Mot de passe mis à jour.');
-    }
-    setPasswordSaving(false);
-  }
-
-  async function signOut() {
-    const { error: signOutError } = await supabaseBrowser().auth.signOut();
-    if (signOutError) {
-      setError('Impossible de vous déconnecter. Réessayez.');
-      return;
-    }
-    router.replace('/auth/login');
-  }
-
-  const activity = useMemo(() => {
-    const count = (statuses: string[]) => projects.filter(project => project.status && statuses.includes(project.status)).length;
-    return {
-      total: projects.length,
-      drafts: count(['draft']),
-      review: count(['client_review', 'dao_review']),
-      published: count(['open', 'published']),
-      archived: count(['archived', 'closed']),
-    };
-  }, [projects]);
-
-  const completion = useMemo(() => {
-    const fields = [
-      Boolean(user?.email),
-      Boolean(name.trim()),
-      Boolean(phone.match(/^\+216[0-9]{8}$/)),
-      roles.length > 0,
-    ];
-    return Math.round((fields.filter(Boolean).length / fields.length) * 100);
-  }, [name, phone, roles, user?.email]);
-
-  if (loading) return <p>Chargement de votre espace…</p>;
-  if (!user) return <p role="alert">Session expirée. Reconnectez-vous.</p>;
-
-  return (
-    <section className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <p className="text-sm font-semibold text-teal">Mon espace</p>
-        <h1 className="mt-1 text-3xl font-bold">Votre espace D.A.O</h1>
-        <p className="mt-2 max-w-2xl text-black/60">Retrouvez votre identité, vos espaces et les raccourcis utiles au quotidien.</p>
-      </div>
-
-      {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}
-      {success && <p className="rounded-xl bg-teal/10 px-4 py-3 text-sm text-teal" role="status">{success}</p>}
-
-      <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
-        <Card>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Identité</p>
-              <h2 className="mt-1 text-xl font-semibold">{name || 'Votre profil'}</h2>
-              <p className="mt-1 text-sm text-black/60">{user.email}</p>
-            </div>
-            <div className="rounded-2xl bg-teal/10 px-3 py-2 text-right">
-              <p className="text-xs text-teal">Profil complété</p>
-              <p className="text-2xl font-bold text-teal">{completion}%</p>
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-sand/70 p-3">
-              <p className="text-xs text-black/45">Nom affiché</p>
-              <p className="mt-1 font-medium">{name || 'À compléter'}</p>
-            </div>
-            <div className="rounded-xl bg-sand/70 p-3">
-              <p className="text-xs text-black/45">Téléphone</p>
-              <p className="mt-1 font-medium">{phone || 'À compléter'}</p>
-            </div>
-          </div>
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-black/5" aria-label="Complétude du profil">
-            <div className="h-full rounded-full bg-teal transition-all" style={{ width: completion + '%' }} />
-          </div>
-        </Card>
-
-        <Card>
-          <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Espaces disponibles</p>
-          <div className="mt-4 space-y-3">
-            {roleOrder.filter(role => roles.includes(role)).map(role => (
-              <div key={role} className="flex items-start gap-3 rounded-xl border border-black/5 p-3">
-                <Badge>{roleLabels[role] ?? role}</Badge>
-                <p className="text-sm text-black/60">{roleDescriptions[role] ?? 'Espace D.A.O disponible.'}</p>
-              </div>
-            ))}
-            {roles.length === 0 && <p className="text-sm text-black/50">Aucun espace n’est encore attribué.</p>}
-          </div>
-        </Card>
-      </div>
-
-      <Card>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Accès rapides</p>
-            <h2 className="mt-1 text-xl font-semibold">Continuer votre parcours</h2>
-          </div>
-          <span className="text-xs text-black/45">{roles.length} espace{roles.length > 1 ? 's' : ''} actif{roles.length > 1 ? 's' : ''}</span>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {roles.includes('client') && <Link href="/app/projects" className="rounded-xl border border-black/10 p-4 transition hover:-translate-y-0.5 hover:border-teal"><p className="font-semibold">Mes projets</p><p className="mt-1 text-sm text-black/55">Suivre vos chantiers et vos lots.</p></Link>}
-          {roles.includes('client') && <Link href="/app/projects/new" className="rounded-xl border border-black/10 p-4 transition hover:-translate-y-0.5 hover:border-teal"><p className="font-semibold">Nouveau projet</p><p className="mt-1 text-sm text-black/55">Préparer un nouveau DAO.</p></Link>}
-          {roles.includes('contractor') && <Link href="/app/artisan" className="rounded-xl border border-black/10 p-4 transition hover:-translate-y-0.5 hover:border-teal"><p className="font-semibold">Espace artisan</p><p className="mt-1 text-sm text-black/55">Voir les DAO qui vous concernent.</p></Link>}
-          {(roles.includes('dao_reviewer') || roles.includes('dao_admin')) && <Link href="/app/dao/review" className="rounded-xl border border-black/10 p-4 transition hover:-translate-y-0.5 hover:border-teal"><p className="font-semibold">Revue DAO</p><p className="mt-1 text-sm text-black/55">Traiter les dossiers à contrôler.</p></Link>}
-        </div>
-      </Card>
-
-      <Card>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Activité client</p>
-            <h2 className="mt-1 text-xl font-semibold">Vos projets en un coup d’œil</h2>
-          </div>
-          <Link href="/app/projects" className="text-sm font-semibold text-teal">Voir tous les projets</Link>
-        </div>
-        {activityError ? <p className="mt-4 text-sm text-black/50">{activityError}</p> : <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
-          {[
-            ['Projets', activity.total],
-            ['Brouillons', activity.drafts],
-            ['En revue', activity.review],
-            ['Publiés / ouverts', activity.published],
-            ['Archivés', activity.archived],
-          ].map(([label, value]) => <div key={label} className="rounded-xl bg-sand/70 p-3"><p className="text-xs text-black/45">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}
-        </div>}
-      </Card>
-
-      <Card>
-        <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Modifier vos informations</p>
-        <h2 className="mt-1 text-xl font-semibold">Identité publique</h2>
-        <form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-semibold">Nom affiché<Input aria-label="Nom affiché" value={name} onChange={event => setName(event.target.value)} required /></label>
-          <label className="block text-sm font-semibold">Téléphone tunisien<Input aria-label="Téléphone tunisien" placeholder="+216XXXXXXXX" value={phone} onChange={event => setPhone(event.target.value)} pattern="\\+216[0-9]{8}" /></label>
-          <div className="sm:col-span-2"><Button disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer les informations'}</Button></div>
-        </form>
-      </Card>
-
-      <Card>
-        <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Sécurité</p>
-        <h2 className="mt-1 text-xl font-semibold">Protéger votre compte</h2>
-        <form onSubmit={changePassword} className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-semibold">Nouveau mot de passe<Input aria-label="Nouveau mot de passe" type="password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required /></label>
-          <label className="block text-sm font-semibold">Confirmer le mot de passe<Input aria-label="Confirmer le mot de passe" type="password" minLength={8} value={passwordConfirmation} onChange={event => setPasswordConfirmation(event.target.value)} required /></label>
-          <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-            <Button disabled={passwordSaving}>{passwordSaving ? 'Mise à jour…' : 'Changer le mot de passe'}</Button>
-            <Button type="button" className="bg-white text-ink ring-1 ring-black/10 hover:bg-sand" onClick={() => void signOut()}>Se déconnecter</Button>
-            {securityMessage && <p className="text-sm text-teal" role="status">{securityMessage}</p>}
-          </div>
-        </form>
-        <p className="mt-4 text-xs text-black/45">Déconnectez-vous après une utilisation sur un appareil partagé.</p>
-      </Card>
-    </section>
-  );
+  const router = useRouter(); const [user, setUser] = useState<{ email?: string | null } | null>(null); const [roles, setRoles] = useState<string[]>([]); const [projects, setProjects] = useState<ProjectRow[]>([]); const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [editing, setEditing] = useState(false); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [password, setPassword] = useState(''); const [confirmation, setConfirmation] = useState(''); const [passwordSaving, setPasswordSaving] = useState(false); const [error, setError] = useState(''); const [success, setSuccess] = useState(''); const [securityMessage, setSecurityMessage] = useState('');
+  async function load() { setLoading(true); setError(''); const supabase = supabaseBrowser(); const { data: userData, error: userError } = await supabase.auth.getUser(); if (userError || !userData.user) { setUser(null); setLoading(false); return; } const current = userData.user; setUser(current); const [profile, contact, roleRows, activity] = await Promise.all([supabase.from('profiles').select('display_name').eq('user_id', current.id).maybeSingle(), supabase.from('profile_contacts').select('phone_e164').eq('user_id', current.id).maybeSingle(), supabase.from('user_roles').select('role').eq('user_id', current.id), supabase.from('projects').select('status').order('created_at', { ascending: false })]); if (profile.error || contact.error || roleRows.error) setError('Impossible de charger toutes les informations du compte.'); setName(profile.data?.display_name ?? current.email?.split('@')[0] ?? ''); setPhone(contact.data?.phone_e164 ?? ''); setRoles((roleRows.data ?? []).map((row: RoleRow) => row.role)); setProjects(activity.data ?? []); setLoading(false); }
+  useEffect(() => { void load(); }, []);
+  async function save(event: FormEvent) { event.preventDefault(); setSaving(true); setError(''); setSuccess(''); const { data } = await supabaseBrowser().auth.getSession(); if (!data.session) { setError('Session expirée.'); setSaving(false); return; } const response = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` }, body: JSON.stringify({ display_name: name.trim(), phone_e164: phone.trim() || null }) }); const body = await response.json().catch(() => ({})); if (!response.ok) setError(errorFrom(body, 'Impossible de mettre à jour le profil.')); else { setSuccess('Profil mis à jour.'); setEditing(false); await load(); } setSaving(false); }
+  async function changePassword(event: FormEvent) { event.preventDefault(); setError(''); setSecurityMessage(''); if (password.length < 8) { setError('Le nouveau mot de passe doit contenir au moins 8 caractères.'); return; } if (password !== confirmation) { setError('Les deux mots de passe ne correspondent pas.'); return; } setPasswordSaving(true); const { error: updateError } = await supabaseBrowser().auth.updateUser({ password }); if (updateError) setError(updateError.message || 'Impossible de changer le mot de passe.'); else { setPassword(''); setConfirmation(''); setSecurityMessage('Mot de passe mis à jour.'); } setPasswordSaving(false); }
+  async function signOut() { const { error: signOutError } = await supabaseBrowser().auth.signOut(); if (signOutError) { setError('Impossible de vous déconnecter. Réessayez.'); return; } router.replace('/auth/login'); }
+  const activity = useMemo(() => { const count = (values: string[]) => projects.filter(project => project.status && values.includes(project.status)).length; return { total: projects.length, drafts: count(['draft']), review: count(['client_review', 'dao_review', 'rejected']), open: count(['open', 'published']), archived: count(['archived', 'closed']) }; }, [projects]);
+  const completion = useMemo(() => Math.round([Boolean(user?.email), Boolean(name.trim()), /^\+216[0-9]{8}$/.test(phone), roles.length > 0].filter(Boolean).length / 4 * 100), [name, phone, roles, user?.email]);
+  if (loading) return <div className="space-y-4"><div className="h-8 w-56 animate-pulse rounded bg-black/5" /><div className="h-40 animate-pulse rounded-2xl bg-black/5" /></div>; if (!user) return <p role="alert">Session expirée. Reconnectez-vous.</p>;
+  return <section className="mx-auto max-w-6xl space-y-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Mon espace</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Votre espace D.A.O</h1><p className="mt-2 text-sm text-black/55">Gérez votre identité, vos espaces et la sécurité de votre compte.</p></div><div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-sm font-bold text-white">{name.slice(0, 1).toUpperCase() || 'D'}</div><div><p className="text-sm font-bold">{name || 'Votre profil'}</p><p className="max-w-48 truncate text-xs text-black/45">{user.email}</p></div></div></div>{error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}{success && <p className="rounded-xl bg-teal/10 px-4 py-3 text-sm text-teal" role="status">{success}</p>}
+    <div className="grid gap-5 lg:grid-cols-[1.3fr_.7fr]"><Card><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-black/40">Profil</p><h2 className="mt-1 text-xl font-bold">Votre identité</h2><p className="mt-1 text-sm text-black/55">Ces informations servent à vous reconnaître dans vos espaces.</p></div><button type="button" aria-label="Modifier le profil" onClick={() => setEditing(value => !value)} className="rounded-xl border border-black/10 p-2.5 text-black/50 hover:border-teal hover:text-teal"><Pencil size={17} /></button></div>{editing ? <form onSubmit={save} className="mt-5 grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold">Nom affiché<Input aria-label="Nom affiché" value={name} onChange={event => setName(event.target.value)} required /></label><label className="block text-sm font-semibold">Téléphone tunisien<Input aria-label="Téléphone tunisien" placeholder="+216XXXXXXXX" value={phone} onChange={event => setPhone(event.target.value)} pattern="\+216[0-9]{8}" /></label><div className="flex gap-2 sm:col-span-2"><Button disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</Button><Button type="button" className="bg-white text-ink ring-1 ring-black/10 hover:bg-sand" onClick={() => setEditing(false)}>Annuler</Button></div></form> : <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-sand p-3"><p className="text-xs text-black/45">Nom</p><p className="mt-1 font-semibold">{name || 'À compléter'}</p></div><div className="rounded-xl bg-sand p-3"><p className="text-xs text-black/45">Email</p><p className="mt-1 truncate font-semibold">{user.email}</p></div><div className="rounded-xl bg-sand p-3"><p className="text-xs text-black/45">Téléphone</p><p className="mt-1 font-semibold">{phone || 'À compléter'}</p></div></div>}<div className="mt-6 flex items-center gap-3"><div className="h-2 flex-1 overflow-hidden rounded-full bg-black/5"><div className="h-full rounded-full bg-teal transition-all" style={{ width: `${completion}%` }} /></div><span className="text-sm font-bold text-teal">{completion}%</span><span className="text-xs text-black/45">complété</span></div></Card><Card><SectionHeading title="Mes espaces" description="Les accès sont déterminés par vos rôles vérifiés." /><div className="mt-4 space-y-2">{order.filter(role => roles.includes(role)).map(role => <div key={role} className="rounded-xl border border-black/5 p-3"><div className="flex items-center gap-2"><Badge tone="teal">{roleLabels[role] ?? role}</Badge>{role === 'client' && <Check size={15} className="text-teal" />}</div><p className="mt-2 text-xs leading-5 text-black/55">{roleDescriptions[role]}</p></div>)}{roles.length === 0 && <p className="text-sm text-black/50">Aucun espace attribué.</p>}</div></Card></div>
+    <Card><SectionHeading eyebrow="Accès rapides" title="Continuer votre parcours" /><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{roles.includes('client') && <Link href="/app" className="group rounded-xl border border-black/10 p-4 transition hover:border-teal"><p className="font-bold">Tableau de bord</p><p className="mt-1 text-xs text-black/55">Vos prochaines actions.</p><ArrowRight size={16} className="mt-4 text-teal transition group-hover:translate-x-1" /></Link>}{roles.includes('client') && <Link href="/app/projects" className="group rounded-xl border border-black/10 p-4 transition hover:border-teal"><p className="font-bold">Mes projets</p><p className="mt-1 text-xs text-black/55">{activity.total} dossier{activity.total > 1 ? 's' : ''}</p><ArrowRight size={16} className="mt-4 text-teal transition group-hover:translate-x-1" /></Link>}{roles.includes('client') && <Link href="/app/projects/new" className="group rounded-xl border border-black/10 p-4 transition hover:border-teal"><p className="font-bold">Nouveau projet</p><p className="mt-1 text-xs text-black/55">Préparer un DAO.</p><ArrowRight size={16} className="mt-4 text-teal transition group-hover:translate-x-1" /></Link>}{roles.includes('contractor') && <Link href="/app/artisan" className="group rounded-xl border border-black/10 p-4 transition hover:border-teal"><p className="font-bold">Espace artisan</p><p className="mt-1 text-xs text-black/55">DAO accessibles.</p><ArrowRight size={16} className="mt-4 text-teal transition group-hover:translate-x-1" /></Link>}</div></Card>
+    {roles.includes('client') && <Card><SectionHeading eyebrow="Activité client" title="Vos projets en un coup d’œil" action={<Link href="/app/projects" className="text-sm font-semibold text-teal">Voir les projets <ArrowRight size={15} className="ml-1 inline" /></Link>} /><div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">{[['Projets', activity.total], ['Brouillons', activity.drafts], ['En revue', activity.review], ['Ouverts', activity.open], ['Archivés', activity.archived]].map(([label, value]) => <div key={label} className="rounded-xl bg-sand p-3"><p className="text-xs text-black/45">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}</div></Card>}
+    <Card><div className="flex items-start gap-3"><div className="rounded-xl bg-sand p-2.5"><ShieldCheck size={19} className="text-teal" /></div><div><p className="text-xs font-bold uppercase tracking-wide text-black/40">Sécurité</p><h2 className="mt-1 text-xl font-bold">Protéger votre compte</h2><p className="mt-1 text-sm text-black/55">Le changement de mot de passe utilise directement Supabase Auth.</p></div></div><form onSubmit={changePassword} className="mt-5 grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold">Nouveau mot de passe<Input aria-label="Nouveau mot de passe" type="password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required /></label><label className="block text-sm font-semibold">Confirmer le mot de passe<Input aria-label="Confirmer le mot de passe" type="password" minLength={8} value={confirmation} onChange={event => setConfirmation(event.target.value)} required /></label><div className="flex flex-wrap items-center gap-3 sm:col-span-2"><Button disabled={passwordSaving}>{passwordSaving ? 'Mise à jour…' : 'Changer le mot de passe'}</Button><Button type="button" className="bg-white text-red-700 ring-1 ring-red-200 hover:bg-red-50" onClick={() => void signOut()}><LogOut size={16} className="mr-2" />Se déconnecter</Button>{securityMessage && <p className="text-sm text-teal" role="status">{securityMessage}</p>}</div></form></Card><div className="flex items-center gap-2 text-xs text-black/40"><LockKeyhole size={14} />Votre session et vos données restent protégées par Supabase Auth et les règles d’accès D.A.O.</div>
+  </section>;
 }
