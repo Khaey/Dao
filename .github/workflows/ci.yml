@@ -57,6 +57,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: dao-frontend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: dao-backend
+        run: npm ci --no-audit --no-fund
       - name: Install frontend dependencies
         working-directory: dao-frontend
         run: npm ci --no-audit --no-fund
