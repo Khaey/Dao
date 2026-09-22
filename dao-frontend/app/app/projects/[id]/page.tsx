@@ -197,7 +197,7 @@ export default function ProjectDetail() {
         <h1 className="mt-1 text-3xl font-bold">{projectTitle}</h1>
         {description && <p className="mt-2 max-w-3xl text-sm text-black/60">{description}</p>}
       </div>
-      <div className="flex flex-wrap items-center gap-2"><Badge>{requestCountLabel}</Badge><Badge>{statusLabel[project.status] ?? project.status}</Badge>{project.status === 'draft' && <a href={`/app/projects/${id}/review`} className="rounded-lg bg-ink px-3 py-2 text-xs font-semibold text-white">Revoir le DAO</a>}</div>
+      <div className="flex flex-wrap items-center gap-2"><Badge>{requestCountLabel}</Badge><Badge>{statusLabel[project.status] ?? project.status}</Badge>{projectVersion?.status && <Badge>{statusLabel[projectVersion.status] ?? projectVersion.status}</Badge>}{project.status === 'draft' && <a href={`/app/projects/${id}/review`} className="rounded-lg bg-ink px-3 py-2 text-xs font-semibold text-white">Revoir le DAO</a>}</div>
     </div>
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
