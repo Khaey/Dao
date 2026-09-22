@@ -7,7 +7,7 @@ const runId=process.env.GITHUB_RUN_ID||String(Date.now());
 const stateFile=process.env.DAO_E2E_STATE_FILE||'/tmp/dao-e2e-state.json';
 if(!url||!secret) throw new Error('E2E provisioning configuration is missing');
 const headers={apikey:secret,Authorization:`Bearer ${secret}`,'Content-Type':'application/json'};
-async function api(path,options={}){const response=await fetch(url+path,{...options,headers:{...headers,...(options.headers||{})}});if(!response.ok) throw new Error('E2E provisioning request failed');return response.status===204?null:response.json();}
+async function api(path,options={}){const response=await fetch(url+path,{...options,headers:{...headers,...(options.headers||{})}});if(!response.ok) throw new Error(`E2E provisioning request failed (${response.status})`);const body=await response.text();return body?JSON.parse(body):null;}
 function password(){return `E2e-${randomBytes(18).toString('base64url')}-A9!`;}
 function saveState(state){writeFileSync(stateFile,JSON.stringify(state),'utf8');chmodSync(stateFile,0o600);}
 const state=existsSync(stateFile)?JSON.parse(readFileSync(stateFile,'utf8')):{users:[],projects:[]};
