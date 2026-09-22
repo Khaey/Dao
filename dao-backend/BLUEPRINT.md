@@ -26,7 +26,7 @@ Publications : `public`, `targeted`, `invite_only`. Une seule publication active
 
 ## Offres
 
-Workflow : `draft` → ajout des `bid_items`/groupes → soumission → contenu immutable. Le draft est invisible aux client et concurrents. `public.submit_bid_version` délègue à `dao_private.submit_bid_version` et exige le contractor propriétaire.
+Workflow : `draft` → ajout/upsert des `bid_items`/groupes → soumission → contenu immutable. Le draft est invisible aux client et concurrents. `public.create_bid_draft` crée une version idempotente, `public.upsert_bid_item` vérifie que le lot appartient à la publication accessible, et `public.submit_bid_version` délègue à `dao_private.submit_bid_version` en exigeant le contractor propriétaire, un rôle `contractor`, une ligne au minimum et une deadline non dépassée. Après une soumission, une nouvelle version draft peut être préparée avant la deadline ; la version soumise ne peut plus être modifiée.
 
 ## Attribution
 
@@ -52,9 +52,9 @@ Le client JWT vérifie l’accès ; le client Storage serveur génère ensuite l
 
 ## Migrations et validation
 
-Migrations appliquées jusqu’à `202609210005_public_rpc_facades.sql`.
-- services/routes : 7/7 ;
-- PGlite : 68/68 ;
+Migrations appliquées jusqu’à `202609220006_bid_rpc_hardening.sql`.
+- services/routes : 8/8 ;
+- PGlite : 77/77 ;
 - test autonome Supabase réel : 1/1, 0 échec lorsque les trois variables sont configurées.
 
 ## Hors MVP / Phase 2
@@ -63,4 +63,4 @@ Paiement/escrow, ledger, signature électronique, contrats exécutoires, garanti
 
 ## Prochaine étape
 
-Après validation VPS finale : frontend MVP vertical `Client → publication → Artisan → offre → Client → attribution`.
+Le frontend MVP couvre désormais `Client → publication → Artisan → offre`. La comparaison et l’attribution par lot restent la priorité suivante.

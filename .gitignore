@@ -1,0 +1,8 @@
+node_modules/
+dao-backend/dist/
+dao-backend/tests/local-results.json
+dao-frontend/.next/
+dao-frontend/test-results/
+dao-frontend/playwright-report/
+.env*
+!.env.example

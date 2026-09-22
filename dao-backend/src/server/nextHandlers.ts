@@ -13,10 +13,12 @@ export function createDaoApi(services: BackendServices, resolveActor: (authoriza
     async updateProjectRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.updateProjectRequest(services, a, i)))); },
     async withdrawProjectRequest(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.withdrawProjectRequest(services, a, String(i.request_id)))); },
     async publishProject(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.publishProject(services,a,i)))); },
-    async submitBid(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.submitBid(services,a,String(i.versionId)))); },
+    async createBidDraft(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.createBid(services, a, i)))); },
+    async addBidItem(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.addBidItem(services, a, i)))); },
+    async submitBid(request: Request) { const i=await json(request); const versionId=i.version_id ?? i.versionId; return run(() => actor(request).then(a => actions.submitBid(services,a,String(versionId ?? '')))); },
     async awardRequest(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.awardRequest(services,a,i)))); },
     async signedUpload(request: Request) { return run(() => actor(request).then(a => json(request).then(i => actions.signedUpload(services,a,i as never)))); },
     async signedDownload(request: Request) { const i=await json(request); return run(() => actor(request).then(a => actions.signedDownload(services,a,String(i.documentId),Number(i.expiresIn)||300))); }
   };
 }
-async function run(operation: () => Promise<unknown>) { try { return Response.json({ data: await operation() }); } catch (error: any) { const status = error?.code === 'UNAUTHENTICATED' ? 401 : error?.code === 'FORBIDDEN' ? 403 : 400; return Response.json({ error: error?.message ?? 'Request failed', code: error?.code }, { status }); } }
+async function run(operation: () => Promise<unknown>) { try { return Response.json({ data: await operation() }); } catch (error: any) { const code=error?.code; const status = code === 'UNAUTHENTICATED' ? 401 : code === 'FORBIDDEN' || code === '42501' ? 403 : ['23505','23514','P0001'].includes(code) ? 409 : 400; return Response.json({ error: error?.message ?? 'Request failed', code }, { status }); } }

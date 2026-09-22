@@ -10,7 +10,7 @@ Le MVP utilise un seul runtime Next.js (`dao-frontend`). Les Route Handlers `/ap
 
 Un push sur `main` lance `.github/workflows/ci.yml` : `npm ci`, tests backend/services/routes, PGlite, build frontend, puis Playwright desktop/mobile lorsque les secrets E2E sont configurés. Les screenshots, traces et rapports sont publiés comme artifacts. Le déploiement DEV ne démarre qu’après succès du job `verify`.
 
-Secrets GitHub attendus : `DEV_SSH_HOST`, `DEV_SSH_USER` (valeur `dao`), `DEV_SSH_KEY` (clé privée dédiée dont la clé publique est installée pour `dao`), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `DAO_SUPABASE_SECRET_KEY`, `PLAYWRIGHT_CLIENT_EMAIL`, `PLAYWRIGHT_CLIENT_PASSWORD`, `PLAYWRIGHT_TRADE_ID`. Le déploiement ne se connecte jamais en root.
+Secrets GitHub attendus : `DEV_SSH_HOST`, `DEV_SSH_USER` (valeur `dao`), `DEV_SSH_KEY` (clé privée dédiée dont la clé publique est installée pour `dao`), `DAO_SUPABASE_URL`, `DAO_SUPABASE_PUBLISHABLE_KEY` et `DAO_SUPABASE_SECRET_KEY`. Le job E2E génère ses comptes client, reviewer et artisan avec `github.run_id`/`github.run_attempt`, puis les supprime toujours après le test. Aucun credential E2E permanent n’est stocké. Le déploiement ne se connecte jamais en root.
 
 ## VPS
 
