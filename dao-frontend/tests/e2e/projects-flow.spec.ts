@@ -85,6 +85,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   // keeps the success status while its refresh is still in flight; reloading
   // at that point can cancel the read and make a valid persisted change look
   // stale on slower mobile runners.
+  if (testInfo.project.name === 'mobile') console.log('P1 mobile after project update:', (await client.locator('body').innerText()).slice(0, 1200));
   await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 30_000 });
   await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 30_000 });
   await client.reload();
