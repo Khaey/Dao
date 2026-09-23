@@ -97,7 +97,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.goto('/app/projects');
   await client.getByLabel('Rechercher un projet').fill(editedProjectTitle);
   await client.getByLabel('Filtrer par statut').selectOption('draft');
-  const projectLink = client.locator('a').filter({ hasText: editedProjectTitle }).first();
+  const projectLink = client.locator('a:visible').filter({ hasText: editedProjectTitle }).first();
   await expect(projectLink).toBeVisible({ timeout: 15_000 });
   await projectLink.click();
   await expect(client).toHaveURL(new RegExp(`/app/projects/${projectId}$`));
@@ -141,7 +141,6 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
     documentRow.getByRole('button', { name: 'Consulter' }).click(),
   ]);
   expect(documentResponse.ok()).toBeTruthy();
-  await documentPage.waitForLoadState('domcontentloaded');
   await expect(documentPage).toHaveURL(/\/storage\/v1\/object\/sign\/dao-private\//);
   await documentPage.close();
   client.once('dialog', dialog => dialog.accept());
@@ -279,6 +278,6 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await final.goto('/app/projects');
   await final.getByLabel('Rechercher un projet').fill(archivedTitle);
   await final.getByLabel('Filtrer par statut').selectOption('archived');
-  await expect(final.locator('a').filter({ hasText: archivedTitle }).first()).toBeVisible();
+  await expect(final.locator('a:visible').filter({ hasText: archivedTitle }).first()).toBeVisible();
   await finalContext.close();
 });
