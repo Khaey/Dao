@@ -81,15 +81,10 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByLabel('Fin souhaitée du projet').fill('2026-10-20');
   const projectUpdateResponsePromise = client.waitForResponse(response => response.url().endsWith('/api/projects') && response.request().method() === 'PATCH');
   await client.getByRole('button', { name: 'Enregistrer' }).click();
-  const projectUpdateResponse = await projectUpdateResponsePromise;
-  const projectUpdatePayload = await projectUpdateResponse.json();
-  console.log('P1 project update response:', JSON.stringify({ status: projectUpdateResponse.status(), title: projectUpdatePayload?.data?.title, version: projectUpdatePayload?.data?.version_no }));
+  await projectUpdateResponsePromise;
   await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
-  // Wait for the post-save RLS read to complete before reloading.  The page
-  // keeps the success status while its refresh is still in flight; reloading
-  // at that point can cancel the read and make a valid persisted change look
-  // stale on slower mobile runners.
-  if (testInfo.project.name === 'mobile') console.log('P1 mobile after project update:', (await client.locator('body').innerText()).slice(0, 1200));
+  // The page applies the authoritative version returned by the write command
+  // before the next read, so this assertion covers the visible post-save state.
   await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 30_000 });
   await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 30_000 });
   await client.reload();
