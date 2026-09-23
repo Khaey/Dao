@@ -57,7 +57,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByLabel('Début souhaité').fill('2026-10-20');
   await client.getByLabel('Fin souhaitée').fill('2026-10-10');
   await client.getByRole('button', { name: 'Continuer' }).click();
-  await expect(client.getByRole('alert')).toContainText('date de fin');
+  await expect(client.locator('p[role="alert"]')).toContainText('date de fin');
   await client.getByLabel('Début souhaité').fill('2026-10-01');
   await client.getByLabel('Fin souhaitée').fill('2026-10-15');
   await client.getByRole('button', { name: 'Continuer' }).click();

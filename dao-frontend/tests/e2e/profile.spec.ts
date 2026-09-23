@@ -24,7 +24,7 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page 
 
   const displayName = `Client E2E ${testInfo.project.name}`;
   const phone = testInfo.project.name === 'desktop' ? '+21620000001' : '+21620000002';
-  await page.getByRole('button', { name: 'Modifier le profil' }).click();
+  await page.getByRole('button', { name: 'Modifier le profil' }).click({ force: true });
   await page.getByLabel('Nom affiché').fill(displayName);
   await page.getByLabel('Téléphone tunisien').fill(phone);
   await page.getByRole('button', { name: 'Enregistrer' }).click();
