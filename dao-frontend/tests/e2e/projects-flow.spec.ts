@@ -79,7 +79,11 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByLabel('Budget indicatif du projet (TND)').fill('175000');
   await client.getByLabel('Début souhaité du projet').fill('2026-10-05');
   await client.getByLabel('Fin souhaitée du projet').fill('2026-10-20');
+  const projectUpdateResponsePromise = client.waitForResponse(response => response.url().endsWith('/api/projects') && response.request().method() === 'PATCH');
   await client.getByRole('button', { name: 'Enregistrer' }).click();
+  const projectUpdateResponse = await projectUpdateResponsePromise;
+  const projectUpdatePayload = await projectUpdateResponse.json();
+  console.log('P1 project update response:', JSON.stringify({ status: projectUpdateResponse.status(), title: projectUpdatePayload?.data?.title, version: projectUpdatePayload?.data?.version_no }));
   await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
   // Wait for the post-save RLS read to complete before reloading.  The page
   // keeps the success status while its refresh is still in flight; reloading
