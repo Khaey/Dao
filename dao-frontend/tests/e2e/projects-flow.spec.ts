@@ -81,6 +81,12 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByLabel('Fin souhaitée du projet').fill('2026-10-20');
   await client.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
+  // Wait for the post-save RLS read to complete before reloading.  The page
+  // keeps the success status while its refresh is still in flight; reloading
+  // at that point can cancel the read and make a valid persisted change look
+  // stale on slower mobile runners.
+  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 30_000 });
+  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 30_000 });
   await client.reload();
   await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 30_000 });
   await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 30_000 });
