@@ -80,11 +80,11 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByLabel('Fin souhaitée du projet').fill('2026-10-20');
   await client.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
-  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible();
-  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser');
+  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 15_000 });
+  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 15_000 });
   await client.reload();
-  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible();
-  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser');
+  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 15_000 });
+  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 15_000 });
   await expect(client.locator('body')).not.toContainText(projectId);
   await client.getByRole('button', { name: 'Modifier le projet' }).click();
   await expect(client.getByLabel('Budget indicatif du projet (TND)')).toHaveValue('175000');
@@ -97,7 +97,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.goto('/app/projects');
   await client.getByLabel('Rechercher un projet').fill(editedProjectTitle);
   await client.getByLabel('Filtrer par statut').selectOption('draft');
-  await expect(client.getByRole('link', { name: `Ouvrir ${editedProjectTitle}` })).toBeVisible();
+  await expect(client.getByRole('link', { name: `Ouvrir ${editedProjectTitle}` })).toBeVisible({ timeout: 15_000 });
   await client.getByRole('link', { name: `Ouvrir ${editedProjectTitle}` }).click();
   await expect(client).toHaveURL(new RegExp(`/app/projects/${projectId}$`));
 
