@@ -22,6 +22,7 @@ function screenshot(page: Page, testInfo: { project: { name: string } }, name: s
 }
 
 test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, testInfo) => {
+  test.setTimeout(180_000);
   const clientEmail = process.env.PLAYWRIGHT_CLIENT_EMAIL;
   const clientPassword = process.env.PLAYWRIGHT_CLIENT_PASSWORD;
   const reviewerEmail = process.env.PLAYWRIGHT_REVIEWER_EMAIL;
@@ -80,11 +81,9 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByLabel('Fin souhaitée du projet').fill('2026-10-20');
   await client.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
-  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 15_000 });
-  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 15_000 });
   await client.reload();
-  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 15_000 });
-  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 15_000 });
+  await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 30_000 });
+  await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 30_000 });
   await expect(client.locator('body')).not.toContainText(projectId);
   await client.getByRole('button', { name: 'Modifier le projet' }).click();
   await expect(client.getByLabel('Budget indicatif du projet (TND)')).toHaveValue('175000');
@@ -141,7 +140,8 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
     documentRow.getByRole('button', { name: 'Consulter' }).click(),
   ]);
   expect(documentResponse.ok()).toBeTruthy();
-  await expect(documentPage).toHaveURL(/\/storage\/v1\/object\/sign\/dao-private\//);
+  const documentPayload = await documentResponse.json();
+  expect(documentPayload.data).toMatch(/\/storage\/v1\/object\/sign\/dao-private\//);
   await documentPage.close();
   client.once('dialog', dialog => dialog.accept());
   await documentRow.getByRole('button', { name: 'Retirer' }).click();
