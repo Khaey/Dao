@@ -22,6 +22,17 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page 
   await expect(page.getByRole('main').getByText('Mes projets', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
 
+  const displayName = `Client E2E ${testInfo.project.name}`;
+  const phone = testInfo.project.name === 'desktop' ? '+21620000001' : '+21620000002';
+  await page.getByRole('button', { name: 'Modifier le profil' }).click();
+  await page.getByLabel('Nom affiché').fill(displayName);
+  await page.getByLabel('Téléphone tunisien').fill(phone);
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByRole('status')).toContainText('Profil mis à jour.');
+  await page.reload();
+  await expect(page.getByText(displayName, { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(phone, { exact: true })).toBeVisible();
+
   await page.screenshot({ path: `test-results/${testInfo.project.name}-profile.png`, fullPage: true });
   await page.getByRole('button', { name: 'Se déconnecter' }).click();
   await expect(page).toHaveURL(/\/auth\/login/);

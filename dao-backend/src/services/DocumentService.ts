@@ -92,7 +92,11 @@ export class DocumentService {
       .eq('id', documentId)
       .single();
     if (error || !document) throw new DomainError('Document access denied', 'FORBIDDEN');
-    if (document.status !== 'approved') throw new DomainError('Document is not approved', 'DOCUMENT_NOT_APPROVED');
+    // The JWT-scoped query above is the authorization check. Project owners
+    // may consult their own files while they are pending or rejected; RLS
+    // deliberately grants the owner visibility for every validation status.
+    // Other users only receive rows when the existing RLS policy authorizes
+    // them, so the privileged Storage client is used only after that check.
     const { data: signed, error: signedError } = await this.storage.from('dao-private').createSignedUrl(document.object_path, expiresIn);
     if (signedError) throw signedError;
     return signed.signedUrl;

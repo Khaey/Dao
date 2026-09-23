@@ -8,5 +8,11 @@ test('BidService submits a draft idempotently',async()=>{const s=new BidService(
 test('BidService creates drafts and lines through secured RPC commands',async()=>{const calls:any[]=[];const s=new BidService({rpc:async(name:string,input:any)=>{calls.push({name,input});return {data:{id:'v'},error:null}}});await s.createDraft({publication_id:'pub'});await s.addItem({publication_id:'pub',version_id:'v',publication_request_id:'lot',price_millimes:1200000,duration_days:10,inclusions:'Pose'});assert.deepEqual(calls,[{name:'create_bid_draft',input:{p_publication_id:'pub'}},{name:'upsert_bid_item',input:{p_publication_id:'pub',p_version_id:'v',p_publication_request_id:'lot',p_price_millimes:1200000,p_duration_days:10,p_inclusions:'Pose',p_exclusions:null}}])});
 test('AwardService delegates uniqueness to DB',async()=>{const s=new AwardService(fake('award_items'));assert.equal((await s.award({request_id:'r',idempotency_key:'idem-1234'})).p_request_id,'r')});
 test('DocumentService refuses unapproved documents',async()=>{const s=new DocumentService(fake('bid_documents',{status:'quarantined',object_path:'x'}),{});await assert.rejects(()=>s.signedDownload('d'),/not approved/)});
+test('DocumentService lets the project owner consult a pending project document',async()=>{
+  const db={from(table:string){assert.equal(table,'documents');return {select(){return {eq(){return {single:async()=>({data:{object_path:'project/pending.pdf',status:'quarantined'},error:null})}}}}}}};
+  const storage={from(bucket:string){assert.equal(bucket,'dao-private');return {createSignedUrl:async(path:string)=>{assert.equal(path,'project/pending.pdf');return {data:{signedUrl:'signed-pending'},error:null}}}}};
+  const service=new DocumentService(db,storage);
+  assert.equal(await service.signedProjectDownload('document-id'),'signed-pending');
+});
 test('server actions require an authenticated actor',()=>{assert.throws(()=>requireActor(null),/Authentication required/)});
 test('actor identity is required, never accepted from browser payload',()=>{const actor=requireActor({id:'actor'});assert.equal(actor.id,'actor');assert.notEqual(actor.id,'browser-supplied')});
