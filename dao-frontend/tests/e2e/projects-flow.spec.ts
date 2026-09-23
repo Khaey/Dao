@@ -97,8 +97,9 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.goto('/app/projects');
   await client.getByLabel('Rechercher un projet').fill(editedProjectTitle);
   await client.getByLabel('Filtrer par statut').selectOption('draft');
-  await expect(client.getByRole('link', { name: `Ouvrir ${editedProjectTitle}` })).toBeVisible({ timeout: 15_000 });
-  await client.getByRole('link', { name: `Ouvrir ${editedProjectTitle}` }).click();
+  const projectLink = client.locator('a').filter({ hasText: editedProjectTitle }).first();
+  await expect(projectLink).toBeVisible({ timeout: 15_000 });
+  await projectLink.click();
   await expect(client).toHaveURL(new RegExp(`/app/projects/${projectId}$`));
 
   await client.getByRole('button', { name: /^Lots/ }).click();
@@ -134,10 +135,12 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   const documentRow = client.getByTestId('project-document-row').filter({ hasText: 'plan-e2e.pdf' });
   await expect(documentRow).toBeVisible();
   await expect(documentRow).toContainText('En attente de contrôle');
-  const [documentPage] = await Promise.all([
-    client.waitForEvent('page'),
+  const [documentPage, documentResponse] = await Promise.all([
+    client.waitForEvent('popup'),
+    client.waitForResponse(response => response.url().includes('/api/documents/project/download') && response.request().method() === 'POST'),
     documentRow.getByRole('button', { name: 'Consulter' }).click(),
   ]);
+  expect(documentResponse.ok()).toBeTruthy();
   await documentPage.waitForLoadState('domcontentloaded');
   await expect(documentPage).toHaveURL(/\/storage\/v1\/object\/sign\/dao-private\//);
   await documentPage.close();
@@ -276,6 +279,6 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await final.goto('/app/projects');
   await final.getByLabel('Rechercher un projet').fill(archivedTitle);
   await final.getByLabel('Filtrer par statut').selectOption('archived');
-  await expect(final.getByRole('link', { name: `Ouvrir ${archivedTitle}` })).toBeVisible();
+  await expect(final.locator('a').filter({ hasText: archivedTitle }).first()).toBeVisible();
   await finalContext.close();
 });
