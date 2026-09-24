@@ -171,6 +171,11 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await screenshot(client, testInfo, 'dao-review');
   await client.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
   await expect(client.getByText('Validation client').first()).toBeVisible();
+  await client.goto('/app');
+  await expect(client.getByText('En revue', { exact: true })).toBeVisible();
+  await expect(client.getByText('Brouillons', { exact: true }).locator('..')).toContainText('0');
+  await client.goto('/app/projects');
+  await expect(client.getByText('Validation client', { exact: true })).toBeVisible();
   await client.close();
   await clientContext.close();
 
