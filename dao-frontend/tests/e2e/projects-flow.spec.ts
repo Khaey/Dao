@@ -69,6 +69,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   const projectId = client.url().split('/').pop()!;
   rememberProject(projectId);
   await screenshot(client, testInfo, 'project-overview');
+  await expect(client.getByText('Brouillon', { exact: true })).toHaveCount(1);
 
   // Verify the complete project edit command, including versioned fields and
   // location preservation (the edit form intentionally does not send IDs).
@@ -84,7 +85,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await projectUpdateResponsePromise;
   await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
   // The page applies the authoritative version returned by the write command
-  // before the next read, so this assertion covers the visible post-save state.
+  // directly to the visible state.
   await expect(client.getByRole('heading', { name: editedProjectTitle })).toBeVisible({ timeout: 30_000 });
   await expect(client.getByTestId('project-location')).not.toContainText('Localisation à préciser', { timeout: 30_000 });
   await client.reload();
@@ -108,7 +109,11 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(client).toHaveURL(new RegExp(`/app/projects/${projectId}$`));
 
   await client.getByRole('button', { name: /^Lots/ }).click();
+  await expect(client.getByRole('button', { name: 'Ajouter un lot' })).toHaveCount(1);
+  await expect(client.getByLabel('Métier')).toHaveCount(0);
   await screenshot(client, testInfo, 'project-lots');
+  await client.getByRole('button', { name: 'Ajouter un lot' }).click();
+  await expect(client.getByLabel('Métier')).toBeVisible();
   await screenshot(client, testInfo, 'project-add-lot');
   await client.getByLabel('Métier').selectOption({ index: 1 });
   await client.getByLabel('Intitulé du lot').fill('Lot plomberie E2E');
@@ -116,6 +121,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByLabel('Périmètre des travaux').fill('Installation plomberie complète');
   await client.getByRole('button', { name: 'Ajouter la demande' }).click();
   await expect(client.getByText('Lot plomberie E2E')).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Ajouter un lot' })).toHaveCount(1);
   await screenshot(client, testInfo, 'project-lots-filled');
   await client.getByTitle('Modifier').click();
   await client.getByLabel('Intitulé du lot').fill('Lot plomberie E2E version 2');
@@ -152,6 +158,9 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   client.once('dialog', dialog => dialog.accept());
   await documentRow.getByRole('button', { name: 'Retirer' }).click();
   await expect(client.getByText('plan-e2e.pdf', { exact: true })).not.toBeVisible();
+  await client.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await expect(client.getByRole('heading', { name: 'Informations privées et confidentielles' })).toBeVisible();
+  await expect(client.getByText('Non visibles par les artisans', { exact: true })).toBeVisible();
   await client.getByLabel('Adresse exacte').fill('12 rue de Sahloul, Sousse');
   await client.getByLabel('Instructions d’accès').fill('Appeler avant l’arrivée.');
   await client.getByLabel('Téléphone privé').fill('+21620123456');
@@ -159,11 +168,13 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(client.getByRole('status')).toContainText('Coordonnées privées enregistrées.');
   await client.reload();
-  await client.getByRole('button', { name: 'Documents' }).click();
   await expect(client.getByLabel('Adresse exacte')).toHaveValue('12 rue de Sahloul, Sousse');
   await expect(client.getByLabel('Instructions d’accès')).toHaveValue('Appeler avant l’arrivée.');
   await expect(client.getByLabel('Téléphone privé')).toHaveValue('+21620123456');
   await expect(client.getByLabel('Email privé')).toHaveValue('client-e2e@example.invalid');
+  await client.getByRole('button', { name: 'Documents' }).click();
+  await expect(client.getByLabel('Adresse exacte')).toHaveCount(0);
+  await expect(client.getByRole('heading', { name: 'Informations privées et confidentielles' })).toHaveCount(0);
   await screenshot(client, testInfo, 'project-documents');
   await client.getByRole('button', { name: 'DAO' }).click();
   await screenshot(client, testInfo, 'project-dao');
