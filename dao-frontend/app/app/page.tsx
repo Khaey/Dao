@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, FolderPlus, Plus, Sparkles } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { Badge, Button, Card, SectionHeading } from '../../components/ui';
-import { statusLabel } from '../../lib/utils';
+import { effectiveProjectStatus, statusLabel } from '../../lib/utils';
 
 type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
@@ -25,7 +25,7 @@ export default function Dashboard() {
     setName(user.user?.user_metadata?.display_name ?? user.user?.email?.split('@')[0] ?? '');
     const latest = new Map<string, any>(); for (const version of versions.data ?? []) if (!latest.has(version.project_id)) latest.set(version.project_id, version);
     const lotCounts = new Map<string, number>(); for (const request of requests.data ?? []) lotCounts.set(request.project_id, (lotCounts.get(request.project_id) ?? 0) + 1);
-    setRows((projects.data ?? []).map(project => { const version = latest.get(project.id); return { ...project, status: version?.status ?? project.status, title: version?.title, lots: lotCounts.get(project.id) ?? 0 }; }));
+    setRows((projects.data ?? []).map(project => { const version = latest.get(project.id); return { ...project, status: effectiveProjectStatus(project.status, version?.status), title: version?.title, lots: lotCounts.get(project.id) ?? 0 }; }));
     setLoading(false);
   })(); }, []);
   const stats = useMemo(() => ({ total: rows.length, drafts: rows.filter(row => row.status === 'draft').length, review: rows.filter(row => ['client_review', 'dao_review'].includes(row.status)).length, open: rows.filter(row => ['open', 'published', 'approved'].includes(row.status)).length }), [rows]);

@@ -62,13 +62,18 @@ Only the most current load may commit React state.
 For current UI:
 
 ```text
-latest project_version.status
-fallback projects.status
+effectiveStatus =
+  project.status === 'archived'
+    ? 'archived'
+    : latest project_version.status
+      ?? project.status
 ```
 
 Use one effective badge/state.
 
-Dashboard, Mes projets and project detail must agree.
+Dashboard counters, profile activity counters, Mes projets and project detail must agree.
+Archived projects always display `archived`, even when their latest version
+remains `draft`.
 
 ## D-007 — Lots form stays hidden by default
 

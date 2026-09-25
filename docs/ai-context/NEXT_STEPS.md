@@ -18,36 +18,47 @@ Before any modification:
 4. if GitHub is ahead of this documentation, update context first;
 5. do not replay old bug analysis if a newer run has already passed that point.
 
-## 1. Immediate action — correct only the run #128 locator
+## 1. Immediate action — fix the confirmed run #129 archive status bug
 
-Verified GitHub `main`: `4544bf062dbc4456dbe22a9034eb6f05eba28c4c`.
-Run #128 (`36197910697`) has `verify` green, `e2e-dev` failed, and `deploy-dev`
-skipped. The punctuation-only assertion fix for run #127 is confirmed passed.
+Verified GitHub `main`: `147932320a26ca523fbe3d799ab93b04f0a3c55c`.
+Run #129 (`36198890953`) has `verify` green, `e2e-dev` failed, and `deploy-dev`
+skipped. Its failure artifact is `playwright-results-36198890953` (ID
+`10891212626`).
 
-The run #128 failure was E2E line 198 in
-`dao-frontend/tests/e2e/projects-flow.spec.ts`:
+The two failures are confirmed as one product root cause:
+
+- desktop cannot find `Archivé` on the detail page after archive + reload;
+- mobile's dashboard still counts the desktop archive as `Brouillons 1` rather
+  than `0`.
+
+`archive_project` changes `projects.status` to `archived` and leaves
+`project_versions.status` unchanged. The detail, dashboard, and Mes projets
+currently prefer the latest version status, so a draft version overrides the
+project's archived lifecycle state. Profile activity counters used only
+`projects.status` and could disagree with review states.
+
+Apply this shared UI rule:
 
 ```text
-getByText('Validation client', { exact: true })
-strict mode violation: locator resolved to 3 elements (desktop), 5 (mobile)
+effectiveStatus =
+  project.status === 'archived'
+    ? 'archived'
+    : latest project_version.status ?? project.status
 ```
 
-The list included the hidden status `<option>` and multiple project status
-badges. Screenshots show the expected status is present. Root cause: the E2E
-locator was global and did not identify the project created by this test.
+The local correction uses one helper on project detail, dashboard, Mes
+projets, and profile activity counters, and gates status-driven draft/rejection
+actions on the same effective state. Keep the archive RPC and database/security
+layers unchanged. No E2E assertion change is needed: the remaining archive
+assertions correctly verify the status on detail and in the filtered list. The
+rest of the flow was reviewed; no other assertion is manifestly stale or too
+global.
 
-The chosen correction scopes the badge to the visible desktop row (`tr`) or
-mobile project card (`a`) containing this test's unique `editedProjectTitle`,
-then asserts that exactly one `Validation client` badge is visible. It does not
-use `.first()` and does not change the UI.
-
-Run #128 artifact `playwright-results-36197910697` (ID `10889749786`) was
-inspected, including both `error-context.md` files, screenshots, and traces.
-Local `tsc --noEmit`, `next build`, Playwright test discovery, and diff checks
-passed. Next: one commit, one push to `main`, and one CI.
-If that CI fails, stop and report its evidence without another correction. If
-it passes, stop for manual P1.1 validation. Do not touch UI, backend, RLS, RPC,
-schema, or auth for this test locator issue.
+Local checks passed after installing the checked-in lockfiles: `npx tsc --noEmit`,
+`npm run build`, Playwright discovery (2 desktop/mobile tests), and
+`git diff --check`. Next: one commit, one push, and monitor the resulting CI. If
+the full CI is green, stop for manual P1.1 validation. Do not start P2/P3 or CI
+optimization.
 
 ## 2. After first green full CI — do NOT immediately declare P1.1 complete
 

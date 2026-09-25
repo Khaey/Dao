@@ -9,36 +9,25 @@
 Current verified `main`:
 
 ```text
-4544bf062dbc4456dbe22a9034eb6f05eba28c4c
+147932320a26ca523fbe3d799ab93b04f0a3c55c
 ```
 
 Commit:
 
 ```text
-fix(e2e): match private details warning punctuation
+test(e2e): scope project status assertion
 ```
 
-Relevant preceding commits:
-
-```text
-427b82e0183c9dd7e86e4c31bfe3da958aab2e4b
-test(e2e): target project edit save action
-
-6f70462165e7a6943e67e8768093dcf99e1a3cc9
-fix(p1.1): stabilize project detail editing UX
-
-0217c481f3f4be27da7517c7932e401f6762e374
-fix: guard project detail state before status derivation
-```
+Its parent is `4544bf062dbc4456dbe22a9034eb6f05eba28c4c`; the local checkout tree matched this GitHub `main` tree before switching to a branch based on `origin/main`.
 
 ## 2. Latest CI
 
 Latest verified workflow:
 
 ```text
-Run #128
-Run ID: 36197910697
-SHA: 4544bf062dbc4456dbe22a9034eb6f05eba28c4c
+Run #129
+Run ID: 36198890953
+SHA: 147932320a26ca523fbe3d799ab93b04f0a3c55c
 ```
 
 Status:
@@ -305,11 +294,13 @@ Form is shown only when requested or in edit mode.
 
 ## 10. Current status behavior
 
-Effective UI status remains:
+Effective UI status is:
 
 ```text
-latest project_version.status
-fallback projects.status
+effectiveStatus =
+  project.status === 'archived'
+    ? 'archived'
+    : latest project_version.status ?? project.status
 ```
 
 Do not add a second duplicate badge.
@@ -370,7 +361,7 @@ Local validation completed: `tsc --noEmit`, `next build`, and Playwright test
 discovery passed. The E2E diff passed `git diff --check`; with the supplied
 Markdown files included, Git reports only their intentional hard-break spaces.
 
-## 14. Latest failure — run #128
+## 14. Previous failure — run #128
 
 Run #128 passed `verify`; `e2e-dev` failed at `Run DEV Playwright flow` for
 desktop and mobile; `deploy-dev` was skipped. The original punctuation assertion
@@ -393,6 +384,40 @@ screenshots, and `error-context.md` were inspected. No follow-up correction has
 been made before this task. The chosen E2E correction scopes the status badge
 to the visible desktop row or mobile card containing this test's unique
 `editedProjectTitle`, then asserts exactly one visible badge.
-Local checks for this correction passed: `tsc --noEmit`, `next build`, Playwright
-test discovery, and diff whitespace validation (excluding intentional Markdown
-hard-break spaces in the supplied context files). The next CI result is pending.
+The scoped locator correction is included in `main` at `1479323`. Run #129
+passed this assertion and continued through the flow to the archive checks; see
+section 15 for the new failure and its confirmed product root cause.
+
+
+## 15. Latest failure — run #129, archived draft status
+
+GitHub `main` is `147932320a26ca523fbe3d799ab93b04f0a3c55c`. Run #129
+(`36198890953`) has `verify` success, `e2e-dev` failure, and `deploy-dev`
+skipped. Artifact `playwright-results-36198890953` (ID `10891212626`) and the
+failed job log were inspected.
+
+The log shows two failing expectations in `projects-flow.spec.ts`:
+
+- desktop: after `archive_project` and page reload, `getByText('Archivé')` finds
+  no visible label;
+- mobile: dashboard counter text is `Brouillons1` when the test expects zero.
+
+Root cause is confirmed in the migration and current UI code. The
+`archive_project` RPC updates only `projects.status = 'archived'`; it does not
+change `project_versions.status`. The detail, dashboard, and Mes projets pages then derive status as
+`latestVersion.status ?? project.status`, so the latest `draft` version masks
+the archive. The profile counters separately used only `projects.status`, so
+they could disagree with project-version review states. Both issues are UI status
+derivation problems; no E2E assertion or database/security change is warranted.
+
+The correction applies a shared `effectiveProjectStatus` helper to project
+detail, dashboard, Mes projets, and profile activity counters, with `archived`
+taking precedence, and uses that state for the detail badge and draft/rejection
+actions. `archive_project`, migrations, schema, RLS, RPC, and auth are untouched. No E2E assertion was changed after reviewing the
+remaining flow: the archived detail label, search, and status-filtered project
+link are valid checks, and the earlier flow reached these assertions.
+
+Local verification passed: `npx tsc --noEmit`, `npm run build`, Playwright test
+discovery (2 desktop/mobile tests), and `git diff --check`. The failure and fix
+are confined to P1.1. The next action is one commit and push, then inspect the
+resulting CI; a green full CI means stop for manual P1.1 validation.

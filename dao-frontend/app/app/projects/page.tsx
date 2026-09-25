@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Filter, Plus, Search } from 'lucide-react';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { Badge, Button, Card, Input } from '../../../components/ui';
-import { statusLabel } from '../../../lib/utils';
+import { effectiveProjectStatus, statusLabel } from '../../../lib/utils';
 
 type ProjectRow = { id: string; title: string; project_type: string; surface_m2?: number | null; status: string; desired_end_date?: string | null; indicative_budget_millimes?: number | null; location: string; lotCount: number };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
@@ -17,7 +17,7 @@ export default function Projects() {
   const [rows, setRows] = useState<ProjectRow[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [query, setQuery] = useState(''); const [status, setStatus] = useState('');
   async function load() { setLoading(true); setError(''); const supabase = supabaseBrowser(); const [projects, versions, requests, governors, delegations, localities] = await Promise.all([supabase.from('projects').select('id,project_type,status,desired_end_date,indicative_budget_millimes,surface_m2,created_at').order('created_at', { ascending: false }), supabase.from('project_versions').select('project_id,title,status,governorate_id,delegation_id,locality_id,version_no').order('version_no', { ascending: false }), supabase.from('project_requests').select('id,project_id,status').neq('status', 'withdrawn'), supabase.from('governorates').select('id,name_fr'), supabase.from('delegations').select('id,name_fr'), supabase.from('localities').select('id,name_fr')]); if (projects.error) { setError('Impossible de charger vos projets.'); setLoading(false); return; }
     const latest = new Map<string, any>(); for (const version of versions.data ?? []) if (!latest.has(version.project_id)) latest.set(version.project_id, version); const govMap = new Map((governors.data ?? []).map(row => [row.id, row.name_fr])); const delegationMap = new Map((delegations.data ?? []).map(row => [row.id, row.name_fr])); const localityMap = new Map((localities.data ?? []).map(row => [row.id, row.name_fr]));
-    setRows((projects.data ?? []).map(project => { const version = latest.get(project.id); return { ...project, status: version?.status ?? project.status, title: version?.title && version.title !== 'Nouveau projet' ? version.title : typeLabels[project.project_type] ?? 'Projet', location: [govMap.get(version?.governorate_id), delegationMap.get(version?.delegation_id), localityMap.get(version?.locality_id)].filter(Boolean).join(' · ') || 'Localisation à préciser', lotCount: (requests.data ?? []).filter(request => request.project_id === project.id).length }; }));
+    setRows((projects.data ?? []).map(project => { const version = latest.get(project.id); return { ...project, status: effectiveProjectStatus(project.status, version?.status), title: version?.title && version.title !== 'Nouveau projet' ? version.title : typeLabels[project.project_type] ?? 'Projet', location: [govMap.get(version?.governorate_id), delegationMap.get(version?.delegation_id), localityMap.get(version?.locality_id)].filter(Boolean).join(' · ') || 'Localisation à préciser', lotCount: (requests.data ?? []).filter(request => request.project_id === project.id).length }; }));
     setLoading(false);
   }
   useEffect(() => { void load(); }, []);

@@ -208,18 +208,22 @@ Represents the review/approval lifecycle of a particular version.
 For current UI display, the effective status rule is:
 
 ```text
-latest project_version.status
-fallback projects.status
+effectiveStatus =
+  project.status === 'archived'
+    ? 'archived'
+    : latest project_version.status
+      ?? project.status
 ```
 
 This rule must remain coherent across:
 
-- dashboard;
-- counters;
-- recent projects;
+- dashboard counters and recent projects;
+- profile activity counters;
 - Mes projets;
 - project detail;
 - next-action CTA.
+
+The project-level `archived` state takes precedence over the latest version status. This keeps archived drafts out of draft counters and hides draft/rejection actions on the detail page.
 
 Do not blindly synchronize the two database columns merely to make a badge look correct.
 

@@ -95,8 +95,10 @@ Current UI rule:
 
 ```text
 effectiveStatus =
-  latest project_version.status
-  ?? projects.status
+  project.status === 'archived'
+    ? 'archived'
+    : latest project_version.status
+      ?? project.status
 ```
 
 The same real business state must have the same label across the application.
