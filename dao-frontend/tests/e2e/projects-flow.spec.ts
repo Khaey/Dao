@@ -169,7 +169,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(client.getByText('plan-e2e.pdf', { exact: true })).not.toBeVisible();
   await client.getByRole('button', { name: 'Vue d’ensemble' }).click();
   await expect(client.getByRole('heading', { name: 'Informations privées et confidentielles' })).toBeVisible();
-  await expect(client.getByText('Non visibles par les artisans', { exact: true })).toBeVisible();
+  await expect(client.getByText('Non visibles par les artisans.', { exact: true })).toBeVisible();
   await client.getByLabel('Adresse exacte').fill('12 rue de Sahloul, Sousse');
   await client.getByLabel('Instructions d’accès').fill('Appeler avant l’arrivée.');
   await client.getByLabel('Téléphone privé').fill('+21620123456');
