@@ -88,7 +88,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   expect(projectUpdateResponse.request().postDataJSON()).toEqual(expect.objectContaining({
     title: editedProjectTitle,
     description: 'Description mise à jour et conservée dans une nouvelle version.',
-    indicative_budget_tnd: 175000,
+    indicative_budget_millimes: 175000000,
     desired_start_date: '2026-10-05',
     desired_end_date: '2026-10-20',
   }));
