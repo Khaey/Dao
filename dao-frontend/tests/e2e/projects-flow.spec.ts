@@ -195,7 +195,12 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(client.getByText('En revue', { exact: true })).toBeVisible();
   await expect(client.getByText('Brouillons', { exact: true }).locator('..')).toContainText('0');
   await client.goto('/app/projects');
-  await expect(client.getByText('Validation client', { exact: true })).toBeVisible();
+  const projectStatusBadge = client.locator('tr:visible, a:visible')
+    .filter({ hasText: editedProjectTitle })
+    .locator('span')
+    .filter({ hasText: /^Validation client$/ });
+  await expect(projectStatusBadge).toHaveCount(1);
+  await expect(projectStatusBadge).toBeVisible();
   await client.close();
   await clientContext.close();
 

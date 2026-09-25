@@ -18,83 +18,36 @@ Before any modification:
 4. if GitHub is ahead of this documentation, update context first;
 5. do not replay old bug analysis if a newer run has already passed that point.
 
-## 1. Immediate task — fix run #127 only
+## 1. Immediate action — correct only the run #128 locator
 
-Current main:
+Verified GitHub `main`: `4544bf062dbc4456dbe22a9034eb6f05eba28c4c`.
+Run #128 (`36197910697`) has `verify` green, `e2e-dev` failed, and `deploy-dev`
+skipped. The punctuation-only assertion fix for run #127 is confirmed passed.
 
-```text
-2d3b4e526708372ed8b79999d68a5d9dfa9469c1
-```
-
-Current CI:
-
-```text
-Run #127
-verify      ✅
-e2e-dev     ❌
-deploy-dev  skipped
-```
-
-Current root cause:
-
-The E2E expects exact text:
+The run #128 failure was E2E line 198 in
+`dao-frontend/tests/e2e/projects-flow.spec.ts`:
 
 ```text
-Non visibles par les artisans
+getByText('Validation client', { exact: true })
+strict mode violation: locator resolved to 3 elements (desktop), 5 (mobile)
 ```
 
-while the real UI deliberately renders:
+The list included the hidden status `<option>` and multiple project status
+badges. Screenshots show the expected status is present. Root cause: the E2E
+locator was global and did not identify the project created by this test.
 
-```text
-Non visibles par les artisans.
-```
+The chosen correction scopes the badge to the visible desktop row (`tr`) or
+mobile project card (`a`) containing this test's unique `editedProjectTitle`,
+then asserts that exactly one `Validation client` badge is visible. It does not
+use `.first()` and does not change the UI.
 
-### Required action
-
-Change **only the E2E assertion** unless new evidence contradicts this diagnosis.
-
-Preferred minimal options:
-
-```ts
-getByText('Non visibles par les artisans.', { exact: true })
-```
-
-or another semantically robust assertion that still proves the warning is present.
-
-Do not:
-
-- change backend;
-- change RLS;
-- change RPC;
-- change schema;
-- change private data visibility;
-- move the section;
-- remove the UI sentence just to satisfy the test.
-
-### Validation
-
-Before push/merge:
-
-- inspect diff;
-- ensure only intended E2E line(s) changed;
-- no lockfile changes;
-- no UI/backend change unless explicitly justified.
-
-Then:
-
-```text
-one commit
--> one CI
-```
-
-If CI fails again:
-
-```text
-STOP
--> inspect the new failure
--> update CURRENT_STATE.md
--> only then make another change
-```
+Run #128 artifact `playwright-results-36197910697` (ID `10889749786`) was
+inspected, including both `error-context.md` files, screenshots, and traces.
+Local `tsc --noEmit`, `next build`, Playwright test discovery, and diff checks
+passed. Next: one commit, one push to `main`, and one CI.
+If that CI fails, stop and report its evidence without another correction. If
+it passes, stop for manual P1.1 validation. Do not touch UI, backend, RLS, RPC,
+schema, or auth for this test locator issue.
 
 ## 2. After first green full CI — do NOT immediately declare P1.1 complete
 
@@ -328,22 +281,7 @@ Do not automatically start:
 
 Each requires an explicit next-phase decision.
 
-## 8. Revalidated immediate action — run #127 E2E assertion
-
-The actual GitHub `main` was verified at `2d3b4e526708372ed8b79999d68a5d9dfa9469c1`;
-latest run was #127 (`36166813134`). Its only failed job was `e2e-dev`, in
-`Run DEV Playwright flow`, both desktop and mobile. The exact failing assertion
-omitted the final period from the UI warning while using `{ exact: true }`.
-
-The E2E-only correction and documentation are prepared on top of that verified
-SHA. Local `tsc --noEmit`, `next build`, Playwright test discovery, and
-The E2E diff passes `git diff --check`; the supplied context files contain
-intentional Markdown hard-break spaces. Next: inspect the complete diff, make
-one commit, push to `main`, and monitor the resulting CI. If any job fails, stop
-and inspect its logs/artifacts before changing anything else. Do not start
-another feature.
-
-## 9. End-of-session protocol
+## 8. End-of-session protocol
 
 Before a Work/Codex session ends or reaches context limit:
 

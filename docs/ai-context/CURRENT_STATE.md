@@ -9,13 +9,13 @@
 Current verified `main`:
 
 ```text
-2d3b4e526708372ed8b79999d68a5d9dfa9469c1
+4544bf062dbc4456dbe22a9034eb6f05eba28c4c
 ```
 
 Commit:
 
 ```text
-test(e2e): assert project budget payload in millimes
+fix(e2e): match private details warning punctuation
 ```
 
 Relevant preceding commits:
@@ -36,9 +36,9 @@ fix: guard project detail state before status derivation
 Latest verified workflow:
 
 ```text
-Run #127
-Run ID: 36166813134
-SHA: 2d3b4e526708372ed8b79999d68a5d9dfa9469c1
+Run #128
+Run ID: 36197910697
+SHA: 4544bf062dbc4456dbe22a9034eb6f05eba28c4c
 ```
 
 Status:
@@ -51,7 +51,7 @@ deploy-dev  ⏭ skipped
 
 The failure is in Playwright.
 
-## 3. Current root cause — run #127
+## 3. Resolved root cause — run #127
 
 Both desktop and mobile now progress beyond:
 
@@ -322,7 +322,7 @@ Current downstream architecture depends on `project_requests`.
 
 Do not implement implicit request behavior during the current failure chain.
 
-## 12. Current immediate conclusion
+## 12. Run #127 conclusion
 
 Do **not** change product code for run #127.
 
@@ -338,7 +338,7 @@ one minimal commit
 
 Do not assume the next CI will automatically finish P1.1.
 
-## 13. Revalidation and fix prepared — 2026-09-26
+## 13. Run #127 resolution — 2026-09-26
 
 Before modifying files, GitHub `main` and the latest Actions run were rechecked:
 
@@ -365,9 +365,34 @@ that period while requesting exact matching. Root cause is confirmed as a
 punctuation-sensitive E2E assertion; no UI, backend, or data-layer change is
 warranted.
 
-The prepared correction changes only that E2E text literal. Local validation
-completed: `tsc --noEmit`, `next build`, and Playwright test discovery passed.
-The E2E diff passes `git diff --check`; when the context documents are included,
-Git reports only the intentional Markdown hard-break spaces already present in
-the supplied `PROJECT_CONTEXT.md` and `CURRENT_STATE.md`. CI for the correction
-has not yet run.
+The correction was committed and pushed as `4544bf062dbc4456dbe22a9034eb6f05eba28c4c`.
+Local validation completed: `tsc --noEmit`, `next build`, and Playwright test
+discovery passed. The E2E diff passed `git diff --check`; with the supplied
+Markdown files included, Git reports only their intentional hard-break spaces.
+
+## 14. Latest failure — run #128
+
+Run #128 passed `verify`; `e2e-dev` failed at `Run DEV Playwright flow` for
+desktop and mobile; `deploy-dev` was skipped. The original punctuation assertion
+now passes. The next failure is at E2E line 198:
+
+```text
+getByText('Validation client', { exact: true })
+strict mode violation
+```
+
+The locator resolves to the hidden `<option>` in `Filtrer par statut` plus
+multiple status badges. Desktop reports 3 matches. Mobile reports 5 because
+both desktop and mobile test projects leave a project for the same E2E client
+account in the list. The screenshots show the expected `Validation client`
+status on project cards/row; this is currently classified as an overly broad
+E2E locator, not a product or backend failure.
+
+Artifacts: `playwright-results-36197910697`, ID `10889749786`; both traces,
+screenshots, and `error-context.md` were inspected. No follow-up correction has
+been made before this task. The chosen E2E correction scopes the status badge
+to the visible desktop row or mobile card containing this test's unique
+`editedProjectTitle`, then asserts exactly one visible badge.
+Local checks for this correction passed: `tsc --noEmit`, `next build`, Playwright
+test discovery, and diff whitespace validation (excluding intentional Markdown
+hard-break spaces in the supplied context files). The next CI result is pending.
