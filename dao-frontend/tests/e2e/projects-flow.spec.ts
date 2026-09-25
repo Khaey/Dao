@@ -75,14 +75,23 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   // location preservation (the edit form intentionally does not send IDs).
   const editedProjectTitle = `${projectTitle} modifié`;
   await client.getByRole('button', { name: 'Modifier le projet' }).click();
-  await client.getByLabel('Titre du projet').fill(editedProjectTitle);
-  await client.getByLabel('Description du projet').fill('Description mise à jour et conservée dans une nouvelle version.');
-  await client.getByLabel('Budget indicatif du projet (TND)').fill('175000');
-  await client.getByLabel('Début souhaité du projet').fill('2026-10-05');
-  await client.getByLabel('Fin souhaitée du projet').fill('2026-10-20');
+  const projectEditForm = client.locator('form').filter({ has: client.getByLabel('Titre du projet') });
+  await projectEditForm.getByLabel('Titre du projet').fill(editedProjectTitle);
+  await projectEditForm.getByLabel('Description du projet').fill('Description mise à jour et conservée dans une nouvelle version.');
+  await projectEditForm.getByLabel('Budget indicatif du projet (TND)').fill('175000');
+  await projectEditForm.getByLabel('Début souhaité du projet').fill('2026-10-05');
+  await projectEditForm.getByLabel('Fin souhaitée du projet').fill('2026-10-20');
   const projectUpdateResponsePromise = client.waitForResponse(response => response.url().endsWith('/api/projects') && response.request().method() === 'PATCH');
-  await client.getByRole('button', { name: 'Enregistrer' }).click();
-  await projectUpdateResponsePromise;
+  await projectEditForm.getByRole('button', { name: 'Enregistrer' }).click();
+  const projectUpdateResponse = await projectUpdateResponsePromise;
+  expect(projectUpdateResponse.ok()).toBeTruthy();
+  expect(projectUpdateResponse.request().postDataJSON()).toEqual(expect.objectContaining({
+    title: editedProjectTitle,
+    description: 'Description mise à jour et conservée dans une nouvelle version.',
+    indicative_budget_tnd: 175000,
+    desired_start_date: '2026-10-05',
+    desired_end_date: '2026-10-20',
+  }));
   await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
   // The page applies the authoritative version returned by the write command
   // directly to the visible state.
