@@ -437,5 +437,11 @@ recorded it as `20260926092748_enforce_draft_withdrawal_and_approved_publication
 the local filename uses that same version. Both RPCs are available, and the
 `general_contractor`, `plumbing`, and `electrical` catalog entries are active.
 Security and performance advisors show no findings added by this change. The
-commit, push to `main`, and single CI run are the next steps; manual functional
-validation follows a green CI. Do not start P2/P3 or CI optimization first.
+first push triggered run #131: `verify` passed, `e2e-dev` failed on desktop and
+mobile at the same private-contact assertion, and `deploy-dev` was skipped.
+The page correctly reopened its `?tab=lots` deep link after reload; the E2E
+then expected private contact fields before returning to Overview. The test
+now verifies the Lots view, switches to Overview, and retains its value checks.
+No product or database behavior changed. The follow-up commit and one CI run
+are pending; manual functional validation follows a green CI. Do not start
+P2/P3 or CI optimization first.

@@ -18,13 +18,16 @@ Before any modification:
 4. if GitHub is ahead of this documentation, update context first;
 5. do not replay old bug analysis if a newer run has already passed that point.
 
-## 1. Final preflight complete
+## 1. Follow-up to CI #131
 
 The working branch `fix/p1.1-effective-archive-status` starts from
 `d42764252036a66630c60676d1c38febb489778c`. The first-lot, exact review
 snapshot, withdrawal, and publication implementation passed local checks. Its
 Supabase migration is applied to DEV and matches the remote migration-history
-version. Next: commit the complete diff, push to `main`, and run one CI sequence
+version. Run #131 passed `verify`; `e2e-dev` failed because the private-contact
+field assertion ran while `?tab=lots` was active after reload. The E2E now
+checks that deep-link view and explicitly switches to Overview before checking
+private fields. Commit and push this test correction, then run one CI sequence
 (`verify` → `e2e-dev` → `deploy-dev`). If it is green, stop for manual desktop
 and mobile functional checks. Do not start P2/P3 or CI optimization first.
 P1.1 remains open until those checks are completed.

@@ -244,6 +244,11 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(client.getByRole('status')).toContainText('Coordonnées privées enregistrées.');
   await client.reload();
+  // The earlier blocked first-lot action leaves ?tab=lots in the URL; return
+  // to the overview where the private contact fields are rendered.
+  await expect(client.getByRole('heading', { name: 'Lots de travaux' })).toBeVisible();
+  await client.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await expect(client.getByRole('heading', { name: 'Informations privées et confidentielles' })).toBeVisible();
   await expect(client.getByLabel('Adresse exacte')).toHaveValue('12 rue de Sahloul, Sousse');
   await expect(client.getByLabel('Instructions d’accès')).toHaveValue('Appeler avant l’arrivée.');
   await expect(client.getByLabel('Téléphone privé')).toHaveValue('+21620123456');
