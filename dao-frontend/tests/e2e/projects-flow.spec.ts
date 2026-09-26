@@ -64,10 +64,15 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await client.getByRole('button', { name: 'Continuer' }).click();
   await expect(client.getByRole('heading', { name: 'Vérifiez les informations' })).toBeVisible();
   await screenshot(client, testInfo, 'new-project-summary');
-  await client.getByRole('button', { name: 'Créer le projet et ajouter les demandes' }).click();
+  await client.getByRole('button', { name: 'Créer le projet' }).click();
   await expect(client).toHaveURL(/\/app\/projects\/(?!new(?:\/|$))[^/?#]+/);
   const projectId = client.url().split('/').pop()!;
   rememberProject(projectId);
+  let mainLotPosts = 0;
+  client.on('request', request => {
+    const requestUrl = new URL(request.url());
+    if (requestUrl.pathname === '/api/projects/requests' && request.method() === 'POST') mainLotPosts += 1;
+  });
   await screenshot(client, testInfo, 'project-overview');
   await expect(client.getByText('Brouillon', { exact: true })).toHaveCount(1);
 
@@ -118,25 +123,87 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(client).toHaveURL(new RegExp(`/app/projects/${projectId}$`));
 
   await client.getByRole('button', { name: /^Lots/ }).click();
-  await expect(client.getByRole('button', { name: 'Ajouter un lot' })).toHaveCount(1);
-  await expect(client.getByLabel('Métier')).toHaveCount(0);
+  await expect(client.getByRole('heading', { name: 'Travaux du projet' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Ajouter un lot' })).toHaveCount(0);
+  await expect(client.getByLabel('Métier')).toHaveValue('');
+  await expect(client.getByLabel('Intitulé du lot')).toHaveValue(editedProjectTitle);
+  await expect(client.getByLabel('Périmètre des travaux')).toHaveValue('Description mise à jour et conservée dans une nouvelle version.');
+  await expect(client.getByLabel('Budget indicatif du lot (TND)')).toHaveValue('175000');
+  expect(mainLotPosts).toBe(0);
   await screenshot(client, testInfo, 'project-lots');
-  await client.getByRole('button', { name: 'Ajouter un lot' }).click();
-  await expect(client.getByLabel('Métier')).toBeVisible();
-  await screenshot(client, testInfo, 'project-add-lot');
-  await client.getByLabel('Métier').selectOption({ index: 1 });
-  await client.getByLabel('Intitulé du lot').fill('Lot plomberie E2E');
-  await client.getByLabel('Budget indicatif du lot (TND)').fill('25000');
-  await client.getByLabel('Périmètre des travaux').fill('Installation plomberie complète');
-  await client.getByRole('button', { name: 'Ajouter la demande' }).click();
-  await expect(client.getByText('Lot plomberie E2E')).toBeVisible();
+
+  await client.goto(`/app/projects/${projectId}/review`);
+  await expect(client.getByRole('heading', { name: 'Un lot actif est nécessaire avant la soumission.' })).toBeVisible();
+  await expect(client.getByRole('button', { name: 'Soumettre pour revue DAO' })).toBeDisabled();
+  await client.getByRole('button', { name: 'Créer le lot principal' }).click();
+  await expect(client).toHaveURL(new RegExp(`/app/projects/${projectId}\\?tab=lots$`));
+  expect(mainLotPosts).toBe(0);
+
+  // An empty project description leaves the lot scope blank; native required
+  // field validation must prevent the create request until the client fills it.
+  await client.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await client.getByRole('button', { name: 'Modifier le projet' }).click();
+  const emptyDescriptionForm = client.locator('form').filter({ has: client.getByLabel('Titre du projet') });
+  await emptyDescriptionForm.getByLabel('Description du projet').fill('');
+  await emptyDescriptionForm.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
+  await client.getByRole('button', { name: /^Lots/ }).click();
+  const mainLotScope = client.getByLabel('Périmètre des travaux');
+  await expect(mainLotScope).toHaveValue('');
+  await expect(client.getByLabel('Métier')).toHaveValue('');
+  await client.getByLabel('Métier').selectOption({ label: 'Entreprise générale' });
+  await client.getByRole('button', { name: 'Créer le lot principal' }).click();
+  await expect(mainLotScope).toBeFocused();
+  expect(mainLotPosts).toBe(0);
+  await mainLotScope.fill('Installation plomberie complète');
+  const createMainLotResponsePromise = client.waitForResponse(response => response.url().includes('/api/projects/requests') && response.request().method() === 'POST');
+  await client.getByRole('button', { name: 'Créer le lot principal' }).click();
+  const createMainLotResponse = await createMainLotResponsePromise;
+  expect(createMainLotResponse.ok()).toBeTruthy();
+  expect(createMainLotResponse.request().postDataJSON()).toEqual(expect.objectContaining({
+    project_id: projectId,
+    trade_id: expect.any(String),
+    title: editedProjectTitle,
+    scope: 'Installation plomberie complète',
+    budget_millimes: 175000000,
+  }));
+  await expect(client.getByRole('status')).toContainText('Lot principal créé.');
+  const mainLotRow = client.locator('tr').filter({ hasText: editedProjectTitle });
+  await expect(mainLotRow).toContainText('Entreprise générale');
+  await expect(mainLotRow).toContainText('v1');
+  await expect(mainLotRow).toContainText('Installation plomberie complète');
+  await expect(mainLotRow.getByRole('cell').nth(2)).toContainText('175');
+  expect(mainLotPosts).toBe(1);
   await expect(client.getByRole('button', { name: 'Ajouter un lot' })).toHaveCount(1);
+
+  // Later project edits do not synchronize or rewrite the created lot version.
+  await client.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await client.getByRole('button', { name: 'Modifier le projet' }).click();
+  const projectAfterLotForm = client.locator('form').filter({ has: client.getByLabel('Titre du projet') });
+  await projectAfterLotForm.getByLabel('Titre du projet').fill(`${editedProjectTitle} après le lot`);
+  await projectAfterLotForm.getByLabel('Description du projet').fill('Description modifiée après la création du lot.');
+  await projectAfterLotForm.getByLabel('Budget indicatif du projet (TND)').fill('190000');
+  await projectAfterLotForm.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(client.getByRole('status')).toContainText('Projet mis à jour.');
+  await client.getByRole('button', { name: /^Lots/ }).click();
+  const unchangedMainLotRow = client.locator('tr').filter({ hasText: editedProjectTitle });
+  await expect(unchangedMainLotRow).not.toContainText(`${editedProjectTitle} après le lot`);
+  await expect(unchangedMainLotRow).toContainText('Installation plomberie complète');
+  await expect(unchangedMainLotRow.getByRole('cell').nth(2)).toContainText('175');
+  await client.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await client.getByRole('button', { name: 'Modifier le projet' }).click();
+  const restoreProjectTitleForm = client.locator('form').filter({ has: client.getByLabel('Titre du projet') });
+  await restoreProjectTitleForm.getByLabel('Titre du projet').fill(editedProjectTitle);
+  await restoreProjectTitleForm.getByRole('button', { name: 'Enregistrer' }).click();
+  await client.getByRole('button', { name: /^Lots/ }).click();
   await screenshot(client, testInfo, 'project-lots-filled');
+
   await client.getByTitle('Modifier').click();
   await client.getByLabel('Intitulé du lot').fill('Lot plomberie E2E version 2');
   await client.getByRole('button', { name: 'Enregistrer les modifications' }).click();
   await expect(client.getByText('v2', { exact: true })).toBeVisible();
   await client.getByTitle('Dupliquer').first().click();
+  await client.getByLabel('Métier').selectOption({ label: 'Électricité' });
   await client.getByLabel('Intitulé du lot').fill('Lot électricité E2E');
   await client.getByLabel('Budget indicatif du lot (TND)').fill('12000');
   await client.getByLabel('Périmètre des travaux').fill('Réseau électrique et appareillage.');
@@ -189,6 +256,8 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await screenshot(client, testInfo, 'project-dao');
   await client.getByRole('link', { name: 'Revoir le DAO' }).first().click();
   await screenshot(client, testInfo, 'dao-review');
+  await expect(client.getByText('Lot plomberie E2E version 2')).toBeVisible();
+  await expect(client.getByText('Installation plomberie complète')).toBeVisible();
   await client.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
   await expect(client.getByText('Validation client').first()).toBeVisible();
   await client.goto('/app');
@@ -210,6 +279,8 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await reviewer.goto('/app/dao/review');
   const reviewCard = reviewer.locator('section > div').filter({ hasText: editedProjectTitle }).first();
   await expect(reviewCard).toBeVisible();
+  await expect(reviewCard.getByText('Lot plomberie E2E version 2')).toBeVisible();
+  await expect(reviewCard.getByText('Installation plomberie complète')).toBeVisible();
   await reviewCard.getByLabel('Commentaire de revue').fill('Commentaire E2E DAO');
   await reviewCard.getByRole('button', { name: 'Passer en revue DAO' }).click();
   await expect(reviewCard.getByText('dao_review')).toBeVisible();
@@ -238,6 +309,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await finalReviewer.goto('/app/dao/review');
   const finalReviewCard = finalReviewer.locator('section > div').filter({ hasText: editedProjectTitle }).first();
   await expect(finalReviewCard).toBeVisible();
+  await expect(finalReviewCard.getByText('Lot plomberie E2E version 2')).toBeVisible();
   await finalReviewCard.getByLabel('Commentaire de revue').fill('Version corrigée conforme.');
   await finalReviewCard.getByRole('button', { name: 'Passer en revue DAO' }).click();
   await expect(finalReviewCard.getByText('dao_review')).toBeVisible();
@@ -246,7 +318,14 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await expect(finalReviewCard).not.toBeVisible();
   await finalReviewer.goto('/app/dao/publications/new?project_id=' + projectId);
   await screenshot(finalReviewer, testInfo, 'publication-review');
-  await finalReviewer.getByRole('button', { name: 'Publier le DAO' }).click();
+  const publishButton = finalReviewer.getByRole('button', { name: 'Publier le DAO' });
+  await expect(publishButton).toBeEnabled();
+  await finalReviewer.getByRole('checkbox').first().uncheck();
+  await expect(finalReviewer.getByText('Sélectionnez au moins un lot pour publier.')).toBeVisible();
+  await expect(publishButton).toBeDisabled();
+  await finalReviewer.getByRole('checkbox').first().check();
+  await expect(publishButton).toBeEnabled();
+  await publishButton.click();
   await expect(finalReviewer).toHaveURL(/\/app\/publications\/[^/]+/);
   const publicationUrl = finalReviewer.url();
   const publicationId = publicationUrl.split('/').pop()!;
@@ -303,7 +382,7 @@ test('Client → reviewer DAO → artisan → offre DEV', async ({ browser }, te
   await final.getByLabel('Localité').selectOption({ index: 1 });
   await final.getByRole('button', { name: 'Continuer' }).click();
   await final.getByRole('button', { name: 'Continuer' }).click();
-  await final.getByRole('button', { name: 'Créer le projet et ajouter les demandes' }).click();
+  await final.getByRole('button', { name: 'Créer le projet' }).click();
   const archivedProjectId = final.url().split('/').pop()!;
   rememberProject(archivedProjectId);
   final.once('dialog', dialog => dialog.accept());

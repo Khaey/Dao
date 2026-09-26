@@ -75,31 +75,17 @@ Dashboard counters, profile activity counters, Mes projets and project detail mu
 Archived projects always display `archived`, even when their latest version
 remains `draft`.
 
-## D-007 — Lots form stays hidden by default
+## D-007 — Additional lot form stays hidden by default
 
-`showLotForm = false` is intentional.
+For a project that already has at least one lot, the form for adding another
+lot stays hidden until the client selects `Ajouter un lot`. The zero-lot draft
+case uses the visible, explicitly submitted first-lot form defined in D-025.
 
-Flow:
+## D-008 — One create action for each lot state
 
-```text
-Lots
--> Ajouter un lot
--> form appears
-```
-
-Do not make the form permanently visible.
-
-## D-008 — Single CTA when zero lots
-
-When there are zero active lots:
-
-- one CTA only in the empty state.
-
-When one or more lots exist:
-
-- CTA in section header.
-
-No duplicate `Ajouter un lot` buttons.
+When there are zero active lots, show one `Créer le lot principal` action on
+the first-lot form. When one or more lots exist, show one `Ajouter un lot`
+action in the section header. Do not show duplicate create actions.
 
 ## D-009 — Private details belong in Overview
 
@@ -148,13 +134,11 @@ Do not reintroduce both `Mon espace` and `Mon compte` pointing to the same profi
 
 Role-aware navigation remains the expected pattern.
 
-## D-013 — Simple project without lot is deferred
+## D-013 — Simple project without lot is deferred (superseded)
 
-Do not modify the request architecture during P1.1.
-
-`project_requests` is downstream-critical.
-
-Only perform an impact study later for an implicit `Projet complet` request.
+The initial deferral is superseded by D-025. `project_requests` remains the
+downstream-critical unit, and the approved flow requires a client-created real
+lot before review.
 
 ## D-014 — Money payloads use millimes
 
@@ -253,3 +237,18 @@ Before ending a long Work/Codex session:
 3. record any new durable decision in `DECISIONS.md`;
 4. record architecture/business changes in their files;
 5. commit those documentation updates with the related work or a dedicated context commit.
+
+## D-025 — Every reviewed project contains at least one real lot
+
+An editable draft may temporarily have no lot. Before review, the client must
+create at least one real `project_request` / lot. A simple project uses one
+real lot; a complex project may use several. Do not create a hidden or virtual
+`Projet complet` lot, auto-create a lot, or synchronize project edits into
+existing lots.
+
+The first-lot form is prefilled from the current project title, real
+description, and indicative budget, with no trade selected. Creation occurs
+only after explicit client action. Review screens show the exact snapshots
+linked to the reviewed project version. Publication accepts only active lots
+linked to the approved version and uses those snapshots. Lot withdrawal is
+allowed only while the latest project version remains a draft.

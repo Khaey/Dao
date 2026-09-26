@@ -152,20 +152,11 @@ Fixed before current state.
 
 ### Lots E2E / P1.1 UX
 
-P1.1 intentionally hides the lot form.
-
-Old E2E looked for `Métier` immediately after clicking `Lots`.
-
-Correct behavior:
-
-```text
-Lots
--> Ajouter un lot
--> form visible
--> Métier
-```
-
-Do not regress this.
+The first-lot form is visible on the editable draft's Lots tab and is prefilled
+from the current project version. It has no preselected trade and sends no
+create request until `Créer le lot principal` is explicitly activated. With
+one or more lots, the form for adding another remains hidden until `Ajouter un
+lot` is selected.
 
 ### Mobile project-edit race condition
 
@@ -230,7 +221,8 @@ Current page includes:
 - private description:
   `Non visibles par les artisans.`;
 - project edit form;
-- lot form hidden by default;
+- first-lot form visible on an editable zero-lot draft;
+- additional-lot form hidden until `Ajouter un lot`;
 - document-specific refresh;
 - signed/private document workflow;
 - project history;
@@ -281,16 +273,15 @@ Document actions use accessible icon actions:
 Current intended UX:
 
 ```text
-0 active lot
--> one Add CTA
--> form hidden
+0 active lots on an editable draft
+-> prefilled first-lot form with no default trade
+-> create only after explicit action
 
 1+ active lots
 -> list
 -> Add CTA in header
+-> additional-lot form opens on request
 ```
-
-Form is shown only when requested or in edit mode.
 
 ## 10. Current status behavior
 
@@ -305,13 +296,18 @@ effectiveStatus =
 
 Do not add a second duplicate badge.
 
-## 11. Known deferred issue
+## 11. Project and lot workflow decision
 
-Simple project without explicit lot remains intentionally unresolved.
+The downstream unit remains a real `project_request` / lot. Zero lots are
+allowed only while a project version is an editable draft. At least one active
+lot is required before submission. No hidden or implicit full-project request
+is created, and project edits do not synchronize into existing lots.
 
-Current downstream architecture depends on `project_requests`.
-
-Do not implement implicit request behavior during the current failure chain.
+Review screens use the exact lot snapshots linked to their project version.
+Publication choices use active lots linked to the approved project version;
+the RPC rejects empty, null, duplicate, inactive, and unlinked selections and
+publishes those approved snapshots. Withdrawal is rejected after the current
+project version leaves draft.
 
 ## 12. Run #127 conclusion
 
@@ -420,6 +416,26 @@ link are valid checks, and the earlier flow reached these assertions.
 The correction was committed and published as `ae89ad6a8383c92ab62b5d0b52546545780864a6`.
 Local verification passed: `npx tsc --noEmit --incremental false`, `npm run
 build`, Playwright test discovery (2 desktop/mobile tests), and `git diff
---check`. Run #130 passed `verify`, `e2e-dev`, and `deploy-dev`. The next step is
-manual P1.1 validation from `NEXT_STEPS.md`; no P2/P3 or CI optimization has
-started.
+--check`. Run #130 passed `verify`, `e2e-dev`, and `deploy-dev` for that
+baseline.
+
+## 16. Active lot workflow implementation
+
+The working branch `fix/p1.1-effective-archive-status` is based on
+`d42764252036a66630c60676d1c38febb489778c`. The implementation adds
+first-lot creation and exact review/publication snapshots in the frontend,
+plus a migration that locks withdrawal against review submission and enforces
+approved active lot selections during publication. Local verification passes:
+PGlite `test:local` (92 checks), backend `npm test` (10 checks), frontend
+production build, standalone TypeScript check, Playwright discovery (4 tests,
+desktop/mobile), and `git diff --check`. CI provisions disposable Playwright
+accounts; a local authenticated E2E run was not needed.
+
+The final preflight applied the migration once to the DEV Supabase project
+`DAO` (`nmbpjdltirotoifwuzat`) using the Supabase migration tool. Supabase
+recorded it as `20260926092748_enforce_draft_withdrawal_and_approved_publication`;
+the local filename uses that same version. Both RPCs are available, and the
+`general_contractor`, `plumbing`, and `electrical` catalog entries are active.
+Security and performance advisors show no findings added by this change. The
+commit, push to `main`, and single CI run are the next steps; manual functional
+validation follows a green CI. Do not start P2/P3 or CI optimization first.

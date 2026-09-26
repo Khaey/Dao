@@ -18,15 +18,16 @@ Before any modification:
 4. if GitHub is ahead of this documentation, update context first;
 5. do not replay old bug analysis if a newer run has already passed that point.
 
-## 1. Manual P1.1 validation — next step
+## 1. Final preflight complete
 
-The status correction is on `main` in code commit
-`ae89ad6a8383c92ab62b5d0b52546545780864a6`. Run #130 (`36203094855`) is green:
-`verify`, `e2e-dev`, and `deploy-dev` all succeeded.
-
-Perform the explicit manual P1.1 checks in section 2. P1.1 remains open until
-those checks are completed. Do not start P2/P3 or CI optimization before that
-validation.
+The working branch `fix/p1.1-effective-archive-status` starts from
+`d42764252036a66630c60676d1c38febb489778c`. The first-lot, exact review
+snapshot, withdrawal, and publication implementation passed local checks. Its
+Supabase migration is applied to DEV and matches the remote migration-history
+version. Next: commit the complete diff, push to `main`, and run one CI sequence
+(`verify` → `e2e-dev` → `deploy-dev`). If it is green, stop for manual desktop
+and mobile functional checks. Do not start P2/P3 or CI optimization first.
+P1.1 remains open until those checks are completed.
 
 ## 2. Manual P1.1 validation
 
@@ -50,16 +51,28 @@ Validate desktop + mobile:
 
 Validate:
 
-- zero-lot empty state;
-- one CTA only;
-- form hidden initially;
-- form opens after click;
+- zero-lot editable draft shows a prefilled `Travaux du projet` form;
+- blank trade remains unselected and blank real description leaves scope blank;
+- direct review route explains the active-lot requirement and links to Lots;
+- no create request occurs before explicit `Créer le lot principal` action;
+- required scope validation blocks an empty first lot;
+- first lot creates one real request and v1 with selected trade and millime budget;
+- later project edits do not alter or version the lot;
+- with an existing lot, the add form stays hidden until explicit action;
 - add;
 - edit;
 - duplicate;
-- withdraw;
+- withdraw while current project version is draft;
+- withdrawal is rejected once the current project version is in review;
 - history;
 - v1/v2 behavior.
+
+### Review and publication
+
+Validate that client and DAO review screens show the exact lot snapshot linked
+to the reviewed project version. Publication must offer only active lots linked
+to the approved project version, publish those exact snapshots, and reject an
+empty, null, duplicate, inactive, or unlinked selection at the RPC boundary.
 
 ### Documents
 
@@ -213,37 +226,11 @@ ProjectDetail
 
 Preserve behavior exactly during refactor.
 
-## 6. Later product study — simple project without explicit lot
+## 6. Simple and complex project lot model
 
-Do an impact study before implementation.
-
-Question:
-
-Can a simple project use an implicit request such as:
-
-```text
-Projet complet
-```
-
-without changing downstream semantics?
-
-Study impact on:
-
-- publication;
-- offers;
-- partial awards;
-- reviewer flow;
-- contracts;
-- data migrations;
-- E2E fixtures.
-
-If impact is significant:
-
-```text
-STOP
--> present options
--> wait for product decision
-```
+The product decision is recorded in D-025: a simple project has one real lot,
+and a complex project may have multiple real lots. No implicit or hidden
+`Projet complet` request is used.
 
 ## 7. Later product phases
 

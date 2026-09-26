@@ -13,6 +13,14 @@ create schema storage; create table storage.objects(id uuid default gen_random_u
 await db.exec(`create function public.rls_auto_enable() returns trigger language plpgsql as $$ begin return new; end $$;`);
 for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).sort())await test('migration '+f,()=>db.exec(readFileSync(new URL('../supabase/migrations/'+f,import.meta.url),'utf8')));
 if(fails)throw Error(JSON.stringify(results));
+await test('canonical trade seed is idempotent by code',async()=>{
+ await db.exec(readFileSync(new URL('../supabase/migrations/20260926092748_enforce_draft_withdrawal_and_approved_publication.sql',import.meta.url),'utf8'));
+ const rows=(await db.query("select code,name_fr,active,count(*) over(partition by code)::int as copies from public.trades where code in ('general_contractor','plumbing','electrical') order by code")).rows;
+ eq(rows.length,3);for(const row of rows){eq(row.active,true);eq(row.copies,1);}
+ eq(rows.find(row=>row.code==='general_contractor')?.name_fr,'Entreprise générale');
+ eq(rows.find(row=>row.code==='plumbing')?.name_fr,'Plomberie');
+ eq(rows.find(row=>row.code==='electrical')?.name_fr,'Électricité');
+});
 async function insert(t,values){const v={id:randomUUID(),...values};const keys=Object.keys(v);await db.query(`insert into public.${t}(${keys.join(',')}) values(${keys.map((_,i)=>'$'+(i+1)).join(',')})`,Object.values(v));return v.id;}
 const U={};for(const n of ['clientA','clientB','proA','proB','general','admin']){U[n]=randomUUID();await db.query('insert into auth.users values($1)',[U[n]]);await insert('profiles',{user_id:U[n],display_name:n});await insert('user_roles',{user_id:U[n],role:n==='admin'?'dao_admin':n.startsWith('client')?'client':'contractor'});}
 await insert('user_roles',{user_id:U.proA,role:'client'});
@@ -25,6 +33,47 @@ const V=await insert('project_versions',{project_id:P,version_no:1,title:'Test',
 const rev=await insert('project_reviews',{project_version_id:V,actor_id:U.clientA,actor_role:'client',decision:'approved'});
 const run=await insert('ai_runs',{project_id:P,status:'succeeded',provider:'test'});const proposal=await insert('ai_proposals',{run_id:run,trade_id:trade,proposed_scope:'Test',status:'proposed'});
 const requests=[];for(let i=0;i<4;i++){const r=await insert('project_requests',{project_id:P});const rv=await insert('project_request_versions',{request_id:r,project_id:P,version_no:1,trade_id:trade,title:'Test '+i,scope:'Test'});requests.push({r,rv});}
+const withdrawalProject=await insert('projects',{client_id:U.clientA});
+const withdrawalProjectVersion=await insert('project_versions',{project_id:withdrawalProject,version_no:1,title:'Withdrawal test',description:'Test',governorate_id:gov,status:'draft'});
+const withdrawalRequests=[];
+for(let i=0;i<2;i++){
+ const request=await insert('project_requests',{project_id:withdrawalProject});
+ const requestVersion=await insert('project_request_versions',{request_id:request,project_id:withdrawalProject,version_no:1,trade_id:trade,title:'Withdrawal lot '+i,scope:'Test'});
+ await insert('project_version_requests',{project_id:withdrawalProject,project_version_id:withdrawalProjectVersion,request_version_id:requestVersion});
+ withdrawalRequests.push({request,requestVersion});
+}
+const staleDraftProject=await insert('projects',{client_id:U.clientA});
+const staleDraftVersion=await insert('project_versions',{project_id:staleDraftProject,version_no:1,title:'Old draft',description:'Test',governorate_id:gov,status:'draft'});
+await insert('project_versions',{project_id:staleDraftProject,version_no:2,title:'Current review',description:'Test',governorate_id:gov,status:'client_review'});
+const staleDraftRequest=await insert('project_requests',{project_id:staleDraftProject});
+const staleDraftRequestVersion=await insert('project_request_versions',{request_id:staleDraftRequest,project_id:staleDraftProject,version_no:1,trade_id:trade,title:'Stale draft lot',scope:'Test'});
+await insert('project_version_requests',{project_id:staleDraftProject,project_version_id:staleDraftVersion,request_version_id:staleDraftRequestVersion});
+const nonDraftWithdrawal=[];
+nonDraftWithdrawal.push({status:'client_review',request:staleDraftRequest});
+for(const status of ['dao_review','approved']){
+ const project=await insert('projects',{client_id:U.clientA});
+ const version=await insert('project_versions',{project_id:project,version_no:1,title:status+' test',description:'Test',governorate_id:gov,status});
+ const request=await insert('project_requests',{project_id:project});
+ const requestVersion=await insert('project_request_versions',{request_id:request,project_id:project,version_no:1,trade_id:trade,title:status+' lot',scope:'Test'});
+ await insert('project_version_requests',{project_id:project,project_version_id:version,request_version_id:requestVersion});
+ nonDraftWithdrawal.push({status,request});
+}
+const correctionProject=await insert('projects',{client_id:U.clientA});
+const rejectedProjectVersion=await insert('project_versions',{project_id:correctionProject,version_no:1,title:'Rejected version',description:'Test',governorate_id:gov,status:'rejected'});
+const correctionRequest=await insert('project_requests',{project_id:correctionProject});
+const rejectedRequestVersion=await insert('project_request_versions',{request_id:correctionRequest,project_id:correctionProject,version_no:1,trade_id:trade,title:'Rejected lot',scope:'Test'});
+await insert('project_version_requests',{project_id:correctionProject,project_version_id:rejectedProjectVersion,request_version_id:rejectedRequestVersion});
+const publicationProject=await insert('projects',{client_id:U.clientA});
+const approvedPublicationVersion=await insert('project_versions',{project_id:publicationProject,version_no:1,title:'Publication test',description:'Test',governorate_id:gov,status:'approved'});
+const activePublicationRequest=await insert('project_requests',{project_id:publicationProject});
+const approvedRequestSnapshot=await insert('project_request_versions',{request_id:activePublicationRequest,project_id:publicationProject,version_no:1,trade_id:trade,title:'Approved lot snapshot',scope:'Approved scope'});
+const latestRequestSnapshot=await insert('project_request_versions',{request_id:activePublicationRequest,project_id:publicationProject,version_no:2,trade_id:trade,title:'Later lot edit',scope:'Later scope'});
+await insert('project_version_requests',{project_id:publicationProject,project_version_id:approvedPublicationVersion,request_version_id:approvedRequestSnapshot});
+const unlinkedPublicationRequest=await insert('project_requests',{project_id:publicationProject});
+await insert('project_request_versions',{request_id:unlinkedPublicationRequest,project_id:publicationProject,version_no:1,trade_id:trade,title:'Unlinked lot',scope:'Test'});
+const withdrawnPublicationRequest=await insert('project_requests',{project_id:publicationProject,status:'withdrawn'});
+const withdrawnRequestSnapshot=await insert('project_request_versions',{request_id:withdrawnPublicationRequest,project_id:publicationProject,version_no:1,trade_id:trade,title:'Withdrawn lot',scope:'Test'});
+await insert('project_version_requests',{project_id:publicationProject,project_version_id:approvedPublicationVersion,request_version_id:withdrawnRequestSnapshot});
 const B={};for(const n of ['proA','proB','general']){
  const b=await insert('bids',{project_id:P,contractor_id:C[n]});const v=await insert('bid_versions',{bid_id:b,project_id:P,contractor_id:C[n],version_no:1,expires_at:'2099-01-01T00:00:00Z'});
  const items=[];for(const rq of requests)items.push(await insert('bid_items',{bid_version_id:v,project_id:P,contractor_id:C[n],request_id:rq.r,request_version_id:rq.rv,price_millimes:11500000,duration_days:15,inclusions:'Test'}));
@@ -46,6 +95,58 @@ await test('direct authenticated write denied',()=>as('proA',()=>denied(`update 
 await test('submitted content immutable even privileged',()=>denied(`update public.bid_items set price_millimes=1 where id='${B.proA.items[0]}'`,'23514'));
 await test('submitted timestamp cannot be erased',()=>denied(`update public.bid_versions set status='draft',submitted_at=null where id='${B.proA.v}'`,'23514'));
 await test('dual roles one user',async()=>{const r=await db.query('select count(*)::int as n from public.user_roles where user_id=$1',[U.proA]);eq(r.rows[0].n,2)});
+await test('client can withdraw an open request while the project version is draft',()=>as('clientA',async()=>{
+ await db.query('select public.withdraw_project_request($1)',[withdrawalRequests[0].request]);
+ const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[0].request]);eq(request.rows[0].status,'withdrawn');
+ const link=await db.query('select id from public.project_version_requests where project_version_id=$1 and request_version_id=$2',[withdrawalProjectVersion,withdrawalRequests[0].requestVersion]);eq(link.rows.length,0);
+}));
+await test('project review submission still requires and preserves an open request',()=>as('clientA',async()=>{
+ const submitted=await db.query('select (public.submit_project_for_review($1)).status as status',[withdrawalProject]);eq(submitted.rows[0].status,'client_review');
+ const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
+}));
+await test('client cannot withdraw a request after the project version leaves draft',()=>as('clientA',()=>denied(`select public.withdraw_project_request('${withdrawalRequests[1].request}')`,'23514')));
+await test('withdrawal after review leaves the request active and linked',async()=>{
+ const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
+ const link=await db.query('select id from public.project_version_requests where project_version_id=$1 and request_version_id=$2',[withdrawalProjectVersion,withdrawalRequests[1].requestVersion]);eq(link.rows.length,1);
+});
+await test('withdrawal cannot use an older draft when the latest project version is in review',()=>as('clientA',()=>denied(`select public.withdraw_project_request('${staleDraftRequest}')`,'23514')));
+await test('withdrawal is refused in client_review, dao_review, and approved',()=>as('clientA',async()=>{
+ for(const item of nonDraftWithdrawal)await denied(`select public.withdraw_project_request('${item.request}')`,'23514');
+}));
+await test('older-draft requests remain active and linked after rejected commands',async()=>{
+ const request=await db.query('select status from public.project_requests where id=$1',[staleDraftRequest]);eq(request.rows[0].status,'open');
+ const link=await db.query('select id from public.project_version_requests where project_version_id=$1 and request_version_id=$2',[staleDraftVersion,staleDraftRequestVersion]);eq(link.rows.length,1);
+});
+await test('correction creates an editable draft and restores lot update and withdrawal',()=>as('clientA',async()=>{
+ const corrected=await db.query('select (public.create_project_correction($1)).id as id',[correctionProject]);const draftId=corrected.rows[0].id;
+ const draft=await db.query('select status,version_no from public.project_versions where id=$1',[draftId]);eq(draft.rows[0].status,'draft');eq(draft.rows[0].version_no,2);
+ const updated=await db.query('select (public.update_project_request($1,$2,$3,$4,$5)).version_no as version_no',[correctionRequest,trade,'Corrected lot','Corrected scope',12000000]);eq(updated.rows[0].version_no,2);
+ const withdrawn=await db.query('select (public.withdraw_project_request($1)).status as status',[correctionRequest]);eq(withdrawn.rows[0].status,'withdrawn');
+ const currentLink=await db.query('select id from public.project_version_requests where project_version_id=$1',[draftId]);eq(currentLink.rows.length,0);
+ const historyLink=await db.query('select id from public.project_version_requests where project_version_id=$1',[rejectedProjectVersion]);eq(historyLink.rows.length,1);
+}));
+await test('publication rejects empty, null, duplicate, inactive, and unlinked request selections',()=>as('admin',async()=>{
+ const project=publicationProject, active=activePublicationRequest, unlinked=unlinkedPublicationRequest, withdrawn=withdrawnPublicationRequest;
+ await denied(`select public.publish_project('${project}','public',null,null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array[]::uuid[],null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array[null]::uuid[],null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array['${active}','${active}']::uuid[],null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array['${unlinked}']::uuid[],null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array['${randomUUID()}']::uuid[],null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array['${requests[0].r}']::uuid[],null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array['${withdrawn}']::uuid[],null,null)`,'23514');
+ await denied(`select public.publish_project('${project}','public',array['${active}','${unlinked}']::uuid[],null,null)`,'23514');
+}));
+await test('invalid publication selection creates no partial publication',async()=>{
+ const publications=await db.query('select id from public.publications where project_id=$1',[publicationProject]);eq(publications.rows.length,0);
+});
+await test('publication uses the exact lot snapshot attached to the approved project version',()=>as('admin',async()=>{
+ await db.query('select public.publish_project($1,$2,$3::uuid[],$4::uuid[],$5)',[publicationProject,'public',[activePublicationRequest],null,null]);
+}));
+await test('publication keeps the approved snapshot instead of a later lot version',async()=>{
+ const publication=await db.query('select id from public.publications where project_id=$1',[publicationProject]);eq(publication.rows.length,1);
+ const publishedRequest=await db.query('select request_version_id from public.publication_requests where publication_id=$1',[publication.rows[0].id]);eq(publishedRequest.rows.length,1);eq(publishedRequest.rows[0].request_version_id,approvedRequestSnapshot);eq(publishedRequest.rows[0].request_version_id===latestRequestSnapshot,false);
+});
 const A=await insert('awards',{project_id:P,contractor_id:C.proA});const A2=await insert('awards',{project_id:P,contractor_id:C.proB});const AQ=await insert('awards',{project_id:Q,contractor_id:C.proA});const AG=await insert('awards',{project_id:P,contractor_id:C.general});
 function awardSql(a,c,i,request,proj=P){return `insert into public.award_items(award_id,project_id,contractor_id,request_id,bid_item_id,agreed_millimes) values('${a}','${proj}','${c}','${request}','${i}',11500000)`}
 await test('cross contractor award rejected by FK',()=>denied(awardSql(A,C.proA,B.proB.items[0],requests[0].r),'23503'));

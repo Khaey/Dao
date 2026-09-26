@@ -155,62 +155,58 @@ Security rules:
 
 ## 11. Lots UX
 
-Current P1.1 UX:
+Each `project_request` / lot is a real, downstream unit for publication,
+bidding, and award. A simple project has one real lot; a complex project can
+have multiple real lots. Do not create, hide, or synchronize a virtual lot.
 
-### Zero active lots
+### Editable draft with zero active lots
 
-Show:
+An editable project draft may temporarily have zero lots. Its Lots tab shows a
+`Travaux du projet` first-lot form prefilled from the current project version:
 
-- clear empty state;
-- one single primary CTA `Ajouter un lot`.
+- title from the project title;
+- scope from a real project description (leave blank for an empty or placeholder description);
+- indicative lot budget from the project budget, converted from millimes;
+- no trade selected by default.
 
-Do not simultaneously show:
+Creating the lot requires an explicit active catalog trade, a non-empty title,
+and a non-empty scope. The `Créer le lot principal` action is the only point
+that sends the create request. No lot is created on page load. The client
+review screen explains that one active lot is required and links back to the
+Lots tab; submission stays disabled until a lot exists.
 
-- header CTA;
-- empty-state CTA;
-- permanently visible form.
+Project edits after the first lot is created do not update that lot or create a
+new lot version automatically.
 
 ### One or more lots
 
-Show:
+Show the list and `Ajouter un lot` action. Keep the add form hidden until the
+client explicitly asks to add another lot. Existing actions remain available
+only while the project and its current version are editable drafts:
 
-- compact list;
-- `Ajouter un lot` in section header;
-- actions:
-  - modify;
-  - duplicate;
-  - history;
-  - withdraw.
+- modify;
+- duplicate;
+- history;
+- withdraw.
 
-### Form visibility
+Withdrawal is allowed only while the latest project version is a draft. The
+database serializes withdrawal against review submission so the last active lot
+cannot disappear while the project is being submitted.
 
-The lot form remains hidden until the user explicitly clicks `Ajouter un lot` or enters edit mode.
+### Review and publication snapshots
 
-## 12. Simple project without explicit lot
+Client and DAO review screens show the exact lot versions linked to the project
+version under review. Publication choices come from the approved project
+version's linked lot snapshots and include only active lots. The publication
+RPC rejects empty, null, duplicate, inactive, or unlinked selections and
+publishes the approved snapshots, even if a newer lot version exists.
 
-Desired future UX:
+## 12. No implicit or virtual lot
 
-```text
-Simple project
--> full scope without forcing the user to understand "request"
-```
-
-Possible implementation:
-
-```text
-implicit request = "Projet complet"
-```
-
-But this is not approved for immediate implementation during P1.1.
-
-A dedicated impact analysis must cover:
-
-- publication;
-- bids;
-- partial award;
-- downstream contracts;
-- review;
-- migration implications.
+A zero-lot state is allowed only during editable draft preparation. Before
+review, the client creates at least one real lot. Do not auto-create a hidden
+`Projet complet` request, introduce a no-lot mode, or infer a lot from project
+fields. Keep project and lot data independent after lot creation.
 
 ## 13. Budgets
 

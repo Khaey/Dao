@@ -149,32 +149,19 @@ An artisan's commercial/technical response.
 
 The unit of award is currently the **request**, not the entire project.
 
-## 7. Product direction for simple projects
+## 7. Product direction for simple and complex projects
 
-The desired UX is eventually:
+A simple project contains one real lot; a complex project can contain several
+real lots. A draft may temporarily have zero lots while the client prepares it,
+but the client must create at least one real lot before review. The first-lot
+form is prefilled from project information and leaves trade selection explicit.
 
-```text
-Simple project
--> client can treat the complete project as one scope
-```
-
-and:
-
-```text
-Split project
--> Plumbing
--> Electricity
--> Tiling
-...
-```
-
-However, the technical model currently relies on `project_requests` downstream.
-
-Therefore the user must not be forced to understand the internal abstraction, but the model must **not** be removed casually.
-
-A possible future solution is an implicit/default request such as `Projet complet`, created automatically and hidden from the client.
-
-This is **not to be implemented during the current P1.1 stabilization** without a dedicated impact study.
+There is no hidden or implicit `Projet complet` request, no auto-created lot,
+and no automatic synchronization from project edits into existing lots.
+Review screens use the exact lot snapshots linked to the reviewed project
+version, and publication uses active lot snapshots linked to the approved
+project version. These rules preserve the existing downstream meaning of
+`project_requests` for publication, offers, and awards.
 
 ## 8. Working principles
 
