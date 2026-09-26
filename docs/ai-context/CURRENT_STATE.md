@@ -4,41 +4,57 @@
 > **Repository:** `Khaey/Dao`  
 > This file must be updated whenever `main`, CI status, or the immediate root cause changes.
 
-## 1. Current application code on `main`
-
-Validated P1.1 code commit:
+## 1. Current revision on `main`
 
 ```text
-ae89ad6a8383c92ab62b5d0b52546545780864a6
+32b3470beddf2ac9bbd693fe1aef78f1e96d6e2d
 ```
 
 Commit:
 
 ```text
-fix(p1.1): keep archived project status effective
+ci: isolate full e2e on disposable supabase
 ```
 
-The documentation-only state update after this code commit does not change the application tree.
+The four local Playwright selector corrections are included on `main`.
 
-## 2. Latest CI for the current application code
+## 2. Latest CI for the current revision
 
-Latest verified workflow:
+Latest workflow:
 
 ```text
-Run #130
-Run ID: 36203094855
-SHA: ae89ad6a8383c92ab62b5d0b52546545780864a6
+Run #136
+Run ID: 36270124756
+SHA: 32b3470beddf2ac9bbd693fe1aef78f1e96d6e2d
 ```
 
 Status:
 
 ```text
-verify      ✅ success
-e2e-dev     ✅ success
-deploy-dev  ✅ success
+backend-verify  ✅ success
+frontend-build  ✅ success
+isolated E2E    ❌ failed before Playwright
+deploy-dev      ⏭ skipped
 ```
 
-The complete CI is green. P1.1 still awaits manual validation.
+Run #135 was not rerun; it was the last old E2E workflow targeting shared DEV.
+
+### Active blocker — fresh migration chain lacks its RLS event-trigger function
+
+The first isolated runner failed in 58 seconds while `supabase start` applied
+the fifth repository migration, `202609210001_dao_security_hardening_rls_auto_enable.sql`.
+That file only grants/revokes permissions on `public.rls_auto_enable()`; no
+repository migration defines the function. The PGlite helper in
+`dao-backend/tests/local.mjs` creates a simplified stub before testing, which
+hid this gap. A read-only DEV check found the real `SECURITY DEFINER`
+`RETURNS event_trigger` function and the enabled `ensure_rls` trigger on
+`ddl_command_end`. No Playwright test ran. Fixing the migration chain requires
+an RLS/security schema decision; do not add a local-only stub, alter RLS, or
+rerun CI until that decision is made.
+
+No Supabase branch was created, no DEV data were deleted, and no migration was
+applied during this isolation work. The shared DEV inventory remains 47 E2E
+Auth accounts, 58 E2E-owned projects, and 42 submitted bid versions.
 
 ## 3. Resolved root cause — run #127
 

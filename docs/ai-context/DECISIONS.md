@@ -271,3 +271,10 @@ validation. Do not run FULL E2E against it. Historical E2E data remain until a
 separate maintenance decision. A long-lived hosted development branch was not
 created because it would incur recurring compute cost and its documented reset
 does not explicitly guarantee Storage object removal.
+
+The first local-stack CI run also exposed a missing repository migration
+prerequisite: `202609210001_dao_security_hardening_rls_auto_enable.sql` grants
+permissions on `public.rls_auto_enable()` without defining it. The DEV database
+has an enabled DDL event trigger backed by a `SECURITY DEFINER` function, while
+the PGlite test harness inserts a simplified stub. Do not fabricate a local
+substitute or change RLS behavior without an explicit architecture decision.

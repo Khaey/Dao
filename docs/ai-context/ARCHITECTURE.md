@@ -308,6 +308,13 @@ tracking files; it never deletes business records.
 `deploy-dev` remains gated on successful isolated FULL E2E and deploys the
 application to the usual DEV environment for manual validation.
 
+The first local-stack run exposed a repository migration prerequisite that is
+not versioned: `202609210001_dao_security_hardening_rls_auto_enable.sql`
+references `public.rls_auto_enable()` but does not define it. Until the real RLS
+event-trigger definition is included in an approved migration source, a blank
+local stack cannot replay the exact repository migrations. Do not hide this
+with a local-only stub or point E2E back at shared DEV.
+
 Do not claim P1.1 complete solely because `verify` is green.
 
 ## 13. E2E architecture issue to improve later

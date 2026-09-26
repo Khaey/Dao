@@ -18,19 +18,26 @@ Before any modification:
 4. if GitHub is ahead of this documentation, update context first;
 5. do not replay old bug analysis if a newer run has already passed that point.
 
-## 1. Follow-up to CI #131
+## 1. Resolve the isolated migration-chain blocker
 
-The working branch `fix/p1.1-effective-archive-status` starts from
-`d42764252036a66630c60676d1c38febb489778c`. The first-lot, exact review
-snapshot, withdrawal, and publication implementation passed local checks. Its
-Supabase migration is applied to DEV and matches the remote migration-history
-version. Run #131 passed `verify`; `e2e-dev` failed because the private-contact
-field assertion ran while `?tab=lots` was active after reload. The E2E now
-checks that deep-link view and explicitly switches to Overview before checking
-private fields. Commit and push this test correction, then run one CI sequence
-(`verify` → `e2e-dev` → `deploy-dev`). If it is green, stop for manual desktop
-and mobile functional checks. Do not start P2/P3 or CI optimization first.
-P1.1 remains open until those checks are completed.
+Current `main` is `32b3470beddf2ac9bbd693fe1aef78f1e96d6e2d`. CI run #136
+passed backend verification and frontend build, then failed before Playwright
+while applying `202609210001_dao_security_hardening_rls_auto_enable.sql` to a
+fresh local Supabase stack. The migration references `public.rls_auto_enable()`
+but no repository migration defines it. The DEV database has a real
+`SECURITY DEFINER` event-trigger function and enabled `ensure_rls` event
+trigger; the PGlite test harness creates only a simplified stub. This is an
+RLS/security architecture gap, so stop before editing migrations or retrying
+CI. Do not use the shared DEV database for E2E.
+
+Next work requires an explicit decision about versioning the real RLS event
+trigger in the repository or selecting an approved isolated baseline that
+already contains it. Do not create a paid hosted branch without cost approval.
+After the migration source is resolved, run the isolated stack and 14 FULL E2E
+tests with two workers, then allow DEV deployment only after E2E is green.
+
+No local-only trigger stub, DDL bypass, migration change, or DEV data cleanup
+was made. The four Playwright selector corrections remain on `main`.
 
 ## 2. Manual P1.1 validation
 
