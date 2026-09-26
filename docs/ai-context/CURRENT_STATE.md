@@ -4,41 +4,41 @@
 > **Repository:** `Khaey/Dao`  
 > This file must be updated whenever `main`, CI status, or the immediate root cause changes.
 
-## 1. Current `main`
+## 1. Current application code on `main`
 
-Current verified `main`:
+Validated P1.1 code commit:
 
 ```text
-147932320a26ca523fbe3d799ab93b04f0a3c55c
+ae89ad6a8383c92ab62b5d0b52546545780864a6
 ```
 
 Commit:
 
 ```text
-test(e2e): scope project status assertion
+fix(p1.1): keep archived project status effective
 ```
 
-Its parent is `4544bf062dbc4456dbe22a9034eb6f05eba28c4c`; the local checkout tree matched this GitHub `main` tree before switching to a branch based on `origin/main`.
+The documentation-only state update after this code commit does not change the application tree.
 
-## 2. Latest CI
+## 2. Latest CI for the current application code
 
 Latest verified workflow:
 
 ```text
-Run #129
-Run ID: 36198890953
-SHA: 147932320a26ca523fbe3d799ab93b04f0a3c55c
+Run #130
+Run ID: 36203094855
+SHA: ae89ad6a8383c92ab62b5d0b52546545780864a6
 ```
 
 Status:
 
 ```text
 verify      ✅ success
-e2e-dev     ❌ failure
-deploy-dev  ⏭ skipped
+e2e-dev     ✅ success
+deploy-dev  ✅ success
 ```
 
-The failure is in Playwright.
+The complete CI is green. P1.1 still awaits manual validation.
 
 ## 3. Resolved root cause — run #127
 
@@ -391,7 +391,7 @@ section 15 for the new failure and its confirmed product root cause.
 
 ## 15. Latest failure — run #129, archived draft status
 
-GitHub `main` is `147932320a26ca523fbe3d799ab93b04f0a3c55c`. Run #129
+Before the correction, GitHub `main` was `147932320a26ca523fbe3d799ab93b04f0a3c55c`. Run #129
 (`36198890953`) has `verify` success, `e2e-dev` failure, and `deploy-dev`
 skipped. Artifact `playwright-results-36198890953` (ID `10891212626`) and the
 failed job log were inspected.
@@ -417,7 +417,9 @@ actions. `archive_project`, migrations, schema, RLS, RPC, and auth are untouched
 remaining flow: the archived detail label, search, and status-filtered project
 link are valid checks, and the earlier flow reached these assertions.
 
-Local verification passed: `npx tsc --noEmit`, `npm run build`, Playwright test
-discovery (2 desktop/mobile tests), and `git diff --check`. The failure and fix
-are confined to P1.1. The next action is one commit and push, then inspect the
-resulting CI; a green full CI means stop for manual P1.1 validation.
+The correction was committed and published as `ae89ad6a8383c92ab62b5d0b52546545780864a6`.
+Local verification passed: `npx tsc --noEmit --incremental false`, `npm run
+build`, Playwright test discovery (2 desktop/mobile tests), and `git diff
+--check`. Run #130 passed `verify`, `e2e-dev`, and `deploy-dev`. The next step is
+manual P1.1 validation from `NEXT_STEPS.md`; no P2/P3 or CI optimization has
+started.

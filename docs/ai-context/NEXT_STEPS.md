@@ -18,49 +18,17 @@ Before any modification:
 4. if GitHub is ahead of this documentation, update context first;
 5. do not replay old bug analysis if a newer run has already passed that point.
 
-## 1. Immediate action — fix the confirmed run #129 archive status bug
+## 1. Manual P1.1 validation — next step
 
-Verified GitHub `main`: `147932320a26ca523fbe3d799ab93b04f0a3c55c`.
-Run #129 (`36198890953`) has `verify` green, `e2e-dev` failed, and `deploy-dev`
-skipped. Its failure artifact is `playwright-results-36198890953` (ID
-`10891212626`).
+The status correction is on `main` in code commit
+`ae89ad6a8383c92ab62b5d0b52546545780864a6`. Run #130 (`36203094855`) is green:
+`verify`, `e2e-dev`, and `deploy-dev` all succeeded.
 
-The two failures are confirmed as one product root cause:
+Perform the explicit manual P1.1 checks in section 2. P1.1 remains open until
+those checks are completed. Do not start P2/P3 or CI optimization before that
+validation.
 
-- desktop cannot find `Archivé` on the detail page after archive + reload;
-- mobile's dashboard still counts the desktop archive as `Brouillons 1` rather
-  than `0`.
-
-`archive_project` changes `projects.status` to `archived` and leaves
-`project_versions.status` unchanged. The detail, dashboard, and Mes projets
-currently prefer the latest version status, so a draft version overrides the
-project's archived lifecycle state. Profile activity counters used only
-`projects.status` and could disagree with review states.
-
-Apply this shared UI rule:
-
-```text
-effectiveStatus =
-  project.status === 'archived'
-    ? 'archived'
-    : latest project_version.status ?? project.status
-```
-
-The local correction uses one helper on project detail, dashboard, Mes
-projets, and profile activity counters, and gates status-driven draft/rejection
-actions on the same effective state. Keep the archive RPC and database/security
-layers unchanged. No E2E assertion change is needed: the remaining archive
-assertions correctly verify the status on detail and in the filtered list. The
-rest of the flow was reviewed; no other assertion is manifestly stale or too
-global.
-
-Local checks passed after installing the checked-in lockfiles: `npx tsc --noEmit`,
-`npm run build`, Playwright discovery (2 desktop/mobile tests), and
-`git diff --check`. Next: one commit, one push, and monitor the resulting CI. If
-the full CI is green, stop for manual P1.1 validation. Do not start P2/P3 or CI
-optimization.
-
-## 2. After first green full CI — do NOT immediately declare P1.1 complete
+## 2. Manual P1.1 validation
 
 Perform explicit P1.1 functional validation.
 
