@@ -72,26 +72,7 @@ for (const projectId of projectIds) {
   await removeRows('projects', 'id=eq.' + projectId);
 }
 
-for (const publicationId of publicationIds) {
-  for (const table of ['publication_requests', 'publication_recipients']) await removeRows(table, 'publication_id=eq.' + publicationId);
-  await removeRows('publications', 'id=eq.' + publicationId);
-}
-
 for (const profileId of contractorProfileIds) {
-  const bids = await rows('bids', 'contractor_id=eq.' + profileId + '&select=id');
-  const bidIds = ids(bids);
-  const bidVersions = bidIds.length ? await rows('bid_versions', inQuery('bid_id', bidIds) + '&select=id') : [];
-  const bidVersionIds = ids(bidVersions);
-  if (bidVersionIds.length) {
-    const bidDocuments = await rows('bid_documents', inQuery('bid_version_id', bidVersionIds) + '&select=object_path');
-    for (const document of bidDocuments) if (document.object_path) await api('/storage/v1/object/dao-private/' + document.object_path.split('/').map(encodeURIComponent).join('/'), { method: 'DELETE' });
-    await removeRows('bid_documents', inQuery('bid_version_id', bidVersionIds));
-    await removeRows('bid_group_items', inQuery('bid_version_id', bidVersionIds));
-    await removeRows('bid_groups', inQuery('bid_version_id', bidVersionIds));
-    await removeRows('bid_items', inQuery('bid_version_id', bidVersionIds));
-    await removeRows('bid_versions', inQuery('id', bidVersionIds));
-  }
-  if (bidIds.length) await removeRows('bids', inQuery('id', bidIds));
   await removeRows('contractor_trades', 'contractor_id=eq.' + profileId);
   await removeRows('contractor_service_areas', 'contractor_id=eq.' + profileId);
   await removeRows('contractor_profiles', 'id=eq.' + profileId);

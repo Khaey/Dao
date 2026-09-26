@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  backend-verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,24 +22,44 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            dao-backend/package-lock.json
-            dao-frontend/package-lock.json
-      - name: Backend install and tests
+          cache-dependency-path: dao-backend/package-lock.json
+      - name: Install backend dependencies
         working-directory: dao-backend
-        run: |
-          npm ci --no-audit --no-fund
-          npm test
-          npm run test:local
-      - name: Frontend install and build
+        run: npm ci --no-audit --no-fund
+      - name: Backend tests
+        working-directory: dao-backend
+        run: npm test
+      - name: PGlite and local tests
+        working-directory: dao-backend
+        run: npm run test:local
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dao-frontend/package-lock.json
+      - name: Restore Next.js build cache
+        id: next-cache
+        uses: actions/cache@v4
+        with:
+          path: dao-frontend/.next/cache
+          key: dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ hashFiles('dao-frontend/**', 'dao-backend/src/**') }}
+          restore-keys: |
+            dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-
+      - name: Install frontend dependencies
         working-directory: dao-frontend
-        run: |
-          npm ci --no-audit --no-fund
-          npm run build
+        run: npm ci --no-audit --no-fund
+      - name: Build frontend
+        working-directory: dao-frontend
+        run: npm run build
 
   e2e-dev:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: verify
+    needs: [backend-verify, frontend-build]
     runs-on: ubuntu-latest
     environment: dev
     env:
