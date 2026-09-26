@@ -50,6 +50,9 @@ jobs:
           key: dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ hashFiles('dao-frontend/**', 'dao-backend/src/**') }}
           restore-keys: |
             dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-
+      - name: Install backend runtime dependencies for Next.js API routes
+        working-directory: dao-backend
+        run: npm ci --omit=dev --no-audit --no-fund
       - name: Install frontend dependencies
         working-directory: dao-frontend
         run: npm ci --no-audit --no-fund
