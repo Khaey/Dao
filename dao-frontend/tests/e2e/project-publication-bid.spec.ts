@@ -1,0 +1,93 @@
+import { test, expect } from './support/fixtures';
+import { createProjectWithMainLot, login } from './support/flow';
+import { recordE2EValue } from './support/state';
+
+test('Publication, artisan, offre versionnée et confidentialité publique', async ({ page, browser, e2eClient, e2eReviewer, e2eArtisan }, testInfo) => {
+  test.skip(!e2eClient || !e2eReviewer || !e2eArtisan, 'E2E Supabase credentials are not available');
+
+  await login(page, e2eClient!);
+  const project = await createProjectWithMainLot(page, testInfo, 'publication-bid', 'Fourniture, pose, essais et remise en état.', 'Lot plomberie E2E publication');
+  const initialLotRow = page.locator('tr').filter({ hasText: project.lotTitle });
+  await expect(initialLotRow).toHaveCount(1);
+  await initialLotRow.getByTitle('Modifier').click();
+  project.lotTitle = 'Lot plomberie E2E publication v2';
+  await page.getByLabel('Intitulé du lot').fill(project.lotTitle);
+  await page.getByRole('button', { name: 'Enregistrer les modifications' }).click();
+  await expect(page.getByText('v2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await page.getByLabel('Adresse exacte').fill('12 rue de Sahloul, Sousse');
+  await page.getByLabel('Instructions d’accès').fill('Appeler avant l’arrivée.');
+  await page.getByLabel('Téléphone privé').fill('+21620123456');
+  await page.getByLabel('Email privé').fill('client-e2e@example.invalid');
+  await page.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(page.getByRole('status')).toContainText('Coordonnées privées enregistrées.');
+
+  await page.goto(`/app/projects/${project.projectId}/review`);
+  await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
+
+  const reviewerContext = await browser.newContext();
+  const reviewer = await reviewerContext.newPage();
+  await login(reviewer, e2eReviewer!);
+  await reviewer.goto('/app/dao/review');
+  const reviewHeading = reviewer.getByRole('heading', { name: project.title, exact: true });
+  await expect(reviewHeading).toHaveCount(1);
+  const reviewCard = reviewHeading.locator('xpath=../../..');
+  await expect(reviewCard.getByText(project.lotTitle, { exact: true })).toBeVisible();
+  await expect(reviewCard.getByText(project.lotScope, { exact: true })).toBeVisible();
+  await reviewCard.getByRole('button', { name: 'Passer en revue DAO' }).click();
+  await expect(reviewCard.getByText('dao_review', { exact: true })).toBeVisible();
+  await reviewCard.getByRole('button', { name: 'Approuver' }).click();
+  await expect(reviewHeading).toHaveCount(0);
+
+  await reviewer.goto(`/app/dao/publications/new?project_id=${project.projectId}`);
+  const lotLabel = reviewer.locator('label').filter({ hasText: project.lotTitle }).filter({ hasText: project.lotScope });
+  const lotCheckbox = lotLabel.getByRole('checkbox');
+  await expect(lotLabel).toHaveCount(1);
+  await expect(lotCheckbox).toHaveCount(1);
+  const publishButton = reviewer.getByRole('button', { name: 'Publier le DAO' });
+  await expect(publishButton).toBeEnabled();
+  await lotCheckbox.uncheck();
+  await expect(reviewer.getByText('Sélectionnez au moins un lot pour publier.')).toBeVisible();
+  await expect(publishButton).toBeDisabled();
+  await lotCheckbox.check();
+  await expect(publishButton).toBeEnabled();
+  await publishButton.click();
+  await expect(reviewer).toHaveURL(/\/app\/publications\/[^/]+/);
+  const publicationUrl = reviewer.url();
+  const publicationId = publicationUrl.split('/').pop();
+  if (!publicationId) throw new Error('Publication URL did not include an ID');
+  recordE2EValue(testInfo, 'publications', publicationId);
+  await expect(reviewer.getByRole('heading', { name: project.title })).toBeVisible();
+  await reviewerContext.close();
+
+  const artisanContext = await browser.newContext();
+  const artisan = await artisanContext.newPage();
+  await login(artisan, e2eArtisan!);
+  await artisan.goto('/app/artisan');
+  await expect(artisan.getByText(project.title, { exact: true })).toBeVisible();
+  const publicationLink = artisan.getByRole('link', { name: project.title, exact: true });
+  await expect(publicationLink).toHaveCount(1);
+  await publicationLink.click();
+  await expect(artisan).toHaveURL(/\/app\/artisan\/publications\//);
+  await expect(artisan.getByRole('heading', { name: project.lotTitle, exact: true })).toBeVisible();
+  await artisan.getByLabel('Répondre à ce lot').check();
+  await artisan.getByLabel('Prix proposé (TND)').fill('25000');
+  await artisan.getByLabel('Délai (jours)').fill('21');
+  await artisan.getByLabel('Proposition technique / inclusions').fill('Fourniture, pose, essais et remise en état.');
+  await artisan.getByRole('button', { name: 'Enregistrer le brouillon' }).click();
+  await expect(artisan.getByRole('status')).toContainText('Brouillon enregistré');
+  await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
+  await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
+  await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
+  await artisan.getByLabel('Prix proposé (TND)').fill('26000');
+  await artisan.getByLabel('Délai (jours)').fill('22');
+  await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');
+  await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
+  await expect(artisan.getByText(/Version 2 soumise/)).toBeVisible();
+  await artisanContext.close();
+
+  await page.goto(publicationUrl);
+  await expect(page.getByText(project.title)).toBeVisible();
+  await expect(page.getByText('12 rue de Sahloul, Sousse', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('client-e2e@example.invalid', { exact: true })).toHaveCount(0);
+});
