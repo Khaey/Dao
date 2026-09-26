@@ -295,11 +295,18 @@ e2e-dev
 deploy-dev
 ```
 
-`verify` covers backend checks and frontend build.
+`verify` covers backend checks and frontend build. The `e2e-dev` job name is
+retained for workflow compatibility, but its FULL Playwright suite runs only
+against a disposable local Supabase CLI stack on a fresh GitHub-hosted runner.
+The job starts PostgreSQL, Auth, PostgREST, REST/Kong, and Storage; applies all
+repository migrations and local test seed data; and refuses any Supabase URL
+other than `http://127.0.0.1:54321`. It receives no DEV or production
+credentials. Runner disposal is the reset boundary for database rows, Auth
+users, Storage metadata, and Storage objects. E2E cleanup only removes worker
+tracking files; it never deletes business records.
 
-`e2e-dev` uses Playwright and DEV fixtures.
-
-`deploy-dev` is skipped when previous required jobs fail.
+`deploy-dev` remains gated on successful isolated FULL E2E and deploys the
+application to the usual DEV environment for manual validation.
 
 Do not claim P1.1 complete solely because `verify` is green.
 
@@ -335,6 +342,9 @@ DEPLOY
 ```
 
 Do not restructure the suite in the middle of the current bug chain.
+
+The first isolation step runs desktop and mobile with two workers. Measure its
+stability and duration before increasing worker count or splitting suites.
 
 ## 14. Infrastructure boundaries
 

@@ -62,15 +62,10 @@ jobs:
 
   e2e-dev:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: E2E isolated on disposable local Supabase
     needs: [backend-verify, frontend-build]
     runs-on: ubuntu-latest
-    environment: dev
     env:
-      DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
-      DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
-      DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       DAO_E2E_STATE_DIR: /tmp/dao-e2e-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
@@ -80,18 +75,92 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: dao-frontend/package-lock.json
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1.6.1
+        with:
+          version: 2.118.0
       - name: Install backend dependencies
         working-directory: dao-backend
         run: npm ci --no-audit --no-fund
       - name: Install frontend dependencies
         working-directory: dao-frontend
         run: npm ci --no-audit --no-fund
+      - name: Start disposable local Supabase stack
+        working-directory: dao-backend
+        run: |
+          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-e2e-supabase-start-seconds" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
+          start_seconds="$(cat "$RUNNER_TEMP/dao-e2e-supabase-start-seconds")"
+          echo "Local Supabase stack startup: ${start_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Reset database and replay repository migrations
+        working-directory: dao-backend
+        run: |
+          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-e2e-supabase-reset-seconds" supabase db reset --local
+          reset_seconds="$(cat "$RUNNER_TEMP/dao-e2e-supabase-reset-seconds")"
+          echo "Local Supabase reset plus migrations and seed: ${reset_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Verify applied migration history
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          supabase migration list --local
+          migration_versions=()
+          for migration in supabase/migrations/*.sql; do
+            filename="${migration##*/}"
+            migration_versions+=("'${filename%%_*}'")
+          done
+          expected="${#migration_versions[@]}"
+          repo_versions="$(IFS=,; printf '%s' "${migration_versions[*]}")"
+          applied="$(supabase db query --local -o csv "select count(*)::text || ':' || count(*) filter (where version in (${repo_versions}))::text from supabase_migrations.schema_migrations")"
+          applied="${applied//$'\r'/}"
+          applied="${applied//\"/}"
+          if ! grep -Fqx "$expected:$expected" <<< "$applied"; then
+            echo "Local Supabase migration history is not an exact match for repository migrations (expected $expected:$expected, got $applied)" >&2
+            exit 1
+          fi
+          echo "Verified all $expected repository migrations are applied, with no extra migration history."
+      - name: Export only disposable local Supabase credentials
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          status_env="$(supabase status -o env)"
+          get_status_value() {
+            local key="$1"
+            local value
+            value="$(printf '%s\n' "$status_env" | sed -n "s/^${key}=//p" | head -n 1)"
+            value="${value#\"}"
+            value="${value%\"}"
+            if [ -z "$value" ]; then
+              echo "Missing $key in local Supabase status" >&2
+              return 1
+            fi
+            printf '%s' "$value"
+          }
+          api_url="$(get_status_value API_URL)"
+          anon_key="$(get_status_value ANON_KEY)"
+          service_role_key="$(get_status_value SERVICE_ROLE_KEY)"
+          if [ "$api_url" != "http://127.0.0.1:54321" ]; then
+            echo "Refusing E2E target outside the disposable local Supabase stack" >&2
+            exit 1
+          fi
+          echo "::add-mask::$service_role_key"
+          {
+            printf 'DAO_SUPABASE_URL=%s\n' "$api_url"
+            printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$api_url"
+            printf 'DAO_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
+            printf 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
+            printf 'DAO_SUPABASE_SECRET_KEY=%s\n' "$service_role_key"
+          } >> "$GITHUB_ENV"
+      - name: Guard FULL E2E target
+        working-directory: dao-frontend
+        run: node tests/e2e/verify-supabase-target.mjs
       - name: Install Playwright browser
         working-directory: dao-frontend
         run: npx playwright install --with-deps chromium
-      - name: Run DEV Playwright flow
+      - name: Run FULL Playwright E2E on desktop and mobile with two workers
         working-directory: dao-frontend
-        run: npm run test:e2e
+        run: |
+          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-e2e-playwright-seconds" npm run test:e2e -- --reporter=line
+          e2e_seconds="$(cat "$RUNNER_TEMP/dao-e2e-playwright-seconds")"
+          echo "FULL Playwright E2E duration: ${e2e_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4

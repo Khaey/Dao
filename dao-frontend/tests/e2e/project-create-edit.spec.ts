@@ -137,7 +137,7 @@ test('Projet autonome : création, édition, lot principal et soumission @fast',
   await page.goto('/app/projects');
   await page.getByLabel('Rechercher un projet').fill(laterTitle);
   await page.getByLabel('Filtrer par statut').selectOption('client_review');
-  const submittedProjectTitle = page.getByText(laterTitle, { exact: true });
+  const submittedProjectTitle = page.locator('a:visible').filter({ hasText: laterTitle });
   await expect(submittedProjectTitle).toHaveCount(1);
   await expect(submittedProjectTitle).toBeVisible();
 });

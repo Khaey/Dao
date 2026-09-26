@@ -8,7 +8,9 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page,
   await page.goto('/app/profile');
 
   await expect(page.getByRole('heading', { name: 'Votre espace D.A.O' })).toBeVisible();
-  await expect(page.getByRole('main').getByText(e2eClient!.email, { exact: true })).toBeVisible();
+  const identitySection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Votre identité' }) });
+  await expect(identitySection.getByText(e2eClient!.email, { exact: true })).toHaveCount(1);
+  await expect(identitySection.getByText(e2eClient!.email, { exact: true })).toBeVisible();
   await expect(page.getByText('Espace client', { exact: true })).toBeVisible();
   await expect(page.getByRole('main').getByText('Mes projets', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();

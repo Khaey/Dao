@@ -212,21 +212,24 @@ Split only after P1.1 is functionally stable.
 
 Refactor later.
 
-## D-023 — CI failures stop the patch loop
+## D-023 — CI failures use a bounded root-cause correction loop
 
-When CI fails:
+For a CI failure:
 
 ```text
-STOP
--> logs
--> trace
--> screenshot
--> error-context
--> network/DOM if relevant
--> root cause
+inspect logs and artifacts
+-> identify the root cause
+-> make a certain technical correction
+-> validate locally
+-> commit and push
+-> run the next CI
 ```
 
-Then make the next change.
+Stop only if the same cause returns after two different corrections, three
+successive runs fail in the same functional area, the cause is ambiguous, a
+product choice is required, or the correction requires unplanned RLS/Auth/schema
+or architecture changes or risks data loss/regression. Desktop and mobile
+failures for the same cause within one run count as one failure.
 
 ## D-024 — Chat/agent session limits must not cause context loss
 
@@ -252,3 +255,19 @@ only after explicit client action. Review screens show the exact snapshots
 linked to the reviewed project version. Publication accepts only active lots
 linked to the approved version and uses those snapshots. Lot withdrawal is
 allowed only while the latest project version remains a draft.
+
+## D-026 — FULL E2E uses a disposable Supabase environment
+
+FULL Playwright campaigns must start from a fresh isolated Supabase environment.
+The selected implementation is the Supabase CLI stack on a new GitHub-hosted
+runner: apply the repository migrations and local E2E seed, provision
+worker-scoped users, then run desktop and mobile with two workers. The exact
+local endpoint is enforced before tests. Runner disposal resets database,
+Auth, and Storage state; cleanup scripts must not delete immutable submitted
+offer history or weaken the corresponding triggers.
+
+The shared application DEV Supabase project is reserved for deploy and manual
+validation. Do not run FULL E2E against it. Historical E2E data remain until a
+separate maintenance decision. A long-lived hosted development branch was not
+created because it would incur recurring compute cost and its documented reset
+does not explicitly guarantee Storage object removal.

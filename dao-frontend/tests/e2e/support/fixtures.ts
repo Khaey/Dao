@@ -3,6 +3,18 @@ import { test as base, expect } from '@playwright/test';
 import type { WorkerInfo } from '@playwright/test';
 import { recordE2EValue } from './state';
 
+const expectedE2ESupabaseUrl = 'http://127.0.0.1:54321';
+const configuredE2ESupabaseUrl = process.env.DAO_SUPABASE_URL;
+if (configuredE2ESupabaseUrl && configuredE2ESupabaseUrl !== expectedE2ESupabaseUrl) {
+  throw new Error('E2E fixture refused a Supabase URL outside the disposable local stack');
+}
+if (process.env.CI === 'true' && configuredE2ESupabaseUrl !== expectedE2ESupabaseUrl) {
+  throw new Error('CI E2E requires DAO_SUPABASE_URL=http://127.0.0.1:54321');
+}
+if (process.env.CI === 'true' && !process.env.DAO_SUPABASE_SECRET_KEY) {
+  throw new Error('CI E2E requires the local Supabase service role key');
+}
+
 export interface E2EUser {
   id: string;
   email: string;

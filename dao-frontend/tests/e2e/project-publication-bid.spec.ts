@@ -65,7 +65,7 @@ test('Publication, artisan, offre versionnée et confidentialité publique', asy
   await login(artisan, e2eArtisan!);
   await artisan.goto('/app/artisan');
   await expect(artisan.getByText(project.title, { exact: true })).toBeVisible();
-  const publicationLink = artisan.getByRole('link', { name: project.title, exact: true });
+  const publicationLink = artisan.locator('a:visible').filter({ hasText: project.title });
   await expect(publicationLink).toHaveCount(1);
   await publicationLink.click();
   await expect(artisan).toHaveURL(/\/app\/artisan\/publications\//);
