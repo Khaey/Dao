@@ -24,8 +24,8 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page,
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByRole('status')).toContainText('Profil mis à jour.');
   await page.reload();
-  await expect(page.getByText(displayName, { exact: true })).toBeVisible();
-  await expect(page.getByText(phone, { exact: true })).toBeVisible();
+  await expect(identityCard.getByText(displayName, { exact: true })).toBeVisible();
+  await expect(identityCard.getByText(phone, { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Se déconnecter' }).click();
   await expect(page).toHaveURL(/\/auth\/login/);
