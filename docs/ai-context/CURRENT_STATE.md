@@ -80,9 +80,14 @@ test omitted `p_budget_millimes` while the schema exposes four- and five-arg
 five-argument RPC without changing its schema. FULL E2E was skipped by the
 schema-repro dependency, and `deploy-dev` was skipped for the PR as required.
 
-The correction passes local backend tests (10/10) and `git diff --check`.
-Push it to this same Draft PR and let Actions rerun before proceeding to the
-fresh-local versus DEV read-only comparison.
+The RPC-overload correction passed local backend tests (10/10) and was pushed
+to the same Draft PR. Run #138 replayed the schema and passed both contracts,
+then advanced through the RPC call and failed later while submitting the valid
+contractor offer: the test fixture inserted a public publication but omitted
+its `publication_requests` snapshot, so `submit_bid_version` correctly rejected
+the offer. The fixture now inserts the exact request-version snapshot expected
+by the publication workflow. No database or product policy changed; local
+backend tests remain 10/10. Push this fixture correction and rerun Actions.
 
 ## 3. Resolved root cause — run #127
 

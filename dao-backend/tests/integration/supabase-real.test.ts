@@ -27,6 +27,7 @@ test('autonomous Supabase integration', async () => {
     const versionC=await insert('project_versions',{project_id:projectC,version_no:1,title:'Invite disposable',description:'test',governorate_id:gov,status:'approved'});
     const request=await insert('project_requests',{project_id:project}); const rv=await insert('project_request_versions',{request_id:request,project_id:project,version_no:1,trade_id:trade,title:'Plomberie',scope:'test'});
     const publicPub=await insert('publications',{project_id:project,project_version_id:version,visibility:'public',safe_title:'Public',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
+    await insert('publication_requests',{publication_id:publicPub,request_version_id:rv,trade_id:trade,safe_title:'Plomberie',safe_scope:'test'});
     const targeted=await insert('publications',{project_id:projectB,project_version_id:versionB,visibility:'targeted',safe_title:'Targeted',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
     await insert('publication_recipients',{publication_id:targeted,contractor_id:actors.plumberA.contractorId,source:'targeted'});
     const bid=await insert('bids',{project_id:project,contractor_id:actors.plumberB.contractorId});
