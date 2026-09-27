@@ -1,5 +1,8 @@
 -- Read-only, DAO-scoped structural inventory for comparing fresh local Supabase
 -- with DEV. It hashes definitions and security metadata without reading rows.
+-- Finalize the CSV with schema-parity-inventory.mjs before comparing: the SQL
+-- includes a temporary hex-encoded function definition so semantic fingerprints
+-- can ignore SQL comments/formatting without discarding meaningful string literals.
 WITH catalog_objects AS (
   SELECT
     'schema'::text AS kind,
@@ -234,8 +237,9 @@ WITH catalog_objects AS (
 SELECT
   kind,
   object_name,
-  md5(details::text) AS fingerprint,
-  CASE WHEN kind = 'function' THEN md5(details->>'definition') END AS function_definition_fingerprint,
-  CASE WHEN kind = 'function' THEN md5((details - 'definition')::text) END AS function_metadata_fingerprint
+  md5(details::text) AS raw_fingerprint,
+  CASE WHEN kind = 'function' THEN md5(details->>'definition') END AS function_definition_raw_fingerprint,
+  CASE WHEN kind = 'function' THEN md5((details - 'definition')::text) END AS function_metadata_fingerprint,
+  CASE WHEN kind = 'function' THEN encode(convert_to(details->>'definition', 'UTF8'), 'hex') END AS function_definition_hex
 FROM catalog_objects
 ORDER BY kind, object_name;

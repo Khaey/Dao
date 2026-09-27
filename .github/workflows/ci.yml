@@ -103,15 +103,19 @@ jobs:
           supabase migration list --local
           contract_sql="$(cat tests/schema-contract.sql)"
           supabase db query --local -o csv "$contract_sql"
-      - name: Capture read-only fresh-local DAO schema fingerprints
+      - name: Capture raw and semantic fresh-local DAO schema fingerprints
         working-directory: dao-backend
         shell: bash
         run: |
           inventory_sql="$(sed '/^[[:space:]]*--/d' tests/schema-parity-inventory.sql)"
-          supabase db query --local -o csv "$inventory_sql" > "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
-          test -s "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
-          inventory_rows="$(tail -n +2 "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv" | wc -l | tr -d ' ')"
-          echo "Read-only DAO schema inventory: ${inventory_rows} object fingerprints" | tee -a "$GITHUB_STEP_SUMMARY"
+          raw_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local-raw.csv"
+          final_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
+          supabase db query --local -o csv "$inventory_sql" > "$raw_inventory"
+          node tests/schema-parity-inventory.mjs finalize "$raw_inventory" > "$final_inventory"
+          test -s "$final_inventory"
+          inventory_rows="$(tail -n +2 "$final_inventory" | wc -l | tr -d ' ')"
+          echo "Read-only DAO schema inventory: ${inventory_rows} objects" | tee -a "$GITHUB_STEP_SUMMARY"
+          node tests/schema-parity-inventory.mjs summary "$final_inventory" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload fresh-local DAO schema fingerprints for DEV parity review
         if: always()
         uses: actions/upload-artifact@v4
