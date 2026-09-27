@@ -107,7 +107,7 @@ jobs:
         working-directory: dao-backend
         shell: bash
         run: |
-          inventory_sql="$(cat tests/schema-parity-inventory.sql)"
+          inventory_sql="$(sed '/^[[:space:]]*--/d' tests/schema-parity-inventory.sql)"
           supabase db query --local -o csv "$inventory_sql" > "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
           test -s "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
           inventory_rows="$(tail -n +2 "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv" | wc -l | tr -d ' ')"
