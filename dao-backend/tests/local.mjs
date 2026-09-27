@@ -18,6 +18,27 @@ await db.exec('create schema supabase_migrations;create table supabase_migration
 for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).filter(name=>name.endsWith('.sql')).sort())await db.query('insert into supabase_migrations.schema_migrations(version) values($1)',[f.split('_',1)[0]]);
 await db.exec(readFileSync(new URL('../supabase/seed.sql',import.meta.url),'utf8'));
 await test('shared fresh-database schema contract',()=>db.exec(readFileSync(new URL('./schema-contract.sql',import.meta.url),'utf8')));
+await test('add_project_request overloads resolve at exact four- and five-argument arities',async()=>{
+ const functions=(await db.query(`select n.nspname as schema_name,p.pronargs::int as argument_count,p.pronargdefaults::int as default_count
+ ,pg_get_userbyid(p.proowner) as owner,p.prosecdef as security_definer,p.proconfig as config,p.proacl::text as acl
+ from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+ where n.nspname in ('public','dao_private') and p.proname='add_project_request'
+ order by n.nspname,p.pronargs`)).rows;
+ eq(functions.length,4);
+ eq(JSON.stringify(functions.map(fn=>`${fn.schema_name}:${Number(fn.argument_count)}`).sort()),JSON.stringify(['dao_private:4','dao_private:5','public:4','public:5']));
+ for(const fn of functions){
+  eq(Number(fn.default_count),0);eq(fn.owner,'postgres');eq(fn.security_definer,true);
+  eq(JSON.stringify(fn.config),JSON.stringify(['search_path=""']));
+  eq(fn.acl,'{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}');
+ }
+ const calls=[
+  `select dao_private.add_project_request(NULL::uuid,NULL::uuid,NULL::text,NULL::text)`,
+  `select dao_private.add_project_request(NULL::uuid,NULL::uuid,NULL::text,NULL::text,NULL::bigint)`,
+  `select public.add_project_request(NULL::uuid,NULL::uuid,NULL::text,NULL::text)`,
+  `select public.add_project_request(NULL::uuid,NULL::uuid,NULL::text,NULL::text,NULL::bigint)`,
+ ];
+ for(const sql of calls)await denied(sql,'42501');
+});
 await test('repository RLS bootstrap matches the DEV event trigger contract',async()=>{
  const fn=(await db.query(`select n.nspname as schema_name,p.proname,p.prorettype::regtype::text as returns,p.prosecdef as security_definer,p.proconfig,p.proacl::text as acl,pg_get_userbyid(p.proowner) as owner,p.prosrc from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='rls_auto_enable'`)).rows;
  eq(fn.length,1);eq(fn[0].returns,'event_trigger');eq(fn[0].security_definer,true);eq(fn[0].owner,'postgres');eq(JSON.stringify(fn[0].proconfig),JSON.stringify(['search_path=pg_catalog']));eq(fn[0].acl,'{postgres=X/postgres}');

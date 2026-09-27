@@ -56,11 +56,18 @@ test('autonomous Supabase integration', async () => {
 
     const createdRequestFive=await client.rpc('add_project_request',{p_project_id:createdProject.data.id,p_trade_id:trade,p_title:'Demande cinq paramètres',p_scope:'test',p_budget_millimes:null});
     assert.ifError(createdRequestFive.error); assert.ok(createdRequestFive.data?.id);
-    const linkedFive=await admin.from('project_request_versions').select('id').eq('request_id',createdRequestFive.data.id).single(); assert.ifError(linkedFive.error); assert.ok(linkedFive.data?.id);
+    const linkedFive=await admin.from('project_request_versions').select('id,budget_millimes').eq('request_id',createdRequestFive.data.id).single(); assert.ifError(linkedFive.error); assert.ok(linkedFive.data?.id); assert.equal(linkedFive.data?.budget_millimes,null);
     const versionLinkFive=await admin.from('project_version_requests').select('id').eq('project_id',createdProject.data.id).eq('project_version_id',createdVersion.data.id).eq('request_version_id',linkedFive.data.id).single(); assert.ifError(versionLinkFive.error); assert.ok(versionLinkFive.data?.id);
+
+    const requestedBudget=1234567;
+    const createdRequestWithBudget=await client.rpc('add_project_request',{p_project_id:createdProject.data.id,p_trade_id:trade,p_title:'Demande avec budget',p_scope:'test',p_budget_millimes:requestedBudget});
+    assert.ifError(createdRequestWithBudget.error); assert.ok(createdRequestWithBudget.data?.id);
+    const linkedBudget=await admin.from('project_request_versions').select('id,budget_millimes').eq('request_id',createdRequestWithBudget.data.id).single(); assert.ifError(linkedBudget.error); assert.ok(linkedBudget.data?.id); assert.equal(Number(linkedBudget.data?.budget_millimes),requestedBudget);
+    const versionLinkBudget=await admin.from('project_version_requests').select('id').eq('project_id',createdProject.data.id).eq('project_version_id',createdVersion.data.id).eq('request_version_id',linkedBudget.data.id).single(); assert.ifError(versionLinkBudget.error); assert.ok(versionLinkBudget.data?.id);
 
     const submittedForReview=await client.rpc('submit_project_for_review',{p_project_id:createdProject.data.id});
     assert.ifError(submittedForReview.error); assert.equal(submittedForReview.data?.status,'client_review');
+    const transitionedVersion=await admin.from('project_versions').select('status').eq('id',createdVersion.data.id).single(); assert.ifError(transitionedVersion.error); assert.equal(transitionedVersion.data?.status,'client_review');
     const projectRequestCounts=async()=>{
       const [requests,requestVersions,projectVersionRequests]=await Promise.all([
         admin.from('project_requests').select('id',{count:'exact',head:true}).eq('project_id',createdProject.data.id),
