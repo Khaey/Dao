@@ -10,7 +10,7 @@ Le backend D.A.O utilise Next.js/TypeScript, Supabase PostgreSQL, Auth, Storage 
 - tests services/routes : 10/10 ;
 - replay PGlite complet sans stub RLS : 96/96 ;
 - le build frontend et la découverte des 14 tests Playwright passent ;
-- le test d’intégration Supabase réelle est réservé au stack local jetable et n’a pas encore été exécuté dans cette session, faute de runtime Docker-compatible.
+- l’intégration Supabase réelle s’exécute uniquement sur le stack local jetable ; ses RPC `add_project_request` fournissent explicitement `p_budget_millimes` pour choisir sans ambiguïté la signature à cinq arguments.
 - parcours frontend artisan branché sur les RPC d’offre ;
 - aucune clé privilégiée dans le navigateur.
 

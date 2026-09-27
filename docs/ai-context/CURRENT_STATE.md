@@ -64,6 +64,26 @@ No Supabase branch was created, no DEV data were deleted, and no migration was
 applied to DEV during this work. The shared DEV inventory remains 47 E2E
 Auth accounts, 58 E2E-owned projects, and 42 submitted bid versions.
 
+## 2. Draft PR validation — first runner result
+
+Draft PR [#1](https://github.com/Khaey/Dao/pull/1) is open from
+`chore/db-repro-reconciliation` to `main`, based on the exact starting SHA
+above. Run #137 (`36287944971`) used PR head
+`0b7141f0388207e639a98c9604b6722ba9ec47a9`.
+
+Results: backend passed; frontend build passed; all 21 migrations replayed and
+the seed, schema contract, migration ledger comparison, and explicit full reset
+passed. The real integration then failed with PostgREST `PGRST203` because the
+test omitted `p_budget_millimes` while the schema exposes four- and five-arg
+`add_project_request` overloads. The correction is to send
+`p_budget_millimes: null` in both authorized and denied calls, selecting the
+five-argument RPC without changing its schema. FULL E2E was skipped by the
+schema-repro dependency, and `deploy-dev` was skipped for the PR as required.
+
+The correction passes local backend tests (10/10) and `git diff --check`.
+Push it to this same Draft PR and let Actions rerun before proceeding to the
+fresh-local versus DEV read-only comparison.
+
 ## 3. Resolved root cause — run #127
 
 Both desktop and mobile now progress beyond:
