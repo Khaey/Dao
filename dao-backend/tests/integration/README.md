@@ -1,18 +1,19 @@
 # Supabase real integration
 
-Run from the VPS with disposable DEV fixtures only:
+Run this test only against the disposable local Supabase stack. The test
+refuses any URL other than `http://127.0.0.1:54321`.
 
 ```bash
-export DAO_SUPABASE_URL="https://<project>.supabase.co"
-export DAO_SUPABASE_PUBLISHABLE_KEY="<publishable-key>"
-export DAO_SUPABASE_SECRET_KEY="<server-only-secret-key>"
-export DAO_TEST_CLIENT_EMAIL=... DAO_TEST_CLIENT_PASSWORD=...
-export DAO_TEST_ARTISAN_EMAIL=... DAO_TEST_ARTISAN_PASSWORD=...
-export DAO_TEST_DUAL_EMAIL=... DAO_TEST_DUAL_PASSWORD=...
-export DAO_TEST_OTHER_EMAIL=... DAO_TEST_OTHER_PASSWORD=...
+supabase start
+supabase db reset --local
+status_env="$(supabase status -o env)"
+export DAO_SUPABASE_URL="$(printf '%s\n' "$status_env" | sed -n 's/^API_URL="\{0,1\}\(.*\)"\{0,1\}$/\1/p')"
+export DAO_SUPABASE_PUBLISHABLE_KEY="$(printf '%s\n' "$status_env" | sed -n 's/^ANON_KEY="\{0,1\}\(.*\)"\{0,1\}$/\1/p')"
+export DAO_SUPABASE_SECRET_KEY="$(printf '%s\n' "$status_env" | sed -n 's/^SERVICE_ROLE_KEY="\{0,1\}\(.*\)"\{0,1\}$/\1/p')"
 npm run test:integration:real
 ```
 
-For fixture-level assertions also export the nine `DAO_TEST_*_ID` values
-listed in `supabase-real.test.ts`. Credentials, JWTs and service keys must
-remain only in the VPS environment and must never be committed.
+The test verifies Auth/JWT, RLS, RPCs, publication visibility, submitted bid
+immutability, private Storage, and award uniqueness. It deliberately leaves
+its rows and users in place; dropping the disposable local stack is the cleanup
+boundary. Never point it at shared DEV or production.

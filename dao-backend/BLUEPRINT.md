@@ -50,7 +50,7 @@ Les documents projet utilisent `documents` (distinct de `bid_documents`) et le n
 
 ## Commandes Priority 1
 
-Les façades publiques minimales ajoutées par `202609220007_priority1_client_workflow.sql` sont : `initialize_my_account`, `update_my_profile`, `create_project_draft` (avec date de fin), `update_project_draft`, `create_project_correction`, `archive_project`, `upsert_project_private_details`, `add_project_request` (budget dès la v1), `create_project_document`, `delete_project_document`, `generate_ai_proposal`, `accept_ai_proposal` et `reject_ai_proposal`. Elles délèguent toutes à `dao_private`, vérifient `auth.uid()` et n’accordent aucun INSERT/UPDATE générique à `authenticated`.
+Les façades publiques minimales ajoutées par `20260922202247_priority1_client_workflow.sql` sont : `initialize_my_account`, `update_my_profile`, `create_project_draft` (avec date de fin), `update_project_draft`, `create_project_correction`, `archive_project`, `upsert_project_private_details`, `add_project_request` (budget dès la v1), `create_project_document`, `delete_project_document`, `generate_ai_proposal`, `accept_ai_proposal` et `reject_ai_proposal`. Elles délèguent toutes à `dao_private`, vérifient `auth.uid()` et n’accordent aucun INSERT/UPDATE générique à `authenticated`.
 
 ## Sécurité
 
@@ -64,10 +64,10 @@ Les façades publiques minimales ajoutées par `202609220007_priority1_client_wo
 
 ## Migrations et validation
 
-Migrations appliquées jusqu’à `202609220007_priority1_client_workflow.sql`.
-- services/routes : 9/9 ;
-- PGlite : 78/78 ;
-- test autonome Supabase réel : 1/1, 0 échec lorsque les trois variables sont configurées.
+Historique DEV présent jusqu’à `20260926092748_enforce_draft_withdrawal_and_approved_publication.sql`.
+- services/routes : 10/10 ;
+- PGlite avec replay complet sans stub RLS : 96/96 ;
+- le test Supabase réel est restreint au stack local jetable et attend la disponibilité d’un runtime Docker-compatible.
 
 ## Hors MVP / Phase 2
 

@@ -10,9 +10,25 @@ create schema auth;create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 grant usage on schema public,auth to anon,authenticated,service_role;grant execute on function auth.uid() to anon,authenticated,service_role;
 create schema storage; create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text);alter table storage.objects enable row level security;grant usage on schema storage to anon,authenticated;grant select,insert,update,delete on storage.objects to anon,authenticated;create policy test_broad_policy on storage.objects for all to anon,authenticated using(true) with check(true); create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);`);
-await db.exec(`create function public.rls_auto_enable() returns trigger language plpgsql as $$ begin return new; end $$;`);
 for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).sort())await test('migration '+f,()=>db.exec(readFileSync(new URL('../supabase/migrations/'+f,import.meta.url),'utf8')));
 if(fails)throw Error(JSON.stringify(results));
+// PGlite does not create Supabase CLI's migration ledger; this metadata-only
+// fixture lets the shared schema contract validate the actual DAO migrations.
+await db.exec('create schema supabase_migrations;create table supabase_migrations.schema_migrations(version text primary key);');
+for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).filter(name=>name.endsWith('.sql')).sort())await db.query('insert into supabase_migrations.schema_migrations(version) values($1)',[f.split('_',1)[0]]);
+await db.exec(readFileSync(new URL('../supabase/seed.sql',import.meta.url),'utf8'));
+await test('shared fresh-database schema contract',()=>db.exec(readFileSync(new URL('./schema-contract.sql',import.meta.url),'utf8')));
+await test('repository RLS bootstrap matches the DEV event trigger contract',async()=>{
+ const fn=(await db.query(`select n.nspname as schema_name,p.proname,p.prorettype::regtype::text as returns,p.prosecdef as security_definer,p.proconfig,p.proacl::text as acl,pg_get_userbyid(p.proowner) as owner,p.prosrc from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='rls_auto_enable'`)).rows;
+ eq(fn.length,1);eq(fn[0].returns,'event_trigger');eq(fn[0].security_definer,true);eq(fn[0].owner,'postgres');eq(JSON.stringify(fn[0].proconfig),JSON.stringify(['search_path=pg_catalog']));eq(fn[0].acl,'{postgres=X/postgres}');
+ if(!fn[0].prosrc.includes('pg_event_trigger_ddl_commands()')||!fn[0].prosrc.includes('alter table if exists %s enable row level security'))throw Error('real RLS event-trigger implementation is missing');
+ const trigger=(await db.query(`select e.evtname,e.evtevent,e.evtenabled,e.evttags,n.nspname as function_schema,p.proname as function_name,pg_get_userbyid(e.evtowner) as owner from pg_event_trigger e join pg_proc p on p.oid=e.evtfoid join pg_namespace n on n.oid=p.pronamespace where e.evtname='ensure_rls'`)).rows;
+ eq(trigger.length,1);eq(trigger[0].evtevent,'ddl_command_end');eq(trigger[0].evtenabled,'O');eq(JSON.stringify(trigger[0].evttags),JSON.stringify(['CREATE TABLE','CREATE TABLE AS','SELECT INTO']));eq(trigger[0].function_schema,'public');eq(trigger[0].function_name,'rls_auto_enable');eq(trigger[0].owner,'postgres');
+});
+await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
+ const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
+ eq(state.total,43);eq(state.rls_disabled,0);eq(state.forced,0);
+});
 await test('canonical trade seed is idempotent by code',async()=>{
  await db.exec(readFileSync(new URL('../supabase/migrations/20260926092748_enforce_draft_withdrawal_and_approved_publication.sql',import.meta.url),'utf8'));
  const rows=(await db.query("select code,name_fr,active,count(*) over(partition by code)::int as copies from public.trades where code in ('general_contractor','plumbing','electrical') order by code")).rows;
