@@ -160,6 +160,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
       DAO_E2E_STATE_DIR: /tmp/dao-e2e-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
@@ -226,6 +227,9 @@ jobs:
       - name: Guard FULL E2E target
         working-directory: dao-frontend
         run: node tests/e2e/verify-supabase-target.mjs
+      - name: Build frontend for production-mode E2E
+        working-directory: dao-frontend
+        run: npm run build
       - name: Install Playwright browser
         working-directory: dao-frontend
         run: npx playwright install --with-deps chromium

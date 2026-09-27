@@ -8,7 +8,8 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page,
   await page.goto('/app/profile');
 
   await expect(page.getByRole('heading', { name: 'Votre espace D.A.O' })).toBeVisible();
-  const identityEmail = page.getByRole('main').getByText(e2eClient!.email, { exact: true });
+  const identityCard = page.getByRole('heading', { name: 'Votre identité', exact: true }).locator('xpath=../../..');
+  const identityEmail = identityCard.getByText(e2eClient!.email, { exact: true });
   await expect(identityEmail).toHaveCount(1);
   await expect(identityEmail).toBeVisible();
   await expect(page.getByText('Espace client', { exact: true })).toBeVisible();

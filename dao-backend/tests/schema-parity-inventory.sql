@@ -3,7 +3,7 @@
 WITH catalog_objects AS (
   SELECT
     'schema'::text AS kind,
-    n.nspname AS object_name,
+    n.nspname::text AS object_name,
     jsonb_build_object(
       'owner', pg_get_userbyid(n.nspowner),
       'acl', COALESCE((
@@ -231,6 +231,11 @@ WITH catalog_objects AS (
   WHERE policy.schemaname IN ('public', 'dao_private')
      OR (policy.schemaname = 'storage' AND policy.tablename = 'objects')
 )
-SELECT kind, object_name, md5(details::text) AS fingerprint
+SELECT
+  kind,
+  object_name,
+  md5(details::text) AS fingerprint,
+  CASE WHEN kind = 'function' THEN md5(details->>'definition') END AS function_definition_fingerprint,
+  CASE WHEN kind = 'function' THEN md5((details - 'definition')::text) END AS function_metadata_fingerprint
 FROM catalog_objects
 ORDER BY kind, object_name;
