@@ -69,7 +69,8 @@ test('Publication, artisan, offre versionnée et confidentialité publique', asy
   await expect(publicationLink).toHaveCount(1);
   await publicationLink.click();
   await expect(artisan).toHaveURL(/\/app\/artisan\/publications\//);
-  await expect(artisan.getByRole('heading', { name: project.lotTitle, exact: true })).toBeVisible();
+  const publishedLotHeading = artisan.getByRole('article').getByRole('heading', { name: project.lotTitle, exact: true });
+  await expect(publishedLotHeading).toBeVisible();
   await artisan.getByLabel('Répondre à ce lot').check();
   await artisan.getByLabel('Prix proposé (TND)').fill('25000');
   await artisan.getByLabel('Délai (jours)').fill('21');

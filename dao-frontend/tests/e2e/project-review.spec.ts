@@ -39,7 +39,8 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await expect(correctionLabel).toBeVisible();
   await expect(page.getByText('À corriger : précisez le périmètre du lot.')).toBeVisible();
   await page.getByRole('button', { name: 'Corriger le DAO' }).click();
-  const reviewLink = page.getByRole('link', { name: 'Revoir le DAO' });
+  const readinessHeading = page.getByRole('heading', { name: 'Votre dossier est-il prêt ?', exact: true });
+  const reviewLink = readinessHeading.locator('xpath=../../..').getByRole('link', { name: 'Revoir le DAO', exact: true });
   await expect(reviewLink).toHaveCount(1);
   await reviewLink.click();
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();

@@ -103,6 +103,22 @@ jobs:
           supabase migration list --local
           contract_sql="$(cat tests/schema-contract.sql)"
           supabase db query --local -o csv "$contract_sql"
+      - name: Capture read-only fresh-local DAO schema fingerprints
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          inventory_sql="$(cat tests/schema-parity-inventory.sql)"
+          supabase db query --local -o csv "$inventory_sql" > "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
+          test -s "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
+          inventory_rows="$(tail -n +2 "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv" | wc -l | tr -d ' ')"
+          echo "Read-only DAO schema inventory: ${inventory_rows} object fingerprints" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload fresh-local DAO schema fingerprints for DEV parity review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dao-schema-parity-fresh-local-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dao-schema-parity-fresh-local.csv
+          if-no-files-found: ignore
       - name: Export only disposable local Supabase credentials
         working-directory: dao-backend
         shell: bash
