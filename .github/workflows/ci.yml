@@ -103,35 +103,17 @@ jobs:
             echo "| Stage | Duration |"
             echo "| --- | ---: |"
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Start fresh Supabase while installing test dependencies
-        shell: bash
+      - name: Install backend dependencies for integration
+        working-directory: dao-backend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install for integration" npm ci --no-audit --no-fund
+      - name: Install frontend dependencies
+        working-directory: dao-frontend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install for E2E" npm ci --no-audit --no-fund
+      - name: Stop any previous local stack and start from a fresh database
+        working-directory: dao-backend
         run: |
-          set -euo pipefail
-
-          (
-            cd dao-backend
-            supabase stop --no-backup || true
-            bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
-          ) &
-          supabase_pid=$!
-
-          (
-            cd dao-backend
-            bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install for integration" npm ci --no-audit --no-fund
-          ) &
-          backend_install_pid=$!
-
-          (
-            cd dao-frontend
-            bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install for E2E" npm ci --no-audit --no-fund
-          ) &
-          frontend_install_pid=$!
-
-          status=0
-          wait "$backend_install_pid" || status=1
-          wait "$frontend_install_pid" || status=1
-          wait "$supabase_pid" || status=1
-          exit "$status"
+          supabase stop --no-backup || true
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
       - name: Verify fresh migration ledger and schema contract
         working-directory: dao-backend
         shell: bash
@@ -213,12 +195,27 @@ jobs:
       - name: Guard FULL E2E target
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL E2E local-target guard" node tests/e2e/verify-supabase-target.mjs
-      - name: Build frontend for production-mode E2E with local Supabase config
-        working-directory: dao-frontend
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend E2E build with local Supabase config" npm run build
-      - name: Install Playwright browser and required system dependencies
-        working-directory: dao-frontend
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright browser and system dependencies" npx playwright install --with-deps chromium
+      - name: Build E2E frontend and install Playwright browser in parallel
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          (
+            cd dao-frontend
+            bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend E2E build with local Supabase config" npm run build
+          ) &
+          build_pid=$!
+
+          (
+            cd dao-frontend
+            bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright browser and system dependencies" npx playwright install --with-deps chromium
+          ) &
+          browser_pid=$!
+
+          status=0
+          wait "$build_pid" || status=1
+          wait "$browser_pid" || status=1
+          exit "$status"
       - name: Discover the expected 14 Playwright tests
         working-directory: dao-frontend
         shell: bash
@@ -301,7 +298,7 @@ jobs:
               echo "| Job: ${job_name} | $((job_completed_epoch - job_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
             done
 
-            for step_name in "Install pinned Supabase CLI" "Install Playwright browser and required system dependencies"; do
+            for step_name in "Install pinned Supabase CLI" "Build E2E frontend and install Playwright browser in parallel"; do
               step_times="$(printf '%s' "$jobs_data" | jq -r --arg job "Fresh schema, real Supabase integration, and FULL E2E" --arg name "$step_name" '.jobs[] | select(.name == $job) | .steps[] | select(.name == $name and .conclusion != "skipped") | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
               [ -n "$step_times" ] || continue
               IFS=$'\t' read -r step_started_at step_completed_at <<< "$step_times"

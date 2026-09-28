@@ -19,7 +19,10 @@ finished_at_ms="$(date +%s%3N)"
 duration="$(awk -v start="$started_at_ms" -v end="$finished_at_ms" 'BEGIN { printf "%.2f", (end - start) / 1000 }')"
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-  printf '| %s | %ss |\n' "$label" "$duration" >> "$GITHUB_STEP_SUMMARY"
+  summary_line="| ${label} | ${duration}s |"
+  printf '%s\n' "$summary_line" | tee -a "$GITHUB_STEP_SUMMARY"
+else
+  printf '%s: %ss\n' "$label" "$duration"
 fi
 
 exit "$status"
