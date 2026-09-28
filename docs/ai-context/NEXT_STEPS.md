@@ -29,9 +29,12 @@ run; the warm dependency-cache path has not yet been measured.
 ## Next checkpoint
 
 Measure dependency cache hits on the next naturally occurring deployment.
-Do not create a synthetic commit or deployment just to warm the cache. No
-further CI, path-filtering, deploy, or product optimization work is started
-until requested.
+Do not create a synthetic commit or deployment just to warm the cache. The
+repository has only `.github/workflows/ci.yml`, triggered by push and
+pull_request; no `workflow_dispatch` exists for a same-SHA redeploy. Wait for
+the next real main push, with its normal validation gates, to measure the
+warm-cache path. No further CI, path-filtering, deploy, or product
+optimization work is started until requested.
 
 ## Deferred optimization topics (not started)
 

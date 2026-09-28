@@ -20,10 +20,11 @@ CI artifact, restarted `dao-dev.service`, and its `systemctl is-active`
 check returned `active`. The deploy log identifies release
 `/opt/dao/releases/e0bbcdd19c29d46821d19ba2d56e8868b676eb9d-36411292612-1`.
 
-The external HTTP probe from this Work environment did not reach the app: the
-outbound `mitmproxy` returned HTTP 502 with a TLS internal-error alert. This
-is an environment connectivity failure, so external page response remains
-unverified here; the VPS-side service health check succeeded.
+Public HTTP remains unverified. The Work shell returned HTTP/2 502 with
+`server: mitmproxy 12.2.3` and a TLS internal-error alert. A follow-up in the
+cloud browser also displayed `502 Bad Gateway` with the same OpenSSL TLS
+alert. These results do not identify the origin's HTTP status or confirm its
+page response. The VPS-side `systemctl is-active` health check succeeded.
 
 No database write, migration, schema/RLS/Auth change, or product change was
 made during this deployment optimization.
