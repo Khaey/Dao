@@ -272,13 +272,33 @@ separate maintenance decision. A long-lived hosted development branch was not
 created because it would incur recurring compute cost and its documented reset
 does not explicitly guarantee Storage object removal.
 
-The database reproducibility decision is to version the exact DEV
-`public.rls_auto_enable()` function and enabled `ensure_rls` event trigger at
-their historical position, with the DEV owner, `search_path`, event tags, and
-postgres-only EXECUTE ACL. Repository migration versions align to the 21 DEV
-ledger entries, including the repeated award/bid-document v2 migration. No
-DEV ledger repair or DDL is part of the local reconciliation. PGlite replays the
-real migration without a function stub; a dedicated `schema-repro` job runs
-fresh Supabase start, reset, seed, and the schema contract before E2E/deploy.
-This workstation still needs a Docker-compatible runtime for the authoritative
-Supabase and integration checks.
+The repository versions the exact DEV `public.rls_auto_enable()` function and
+enabled `ensure_rls` event trigger at their historical position, with the DEV
+owner, `search_path`, event tags, and postgres-only EXECUTE ACL. The repository
+and DEV migration ledgers align at 22 versions, including the repeated
+award/bid-document v2 migration. PGlite replays the real migration without a
+function stub. Fresh Supabase reconstruction, reset/replay, schema contract,
+integration, and FULL E2E are validated on GitHub-hosted disposable runners.
+The shared DEV project stays separate from E2E.
+
+## D-027 — Reuse one disposable Supabase stack for full CI validation
+
+The critical CI job must prove both initial fresh migration application and a
+complete `supabase db reset --local` replay, checking the migration ledger and
+schema contract before and after reset. It then reuses that same local stack for
+real integration and all FULL E2E tests. Do not remove the reset/replay proof
+or replace the stack with a preconfigured database. Backend verification and
+the general frontend build remain parallel independent jobs. The FULL E2E
+target guard must continue to require `http://127.0.0.1:54321`.
+
+The E2E frontend build uses the local public Supabase URL and key and remains
+separate from the general build artifact. Browser installation can run in
+parallel with that E2E build. `deploy-dev` remains push-to-main only.
+
+## D-028 — Keep browser cache disabled unless it shows a material net gain
+
+The Chromium cache experiment measured about 3 seconds of warm-run savings
+(4 seconds to restore plus 14 seconds for system dependencies, versus 21
+seconds for the uncached install), while a cold cache was slower after cache
+save. The cache adds maintenance and state without a meaningful gain, so the
+workflow uses `playwright install --with-deps chromium` on each fresh runner.
