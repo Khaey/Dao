@@ -42,9 +42,10 @@ The deploy log shows the VPS checked out release `45e0e40230ba663c6d1633a3103355
   0 semantic drift.
 - Nine RAW function fingerprints differ only in SQL representation/formatting;
   function metadata and semantic fingerprints match. These are not blockers.
-- The only DEV migration applied for this reconciliation was the authorized
-  `20260927102942_reconcile_dao_function_definitions.sql`. No direct DEV
-  functional test or further database audit was run after the user waived it.
+- The two migrations in this reconciliation applied to DEV through the
+  approved migration workflow were `20260926092748_enforce_draft_withdrawal_and_approved_publication.sql`,
+  followed by `20260927102942_reconcile_dao_function_definitions.sql`. No direct
+  DEV functional test or further database audit was run after the user waived it.
 
 Do not use shared DEV for FULL E2E. Preserve the immutability protections
 `submitted_version_immutable` and `submitted_bid_content_immutable`.
