@@ -43,6 +43,11 @@ jobs:
 
   frontend-build:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'dev' || 'ci-validation' }}
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.DAO_SUPABASE_URL || 'https://ci-validation.invalid' }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.DAO_SUPABASE_PUBLISHABLE_KEY || 'ci-validation-publishable-placeholder' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -63,18 +68,72 @@ jobs:
         uses: actions/cache@v4
         with:
           path: dao-frontend/.next/cache
-          key: dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ hashFiles('dao-frontend/**', 'dao-backend/src/**') }}
+          key: dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ hashFiles('dao-frontend/**', 'dao-backend/src/**') }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'dev' || 'ci' }}
           restore-keys: |
-            dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-
+            dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'dev' || 'ci' }}-
       - name: Install backend runtime dependencies for Next.js API routes
         working-directory: dao-backend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend runtime npm install" npm ci --omit=dev --no-audit --no-fund
       - name: Install frontend dependencies
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install" npm ci --no-audit --no-fund
+      - name: Verify DEV build inputs
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          test -n "$NEXT_PUBLIC_SUPABASE_URL"
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test "$NEXT_PUBLIC_SUPABASE_URL" != 'https://ci-validation.invalid'
+          test "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" != 'ci-validation-publishable-placeholder'
       - name: Build frontend
         working-directory: dao-frontend
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend build (non-E2E environment)" npm run build
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend build for CI or DEV artifact" npm run build
+      - name: Package frontend build and release script
+        run: |
+          set -euo pipefail
+          package_path="$RUNNER_TEMP/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend deployment package validation" bash -euo pipefail -c '
+            manifest="$RUNNER_TEMP/.dao-deploy-manifest.json"
+            node ops/deploy-artifact-manifest.mjs create \
+              "$manifest" \
+              "$GITHUB_SHA" \
+              dao-frontend/package-lock.json \
+              dao-frontend/.next/BUILD_ID
+            tar -czf "$1" \
+              -C dao-frontend --exclude=.next/cache .next \
+              -C "$RUNNER_TEMP" .dao-deploy-manifest.json \
+              -C "$GITHUB_WORKSPACE" ops/deploy-dev.sh
+            node ops/deploy-artifact-manifest.mjs verify \
+              "$manifest" \
+              "$GITHUB_SHA" \
+              dao-frontend/package-lock.json \
+              dao-frontend/.next/BUILD_ID
+            if NEXT_PUBLIC_SUPABASE_URL='https://mismatch.invalid' NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY='mismatched-key' \
+              node ops/deploy-artifact-manifest.mjs verify \
+                "$manifest" \
+                "$GITHUB_SHA" \
+                dao-frontend/package-lock.json \
+                dao-frontend/.next/BUILD_ID; then
+              echo "Manifest accepted a different public Supabase configuration" >&2
+              exit 1
+            fi
+            rm -f "$manifest"
+          ' _ "$package_path"
+          tar -tzf "$package_path" | tee "$RUNNER_TEMP/dao-deploy-package-files.txt"
+          grep -Fxq '.next/BUILD_ID' "$RUNNER_TEMP/dao-deploy-package-files.txt"
+          grep -Fxq '.dao-deploy-manifest.json' "$RUNNER_TEMP/dao-deploy-package-files.txt"
+          grep -Fxq 'ops/deploy-dev.sh' "$RUNNER_TEMP/dao-deploy-package-files.txt"
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
+            cp "$package_path" "$GITHUB_WORKSPACE/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          fi
+          ls -lh "$package_path"
+      - name: Upload DEV frontend deployment artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dao-deploy-frontend-${{ github.sha }}
+          path: ${{ runner.temp }}/dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
+          if-no-files-found: error
+          retention-days: 1
 
   full-e2e:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -247,6 +306,24 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
+      - name: Download the DEV-configured build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dao-deploy-frontend-${{ github.sha }}
+          path: ${{ runner.temp }}/dao-deploy-frontend
+      - name: Prepare artifact for transfer
+        run: cp "$RUNNER_TEMP/dao-deploy-frontend/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz" "$GITHUB_WORKSPACE/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+      - name: Transfer verified build package to DEV host
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
+          target: /opt/dao
+          overwrite: true
+          timeout: 30s
+          command_timeout: 10m
       - name: Deploy verified revision over SSH
         uses: appleboy/ssh-action@v1.2.2
         with:
@@ -254,10 +331,27 @@ jobs:
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
           script: |
-            git -C /opt/dao/current fetch origin main
-            git -C /opt/dao/current show ${{ github.sha }}:ops/deploy-dev.sh > /opt/dao/deploy-dev.sh
-            chmod 0750 /opt/dao/deploy-dev.sh
-            bash /opt/dao/deploy-dev.sh ${{ github.sha }}
+            set -Eeuo pipefail
+            echo "DEPLOY_TIMING stage=ssh_connection_complete epoch_ms=$(date +%s%3N)"
+            run_dir="/opt/dao/incoming/${{ github.run_id }}-${{ github.run_attempt }}"
+            package="/opt/dao/dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz"
+            payload="$run_dir/payload"
+            test -s "$package"
+            mkdir -p "$payload"
+            if tar -tzf "$package" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+              echo "Deployment package contains an unsafe path" >&2
+              exit 1
+            fi
+            started_ms="$(date +%s%3N)"
+            tar -xzf "$package" -C "$payload" --no-same-owner --no-same-permissions
+            finished_ms="$(date +%s%3N)"
+            echo "DEPLOY_TIMING stage=payload_extract duration_ms=$((finished_ms - started_ms))"
+            test -s "$payload/.dao-deploy-manifest.json"
+            test -s "$payload/.next/BUILD_ID"
+            test -f "$payload/ops/deploy-dev.sh"
+            chmod 0750 "$payload/ops/deploy-dev.sh"
+            bash "$payload/ops/deploy-dev.sh" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.run_attempt }}" "$payload"
+            rm -rf "$run_dir" "$package"
 
   ci-timing-summary:
     if: always()
@@ -307,4 +401,21 @@ jobs:
               step_completed_epoch="$(date -u -d "$step_completed_at" +%s)"
               echo "| ${step_name} | $((step_completed_epoch - step_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
             done
+
+            while IFS='|' read -r job_name step_name; do
+              step_times="$(printf '%s' "$jobs_data" | jq -r --arg job "$job_name" --arg name "$step_name" '.jobs[] | select(.name == $job) | .steps[] | select(.name == $name and .conclusion != "skipped") | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
+              [ -n "$step_times" ] || continue
+              IFS=$'\t' read -r step_started_at step_completed_at <<< "$step_times"
+              [ -n "$step_started_at" ] && [ -n "$step_completed_at" ] || continue
+              step_started_epoch="$(date -u -d "$step_started_at" +%s)"
+              step_completed_epoch="$(date -u -d "$step_completed_at" +%s)"
+              echo "| ${job_name}: ${step_name} | $((step_completed_epoch - step_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
+            done <<'TIMED_STEPS'
+            frontend-build|Install frontend dependencies
+            frontend-build|Build frontend
+            frontend-build|Package frontend build and release script
+            deploy-dev|Download the DEV-configured build artifact
+            deploy-dev|Transfer verified build package to DEV host
+            deploy-dev|Deploy verified revision over SSH
+          TIMED_STEPS
           fi
