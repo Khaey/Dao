@@ -18,26 +18,28 @@ Before any modification:
 4. if GitHub is ahead of this documentation, update context first;
 5. do not replay old bug analysis if a newer run has already passed that point.
 
-## 1. Resolve the isolated migration-chain blocker
+## 1. Validate database reproducibility in a Draft PR
 
-Current `main` is `32b3470beddf2ac9bbd693fe1aef78f1e96d6e2d`. CI run #136
-passed backend verification and frontend build, then failed before Playwright
-while applying `202609210001_dao_security_hardening_rls_auto_enable.sql` to a
-fresh local Supabase stack. The migration references `public.rls_auto_enable()`
-but no repository migration defines it. The DEV database has a real
-`SECURITY DEFINER` event-trigger function and enabled `ensure_rls` event
-trigger; the PGlite test harness creates only a simplified stub. This is an
-RLS/security architecture gap, so stop before editing migrations or retrying
-CI. Do not use the shared DEV database for E2E.
+The local migration reconciliation is on branch
+`chore/db-repro-reconciliation`, based on `c32ef4820e4603662e5897fc0e33c7d59fdca5f6`.
+It maps the repository's 21 versions to DEV history, preserves the repeated
+v2 ledger entry, versions the exact DEV RLS bootstrap, and removes the PGlite
+function stub. Backend, PGlite, frontend build, and 14-test discovery checks
+were green before opening the PR.
 
-Next work requires an explicit decision about versioning the real RLS event
-trigger in the repository or selecting an approved isolated baseline that
-already contains it. Do not create a paid hosted branch without cost approval.
-After the migration source is resolved, run the isolated stack and 14 FULL E2E
-tests with two workers, then allow DEV deployment only after E2E is green.
+Use the Draft PR as the authoritative fresh Supabase runner: `schema-repro`
+must pass before `full-e2e` can run. Run Auth/JWT/RLS/RPC/Storage integration
+and all 14 desktop/mobile tests only against `http://127.0.0.1:54321`. Measure
+the separate schema and E2E stack startup/reset durations from the workflow
+summary before deciding whether they should share a stack. Keep the jobs
+separate if sharing would compromise diagnostic clarity or E2E freshness.
 
-No local-only trigger stub, DDL bypass, migration change, or DEV data cleanup
-was made. The four Playwright selector corrections remain on `main`.
+Never use the shared DEV project as a test target or mutate its migration
+ledger. After schema-repro passes, compare fresh local with DEV read-only over
+DAO objects and stop before any DEV mutation if a DAO divergence is unexplained.
+Do not merge the Draft PR; the user decides whether to merge after every gate
+is green and the schema comparison is explained. The four Playwright selector
+corrections remain preserved on `main` at the starting commit.
 
 ## 2. Manual P1.1 validation
 

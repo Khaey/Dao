@@ -18,14 +18,14 @@ grant execute on function dao_private.create_project_draft(text,numeric,date,big
 
 create or replace function dao_private.add_project_request(p_project_id uuid,p_trade_id uuid,p_title text,p_scope text)
 returns public.project_requests language plpgsql security definer set search_path='' as $$
-declare v_request public.project_requests; v_version public.project_versions;
+declare v_request public.project_requests; v_version public.project_versions; v_rv uuid;
 begin
   if auth.uid() is null or not dao_private.owner(p_project_id) then raise exception using errcode='42501',message='project ownership required'; end if;
   select * into v_version from public.project_versions where project_id=p_project_id order by version_no desc limit 1;
   if v_version.id is null then raise exception using errcode='23503',message='project version required'; end if;
   insert into public.project_requests(project_id) values(p_project_id) returning * into v_request;
-  insert into public.project_request_versions(request_id,project_id,version_no,trade_id,title,scope) values(v_request.id,p_project_id,1,p_trade_id,p_title,p_scope);
-  insert into public.project_version_requests(project_id,project_version_id,request_version_id) values(p_project_id,v_version.id,(select id from public.project_request_versions where request_id=v_request.id and version_no=1));
+  insert into public.project_request_versions(request_id,project_id,version_no,trade_id,title,scope) values(v_request.id,p_project_id,1,p_trade_id,p_title,p_scope) returning id into v_rv;
+  insert into public.project_version_requests(project_id,project_version_id,request_version_id) values(p_project_id,v_version.id,v_rv);
   return v_request;
 end; $$;
 revoke all on function dao_private.add_project_request(uuid,uuid,text,text) from public,anon,authenticated;

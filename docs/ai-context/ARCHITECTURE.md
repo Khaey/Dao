@@ -287,33 +287,40 @@ Rejected versions and review reasons remain traceable.
 
 ## 12. CI/CD
 
-GitHub Actions workflow includes at least:
+GitHub Actions validation workflow includes:
 
 ```text
-verify
-e2e-dev
+backend-verify
+frontend-build
+schema-repro
+full-e2e
 deploy-dev
 ```
 
-`verify` covers backend checks and frontend build. The `e2e-dev` job name is
-retained for workflow compatibility, but its FULL Playwright suite runs only
-against a disposable local Supabase CLI stack on a fresh GitHub-hosted runner.
-The job starts PostgreSQL, Auth, PostgREST, REST/Kong, and Storage; applies all
-repository migrations and local test seed data; and refuses any Supabase URL
-other than `http://127.0.0.1:54321`. It receives no DEV or production
-credentials. Runner disposal is the reset boundary for database rows, Auth
-users, Storage metadata, and Storage objects. E2E cleanup only removes worker
-tracking files; it never deletes business records.
+`schema-repro` is a required dependency of `full-e2e`. It starts a fresh local
+Supabase CLI stack, applies every repository migration and seed, checks the
+exact migration ledger and schema contract, resets/replays the schema, then
+runs real Auth/JWT/RLS/RPC/Storage integration. `full-e2e` runs on pull requests
+and main pushes using a separate fresh local stack. It refuses any Supabase
+URL other than `http://127.0.0.1:54321`, receives no DEV or production
+credentials, and runs the 14 desktop/mobile tests with two workers. The split
+keeps E2E data fresh after integration tests and gives schema failures a clear
+gate. Runner disposal is the reset boundary; E2E cleanup only removes worker
+tracking files.
 
-`deploy-dev` remains gated on successful isolated FULL E2E and deploys the
-application to the usual DEV environment for manual validation.
+`deploy-dev` is strictly limited to a push on `refs/heads/main`, after isolated
+FULL E2E succeeds; pull requests cannot trigger deployment.
 
-The first local-stack run exposed a repository migration prerequisite that is
-not versioned: `202609210001_dao_security_hardening_rls_auto_enable.sql`
-references `public.rls_auto_enable()` but does not define it. Until the real RLS
-event-trigger definition is included in an approved migration source, a blank
-local stack cannot replay the exact repository migrations. Do not hide this
-with a local-only stub or point E2E back at shared DEV.
+The read-only DEV audit found that the old repository chain omitted the real
+RLS event-trigger bootstrap. The branch reconciliation places the
+exact DEV function and `ensure_rls` trigger in the migration version recorded as
+`20260920172706`, aligns the migration filenames with the 21 DEV history
+versions, and removes the PGlite function stub. PGlite replay and the shared
+schema contract pass. The real Supabase `start`/`reset` and integration run
+remain pending because this workstation has no container runtime. The Draft PR
+is the validation environment; the full E2E job starts a separate fresh local
+stack.
+Shared DEV remains read-only during this reconciliation.
 
 Do not claim P1.1 complete solely because `verify` is green.
 

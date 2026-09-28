@@ -60,13 +60,111 @@ jobs:
         working-directory: dao-frontend
         run: npm run build
 
-  e2e-dev:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  schema-repro:
+    name: Fresh Supabase schema contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dao-backend/package-lock.json
+      - uses: supabase/setup-cli@v1.6.1
+        with:
+          version: 2.118.0
+      - name: Install backend dependencies
+        working-directory: dao-backend
+        run: npm ci --no-audit --no-fund
+      - name: Stop any previous local stack and start from scratch
+        working-directory: dao-backend
+        run: |
+          supabase stop --no-backup || true
+          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-schema-start-seconds" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
+          start_seconds="$(cat "$RUNNER_TEMP/dao-schema-start-seconds")"
+          echo "Fresh Supabase start plus migrations and seed: ${start_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Verify fresh migration history and schema contract
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          supabase migration list --local
+          contract_sql="$(cat tests/schema-contract.sql)"
+          supabase db query --local -o csv "$contract_sql"
+      - name: Reset and replay the complete schema
+        working-directory: dao-backend
+        run: |
+          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-schema-reset-seconds" supabase db reset --local
+          reset_seconds="$(cat "$RUNNER_TEMP/dao-schema-reset-seconds")"
+          echo "Explicit Supabase reset plus migrations and seed: ${reset_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Verify reset migration history and schema contract
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          supabase migration list --local
+          contract_sql="$(cat tests/schema-contract.sql)"
+          supabase db query --local -o csv "$contract_sql"
+      - name: Capture raw and semantic fresh-local DAO schema fingerprints
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          inventory_sql="$(sed '/^[[:space:]]*--/d' tests/schema-parity-inventory.sql)"
+          raw_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local-raw.csv"
+          final_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
+          supabase db query --local -o csv "$inventory_sql" > "$raw_inventory"
+          node tests/schema-parity-inventory.mjs finalize "$raw_inventory" > "$final_inventory"
+          test -s "$final_inventory"
+          inventory_rows="$(tail -n +2 "$final_inventory" | wc -l | tr -d ' ')"
+          echo "Read-only DAO schema inventory: ${inventory_rows} objects" | tee -a "$GITHUB_STEP_SUMMARY"
+          node tests/schema-parity-inventory.mjs summary "$final_inventory" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload fresh-local DAO schema fingerprints for DEV parity review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dao-schema-parity-fresh-local-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dao-schema-parity-fresh-local.csv
+          if-no-files-found: ignore
+      - name: Export only disposable local Supabase credentials
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          status_env="$(supabase status -o env)"
+          get_status_value() {
+            local key="$1"
+            local value
+            value="$(printf '%s\n' "$status_env" | sed -n "s/^${key}=//p" | head -n 1)"
+            value="${value#\"}"
+            value="${value%\"}"
+            if [ -z "$value" ]; then
+              echo "Missing $key in local Supabase status" >&2
+              return 1
+            fi
+            printf '%s' "$value"
+          }
+          api_url="$(get_status_value API_URL)"
+          anon_key="$(get_status_value ANON_KEY)"
+          service_role_key="$(get_status_value SERVICE_ROLE_KEY)"
+          if [ "$api_url" != "http://127.0.0.1:54321" ]; then
+            echo "Refusing integration target outside the disposable local Supabase stack" >&2
+            exit 1
+          fi
+          echo "::add-mask::$service_role_key"
+          {
+            printf 'DAO_SUPABASE_URL=%s\n' "$api_url"
+            printf 'DAO_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
+            printf 'DAO_SUPABASE_SECRET_KEY=%s\n' "$service_role_key"
+          } >> "$GITHUB_ENV"
+      - name: Run real Supabase integration tests against local stack
+        working-directory: dao-backend
+        run: npm run test:integration:real
+
+  full-e2e:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: E2E isolated on disposable local Supabase
-    needs: [backend-verify, frontend-build]
+    needs: [backend-verify, frontend-build, schema-repro]
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
       DAO_E2E_STATE_DIR: /tmp/dao-e2e-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
@@ -85,38 +183,19 @@ jobs:
       - name: Install frontend dependencies
         working-directory: dao-frontend
         run: npm ci --no-audit --no-fund
-      - name: Start disposable local Supabase stack
+      - name: Start fresh local Supabase stack with repository migrations and seed
         working-directory: dao-backend
         run: |
           /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-e2e-supabase-start-seconds" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
           start_seconds="$(cat "$RUNNER_TEMP/dao-e2e-supabase-start-seconds")"
           echo "Local Supabase stack startup: ${start_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Reset database and replay repository migrations
-        working-directory: dao-backend
-        run: |
-          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-e2e-supabase-reset-seconds" supabase db reset --local
-          reset_seconds="$(cat "$RUNNER_TEMP/dao-e2e-supabase-reset-seconds")"
-          echo "Local Supabase reset plus migrations and seed: ${reset_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Verify applied migration history
+      - name: Verify fresh E2E schema contract
         working-directory: dao-backend
         shell: bash
         run: |
           supabase migration list --local
-          migration_versions=()
-          for migration in supabase/migrations/*.sql; do
-            filename="${migration##*/}"
-            migration_versions+=("'${filename%%_*}'")
-          done
-          expected="${#migration_versions[@]}"
-          repo_versions="$(IFS=,; printf '%s' "${migration_versions[*]}")"
-          applied="$(supabase db query --local -o csv "select count(*)::text || ':' || count(*) filter (where version in (${repo_versions}))::text from supabase_migrations.schema_migrations")"
-          applied="${applied//$'\r'/}"
-          applied="${applied//\"/}"
-          if ! grep -Fqx "$expected:$expected" <<< "$applied"; then
-            echo "Local Supabase migration history is not an exact match for repository migrations (expected $expected:$expected, got $applied)" >&2
-            exit 1
-          fi
-          echo "Verified all $expected repository migrations are applied, with no extra migration history."
+          contract_sql="$(cat tests/schema-contract.sql)"
+          supabase db query --local -o csv "$contract_sql"
       - name: Export only disposable local Supabase credentials
         working-directory: dao-backend
         shell: bash
@@ -152,9 +231,19 @@ jobs:
       - name: Guard FULL E2E target
         working-directory: dao-frontend
         run: node tests/e2e/verify-supabase-target.mjs
+      - name: Build frontend for production-mode E2E
+        working-directory: dao-frontend
+        run: npm run build
       - name: Install Playwright browser
         working-directory: dao-frontend
         run: npx playwright install --with-deps chromium
+      - name: Discover the expected 14 Playwright tests
+        working-directory: dao-frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
+          grep -Eq 'Total: 14 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with two workers
         working-directory: dao-frontend
         run: |
@@ -177,7 +266,7 @@ jobs:
 
   deploy-dev:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: e2e-dev
+    needs: full-e2e
     runs-on: ubuntu-latest
     environment: dev
     steps:

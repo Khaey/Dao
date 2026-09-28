@@ -272,9 +272,13 @@ separate maintenance decision. A long-lived hosted development branch was not
 created because it would incur recurring compute cost and its documented reset
 does not explicitly guarantee Storage object removal.
 
-The first local-stack CI run also exposed a missing repository migration
-prerequisite: `202609210001_dao_security_hardening_rls_auto_enable.sql` grants
-permissions on `public.rls_auto_enable()` without defining it. The DEV database
-has an enabled DDL event trigger backed by a `SECURITY DEFINER` function, while
-the PGlite test harness inserts a simplified stub. Do not fabricate a local
-substitute or change RLS behavior without an explicit architecture decision.
+The database reproducibility decision is to version the exact DEV
+`public.rls_auto_enable()` function and enabled `ensure_rls` event trigger at
+their historical position, with the DEV owner, `search_path`, event tags, and
+postgres-only EXECUTE ACL. Repository migration versions align to the 21 DEV
+ledger entries, including the repeated award/bid-document v2 migration. No
+DEV ledger repair or DDL is part of the local reconciliation. PGlite replays the
+real migration without a function stub; a dedicated `schema-repro` job runs
+fresh Supabase start, reset, seed, and the schema contract before E2E/deploy.
+This workstation still needs a Docker-compatible runtime for the authoritative
+Supabase and integration checks.

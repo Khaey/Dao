@@ -2,13 +2,15 @@
 
 Le backend D.A.O utilise Next.js/TypeScript, Supabase PostgreSQL, Auth, Storage privé et RLS. Cet état correspond à la validation du 21/09/2026.
 
-## État validé
+## État local au 27/09/2026
 
-- migrations Supabase jusqu’à `202609220007_priority1_client_workflow.sql` (appliquée sur DEV) ;
-- services/routes compilés ;
-- tests services/routes : 9/9 ;
-- suite PGlite : 78/78 ;
-- test autonome Supabase réel : 1 test, 1 pass, 0 fail avec les trois variables configurées ;
+- DEV contient les migrations jusqu’à `20260926092748_enforce_draft_withdrawal_and_approved_publication` ;
+- le mapping local des 21 migrations correspond aux versions de l’historique DEV ;
+- la migration répétée `20260921013710_secure_award_and_bid_documents_v2.sql` est conservée pour reproduire le ledger historique ; son `CREATE OR REPLACE` et ses ACL rendent sa réapplication idempotente ;
+- tests services/routes : 10/10 ;
+- replay PGlite complet sans stub RLS : 96/96 ;
+- le build frontend et la découverte des 14 tests Playwright passent ;
+- l’intégration Supabase réelle s’exécute uniquement sur le stack local jetable ; ses RPC `add_project_request` fournissent explicitement `p_budget_millimes` pour choisir sans ambiguïté la signature à cinq arguments.
 - parcours frontend artisan branché sur les RPC d’offre ;
 - aucune clé privilégiée dans le navigateur.
 
@@ -29,7 +31,7 @@ npm run test:local
 npm run test:integration:real
 ```
 
-Le test réel autonome crée et supprime ses propres comptes et fixtures. Il utilise uniquement :
+Le test réel utilise uniquement le Supabase local jetable à `http://127.0.0.1:54321`. Il laisse ses fixtures, y compris les offres soumises immuables, en place ; la destruction de la stack constitue la frontière de nettoyage. Il utilise uniquement :
 
 ```text
 DAO_SUPABASE_URL
@@ -39,4 +41,4 @@ DAO_SUPABASE_SECRET_KEY
 
 Ne jamais placer leurs valeurs dans GitHub. Voir [`BLUEPRINT.md`](./BLUEPRINT.md) et [`TABLES.md`](./TABLES.md).
 
-Le parcours E2E DEV est lancé par GitHub Actions après `verify`. La CI provisionne un client, un reviewer et un artisan jetables, exécute Playwright desktop/mobile, publie les screenshots/trace en artifacts, puis supprime uniquement les données de ce run avec `if: always()`.
+La Draft PR exécute les validations backend, frontend, le replay Supabase frais, l’intégration réelle locale et les 14 tests Playwright desktop/mobile sur deux workers. Supabase reste local au runner. `deploy-dev` ne peut démarrer que sur un `push` vers `main` après le succès de l’E2E ; le cleanup applicatif retire uniquement les fichiers de suivi worker.

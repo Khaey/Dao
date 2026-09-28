@@ -8,9 +8,10 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page,
   await page.goto('/app/profile');
 
   await expect(page.getByRole('heading', { name: 'Votre espace D.A.O' })).toBeVisible();
-  const identitySection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Votre identité' }) });
-  await expect(identitySection.getByText(e2eClient!.email, { exact: true })).toHaveCount(1);
-  await expect(identitySection.getByText(e2eClient!.email, { exact: true })).toBeVisible();
+  const identityCard = page.getByRole('heading', { name: 'Votre identité', exact: true }).locator('xpath=../../..');
+  const identityEmail = identityCard.getByText(e2eClient!.email, { exact: true });
+  await expect(identityEmail).toHaveCount(1);
+  await expect(identityEmail).toBeVisible();
   await expect(page.getByText('Espace client', { exact: true })).toBeVisible();
   await expect(page.getByRole('main').getByText('Mes projets', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
@@ -23,8 +24,8 @@ test('Mon espace affiche le profil et permet de se déconnecter', async ({ page,
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByRole('status')).toContainText('Profil mis à jour.');
   await page.reload();
-  await expect(page.getByText(displayName, { exact: true })).toBeVisible();
-  await expect(page.getByText(phone, { exact: true })).toBeVisible();
+  await expect(identityCard.getByText(displayName, { exact: true })).toBeVisible();
+  await expect(identityCard.getByText(phone, { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Se déconnecter' }).click();
   await expect(page).toHaveURL(/\/auth\/login/);

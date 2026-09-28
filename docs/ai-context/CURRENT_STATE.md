@@ -1,24 +1,24 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-09-26  
+> **Last verified:** 2026-09-27
 > **Repository:** `Khaey/Dao`  
 > This file must be updated whenever `main`, CI status, or the immediate root cause changes.
 
 ## 1. Current revision on `main`
 
 ```text
-32b3470beddf2ac9bbd693fe1aef78f1e96d6e2d
+c32ef4820e4603662e5897fc0e33c7d59fdca5f6
 ```
 
 Commit:
 
 ```text
-ci: isolate full e2e on disposable supabase
+docs: record isolated e2e migration blocker [skip ci]
 ```
 
 The four local Playwright selector corrections are included on `main`.
 
-## 2. Latest CI for the current revision
+## 2. Latest CI for the last code-bearing revision
 
 Latest workflow:
 
@@ -27,6 +27,9 @@ Run #136
 Run ID: 36270124756
 SHA: 32b3470beddf2ac9bbd693fe1aef78f1e96d6e2d
 ```
+
+The current `main` commit `c32ef48` only updates documentation and has
+`[skip ci]`, so run #136 remains the latest code workflow result.
 
 Status:
 
@@ -39,22 +42,52 @@ deploy-dev      ⏭ skipped
 
 Run #135 was not rerun; it was the last old E2E workflow targeting shared DEV.
 
-### Active blocker — fresh migration chain lacks its RLS event-trigger function
+### Active blocker — real local Supabase verification needs a container runtime
 
-The first isolated runner failed in 58 seconds while `supabase start` applied
-the fifth repository migration, `202609210001_dao_security_hardening_rls_auto_enable.sql`.
-That file only grants/revokes permissions on `public.rls_auto_enable()`; no
-repository migration defines the function. The PGlite helper in
-`dao-backend/tests/local.mjs` creates a simplified stub before testing, which
-hid this gap. A read-only DEV check found the real `SECURITY DEFINER`
-`RETURNS event_trigger` function and the enabled `ensure_rls` trigger on
-`ddl_command_end`. No Playwright test ran. Fixing the migration chain requires
-an RLS/security schema decision; do not add a local-only stub, alter RLS, or
-rerun CI until that decision is made.
+Run #136 failed at `supabase start` because the fresh migration chain did not
+contain `public.rls_auto_enable()`. The validation branch maps the 21
+repository migration files to the versions recorded in DEV, preserves the
+`dao_secure_award_and_bid_documents_v2` entry, and versions the exact DEV
+`rls_auto_enable()` / `ensure_rls` behavior in
+`20260920172706_dao_security_hardening_rls_auto_enable.sql`. The PGlite stub
+has been removed. The shared schema contract passes under PGlite.
+
+Local results before opening the validation PR: backend 10/10, PGlite 96/96,
+frontend build green, and 14 Playwright tests discovered. The real Supabase
+`start`/`reset`, Auth/JWT/Storage integration, and full Playwright run are
+delegated to the Draft PR runner because this workstation has no Supabase CLI,
+Docker/Podman binary, or container socket; container capabilities are disabled.
+The branch is for validation only and must not be merged without the user's
+decision. Do not use shared DEV as a test target.
 
 No Supabase branch was created, no DEV data were deleted, and no migration was
-applied during this isolation work. The shared DEV inventory remains 47 E2E
+applied to DEV during this work. The shared DEV inventory remains 47 E2E
 Auth accounts, 58 E2E-owned projects, and 42 submitted bid versions.
+
+## 2. Draft PR validation — first runner result
+
+Draft PR [#1](https://github.com/Khaey/Dao/pull/1) is open from
+`chore/db-repro-reconciliation` to `main`, based on the exact starting SHA
+above. Run #137 (`36287944971`) used PR head
+`0b7141f0388207e639a98c9604b6722ba9ec47a9`.
+
+Results: backend passed; frontend build passed; all 21 migrations replayed and
+the seed, schema contract, migration ledger comparison, and explicit full reset
+passed. The real integration then failed with PostgREST `PGRST203` because the
+test omitted `p_budget_millimes` while the schema exposes four- and five-arg
+`add_project_request` overloads. The correction is to send
+`p_budget_millimes: null` in both authorized and denied calls, selecting the
+five-argument RPC without changing its schema. FULL E2E was skipped by the
+schema-repro dependency, and `deploy-dev` was skipped for the PR as required.
+
+The RPC-overload correction passed local backend tests (10/10) and was pushed
+to the same Draft PR. Run #138 replayed the schema and passed both contracts,
+then advanced through the RPC call and failed later while submitting the valid
+contractor offer: the test fixture inserted a public publication but omitted
+its `publication_requests` snapshot, so `submit_bid_version` correctly rejected
+the offer. The fixture now inserts the exact request-version snapshot expected
+by the publication workflow. No database or product policy changed; local
+backend tests remain 10/10. Push this fixture correction and rerun Actions.
 
 ## 3. Resolved root cause — run #127
 
