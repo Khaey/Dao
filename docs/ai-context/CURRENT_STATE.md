@@ -5,17 +5,17 @@
 
 ## 1. Main and deployment
 
-PR [#1](https://github.com/Khaey/Dao/pull/1) is merged. Its code-bearing
-revision is `45e0e40230ba663c6d1633a310335561c2c0b838`. The current `main`
-head when CI optimization began was the docs-only commit
-`db19b3512062fc8fde4bafcae95b6aef5a8f884b`. Run [#148](https://github.com/Khaey/Dao/actions/runs/36366960973)
-was green on the merged code, including `deploy-dev`; the VPS was active on the
-merged revision.
+PR [#1](https://github.com/Khaey/Dao/pull/1) remains merged at
+`45e0e40230ba663c6d1633a310335561c2c0b838`. CI optimization PR
+[#2](https://github.com/Khaey/Dao/pull/2) was merged on 2026-09-28. Its head
+was `d0b2575c18955bb2737d3ebc1991a8b02230ea70`; the merge commit and current
+`main` SHA are `8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c`.
 
-CI optimization is on Draft PR [#2](https://github.com/Khaey/Dao/pull/2),
-branch `chore/ci-e2e-optimization`. It is not merged. The last complete
-optimization run recorded here is [#153](https://github.com/Khaey/Dao/actions/runs/36371688388)
-on `251189159a7288f5b11eea470f65be004e68edee`.
+Main run [#155](https://github.com/Khaey/Dao/actions/runs/36393228800) passed
+all jobs, including `deploy-dev`, in 286s (4m46s). The VPS release checked out
+the merge SHA, switched `/opt/dao/current` to that release, restarted
+`dao-dev.service`, and `systemctl is-active dao-dev.service` returned
+`active`. The service became active 279s (4m39s) after merge.
 
 ## 2. Supabase reproducibility and parity
 
@@ -58,46 +58,47 @@ DEV/production credentials.
 
 ## 4. CI timing and experiments
 
-Run #148 is the complete main-pipeline baseline. A PR run cannot execute the
-main-only deploy, so keep its measured time separate from the projection that
-adds the unchanged run #148 deploy job.
+Run #148 is the historical main-pipeline baseline. Run #155 is the measured
+main pipeline after PR #2 merged; no deploy projection is used.
 
-| Measurement | Run #148 baseline | Run #153 optimized |
+| Measurement | Run #148 baseline | Run #155 main |
 | --- | ---: | ---: |
-| Main pipeline elapsed | 386s / 6m26s | Not run on main |
-| PR workflow elapsed, with deploy skipped | — | 229s / 3m49s |
-| Critical schema + integration + E2E job | 118s schema + 179s E2E = 297s | 218s |
-| Fresh Supabase start + migrations + seed | ~70s, twice across two stacks | 70.75s, once |
-| Reset/replay | 29s | 28.56s |
-| Playwright execution | 45.62s | 48.69s (14 tests, 2 workers) |
-| `deploy-dev` job | 83s (SSH step ~79s) | Skipped on PR |
+| Main workflow elapsed | 386s / 6m26s | 286s / 4m46s |
+| Critical schema + integration + E2E job | 118s schema + 179s E2E = 297s | 190s |
+| Supabase start + migrations + seed | ~70s schema stack plus a separate ~63.82s E2E stack | 73.11s, one shared stack |
+| Reset/replay | 29s | 27.18s |
+| Playwright execution | 45.62s | 34.98s (14 tests, 2 workers) |
+| `deploy-dev` job | 83s (SSH step ~79s) | 85s (SSH step 82s) |
 
-Using the #148 deploy duration as an unchanged estimate gives about 312s
-(5m12s) for the optimized main pipeline: 229s PR workflow plus 83s deploy.
-That is an estimated 74s / 19% reduction from #148; it is not a measured main
-run. The shared-stack critical validation path itself is 79s shorter than the
-two sequential #148 validation jobs. The <5 minute target was not reached
-without changing the main-only deployment path.
+The actual main workflow saved 100s, a 25.9% reduction from #148. The shared
+critical job took 107s less than the two sequential #148 schema and E2E jobs.
+The merge-to-DEV-active time was 279s (4m39s). The complete run retained the
+fresh migration/seed proof, reset/replay, schema contracts, real Supabase
+integration, all 14 desktop/mobile tests, and the DEV deploy.
 
-The last run reports these stage timings in both the job logs and
+Run #155 stage timings, measured by the job helper and emitted to job logs and
 `GITHUB_STEP_SUMMARY`:
 
-| Run #153 stage | Duration |
+| Run #155 stage | Duration |
 | --- | ---: |
-| Backend npm install for integration | 1.64s |
-| Frontend npm install for E2E | 10.48s |
-| Fresh Supabase start + migrations + seed | 70.75s |
-| Fresh migration list + schema contract | 1.91s |
-| Fresh-local fingerprint inventory | 1.13s |
-| Reset + complete migration replay + seed | 28.56s |
-| Post-reset migration list + schema contract | 1.91s |
-| Real Supabase integration | 3.56s |
-| E2E frontend build (local Supabase config) | 30.54s |
-| Playwright browser + system dependencies, parallel with build | 28.27s |
-| Playwright discovery | 1.22s |
-| Playwright, desktop + mobile, 2 workers | 48.69s |
-| Critical job | 218s |
-| Entire PR workflow | 229s |
+| Backend npm install | 1.20s |
+| Backend npm install for integration | 1.06s |
+| Frontend npm install (general build) | 9.98s |
+| Frontend build (general environment) | 18.67s |
+| Frontend npm install for E2E | 6.89s |
+| Fresh Supabase start + migrations + seed | 73.11s |
+| Fresh migration list + schema contract | 1.57s |
+| Fresh-local fingerprint inventory | 0.94s |
+| Reset + complete migration replay + seed | 27.18s |
+| Post-reset migration list + schema contract | 1.56s |
+| Real Supabase integration | 2.91s |
+| E2E frontend build (local Supabase config) | 23.30s |
+| Chromium + system dependencies, parallel with build | 26.10s |
+| Playwright discovery | 0.88s |
+| Playwright, desktop + mobile, 2 workers | 34.98s |
+| Critical job | 190s |
+| `deploy-dev` job (SSH step) | 85s (82s) |
+| Entire main workflow | 286s |
 
 Experiments:
 
@@ -120,8 +121,10 @@ Experiments:
 - The same 22 migration files, initial and post-reset schema contracts,
   migration-ledger checks, DAO inventory, real integration test, 14 Playwright
   tests, desktop/mobile projects, and 2-worker setting remain enabled.
-- #149–#153 all passed the full E2E gate at 14/14. The final measured run #153
-  passed all workflow jobs; `deploy-dev` was skipped as required for a Draft PR.
+- Main run #155 passed backend, PGlite, frontend build, fresh Supabase,
+  reset/replay, both schema contracts, real Supabase integration, and 14/14
+  desktop/mobile E2E with 2 workers. `deploy-dev` passed and the VPS service
+  is active on the merge SHA.
 - No test or business assertion was removed. No `force: true`, arbitrary
   sleeps, timeout increases, or `.first()` workarounds were added.
 - No DEV/production write, migration, schema/RLS/Auth change, or product code
