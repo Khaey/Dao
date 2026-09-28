@@ -8,7 +8,11 @@ Le MVP utilise un seul runtime Next.js (`dao-frontend`). Les Route Handlers `/ap
 
 ## CI/CD
 
-Un push sur `main` lance `.github/workflows/ci.yml` : `npm ci`, tests backend/services/routes, PGlite, build frontend, puis Playwright desktop/mobile lorsque les secrets E2E sont configurés. Les screenshots, traces et rapports sont publiés comme artifacts. Le déploiement DEV ne démarre qu’après succès du job `verify`.
+Un push sur `main` lance `.github/workflows/ci.yml` : tests backend/services/routes, PGlite, build frontend, Supabase local jetable, intégration réelle, puis Playwright desktop/mobile. Les screenshots, traces et rapports sont publiés comme artifacts. `deploy-dev` reste limité à un push sur `main` après succès de ces validations.
+
+Sur `main`, le build frontend utilise les variables publiques de l’environnement GitHub `dev` et publie un artifact de release. Les PR utilisent une configuration de validation sans secrets et ne publient pas d’artifact déployable. Le build E2E avec Supabase local (`127.0.0.1:54321`) reste séparé et n’est jamais réutilisé pour DEV.
+
+Le paquet frontend contient `.next` sans son cache de compilation et un manifeste sans valeur de secret. Avant de réutiliser `.next`, le VPS vérifie le SHA du commit, le hash du lockfile frontend, la version majeure de Node, le build ID et l’empreinte des deux variables `NEXT_PUBLIC_SUPABASE_*` contre `/etc/dao/dao-dev.env`. Tout écart déclenche un build VPS avec la configuration locale au serveur.
 
 Secrets GitHub attendus : `DEV_SSH_HOST`, `DEV_SSH_USER` (valeur `dao`), `DEV_SSH_KEY` (clé privée dédiée dont la clé publique est installée pour `dao`), `DAO_SUPABASE_URL`, `DAO_SUPABASE_PUBLISHABLE_KEY` et `DAO_SUPABASE_SECRET_KEY`. Le job E2E génère ses comptes client, reviewer et artisan avec `github.run_id`/`github.run_attempt`, puis les supprime toujours après le test. Aucun credential E2E permanent n’est stocké. Le déploiement ne se connecte jamais en root.
 
@@ -24,7 +28,16 @@ Logs : `journalctl -u dao-dev.service -f` et `journalctl -u caddy -f`.
 
 ## Rollback
 
-Chaque déploiement est installé dans `/opt/dao/releases/<sha>` et `current` pointe vers la version active. Pour revenir à la précédente : `ln -sfn /opt/dao/releases/<sha-precedent> /opt/dao/current && systemctl restart dao-dev.service`.
+Chaque déploiement est préparé dans un répertoire versionné par SHA et tentative avant de remplacer atomiquement `/opt/dao/current`. Les `node_modules` sont réutilisés dans un cache indexé par hashes de `package.json`/lockfile, versions de Node/npm et plateforme, sans modifier les dépendances d’une release existante. Le service ne redémarre qu’après préparation complète. Si le redémarrage ou le contrôle `systemctl is-active` échoue, le script repointe `current` vers la release précédente et redémarre celle-ci. Les cinq releases les plus récentes sont conservées.
+
+Pour un rollback manuel, repérer une release précédente sous `/opt/dao/releases/`, puis remplacer atomiquement le lien et redémarrer le service :
+
+```bash
+ln -s /opt/dao/releases/<release-precedente> /opt/dao/.current-rollback-manual
+mv -Tf /opt/dao/.current-rollback-manual /opt/dao/current
+sudo -n /usr/bin/systemctl restart dao-dev.service
+sudo -n /usr/bin/systemctl is-active dao-dev.service
+```
 
 ## Procédure utilisateur
 
