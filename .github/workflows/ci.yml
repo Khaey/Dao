@@ -284,7 +284,7 @@ jobs:
 
           if [ -n "$jobs_data" ]; then
             for job_name in "backend-verify" "frontend-build" "Fresh schema, real Supabase integration, and FULL E2E" "deploy-dev"; do
-              job_times="$(printf '%s' "$jobs_data" | jq -r --arg name "$job_name" '.jobs[] | select(.name == $name) | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
+              job_times="$(printf '%s' "$jobs_data" | jq -r --arg name "$job_name" '.jobs[] | select(.name == $name and .conclusion != "skipped") | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
               [ -n "$job_times" ] || continue
               IFS=$'\t' read -r job_started_at job_completed_at <<< "$job_times"
               [ -n "$job_started_at" ] && [ -n "$job_completed_at" ] || continue
@@ -293,8 +293,8 @@ jobs:
               echo "| Job: ${job_name} | $((job_completed_epoch - job_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
             done
 
-            for step_name in "Install pinned Supabase CLI" "Restore Playwright Chromium cache"; do
-              step_times="$(printf '%s' "$jobs_data" | jq -r --arg job "Fresh schema, real Supabase integration, and FULL E2E" --arg name "$step_name" '.jobs[] | select(.name == $job) | .steps[] | select(.name == $name) | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
+            for step_name in "Install pinned Supabase CLI" "Restore Playwright Chromium cache" "Install Playwright system dependencies" "Install Playwright Chromium on cache miss"; do
+              step_times="$(printf '%s' "$jobs_data" | jq -r --arg job "Fresh schema, real Supabase integration, and FULL E2E" --arg name "$step_name" '.jobs[] | select(.name == $job) | .steps[] | select(.name == $name and .conclusion != "skipped") | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
               [ -n "$step_times" ] || continue
               IFS=$'\t' read -r step_started_at step_completed_at <<< "$step_times"
               [ -n "$step_started_at" ] && [ -n "$step_completed_at" ] || continue
