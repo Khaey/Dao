@@ -143,11 +143,14 @@ measure git_checkout "$GIT_PATH" -C "$STAGING" checkout --detach "$REVISION"
 test "$("$GIT_PATH" -C "$STAGING" rev-parse HEAD)" = "$REVISION"
 
 FRONTEND_NODE_VERSION="$("$NODE_PATH" --version)"
+NPM_VERSION="$("$NPM_PATH" --version)"
 FRONTEND_PLATFORM="$("$NODE_PATH" -p '`${process.platform}-${process.arch}`')"
 BACKEND_LOCK_SHA="$(sha256sum "$STAGING/dao-backend/package-lock.json" | awk '{ print $1 }')"
+BACKEND_PACKAGE_SHA="$(sha256sum "$STAGING/dao-backend/package.json" | awk '{ print $1 }')"
 FRONTEND_LOCK_SHA="$(sha256sum "$STAGING/dao-frontend/package-lock.json" | awk '{ print $1 }')"
-cache_dependencies backend "$STAGING/dao-backend" "${BACKEND_LOCK_SHA}|${FRONTEND_NODE_VERSION}|${FRONTEND_PLATFORM}"
-cache_dependencies frontend "$STAGING/dao-frontend" "${FRONTEND_LOCK_SHA}|${FRONTEND_NODE_VERSION}|${FRONTEND_PLATFORM}"
+FRONTEND_PACKAGE_SHA="$(sha256sum "$STAGING/dao-frontend/package.json" | awk '{ print $1 }')"
+cache_dependencies backend "$STAGING/dao-backend" "${BACKEND_LOCK_SHA}|${BACKEND_PACKAGE_SHA}|${FRONTEND_NODE_VERSION}|${NPM_VERSION}|${FRONTEND_PLATFORM}"
+cache_dependencies frontend "$STAGING/dao-frontend" "${FRONTEND_LOCK_SHA}|${FRONTEND_PACKAGE_SHA}|${FRONTEND_NODE_VERSION}|${NPM_VERSION}|${FRONTEND_PLATFORM}"
 
 ARTIFACT_ACCEPTED=0
 if [ -n "$ARTIFACT_DIR" ] \

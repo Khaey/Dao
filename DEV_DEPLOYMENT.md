@@ -28,7 +28,7 @@ Logs : `journalctl -u dao-dev.service -f` et `journalctl -u caddy -f`.
 
 ## Rollback
 
-Chaque déploiement est préparé dans un répertoire versionné par SHA et tentative avant de remplacer atomiquement `/opt/dao/current`. Les `node_modules` sont réutilisés par hash de lockfile, version de Node et plateforme, sans modifier les dépendances d’une release existante. Le service ne redémarre qu’après préparation complète. Si le redémarrage ou le contrôle `systemctl is-active` échoue, le script repointe `current` vers la release précédente et redémarre celle-ci. Les cinq releases les plus récentes sont conservées.
+Chaque déploiement est préparé dans un répertoire versionné par SHA et tentative avant de remplacer atomiquement `/opt/dao/current`. Les `node_modules` sont réutilisés dans un cache indexé par hashes de `package.json`/lockfile, versions de Node/npm et plateforme, sans modifier les dépendances d’une release existante. Le service ne redémarre qu’après préparation complète. Si le redémarrage ou le contrôle `systemctl is-active` échoue, le script repointe `current` vers la release précédente et redémarre celle-ci. Les cinq releases les plus récentes sont conservées.
 
 Pour un rollback manuel, repérer une release précédente sous `/opt/dao/releases/`, puis remplacer atomiquement le lien et redémarrer le service :
 
