@@ -8,8 +8,10 @@
 PR [#1](https://github.com/Khaey/Dao/pull/1) remains merged at
 `45e0e40230ba663c6d1633a310335561c2c0b838`. CI optimization PR
 [#2](https://github.com/Khaey/Dao/pull/2) was merged on 2026-09-28. Its head
-was `d0b2575c18955bb2737d3ebc1991a8b02230ea70`; the merge commit and current
-`main` SHA are `8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c`.
+was `d0b2575c18955bb2737d3ebc1991a8b02230ea70`; the merge commit and deployed
+application SHA are `8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c`. Subsequent
+documentation-only `[skip ci]` commits update this state; run #155 remains the
+latest CI on the merged code SHA.
 
 Main run [#155](https://github.com/Khaey/Dao/actions/runs/36393228800) passed
 all jobs, including `deploy-dev`, in 286s (4m46s). The VPS release checked out
