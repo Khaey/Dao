@@ -292,35 +292,42 @@ GitHub Actions validation workflow includes:
 ```text
 backend-verify
 frontend-build
-schema-repro
 full-e2e
 deploy-dev
+ci-timing-summary
 ```
 
-`schema-repro` is a required dependency of `full-e2e`. It starts a fresh local
-Supabase CLI stack, applies every repository migration and seed, checks the
-exact migration ledger and schema contract, resets/replays the schema, then
-runs real Auth/JWT/RLS/RPC/Storage integration. `full-e2e` runs on pull requests
-and main pushes using a separate fresh local stack. It refuses any Supabase
-URL other than `http://127.0.0.1:54321`, receives no DEV or production
-credentials, and runs the 14 desktop/mobile tests with two workers. The split
-keeps E2E data fresh after integration tests and gives schema failures a clear
-gate. Runner disposal is the reset boundary; E2E cleanup only removes worker
-tracking files.
+`backend-verify`, the general `frontend-build`, and `full-e2e` run in parallel.
+The critical `full-e2e` job starts one fresh Supabase CLI stack on its
+disposable GitHub-hosted runner, applies all repository migrations and seed,
+checks the exact ledger and schema contract, captures the fresh-local DAO
+inventory, runs `supabase db reset --local`, replays all migrations and seed,
+and checks the ledger and schema contract again. It then runs real
+Auth/JWT/RLS/RPC/Storage integration and the FULL E2E suite on the same stack.
+The reset/replay proof remains mandatory; this job replaces the former second
+Supabase startup used by E2E.
 
-`deploy-dev` is strictly limited to a push on `refs/heads/main`, after isolated
-FULL E2E succeeds; pull requests cannot trigger deployment.
+Before Playwright, the job refuses every Supabase URL except
+`http://127.0.0.1:54321`. The E2E frontend build uses the local URL and public
+key, and is not reused from the general frontend build. The E2E build and
+Playwright Chromium/system dependency setup run in parallel. The job confirms
+14 discovered tests, then runs all desktop and mobile coverage with two
+workers. No DEV or production credentials are used on pull requests. Cleanup
+removes worker tracking files only; runner disposal resets DB, Auth, and
+Storage.
 
-The read-only DEV audit found that the old repository chain omitted the real
-RLS event-trigger bootstrap. The branch reconciliation places the
-exact DEV function and `ensure_rls` trigger in the migration version recorded as
-`20260920172706`, aligns the migration filenames with the 21 DEV history
-versions, and removes the PGlite function stub. PGlite replay and the shared
-schema contract pass. The real Supabase `start`/`reset` and integration run
-remain pending because this workstation has no container runtime. The Draft PR
-is the validation environment; the full E2E job starts a separate fresh local
-stack.
-Shared DEV remains read-only during this reconciliation.
+`deploy-dev` is strictly limited to a push on `refs/heads/main`, after backend,
+frontend, and FULL E2E validation succeeds. Pull requests cannot trigger
+deployment. The final timing summary records stage, critical-job, and workflow
+durations; skipped PR deployment jobs are omitted from job duration totals.
+
+The repository and DEV contain 22 matching migration versions. Fresh schema
+reconstruction and the read-only DAO inventory match DEV structurally and
+semantically (586 objects, no missing or extra objects, no structural or
+semantic drift). The current CI optimization does not modify migrations,
+schema, Supabase DEV, or production. Its one-stack architecture passed in the
+Draft PR; the measured main-equivalent workflow estimate remains just above
+five minutes because the main-only deploy job was not changed.
 
 Do not claim P1.1 complete solely because `verify` is green.
 
