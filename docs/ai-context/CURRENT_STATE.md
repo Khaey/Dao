@@ -7,17 +7,26 @@
 
 PR [#1](https://github.com/Khaey/Dao/pull/1) remains merged at
 `45e0e40230ba663c6d1633a310335561c2c0b838`. CI optimization PR
-[#2](https://github.com/Khaey/Dao/pull/2) was merged on 2026-09-28. Its head
-was `d0b2575c18955bb2737d3ebc1991a8b02230ea70`; the merge commit and deployed
-application SHA are `8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c`. Subsequent
-documentation-only `[skip ci]` commits update this state; run #155 remains the
-latest CI on the merged code SHA.
+[#2](https://github.com/Khaey/Dao/pull/2) is merged; its application SHA is
+`8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c`. Deployment optimization PR
+[#3](https://github.com/Khaey/Dao/pull/3) merged on 2026-09-28. Its PR head was
+`3e73939046a8b3676f4031de2cab6412fefcfde5`; merge/application SHA is
+`e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
 
-Main run [#155](https://github.com/Khaey/Dao/actions/runs/36393228800) passed
-all jobs, including `deploy-dev`, in 286s (4m46s). The VPS release checked out
-the merge SHA, switched `/opt/dao/current` to that release, restarted
-`dao-dev.service`, and `systemctl is-active dao-dev.service` returned
-`active`. The service became active 279s (4m39s) after merge.
+Main run [#158](https://github.com/Khaey/Dao/actions/runs/36411292612) passed backend, PGlite, frontend build, fresh
+Supabase, reset/replay, schema contract, real integration, and all 14 E2E
+tests on desktop and mobile with 2 workers. `deploy-dev` accepted the verified
+CI artifact, restarted `dao-dev.service`, and its `systemctl is-active`
+check returned `active`. The deploy log identifies release
+`/opt/dao/releases/e0bbcdd19c29d46821d19ba2d56e8868b676eb9d-36411292612-1`.
+
+The external HTTP probe from this Work environment did not reach the app: the
+outbound `mitmproxy` returned HTTP 502 with a TLS internal-error alert. This
+is an environment connectivity failure, so external page response remains
+unverified here; the VPS-side service health check succeeded.
+
+No database write, migration, schema/RLS/Auth change, or product change was
+made during this deployment optimization.
 
 ## 2. Supabase reproducibility and parity
 
@@ -123,11 +132,47 @@ Experiments:
 - The same 22 migration files, initial and post-reset schema contracts,
   migration-ledger checks, DAO inventory, real integration test, 14 Playwright
   tests, desktop/mobile projects, and 2-worker setting remain enabled.
-- Main run #155 passed backend, PGlite, frontend build, fresh Supabase,
+- Main run #158 passed backend, PGlite, frontend build, fresh Supabase,
   reset/replay, both schema contracts, real Supabase integration, and 14/14
-  desktop/mobile E2E with 2 workers. `deploy-dev` passed and the VPS service
-  is active on the merge SHA.
+  desktop/mobile E2E with 2 workers. `deploy-dev` accepted the verified CI
+  artifact and the VPS service is active on the merge SHA.
 - No test or business assertion was removed. No `force: true`, arbitrary
   sleeps, timeout increases, or `.first()` workarounds were added.
 - No DEV/production write, migration, schema/RLS/Auth change, or product code
   change was made during this optimization.
+
+
+## 6. First live artifact deployment measurements
+
+The comparison for this deployment optimization is main run #155 versus #158.
+Run #158 started at 10:42:29Z and completed at 10:46:28Z.
+
+| Measurement | Run #155 | Run #158 |
+| --- | ---: | ---: |
+| Full workflow | 286s | 239s |
+| `deploy-dev` job | ~85s | 44s |
+| SSH action | ~82s | 24.41s |
+| Merge to VPS active | 279s | 231.38s |
+| VPS frontend build | ~54s | skipped; verified CI artifact |
+
+Run #158 saved 47s (16.4%) on the workflow, about 41s (48.2%) on
+`deploy-dev`, and about 47.6s (17.1%) from merge to VPS active.
+
+| GitHub deployment stage | Run #158 |
+| --- | ---: |
+| Artifact download | 0.44s |
+| Artifact preparation for transfer | 0.02s |
+| SCP transfer | 9.29s |
+| SSH deployment action | 24.41s |
+
+The VPS emitted `DEPLOY_BUILD source=verified_ci_artifact`. Its dependency
+cache was cold: backend and frontend both reported `installed`, not a cache
+hit. The deployment measured payload extraction 0.095s, git init 0.02s,
+remote add 0.01s, fetch 1.45s, checkout 0.03s, backend npm ci 2.50s, frontend
+npm ci 16.20s, artifact verification 0.10s, artifact staging 0.04s, release
+preparation 0.01s, symlink switch 0.01s, service restart 0.10s, and service
+health check 0.03s. No VPS frontend build ran.
+
+The current-release link is switched atomically by the deployment script.
+Rollback remains available through the previous versioned release; no
+intentional rollback was performed.

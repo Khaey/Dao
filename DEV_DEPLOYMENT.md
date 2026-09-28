@@ -14,6 +14,12 @@ Sur `main`, le build frontend utilise les variables publiques de l’environneme
 
 Le paquet frontend contient `.next` sans son cache de compilation et un manifeste sans valeur de secret. Avant de réutiliser `.next`, le VPS vérifie le SHA du commit, le hash du lockfile frontend, la version majeure de Node, le build ID et l’empreinte des deux variables `NEXT_PUBLIC_SUPABASE_*` contre `/etc/dao/dao-dev.env`. Tout écart déclenche un build VPS avec la configuration locale au serveur.
 
+### Première mesure réelle sur main
+
+Le run [#158](https://github.com/Khaey/Dao/actions/runs/36411292612), après le merge de la PR #3 (`e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`), a utilisé l’artifact vérifié : le log VPS contient `DEPLOY_BUILD source=verified_ci_artifact`. Aucun build frontend n’a été lancé sur le VPS. Le job de déploiement a duré 44s, dont 24.41s pour SSH; le workflow complet a duré 239s, et merge → service actif 231.38s. Par rapport au run #155, le workflow a gagné 47s et le déploiement environ 41s. Le cache de dépendances VPS était froid : backend et frontend ont tous deux été installés.
+
+Le VPS a terminé avec `dao-dev.service` actif et le SHA attendu. La sonde HTTP depuis l’environnement Work a reçu un 502 TLS du proxy sortant, donc elle n’a pas validé la réponse publique de l’application. Les timings détaillés figurent dans `docs/ai-context/CURRENT_STATE.md`.
+
 Secrets GitHub attendus : `DEV_SSH_HOST`, `DEV_SSH_USER` (valeur `dao`), `DEV_SSH_KEY` (clé privée dédiée dont la clé publique est installée pour `dao`), `DAO_SUPABASE_URL`, `DAO_SUPABASE_PUBLISHABLE_KEY` et `DAO_SUPABASE_SECRET_KEY`. Le job E2E génère ses comptes client, reviewer et artisan avec `github.run_id`/`github.run_attempt`, puis les supprime toujours après le test. Aucun credential E2E permanent n’est stocké. Le déploiement ne se connecte jamais en root.
 
 ## VPS

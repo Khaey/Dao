@@ -5,28 +5,33 @@
 
 ## Current checkpoint
 
-PR [#2](https://github.com/Khaey/Dao/pull/2) is merged at
-`8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c`; its PR head was
-`d0b2575c18955bb2737d3ebc1991a8b02230ea70`. Later main commits are
-documentation-only `[skip ci]` updates; run #155 remains the latest CI on the
-merged code SHA.
+PR [#3](https://github.com/Khaey/Dao/pull/3) is merged. Its PR head was
+`3e73939046a8b3676f4031de2cab6412fefcfde5`; the merge and deployed
+application SHA is `e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
 
-Main run [#155](https://github.com/Khaey/Dao/actions/runs/36393228800) passed
-backend, PGlite, frontend build, fresh Supabase, reset/replay, both schema
-contracts, real local Supabase integration, and 14/14 desktop/mobile E2E with
-2 workers. `deploy-dev` also passed. The VPS checked out the merge SHA and
-`dao-dev.service` is active.
+Main run [#158](https://github.com/Khaey/Dao/actions/runs/36411292612) succeeded: backend, PGlite, frontend build, fresh
+Supabase, reset/replay, schema contract, real Supabase integration, 14/14
+desktop/mobile E2E with 2 workers, and `deploy-dev`. The verified CI artifact
+was accepted on the VPS, `dao-dev.service` is active, and no frontend VPS
+build ran.
 
-Measured main duration: 286s (4m46s), versus 386s (6m26s) on baseline #148;
-the actual saving is 100s / 25.9%. The shared critical job was 190s, Supabase
-start+migrations+seed 73.11s, reset/replay 27.18s, E2E build 23.30s,
-Chromium/system setup 26.10s in parallel with that build, Playwright 34.98s,
-and deploy-dev 85s. Merge to DEV active took 279s. Detailed measurements are
-in `CURRENT_STATE.md`.
+Measured against run #155: workflow 286s → 239s; `deploy-dev` ~85s → 44s;
+SSH ~82s → 24.41s; merge to VPS active 279s → 231.38s. Backend and frontend
+VPS dependency caches were cold and installed. The external HTTP probe from
+this Work environment was blocked by its outbound proxy (HTTP 502/TLS alert);
+the VPS-side systemd health check passed. Full measurements are in
+`CURRENT_STATE.md` and `DEV_DEPLOYMENT.md`.
 
-The optimization is complete at this checkpoint. No database, migration,
-RLS/Auth, product, or DEV database changes were made. Do not start the next
-optimization topics below until explicitly requested.
+No database write, migration, schema/RLS/Auth change, or product change was
+made. The deployment artifact optimization is validated for its first main
+run; the warm dependency-cache path has not yet been measured.
+
+## Next checkpoint
+
+Measure dependency cache hits on the next naturally occurring deployment.
+Do not create a synthetic commit or deployment just to warm the cache. No
+further CI, path-filtering, deploy, or product optimization work is started
+until requested.
 
 ## Deferred optimization topics (not started)
 
