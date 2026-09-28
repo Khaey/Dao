@@ -198,9 +198,19 @@ jobs:
       - name: Build frontend for production-mode E2E with local Supabase config
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend E2E build with local Supabase config" npm run build
-      - name: Install Playwright browser and required system dependencies
+      - name: Restore Playwright Chromium cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: dao-playwright-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}
+      - name: Install Playwright system dependencies
         working-directory: dao-frontend
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright browser setup" npx playwright install --with-deps chromium
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright system dependencies" npx playwright install-deps chromium
+      - name: Install Playwright Chromium on cache miss
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: dao-frontend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright browser download on cache miss" npx playwright install chromium
       - name: Discover the expected 14 Playwright tests
         working-directory: dao-frontend
         shell: bash
@@ -281,5 +291,15 @@ jobs:
               job_started_epoch="$(date -u -d "$job_started_at" +%s)"
               job_completed_epoch="$(date -u -d "$job_completed_at" +%s)"
               echo "| Job: ${job_name} | $((job_completed_epoch - job_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
+            done
+
+            for step_name in "Install pinned Supabase CLI" "Restore Playwright Chromium cache"; do
+              step_times="$(printf '%s' "$jobs_data" | jq -r --arg job "Fresh schema, real Supabase integration, and FULL E2E" --arg name "$step_name" '.jobs[] | select(.name == $job) | .steps[] | select(.name == $name) | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
+              [ -n "$step_times" ] || continue
+              IFS=$'\t' read -r step_started_at step_completed_at <<< "$step_times"
+              [ -n "$step_started_at" ] && [ -n "$step_completed_at" ] || continue
+              step_started_epoch="$(date -u -d "$step_started_at" +%s)"
+              step_completed_epoch="$(date -u -d "$step_completed_at" +%s)"
+              echo "| ${step_name} | $((step_completed_epoch - step_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
             done
           fi
