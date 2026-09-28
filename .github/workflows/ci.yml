@@ -23,15 +23,23 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: dao-backend/package-lock.json
+      - name: Initialize backend verification timing summary
+        run: |
+          {
+            echo "### Backend verification timings"
+            echo
+            echo "| Stage | Duration |"
+            echo "| --- | ---: |"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Install backend dependencies
         working-directory: dao-backend
-        run: npm ci --no-audit --no-fund
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install" npm ci --no-audit --no-fund
       - name: Backend tests
         working-directory: dao-backend
-        run: npm test
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend tests" npm test
       - name: PGlite and local tests
         working-directory: dao-backend
-        run: npm run test:local
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "PGlite and local tests" npm run test:local
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -42,6 +50,14 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: dao-frontend/package-lock.json
+      - name: Initialize frontend build timing summary
+        run: |
+          {
+            echo "### Frontend build timings"
+            echo
+            echo "| Stage | Duration |"
+            echo "| --- | ---: |"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Restore Next.js build cache
         id: next-cache
         uses: actions/cache@v4
@@ -52,115 +68,17 @@ jobs:
             dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-
       - name: Install backend runtime dependencies for Next.js API routes
         working-directory: dao-backend
-        run: npm ci --omit=dev --no-audit --no-fund
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend runtime npm install" npm ci --omit=dev --no-audit --no-fund
       - name: Install frontend dependencies
         working-directory: dao-frontend
-        run: npm ci --no-audit --no-fund
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install" npm ci --no-audit --no-fund
       - name: Build frontend
         working-directory: dao-frontend
-        run: npm run build
-
-  schema-repro:
-    name: Fresh Supabase schema contract
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: dao-backend/package-lock.json
-      - uses: supabase/setup-cli@v1.6.1
-        with:
-          version: 2.118.0
-      - name: Install backend dependencies
-        working-directory: dao-backend
-        run: npm ci --no-audit --no-fund
-      - name: Stop any previous local stack and start from scratch
-        working-directory: dao-backend
-        run: |
-          supabase stop --no-backup || true
-          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-schema-start-seconds" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
-          start_seconds="$(cat "$RUNNER_TEMP/dao-schema-start-seconds")"
-          echo "Fresh Supabase start plus migrations and seed: ${start_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Verify fresh migration history and schema contract
-        working-directory: dao-backend
-        shell: bash
-        run: |
-          supabase migration list --local
-          contract_sql="$(cat tests/schema-contract.sql)"
-          supabase db query --local -o csv "$contract_sql"
-      - name: Reset and replay the complete schema
-        working-directory: dao-backend
-        run: |
-          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-schema-reset-seconds" supabase db reset --local
-          reset_seconds="$(cat "$RUNNER_TEMP/dao-schema-reset-seconds")"
-          echo "Explicit Supabase reset plus migrations and seed: ${reset_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Verify reset migration history and schema contract
-        working-directory: dao-backend
-        shell: bash
-        run: |
-          supabase migration list --local
-          contract_sql="$(cat tests/schema-contract.sql)"
-          supabase db query --local -o csv "$contract_sql"
-      - name: Capture raw and semantic fresh-local DAO schema fingerprints
-        working-directory: dao-backend
-        shell: bash
-        run: |
-          inventory_sql="$(sed '/^[[:space:]]*--/d' tests/schema-parity-inventory.sql)"
-          raw_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local-raw.csv"
-          final_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
-          supabase db query --local -o csv "$inventory_sql" > "$raw_inventory"
-          node tests/schema-parity-inventory.mjs finalize "$raw_inventory" > "$final_inventory"
-          test -s "$final_inventory"
-          inventory_rows="$(tail -n +2 "$final_inventory" | wc -l | tr -d ' ')"
-          echo "Read-only DAO schema inventory: ${inventory_rows} objects" | tee -a "$GITHUB_STEP_SUMMARY"
-          node tests/schema-parity-inventory.mjs summary "$final_inventory" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Upload fresh-local DAO schema fingerprints for DEV parity review
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dao-schema-parity-fresh-local-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/dao-schema-parity-fresh-local.csv
-          if-no-files-found: ignore
-      - name: Export only disposable local Supabase credentials
-        working-directory: dao-backend
-        shell: bash
-        run: |
-          status_env="$(supabase status -o env)"
-          get_status_value() {
-            local key="$1"
-            local value
-            value="$(printf '%s\n' "$status_env" | sed -n "s/^${key}=//p" | head -n 1)"
-            value="${value#\"}"
-            value="${value%\"}"
-            if [ -z "$value" ]; then
-              echo "Missing $key in local Supabase status" >&2
-              return 1
-            fi
-            printf '%s' "$value"
-          }
-          api_url="$(get_status_value API_URL)"
-          anon_key="$(get_status_value ANON_KEY)"
-          service_role_key="$(get_status_value SERVICE_ROLE_KEY)"
-          if [ "$api_url" != "http://127.0.0.1:54321" ]; then
-            echo "Refusing integration target outside the disposable local Supabase stack" >&2
-            exit 1
-          fi
-          echo "::add-mask::$service_role_key"
-          {
-            printf 'DAO_SUPABASE_URL=%s\n' "$api_url"
-            printf 'DAO_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
-            printf 'DAO_SUPABASE_SECRET_KEY=%s\n' "$service_role_key"
-          } >> "$GITHUB_ENV"
-      - name: Run real Supabase integration tests against local stack
-        working-directory: dao-backend
-        run: npm run test:integration:real
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend build (non-E2E environment)" npm run build
 
   full-e2e:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    name: E2E isolated on disposable local Supabase
-    needs: [backend-verify, frontend-build, schema-repro]
+    name: Fresh schema, real Supabase integration, and FULL E2E
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
@@ -173,30 +91,73 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: dao-frontend/package-lock.json
-      - name: Install Supabase CLI
+      - name: Install pinned Supabase CLI
         uses: supabase/setup-cli@v1.6.1
         with:
           version: 2.118.0
-      - name: Install backend dependencies
+      - name: Initialize complete validation timing summary
+        run: |
+          {
+            echo "### Fresh schema, integration, and FULL E2E timings"
+            echo
+            echo "| Stage | Duration |"
+            echo "| --- | ---: |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Install backend dependencies for integration
         working-directory: dao-backend
-        run: npm ci --no-audit --no-fund
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install for integration" npm ci --no-audit --no-fund
       - name: Install frontend dependencies
         working-directory: dao-frontend
-        run: npm ci --no-audit --no-fund
-      - name: Start fresh local Supabase stack with repository migrations and seed
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install for E2E" npm ci --no-audit --no-fund
+      - name: Stop any previous local stack and start from a fresh database
         working-directory: dao-backend
         run: |
-          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-e2e-supabase-start-seconds" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
-          start_seconds="$(cat "$RUNNER_TEMP/dao-e2e-supabase-start-seconds")"
-          echo "Local Supabase stack startup: ${start_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Verify fresh E2E schema contract
+          supabase stop --no-backup || true
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
+      - name: Verify fresh migration ledger and schema contract
         working-directory: dao-backend
         shell: bash
         run: |
-          supabase migration list --local
-          contract_sql="$(cat tests/schema-contract.sql)"
-          supabase db query --local -o csv "$contract_sql"
-      - name: Export only disposable local Supabase credentials
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh migration list + schema contract" bash -euo pipefail -c '
+            supabase migration list --local
+            contract_sql="$(cat tests/schema-contract.sql)"
+            supabase db query --local -o csv "$contract_sql"
+          '
+      - name: Capture fresh-local DAO schema fingerprints before reset
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh-local schema fingerprint inventory" bash -euo pipefail -c '
+            inventory_sql="$(sed "/^[[:space:]]*--/d" tests/schema-parity-inventory.sql)"
+            raw_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local-raw.csv"
+            final_inventory="$RUNNER_TEMP/dao-schema-parity-fresh-local.csv"
+            supabase db query --local -o csv "$inventory_sql" > "$raw_inventory"
+            node tests/schema-parity-inventory.mjs finalize "$raw_inventory" > "$final_inventory"
+            test -s "$final_inventory"
+            inventory_rows="$(tail -n +2 "$final_inventory" | wc -l | tr -d " ")"
+            echo "Read-only DAO schema inventory: ${inventory_rows} objects" | tee -a "$GITHUB_STEP_SUMMARY"
+            node tests/schema-parity-inventory.mjs summary "$final_inventory" | tee -a "$GITHUB_STEP_SUMMARY"
+          '
+      - name: Reset and replay all repository migrations and seed
+        working-directory: dao-backend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Supabase reset + complete migration replay + seed" supabase db reset --local
+      - name: Verify reset migration ledger and schema contract
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Post-reset migration list + schema contract" bash -euo pipefail -c '
+            supabase migration list --local
+            contract_sql="$(cat tests/schema-contract.sql)"
+            supabase db query --local -o csv "$contract_sql"
+          '
+      - name: Upload fresh-local DAO schema fingerprints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dao-schema-parity-fresh-local-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dao-schema-parity-fresh-local.csv
+          if-no-files-found: ignore
+      - name: Export disposable local Supabase credentials for integration and E2E
         working-directory: dao-backend
         shell: bash
         run: |
@@ -217,7 +178,7 @@ jobs:
           anon_key="$(get_status_value ANON_KEY)"
           service_role_key="$(get_status_value SERVICE_ROLE_KEY)"
           if [ "$api_url" != "http://127.0.0.1:54321" ]; then
-            echo "Refusing E2E target outside the disposable local Supabase stack" >&2
+            echo "Refusing validation target outside the disposable local Supabase stack" >&2
             exit 1
           fi
           echo "::add-mask::$service_role_key"
@@ -228,28 +189,29 @@ jobs:
             printf 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
             printf 'DAO_SUPABASE_SECRET_KEY=%s\n' "$service_role_key"
           } >> "$GITHUB_ENV"
+      - name: Run real Supabase integration tests against the replayed local stack
+        working-directory: dao-backend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Real Supabase integration" npm run test:integration:real
       - name: Guard FULL E2E target
         working-directory: dao-frontend
-        run: node tests/e2e/verify-supabase-target.mjs
-      - name: Build frontend for production-mode E2E
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL E2E local-target guard" node tests/e2e/verify-supabase-target.mjs
+      - name: Build frontend for production-mode E2E with local Supabase config
         working-directory: dao-frontend
-        run: npm run build
-      - name: Install Playwright browser
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend E2E build with local Supabase config" npm run build
+      - name: Install Playwright browser and required system dependencies
         working-directory: dao-frontend
-        run: npx playwright install --with-deps chromium
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright browser setup" npx playwright install --with-deps chromium
       - name: Discover the expected 14 Playwright tests
         working-directory: dao-frontend
         shell: bash
         run: |
-          set -o pipefail
-          npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright test discovery" bash -euo pipefail -c '
+            npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
+          '
           grep -Eq 'Total: 14 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with two workers
         working-directory: dao-frontend
-        run: |
-          /usr/bin/time -f '%e' -o "$RUNNER_TEMP/dao-e2e-playwright-seconds" npm run test:e2e -- --reporter=line
-          e2e_seconds="$(cat "$RUNNER_TEMP/dao-e2e-playwright-seconds")"
-          echo "FULL Playwright E2E duration: ${e2e_seconds}s" | tee -a "$GITHUB_STEP_SUMMARY"
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, 2 workers)" npm run test:e2e -- --reporter=line
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -266,7 +228,7 @@ jobs:
 
   deploy-dev:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: full-e2e
+    needs: [backend-verify, frontend-build, full-e2e]
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -281,3 +243,43 @@ jobs:
             git -C /opt/dao/current show ${{ github.sha }}:ops/deploy-dev.sh > /opt/dao/deploy-dev.sh
             chmod 0750 /opt/dao/deploy-dev.sh
             bash /opt/dao/deploy-dev.sh ${{ github.sha }}
+
+  ci-timing-summary:
+    if: always()
+    needs: [backend-verify, frontend-build, full-e2e, deploy-dev]
+    name: CI timing summary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report critical job and workflow durations
+        shell: bash
+        run: |
+          api_base="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          run_data="$(curl --fail --silent --show-error --max-time 15 -H 'Accept: application/vnd.github+json' "$api_base/actions/runs/${GITHUB_RUN_ID}" || true)"
+          jobs_data="$(curl --fail --silent --show-error --max-time 15 -H 'Accept: application/vnd.github+json' "$api_base/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" || true)"
+          {
+            echo "### Workflow timing"
+            echo
+            echo "| Measurement | Duration |"
+            echo "| --- | ---: |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          run_started_at="$(printf '%s' "$run_data" | jq -r '.run_started_at // empty' 2>/dev/null || true)"
+          if [ -n "$run_started_at" ]; then
+            run_started_epoch="$(date -u -d "$run_started_at" +%s)"
+            now_epoch="$(date -u +%s)"
+            echo "| Workflow elapsed at final timing summary | $((now_epoch - run_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Workflow elapsed | unavailable (GitHub Actions API was not reachable) |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ -n "$jobs_data" ]; then
+            for job_name in "backend-verify" "frontend-build" "Fresh schema, real Supabase integration, and FULL E2E" "deploy-dev"; do
+              job_times="$(printf '%s' "$jobs_data" | jq -r --arg name "$job_name" '.jobs[] | select(.name == $name) | [.started_at // "", .completed_at // ""] | @tsv' | head -n 1)"
+              [ -n "$job_times" ] || continue
+              IFS=$'\t' read -r job_started_at job_completed_at <<< "$job_times"
+              [ -n "$job_started_at" ] && [ -n "$job_completed_at" ] || continue
+              job_started_epoch="$(date -u -d "$job_started_at" +%s)"
+              job_completed_epoch="$(date -u -d "$job_completed_at" +%s)"
+              echo "| Job: ${job_name} | $((job_completed_epoch - job_started_epoch))s |" >> "$GITHUB_STEP_SUMMARY"
+            done
+          fi
