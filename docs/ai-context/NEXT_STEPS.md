@@ -5,32 +5,28 @@
 
 ## Current checkpoint
 
-PR [#2](https://github.com/Khaey/Dao/pull/2), branch
-`chore/ci-e2e-optimization`, is a Draft PR and must not be merged by an agent.
-Main remains at `db19b3512062fc8fde4bafcae95b6aef5a8f884b` (docs-only commits
-after the code-bearing `45e0e40230ba663c6d1633a310335561c2c0b838`).
+PR [#2](https://github.com/Khaey/Dao/pull/2) is merged. Main is
+`8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c` (merge commit); its PR head was
+`d0b2575c18955bb2737d3ebc1991a8b02230ea70`.
 
-The CI optimization combines schema reproducibility, reset/replay, real local
-Supabase integration, and FULL E2E on one disposable local stack. Run #153
-passed backend, frontend build, fresh schema, reset/replay, integration, and
-14/14 desktop/mobile E2E with 2 workers. Its critical job took 218s and the PR
-workflow took 229s. `deploy-dev` was skipped, as required on a pull request.
+Main run [#155](https://github.com/Khaey/Dao/actions/runs/36393228800) passed
+backend, PGlite, frontend build, fresh Supabase, reset/replay, both schema
+contracts, real local Supabase integration, and 14/14 desktop/mobile E2E with
+2 workers. `deploy-dev` also passed. The VPS checked out the merge SHA and
+`dao-dev.service` is active.
 
-The #148 main pipeline took 386s. Adding the unchanged 83s #148 deploy job to
-the 229s PR duration estimates about 312s (5m12s), a 74s / 19% reduction. The
-main-equivalent estimate remains just above the <5 minute target; do not report
-it as an actual main run. The 14-test coverage and all DB reproducibility
-checks remain intact. DEV and production were not changed.
+Measured main duration: 286s (4m46s), versus 386s (6m26s) on baseline #148;
+the actual saving is 100s / 25.9%. The shared critical job was 190s, Supabase
+start+migrations+seed 73.11s, reset/replay 27.18s, E2E build 23.30s,
+Chromium/system setup 26.10s in parallel with that build, Playwright 34.98s,
+and deploy-dev 85s. Merge to DEV active took 279s. Detailed measurements are
+in `CURRENT_STATE.md`.
 
-## Before closing this optimization PR
+The optimization is complete at this checkpoint. No database, migration,
+RLS/Auth, product, or DEV database changes were made. Do not start the next
+optimization topics below until explicitly requested.
 
-- Keep PR #2 Draft and do not merge.
-- Finish the documentation-only update and let its PR run complete every
-  validation job; confirm 14/14 desktop/mobile tests and 2 workers.
-- Confirm `deploy-dev` is skipped on the PR and `main` remains unchanged.
-- Report the projected main duration separately from the measured PR run.
-
-## Future optimization work (not started)
+## Deferred optimization topics (not started)
 
 1. Analyze the 83s SSH deployment path and possible artifact deployment as a
    separate, explicitly reviewed change.
