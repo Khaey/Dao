@@ -3,71 +3,51 @@
 > **Last verified:** 2026-09-30
 > **Repository:** `Khaey/Dao`
 
-## 1. Main and deployment
+## 1. Main, deployment, and current registration work
 
-PR [#1](https://github.com/Khaey/Dao/pull/1) remains merged at
-`45e0e40230ba663c6d1633a310335561c2c0b838`. CI optimization PR
-[#2](https://github.com/Khaey/Dao/pull/2) is merged; its application SHA is
-`8fec8b8b4356d2ca2b2822e5e4a0d6f9a26c505c`. Deployment optimization PR
-[#3](https://github.com/Khaey/Dao/pull/3) merged on 2026-09-28. Its PR head was
-`3e73939046a8b3676f4031de2cab6412fefcfde5`; merge/application SHA is
-`e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
+The true GitHub `main` SHA was verified as
+`6fd4303b26f0e8ece4cb290ae9dcd723a13c7004`. The latest completed GitHub
+Actions run was #168 (`36685413401`): backend, frontend, full E2E, and
+`deploy-dev` succeeded. It covered 14 E2E cases on desktop and mobile.
 
-Main run [#158](https://github.com/Khaey/Dao/actions/runs/36411292612) passed backend, PGlite, frontend build, fresh
-Supabase, reset/replay, schema contract, real integration, and all 14 E2E
-tests on desktop and mobile with 2 workers. `deploy-dev` accepted the verified
-CI artifact, restarted `dao-dev.service`, and its `systemctl is-active`
-check returned `active`. The deploy log identifies release
-`/opt/dao/releases/e0bbcdd19c29d46821d19ba2d56e8868b676eb9d-36411292612-1`.
+Password recovery PRs #4 and #5 are merged. Their recovery route and login
+links are on `main`; no Auth configuration change is part of this account
+registration task.
 
-The current GitHub `main` head is `c26b58c55a31ee3d022d409bcc55fa747100b804`
-(`docs: record public HTTP verification limit`, documentation-only, `[skip ci]`).
-The last main deployment remains run #158 at `e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
+Current work is on `feat/register-account-type`, based on the verified
+`main` SHA above. It adds an explicit public account type to signup. The
+server accepts exactly `client` or `contractor`; the authenticated RPC assigns
+the role from `auth.uid()`, rejects all other values, and does not grant direct
+role-table writes. Contractor signup requires a user-entered business name,
+creates a `pending` contractor profile, and leaves professional classification
+and trades unset until explicit completion. Client and contractor redirects
+are `/app/projects` and `/app/artisan` respectively.
 
-## 1.1 Password recovery work
+The migration also revokes authenticated execution from the legacy two-argument
+initialization RPC, so public signup must provide a type. It does not alter any
+RLS policy. The existing `contractor_type` default is removed and the column
+made nullable to avoid silently classifying all signups as artisans.
 
-Main does not yet contain the recovery link or routes. Draft PR
-[#4](https://github.com/Khaey/Dao/pull/4) contains the initial implementation
-on `feat/password-recovery`, commit `f5b45117ec0638043d6317be950bf156a0eada87`.
-Its run [#159](https://github.com/Khaey/Dao/actions/runs/36647183172) succeeded
-(backend-verify, frontend-build, FULL E2E and timing summary); `deploy-dev` was
-skipped because this was a pull request. That run validated the prior 14-test
-suite, not the local uncommitted email-flow E2E change described below.
-
-The local branch contains uncommitted work to capture a real recovery message
-from the disposable Supabase SMTP inbox and complete the reset flow. The test
-uses the worker's isolated E2E client; desktop and mobile receive distinct
-worker emails. The local Auth allowlist now includes the exact reset route.
-Local build and sequential TypeScript checks pass, and test discovery remains
-14 cases. Docker/Supabase is unavailable in this shell, so the new email flow
-has not yet run locally or in CI.
-
-The Supabase connector exposes project metadata but not Auth SMTP or redirect
-allowlist settings. DEV settings and delivery therefore remain unconfirmed;
-no DEV recovery email has been sent and no Auth configuration was changed in
-the hosted DEV project.
-
-Public HTTP remains unverified. The Work shell returned HTTP/2 502 with
-`server: mitmproxy 12.2.3` and a TLS internal-error alert. A follow-up in the
-cloud browser also displayed `502 Bad Gateway` with the same OpenSSL TLS
-alert. These results do not identify the origin's HTTP status or confirm its
-page response. The VPS-side `systemctl is-active` health check succeeded.
-
-No database write, migration, schema/RLS/Auth change, or product change was
-made during this deployment optimization.
+Local backend unit tests pass (13/13), frontend production build passes, and
+Playwright discovers 18 desktop/mobile cases. This shell has no Docker or
+Chromium, so local disposable Supabase integration and browser execution remain
+for CI. The DEV Supabase ledger currently ends at `20260927102942`. The
+`deploy-dev` workflow deploys the frontend but does not apply Supabase SQL, so
+the new migration must be applied explicitly to DEV after merge and before
+manual registration verification.
 
 ## 2. Supabase reproducibility and parity
 
-- The repository has 22 migrations. Fresh Supabase start, seed, the complete
+- Before the active registration migration, the repository had 22 migrations. Fresh Supabase start, seed, the complete
   migration ledger, schema contract, and reset/replay are validated.
-- DEV's migration ledger has those same 22 versions. The read-only inventory
+- DEV's migration ledger has those same 22 versions; the registration migration is pending merge/deploy. The read-only inventory
   previously compared 586 DAO objects on each side, with 0 missing, 0 extra,
   0 structural drift, and 0 semantic drift.
 - Real Supabase integration tests run against the disposable local stack and
   cover Auth/JWT, RLS, RPC, publications, offers, immutability, Storage, and
-  award foundations.
-- This CI optimization made no database, Supabase, migration, DEV, or
-  production changes. Do not use shared DEV for FULL E2E; preserve
+  award foundations. Registration adds tests for strict roles and pending
+  contractor profiles.
+- Do not use shared DEV for FULL E2E; preserve
   `submitted_version_immutable` and `submitted_bid_content_immutable`.
 
 ## 3. CI and E2E architecture
@@ -85,7 +65,7 @@ on its disposable GitHub-hosted runner:
 5. Verify the E2E target is exactly `http://127.0.0.1:54321`.
 6. Build the frontend with the local Supabase URL/key while installing the
    Playwright Chromium browser and system dependencies in parallel.
-7. Require discovery of exactly 14 tests, then run all desktop and mobile
+7. Require discovery of exactly 18 tests, then run all desktop and mobile
    tests with 2 workers.
 8. Cleanup removes worker tracking files only; disposing of the runner is the
    database/Auth/Storage cleanup boundary.

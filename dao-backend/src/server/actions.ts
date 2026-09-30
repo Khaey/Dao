@@ -6,6 +6,7 @@ import { AwardService } from '../services/AwardService.js';
 import { DocumentService } from '../services/DocumentService.js';
 import { ProfileService } from '../services/ProfileService.js';
 import { AIService } from '../services/AIService.js';
+import { DomainError } from '../lib/errors.js';
 
 export type BackendServices = {
   projects: ProjectService;
@@ -109,7 +110,23 @@ export async function deleteProjectDocument(s: BackendServices, actor: Authentic
 }
 export async function initializeProfile(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown> = {}) {
   requireActor(actor);
-  return s.profiles.initialize(input);
+  if (input.account_type !== 'client' && input.account_type !== 'contractor') {
+    throw new DomainError('Type de compte invalide', 'BAD_REQUEST');
+  }
+  const accountType = input.account_type;
+  const businessName = typeof input.business_name === 'string' ? input.business_name.trim() : '';
+  if (accountType === 'contractor' && !businessName) {
+    throw new DomainError('Le nom de l’activité ou de l’entreprise est obligatoire', 'BAD_REQUEST');
+  }
+  if (accountType === 'client' && input.business_name != null && businessName) {
+    throw new DomainError('Le nom d’activité est réservé au compte artisan ou entreprise', 'BAD_REQUEST');
+  }
+  return s.profiles.initialize({
+    display_name: input.display_name,
+    phone_e164: input.phone_e164,
+    account_type: accountType,
+    business_name: accountType === 'contractor' ? businessName : null,
+  });
 }
 export async function updateProfile(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
   requireActor(actor);

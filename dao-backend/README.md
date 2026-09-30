@@ -41,4 +41,4 @@ DAO_SUPABASE_SECRET_KEY
 
 Ne jamais placer leurs valeurs dans GitHub. Voir [`BLUEPRINT.md`](./BLUEPRINT.md) et [`TABLES.md`](./TABLES.md).
 
-La Draft PR exécute les validations backend, frontend, le replay Supabase frais, l’intégration réelle locale et les 14 tests Playwright desktop/mobile sur deux workers. Supabase reste local au runner. `deploy-dev` ne peut démarrer que sur un `push` vers `main` après le succès de l’E2E ; le cleanup applicatif retire uniquement les fichiers de suivi worker.
+La Draft PR exécute les validations backend, frontend, le replay Supabase frais, l’intégration réelle locale et les 18 tests Playwright desktop/mobile sur deux workers. Supabase reste local au runner. `deploy-dev` ne peut démarrer que sur un `push` vers `main` après le succès de l’E2E ; le cleanup applicatif retire uniquement les fichiers de suivi worker.

@@ -20,3 +20,25 @@ test('bid routes never pass a browser contractor id to the service', async()=>{
   const body=await response.json();
   assert.equal(response.status,200); assert.deepEqual(body.data,{publication_id:'pub'}); assert.equal(body.data.contractor_id,undefined);
 });
+test('profile initialization rejects forged internal roles before calling the RPC', async()=>{
+  let called=false;
+  const api=createDaoApi({ projects:{}, publications:{}, bids:{}, awards:{}, documents:{}, profiles:{initialize:async()=>{called=true;return {};}} } as any, async()=>({id:'signup-user'}));
+  for (const account_type of ['dao_admin','dao_reviewer','staff','']) {
+    const response=await api.initializeProfile(new Request('http://localhost/api/profile',{method:'POST',body:JSON.stringify({account_type}),headers:{authorization:'Bearer jwt','content-type':'application/json'}}));
+    assert.equal(response.status,400);
+  }
+  const missing=await api.initializeProfile(new Request('http://localhost/api/profile',{method:'POST',body:JSON.stringify({}),headers:{authorization:'Bearer jwt','content-type':'application/json'}}));
+  assert.equal(missing.status,400);
+  const noBusinessName=await api.initializeProfile(new Request('http://localhost/api/profile',{method:'POST',body:JSON.stringify({account_type:'contractor'}),headers:{authorization:'Bearer jwt','content-type':'application/json'}}));
+  assert.equal(noBusinessName.status,400);
+  assert.equal(called,false);
+});
+test('profile initialization forwards only the public client/contractor choice to the secure RPC service', async()=>{
+  const calls:any[]=[];
+  const api=createDaoApi({ projects:{}, publications:{}, bids:{}, awards:{}, documents:{}, profiles:{initialize:async(input:any)=>{calls.push(input);return input;}} } as any, async()=>({id:'signup-user'}));
+  const response=await api.initializeProfile(new Request('http://localhost/api/profile',{method:'POST',body:JSON.stringify({account_type:'contractor',business_name:' Atelier DAO ',user_id:'forged'}),headers:{authorization:'Bearer jwt','content-type':'application/json'}}));
+  assert.equal(response.status,200);
+  assert.equal(calls[0].account_type,'contractor');
+  assert.equal(calls[0].business_name,'Atelier DAO');
+  assert.notEqual(calls[0].user_id,'forged');
+});
