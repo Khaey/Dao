@@ -1,41 +1,37 @@
 # D.A.O — Next Steps
 
-> Read `docs/ai-context/*`, then verify the real GitHub `main` and latest CI
-> before acting.
+> Verify the real GitHub branch/SHA and working tree before every resumed phase.
 
-## Active task: public registration account type
+Active branch: `feat/project-collaboration-invitations`.
+Base main: `965054db897f18794b9f745bf86f397dea34b4d9`, CI #171 green.
+Product source: the collaboration prompt plus its later product supplement;
+final decisions are recorded in `COLLABORATION_DESIGN.md`.
 
-Work is on `feat/register-account-type`, based on main SHA
-`6fd4303b26f0e8ece4cb290ae9dcd723a13c7004` (latest verified run #168 green).
-The change is limited to the registration UI, profile API/backend, one
-migration, CI test discovery count, tests, and this state documentation.
+1. Checkpoint 0: remote branch exists at the base SHA — done.
+2. Checkpoint 1: collaboration model, legacy backfill, isolated workspace RLS,
+   private/document permissions, schema contract and local tests — validated;
+   publish the checkpoint before continuing.
+3. Checkpoint 2: controlled creation, invitations/preview/atomic confirmation,
+   revoke/decline/expiry, membership/lot assignment, declarative tracking,
+   preparation permissions and backend/security integration tests.
+4. Checkpoint 3: common Mes chantiers, separate DAO disponibles, simple client
+   and contractor creation, role-aware dashboard, team/documents/tracking,
+   safe invitation summary and login/register return. Frontend build.
+5. Checkpoint 4: add isolated desktop/mobile E2E for collaboration, roles,
+   revocation, private documents and regression. Preserve existing tests.
+6. Checkpoint 5: full local checks where available, disposable fresh Supabase
+   and reset/replay, real JWT/RPC/RLS/Storage/concurrency, complete E2E, PR CI.
+7. Merge only after all coverage is green. Verify real main, inspect DEV
+   migration ledger, apply missing SQL once, then verify deployed DEV.
+   Confirm `DEPLOY_BUILD source=verified_ci_artifact` and measure warm caches.
+8. Stop after DEV validation; no P2/P3.
 
-- Public signup accepts only `client` and `contractor`.
-- No direct browser role-table writes; the RPC uses `auth.uid()` and has an
-  explicit allowlist. Legacy two-argument initialization is no longer
-  executable by authenticated clients, `RoleNav` no longer submits an empty
-  role initialization, and profile-only updates never assign a role.
-- Contractor signup requires the real business/activity name, creates role
-  `contractor` with profile verification `pending`, and does not assign a
-  contractor subtype or trade.
-- Client redirects to `/app/projects`; contractor redirects to `/app/artisan`.
-- No RLS policy is changed. The contractor subtype column becomes nullable to
-  avoid the old implicit `artisan` default.
+After each stable phase: git status, useful phase tests, commit, remote branch
+update, independent remote SHA confirmation. Never accumulate a second phase
+without a pushed checkpoint. Never commit `dao-frontend/tsconfig.tsbuildinfo`.
 
-## Validation and release sequence
-
-1. Run backend tests/build, frontend production build, E2E discovery, fresh
-   migration replay, real Supabase integration, and desktop/mobile Playwright
-   in GitHub Actions. The suite now has 18 cases.
-2. If CI is green, merge the PR to `main`. Immediately apply the migration to
-   the verified DEV Supabase project; the repository's `deploy-dev` job only
-   deploys the frontend and does not push SQL migrations. Wait for main CI and
-   successful `deploy-dev`.
-3. Verify DEV registration UI and desktop/mobile layout. Use disposable CI
-   Supabase for actual account creation; do not create fake company data in DEV.
-4. Update `CURRENT_STATE.md` and this file with final main SHA, run, migration,
-   deployment, and DEV verification. Stop; no P2/P3.
-
-The current shell lacks Docker and Chromium; integration/browser validation is
-therefore delegated to the required CI run. Do not run FULL E2E against shared
-DEV. Preserve all RLS policies and existing internal DAO roles.
+Stop for a real product contradiction, data-loss/security risk, conflicting DEV
+migration, an ambiguous root cause, the same cause after two corrections, or
+three consecutive CI failures in the same functional area. If the checkout or
+environment changes, stop and verify path, branch, HEAD and working tree;
+resume only from the expected branch's remote checkpoint.

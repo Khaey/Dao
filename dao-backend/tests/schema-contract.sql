@@ -6,7 +6,7 @@ DECLARE
     '20260921084730','20260921091400','20260921094726','20260921094727',
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
-    '20260926092748','20260927102942','20260930084047'
+    '20260926092748','20260927102942','20260930084047','20260930163650'
   ];
   expected_tables text[] := ARRAY[
     'ai_proposals','ai_runs','audit_events','award_items','awards',
@@ -16,7 +16,7 @@ DECLARE
     'contracts','conversation_participants','conversations','delegations',
     'document_grants','documents','governorates','localities','messages',
     'notifications','portfolio_assets','portfolio_projects','profile_contacts',
-    'profiles','project_private_details','project_request_versions',
+    'profiles','project_members','project_invitations','project_private_details','project_request_versions',
     'project_requests','project_reviews','project_version_requests',
     'project_versions','projects','publication_recipients',
     'publication_requests','publications','trades','user_roles'
@@ -120,6 +120,22 @@ BEGIN
   IF has_table_privilege('authenticated','public.user_roles','INSERT')
      OR has_table_privilege('authenticated','public.contractor_profiles','INSERT') THEN
     RAISE EXCEPTION 'schema contract: authenticated must not insert roles or contractor profiles directly';
+  END IF;
+  IF has_table_privilege('authenticated','public.project_members','INSERT')
+     OR has_table_privilege('authenticated','public.project_members','UPDATE')
+     OR has_table_privilege('authenticated','public.project_members','DELETE')
+     OR has_table_privilege('authenticated','public.project_invitations','INSERT')
+     OR has_table_privilege('authenticated','public.project_invitations','UPDATE')
+     OR has_table_privilege('authenticated','public.project_invitations','DELETE')
+     OR has_column_privilege('authenticated','public.project_invitations','token_hash','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: project participation writes and token hashes must stay RPC-only';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='projects' AND column_name='client_id' AND is_nullable='YES')
+     OR NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='projects' AND column_name='initiator_id' AND is_nullable='NO')
+     OR position('client_id=auth.uid()' IN replace(pg_get_functiondef('dao_private.owner(uuid)'::regprocedure),' ',''))=0 THEN
+    RAISE EXCEPTION 'schema contract: client confirmation, initiator or strict owner semantics differ';
   END IF;
   IF has_function_privilege('authenticated','public.initialize_my_account(text,text)','EXECUTE')
      OR has_function_privilege('anon','public.initialize_my_account(text,text,text,text)','EXECUTE')

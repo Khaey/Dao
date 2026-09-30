@@ -3,58 +3,54 @@
 > **Last verified:** 2026-09-30
 > **Repository:** `Khaey/Dao`
 
-## 1. Main, deployment, and current registration work
+## 1. Verified base and active collaboration checkpoints
 
-The true GitHub `main` SHA was verified as
-`6fd4303b26f0e8ece4cb290ae9dcd723a13c7004`. The latest completed GitHub
-Actions run was #168 (`36685413401`): backend, frontend, full E2E, and
-`deploy-dev` succeeded. It covered 14 E2E cases on desktop and mobile.
+The real GitHub `main` and the new remote branch were independently verified as
+`965054db897f18794b9f745bf86f397dea34b4d9` on 2026-09-30. Main CI #171
+(`36695297577`) succeeded, including 18 desktop/mobile E2E and DEV deployment.
+Registration PR #7 is merged; do not repeat the completed login/recovery or
+public client/contractor registration changes.
 
-Password recovery PRs #4 and #5 are merged. Their recovery route and login
-links are on `main`; no Auth configuration change is part of this account
-registration task.
+Active branch: `feat/project-collaboration-invitations`.
+Active worktree: `/workspace/scratch/dao-project-collaboration`.
+The branch was created remotely before any implementation. No files from the
+old `feat/login-recovery-links` worktree were carried over.
 
-Current work is on `feat/register-account-type`, based on the verified
-`main` SHA above. It adds an explicit public account type to signup. The
-server accepts exactly `client` or `contractor`; the authenticated RPC assigns
-the role from `auth.uid()`, rejects all other values, and does not grant direct
-role-table writes. Contractor signup requires a user-entered business name,
-creates a `pending` contractor profile, and leaves professional classification
-and trades unset until explicit completion. Client and contractor redirects
-are `/app/projects` and `/app/artisan` respectively.
+Checkpoint 1 adds collaboration migration `20260930163650`: real initiator,
+nullable client only for contractor-origin work, independent work/payment
+states, auditable client confirmation fields, accepted/revoked members,
+hashed invitations, shared-document scope and explicit private permissions.
+Legacy projects are backfilled; the strict client-only `dao_private.owner()`
+helper and all bid/publication/award authorization remain unchanged.
 
-The migration also revokes authenticated execution from the legacy two-argument
-initialization RPC, so public signup must provide a type. `RoleNav` no longer
-calls the initialization API without a selected type, and profile updates do
-not create a role. It does not alter any RLS policy. The existing
-`contractor_type` default is removed and the column made nullable to avoid
-silently classifying all signups as artisans.
+Local validation: 100/100 existing PGlite controls, 15/15 collaboration model
+and legacy-backfill controls, 13/13 backend unit/route tests, and diff check
+passed. The shared schema contract now expects 24 migrations and 45 public
+DAO tables with RLS enabled. RPC workflows, UX and collaboration E2E are the
+next checkpoints, not completed functionality at this stage.
 
-Local backend unit tests pass (13/13), frontend production build passes, and
-Playwright discovers 18 desktop/mobile cases. This shell has no Docker or
-Chromium, so local disposable Supabase integration and browser execution remain
-for CI. PR #7 run #169 had 16/18 E2E pass; both failures came from the profile
-test because `RoleNav` still posted an empty initialization payload and the
-profile-only RPC did not persist the name on first insert. The caller and RPC
-fallback are corrected; the rerun is pending. The DEV Supabase ledger
-currently ends at `20260927102942`. The
-`deploy-dev` workflow deploys the frontend but does not apply Supabase SQL, so
-the new migration must be applied explicitly to DEV after merge and before
-manual registration verification.
+Git push from this shell has no credentials; durable branch creation and
+checkpoint publication use the authenticated GitHub connector. A checkpoint
+is complete only after its commit is present in the remote branch and its
+SHA is confirmed with `git ls-remote`.
 
-## 2. Supabase reproducibility and parity
+## 2. Validation and environment boundaries
 
-- Before the active registration migration, the repository had 22 migrations. Fresh Supabase start, seed, the complete
-  migration ledger, schema contract, and reset/replay are validated.
-- DEV's migration ledger has those same 22 versions; the registration migration is pending merge/deploy. The read-only inventory
-  previously compared 586 DAO objects on each side, with 0 missing, 0 extra,
-  0 structural drift, and 0 semantic drift.
-- Real Supabase integration tests run against the disposable local stack and
-  cover Auth/JWT, RLS, RPC, publications, offers, immutability, Storage, and
-  award foundations. Registration adds tests for strict roles and pending
-  contractor profiles.
-- Do not use shared DEV for FULL E2E; preserve
-  `submitted_version_immutable` and `submitted_bid_content_immutable`.
+PGlite reconstructs all migrations on a fresh in-memory PostgreSQL database.
+The added model suite also inserts old projects/documents before applying
+collaboration SQL, proving the data backfill independently of empty startup.
+Its shared schema contract and simulated SQL-role/RLS tests are green.
+
+This shell has no Docker/local Supabase stack. PGlite does not prove real
+Auth/JWT/HTTP/Storage integration or independent-session concurrency. Those
+checks remain mandatory on the existing disposable CI runner: fresh Supabase,
+reset/replay, schema contract, real integration and desktop/mobile E2E.
+Never substitute shared DEV for that isolated test environment.
+
+No Supabase DEV migration, Auth setting or production change has been made
+for collaboration. After all checkpoints and a green merge, inspect the
+verified DEV ledger before applying any missing migration. Frontend deploy
+alone does not apply SQL. Do not merge an incomplete older collaboration model.
 
 ## 3. CI and E2E architecture
 
@@ -143,9 +139,9 @@ Experiments:
 
 ## 5. Functional coverage and safety
 
-- The same 22 migration files, initial and post-reset schema contracts,
-  migration-ledger checks, DAO inventory, real integration test, 14 Playwright
-  tests, desktop/mobile projects, and 2-worker setting remain enabled.
+- Historical CI optimization preserved the then-current 22 migrations and 14
+  Playwright cases. Registration increased the base to 23 migrations and 18
+  cases; checkpoint 1 now adds migration 24. All existing coverage remains.
 - Main run #158 passed backend, PGlite, frontend build, fresh Supabase,
   reset/replay, both schema contracts, real Supabase integration, and 14/14
   desktop/mobile E2E with 2 workers. `deploy-dev` accepted the verified CI

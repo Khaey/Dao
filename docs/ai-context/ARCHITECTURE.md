@@ -391,3 +391,13 @@ Do not expose port 3000 publicly.
 The historical OpenConstructionERP/OCE Docker exploration is not the source of truth for the current application.
 
 The current `Khaey/Dao` application architecture is authoritative.
+
+## 15. Collaborative chantier foundation
+
+See `COLLABORATION_DESIGN.md` for the dependency audit and permission model.
+The collaboration migration adds participation on the existing projects and
+lots without replacing versioning, review, publication, offers or attribution.
+`dao_private.owner()` remains the confirmed client check. Separate private
+helpers govern accepted-member workspace reads, initiator preparation and
+explicit private-details permission. All mutations remain controlled RPCs;
+new public tables have RLS and no browser write grants.

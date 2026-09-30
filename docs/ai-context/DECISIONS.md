@@ -302,3 +302,19 @@ The Chromium cache experiment measured about 3 seconds of warm-run savings
 seconds for the uncached install), while a cold cache was slower after cache
 save. The cache adds maintenance and state without a meaningful gain, so the
 workflow uses `playwright install --with-deps chromium` on each fresh runner.
+
+## D-029 — One chantier model, separate participation and marketplace
+
+The explicitly authorized collaboration scope uses projects plus real members
+and invitations; no parallel project model, fake client or automatic DAO
+publication. The product supplement overrides the initial work-stage names:
+not_started / started / in_progress / completed. Payment remains declarative
+and independent. Client confirmation has its own audit fields, never a review
+status. Strict client owner semantics and all competitor-offer isolation stay.
+
+## D-030 — Push every stable collaboration checkpoint
+
+Create the remote branch before code. Test, commit and publish every stable
+phase before starting the next; confirm its remote SHA. A changed environment
+or checkout requires identity verification and recovery from GitHub, not an
+assumed local state. Do not commit tsconfig.tsbuildinfo.

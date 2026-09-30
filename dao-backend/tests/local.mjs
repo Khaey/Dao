@@ -48,7 +48,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,43);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,45);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  await db.exec(readFileSync(new URL('../supabase/migrations/20260926092748_enforce_draft_withdrawal_and_approved_publication.sql',import.meta.url),'utf8'));

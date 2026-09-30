@@ -121,7 +121,9 @@ Vue d’ensemble
 -> Informations privées et confidentielles
 ```
 
-The UI must communicate that they are not visible to artisans.
+Marketplace visibility never grants private details. An accepted chantier
+contractor may see them only through an explicit membership permission; the
+contractor initiator receives that permission when creating the chantier.
 
 These values must not be copied into public/safe publication fields.
 
@@ -323,3 +325,24 @@ Do not start or expand these while P1.1 is unstable:
 - subcontracting;
 - advanced messaging;
 - OCE replacement/integration.
+
+## 21. Collaborative chantiers (authorized scope, 2026-09-30)
+
+Mes chantiers lists real participation for clients and contractors. DAO
+disponibles remains the separate artisan marketplace. Global account roles
+never substitute for project participation roles. Contractor-initiated work
+has a real contractor initiator and no client until a different client accepts
+the invitation atomically; confirmation is distinct from client_review.
+
+Work stage: not_started, started, in_progress, completed. Declarative payment:
+not_set, unpaid, partial, paid. Neither state drives DAO/award/contract status.
+The same chantier supports known professionals and missing lots sought through
+the existing DAO workflow. Invitations au chantier never grant publication
+invite_only access; its UX label is DAO sur invitation.
+
+Invited contractors have read-only workspace access by default, no competitor
+bids/prices/files, and no private details without explicit permission. Only
+approved documents shared as project_members reach accepted participants;
+owner_only documents keep their existing owner/staff/explicit-grant boundary.
+Revocation removes shared and private access. Tokens are random, stored only
+as hashes, expire, can be revoked/declined and are single-use.
