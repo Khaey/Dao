@@ -401,3 +401,17 @@ lots without replacing versioning, review, publication, offers or attribution.
 helpers govern accepted-member workspace reads, initiator preparation and
 explicit private-details permission. All mutations remain controlled RPCs;
 new public tables have RLS and no browser write grants.
+
+Collaboration command migration `20260930165307` uses explicit public
+SECURITY INVOKER facades delegating to private, authenticated SECURITY DEFINER
+commands. Only token preview is anonymous and whitelisted. Invitation mutations
+lock project then invitation; deferred client-membership constraints validate
+atomic confirmation. Member identity and confirmed project identity are
+immutable. Contractor-only legacy creation is blocked by the model trigger.
+
+ProjectService and the API adapters expose the commands; they never accept
+actor/client/initiator identities or role overrides during token acceptance.
+DocumentService still uses JWT/RLS checks before server-only signed Storage
+access. Shared scopes require accepted membership; revoke removes any explicit
+project document grants too. Real Auth/Storage/concurrent confirmation tests
+are included by the integration test script on the isolated CI stack.

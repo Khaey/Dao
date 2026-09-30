@@ -10,10 +10,11 @@ final decisions are recorded in `COLLABORATION_DESIGN.md`.
 1. Checkpoint 0: remote branch exists at the base SHA — done.
 2. Checkpoint 1: collaboration model, legacy backfill, isolated workspace RLS,
    private/document permissions, schema contract and local tests — validated;
-   publish the checkpoint before continuing.
+   published as `f16bc61a6561ecbb9894e662218d279e368c6528`.
 3. Checkpoint 2: controlled creation, invitations/preview/atomic confirmation,
    revoke/decline/expiry, membership/lot assignment, declarative tracking,
-   preparation permissions and backend/security integration tests.
+   preparation permissions and backend/security integration tests — validated
+   locally; publish checkpoint 2 before UX. Real integration remains for CI.
 4. Checkpoint 3: common Mes chantiers, separate DAO disponibles, simple client
    and contractor creation, role-aware dashboard, team/documents/tracking,
    safe invitation summary and login/register return. Frontend build.

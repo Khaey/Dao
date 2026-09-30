@@ -127,4 +127,6 @@ await check('no plaintext token column or browser access to token hashes', async
   await as(client,() => rejected('select token_hash from public.project_invitations',[],'42501'));
 });
 console.log(JSON.stringify({suite:'collaboration model and legacy backfill',passed,failed:0}));
+const { collaborationCommands } = await import('./collaboration-command-cases.mjs');
+await collaborationCommands({db,as,client,other,contractor});
 await db.close();

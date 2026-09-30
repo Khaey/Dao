@@ -16,18 +16,32 @@ Active worktree: `/workspace/scratch/dao-project-collaboration`.
 The branch was created remotely before any implementation. No files from the
 old `feat/login-recovery-links` worktree were carried over.
 
-Checkpoint 1 adds collaboration migration `20260930163650`: real initiator,
-nullable client only for contractor-origin work, independent work/payment
-states, auditable client confirmation fields, accepted/revoked members,
-hashed invitations, shared-document scope and explicit private permissions.
-Legacy projects are backfilled; the strict client-only `dao_private.owner()`
-helper and all bid/publication/award authorization remain unchanged.
+Checkpoint 1 was published as `f16bc61a6561ecbb9894e662218d279e368c6528`.
+It adds migration `20260930163650`: real initiator, nullable pending client,
+independent work/payment states, client confirmation evidence, members,
+hashed invitations, document sharing and explicit private permission.
 
-Local validation: 100/100 existing PGlite controls, 15/15 collaboration model
-and legacy-backfill controls, 13/13 backend unit/route tests, and diff check
-passed. The shared schema contract now expects 24 migrations and 45 public
-DAO tables with RLS enabled. RPC workflows, UX and collaboration E2E are the
-next checkpoints, not completed functionality at this stage.
+Checkpoint 2 adds migration `20260930165307` and controlled JWT-scoped RPCs
+for creation, issuance/safe preview, atomic accept/decline, expiry/revocation,
+member permission/revocation, lot participation and declarative tracking.
+Preparation is limited to confirmed client or accepted contractor initiator;
+invited contractors are read-only on project/lots. Only the confirmed client
+can submit DAO or invite contractors. Strict `dao_private.owner()` and all
+existing bid/publication/award authorization stay unchanged. Membership
+revocation also revokes project document grants and clears lot assignments.
+The new public facades use SECURITY INVOKER and explicit execution grants;
+only the safe token preview is callable anonymously.
+
+Local validation: 101 existing PGlite/migration controls, 15 model/backfill
+controls, 24 RPC/RLS lifecycle controls (140 total), 20 backend unit/route tests,
+and diff check pass. The shared schema contract expects 25 migrations and
+45 public DAO tables with RLS. All backend and integration TypeScript compiles.
+New real Supabase tests cover two independent JWTs racing to confirm exactly
+one client, recipient checks, private/shared files and Storage authorization.
+Those tests are compiled but require the disposable CI stack to execute.
+
+UX and collaboration E2E remain the next checkpoints, not completed
+functionality. Existing UI/E2E count is still 18; no existing test was removed.
 
 Git push from this shell has no credentials; durable branch creation and
 checkpoint publication use the authenticated GitHub connector. A checkpoint
