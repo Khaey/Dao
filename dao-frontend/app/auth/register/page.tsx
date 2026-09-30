@@ -12,11 +12,21 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [accountType, setAccountType] = useState<'client' | 'contractor' | ''>('');
+  const [businessName, setBusinessName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!accountType) {
+      setError('Choisissez un type de compte pour continuer.');
+      return;
+    }
+    if (accountType === 'contractor' && !businessName.trim()) {
+      setError('Le nom de l’activité ou de l’entreprise est obligatoire.');
+      return;
+    }
     setError(''); setSaving(true);
     const supabase = supabaseBrowser();
     const { data, error: signUpError } = await supabase.auth.signUp({
@@ -30,12 +40,23 @@ export default function Register() {
       return;
     }
     if (data.session) {
-      await fetch('/api/profile', {
+      const profileResponse = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token },
-        body: JSON.stringify({ display_name: name, phone_e164: phone || null }),
+        body: JSON.stringify({
+          display_name: name,
+          phone_e164: phone || null,
+          account_type: accountType,
+          business_name: accountType === 'contractor' ? businessName.trim() : null,
+        }),
       });
-      router.push('/app/projects');
+      const profileResult = await profileResponse.json().catch(() => ({}));
+      if (!profileResponse.ok) {
+        setError(profileResult.error || 'Impossible de finaliser la création du compte.');
+        setSaving(false);
+        return;
+      }
+      router.push(accountType === 'contractor' ? '/app/artisan' : '/app/projects');
     } else {
       setError('Votre inscription est enregistrée. Vérifiez votre email pour continuer.');
       setSaving(false);
@@ -48,10 +69,22 @@ export default function Register() {
       <form onSubmit={submit} className="mt-8 space-y-4">
         <Input placeholder="Nom complet" value={name} onChange={event => setName(event.target.value)} required />
         <Input placeholder="Téléphone tunisien (optionnel)" value={phone} onChange={event => setPhone(event.target.value)} pattern="\\+216[0-9]{8}" />
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-semibold text-ink">Type de compte <span className="text-red-600">(obligatoire)</span></legend>
+          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${accountType === 'client' ? 'border-teal bg-teal/5' : 'border-black/15 hover:border-teal/50'}`}>
+            <input className="mt-1 accent-teal" type="radio" name="account_type" value="client" checked={accountType === 'client'} onChange={() => setAccountType('client')} required />
+            <span><span className="block font-semibold">Client</span><span className="mt-1 block text-sm text-black/60">Je cherche un artisan ou une entreprise pour mes travaux</span></span>
+          </label>
+          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${accountType === 'contractor' ? 'border-teal bg-teal/5' : 'border-black/15 hover:border-teal/50'}`}>
+            <input className="mt-1 accent-teal" type="radio" name="account_type" value="contractor" checked={accountType === 'contractor'} onChange={() => setAccountType('contractor')} required />
+            <span><span className="block font-semibold">Artisan / Entreprise</span><span className="mt-1 block text-sm text-black/60">Je souhaite répondre aux appels d’offres et proposer mes services</span></span>
+          </label>
+        </fieldset>
+        {accountType === 'contractor' && <Input placeholder="Nom de l’activité / entreprise" value={businessName} onChange={event => setBusinessName(event.target.value)} required maxLength={160} />}
         <Input type="email" placeholder="Email" value={email} onChange={event => setEmail(event.target.value)} required />
         <Input type="password" placeholder="Mot de passe" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required />
         {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
-        <Button className="w-full" disabled={saving}>{saving ? 'Création…' : 'Créer mon compte'}</Button>
+        <Button className="w-full" disabled={saving || !accountType || (accountType === 'contractor' && !businessName.trim())}>{saving ? 'Création…' : 'Créer mon compte'}</Button>
       </form>
       <p className="mt-5 text-sm text-black/60">Déjà inscrit ? <Link className="font-semibold text-teal" href="/auth/login">Se connecter</Link></p>
     </Card>

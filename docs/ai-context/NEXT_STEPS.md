@@ -1,94 +1,41 @@
 # D.A.O — Next Steps
 
-> Start by reading all files in `docs/ai-context/`, then verify the actual
-> GitHub `main` SHA and the latest workflow run.
+> Read `docs/ai-context/*`, then verify the real GitHub `main` and latest CI
+> before acting.
 
-## Current checkpoint
+## Active task: public registration account type
 
-`main` currently points to `c26b58c55a31ee3d022d409bcc55fa747100b804`;
-its latest deployment remains the successful run #158 at
-`e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
+Work is on `feat/register-account-type`, based on main SHA
+`6fd4303b26f0e8ece4cb290ae9dcd723a13c7004` (latest verified run #168 green).
+The change is limited to the registration UI, profile API/backend, one
+migration, CI test discovery count, tests, and this state documentation.
 
-Draft PR [#4](https://github.com/Khaey/Dao/pull/4) adds standard Supabase Auth
-password recovery. Its initial run [#159](https://github.com/Khaey/Dao/actions/runs/36647183172)
-passed all four active checks; `deploy-dev` was skipped. The current local
-changes add an end-to-end email capture/reset test and the exact local Auth
-redirect URL. They are not included in run #159 yet.
+- Public signup accepts only `client` and `contractor`.
+- No direct browser role-table writes; the RPC uses `auth.uid()` and has an
+  explicit allowlist. Legacy two-argument initialization is no longer
+  executable by authenticated clients, `RoleNav` no longer submits an empty
+  role initialization, and profile-only updates never assign a role.
+- Contractor signup requires the real business/activity name, creates role
+  `contractor` with profile verification `pending`, and does not assign a
+  contractor subtype or trade.
+- Client redirects to `/app/projects`; contractor redirects to `/app/artisan`.
+- No RLS policy is changed. The contractor subtype column becomes nullable to
+  avoid the old implicit `artisan` default.
 
-## Password recovery — next steps
+## Validation and release sequence
 
-1. Run the full CI for the current recovery branch changes. Confirm the local
-   SMTP inbox receives the reset email, the recovery URL reaches the reset
-   form, mismatch validation works, and the new password can sign in.
-2. Before deployment, read the DEV Auth configuration to confirm SMTP delivery
-   and the exact allowlisted URL
-   `https://dao-dev.logiclab.fr/auth/reset-password`. The available Supabase
-   connector does not expose these Auth settings; do not send a DEV email or
-   alter hosted Auth settings until they can be verified.
-3. Keep PR #4 in draft until the email flow and DEV configuration are
-   confirmed. After a successful DEV deployment, manually verify request,
-   receipt, reset, and sign-in on desktop and mobile, then stop. No P2/P3.
+1. Run backend tests/build, frontend production build, E2E discovery, fresh
+   migration replay, real Supabase integration, and desktop/mobile Playwright
+   in GitHub Actions. The suite now has 18 cases.
+2. If CI is green, merge the PR to `main`. Immediately apply the migration to
+   the verified DEV Supabase project; the repository's `deploy-dev` job only
+   deploys the frontend and does not push SQL migrations. Wait for main CI and
+   successful `deploy-dev`.
+3. Verify DEV registration UI and desktop/mobile layout. Use disposable CI
+   Supabase for actual account creation; do not create fake company data in DEV.
+4. Update `CURRENT_STATE.md` and this file with final main SHA, run, migration,
+   deployment, and DEV verification. Stop; no P2/P3.
 
-PR [#3](https://github.com/Khaey/Dao/pull/3) is merged. Its PR head was
-`3e73939046a8b3676f4031de2cab6412fefcfde5`; the merge and deployed
-application SHA is `e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
-
-Main run [#158](https://github.com/Khaey/Dao/actions/runs/36411292612) succeeded: backend, PGlite, frontend build, fresh
-Supabase, reset/replay, schema contract, real Supabase integration, 14/14
-desktop/mobile E2E with 2 workers, and `deploy-dev`. The verified CI artifact
-was accepted on the VPS, `dao-dev.service` is active, and no frontend VPS
-build ran.
-
-Measured against run #155: workflow 286s → 239s; `deploy-dev` ~85s → 44s;
-SSH ~82s → 24.41s; merge to VPS active 279s → 231.38s. Backend and frontend
-VPS dependency caches were cold and installed. The external HTTP probe from
-this Work environment was blocked by its outbound proxy (HTTP 502/TLS alert);
-the VPS-side systemd health check passed. Full measurements are in
-`CURRENT_STATE.md` and `DEV_DEPLOYMENT.md`.
-
-No database write, migration, schema/RLS/Auth change, or product change was
-made. The deployment artifact optimization is validated for its first main
-run; the warm dependency-cache path has not yet been measured.
-
-## Next checkpoint
-
-Measure dependency cache hits on the next naturally occurring deployment.
-Do not create a synthetic commit or deployment just to warm the cache. The
-repository has only `.github/workflows/ci.yml`, triggered by push and
-pull_request; no `workflow_dispatch` exists for a same-SHA redeploy. Wait for
-the next real main push, with its normal validation gates, to measure the
-warm-cache path. No further CI, path-filtering, deploy, or product
-optimization work is started until requested.
-
-## Deferred optimization topics (not started)
-
-1. Analyze the 83s SSH deployment path and possible artifact deployment as a
-   separate, explicitly reviewed change.
-2. Analyze FAST/FULL workflow separation and path detection without skipping a
-   required gate for relevant changes.
-3. Consider a verified build artifact only after proving public Supabase
-   configuration is identical; the E2E build currently uses local
-   `127.0.0.1:54321` values and stays separate.
-4. Consider Playwright suite decomposition or higher worker counts only in a
-   separate measurement after maintaining stable desktop/mobile coverage.
-5. Keep browser caching disabled unless a later run shows a material net gain;
-   the measured warm-cache saving was about 3s.
-
-Do not begin P2/P3.
-
-## Invariants to preserve
-
-- FULL E2E uses only disposable local Supabase at
-  `http://127.0.0.1:54321`, with the target guard enabled.
-- Fresh start, migration/seed replay, schema contract, complete reset/replay,
-  and post-reset schema contract remain required.
-- Keep the real Supabase integration coverage for Auth/JWT, RLS, RPC,
-  publications, offers, immutability, Storage, and award foundations.
-- Cleanup removes worker tracking files only. Runner disposal is the E2E data
-  cleanup boundary.
-- Never delete submitted offer history or weaken either immutability trigger.
-- `deploy-dev` runs only for a push to `refs/heads/main`, never a
-  `pull_request`.
-- Keep all 14 Playwright tests, desktop and mobile, and at least 2 workers.
-- Do not change DEV/production, migrations, schema, RLS, Auth, product behavior,
-  or test assertions for CI speed.
+The current shell lacks Docker and Chromium; integration/browser validation is
+therefore delegated to the required CI run. Do not run FULL E2E against shared
+DEV. Preserve all RLS policies and existing internal DAO roles.

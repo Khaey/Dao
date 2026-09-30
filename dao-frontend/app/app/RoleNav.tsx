@@ -24,7 +24,6 @@ export default function RoleNav() {
       if (!active) return;
       if (!data.session) { router.replace('/auth/login'); return; }
       setEmail(data.session.user.email ?? '');
-      await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` }, body: '{}' });
       const { data: roleRows } = await supabase.from('user_roles').select('role').eq('user_id', data.session.user.id);
       if (!active) return;
       setRoles((roleRows ?? []).map((row: { role: Role }) => row.role));

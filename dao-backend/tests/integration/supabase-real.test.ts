@@ -39,6 +39,27 @@ test('autonomous Supabase integration', async () => {
     const award=await insert('awards',{project_id:project,contractor_id:actors.plumberB.contractorId});
     const award2=await insert('awards',{project_id:project,contractor_id:actors.plumberA.contractorId});
     const login=async(a:any)=>{const userClient=createClient(url,pub);const r=await userClient.auth.signInWithPassword({email:a.email,password});assert.ifError(r.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+r.data.session!.access_token}}});};
+    const registrationUser=async(label:string)=>{const email=`dao-registration-${label}-${suffix}@example.invalid`;const created=await admin.auth.admin.createUser({email,password,email_confirm:true});assert.ifError(created.error);return {id:created.data.user!.id,email};};
+    const registrationClient=async(user:any)=>{const client=createClient(url,pub);const signed=await client.auth.signInWithPassword({email:user.email,password});assert.ifError(signed.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+signed.data.session!.access_token}}});};
+    const registrationClientUser=await registrationUser('client'), registrationContractorUser=await registrationUser('contractor'), forgedRoleUser=await registrationUser('forged');
+    const registrationClientApi=await registrationClient(registrationClientUser), registrationContractorApi=await registrationClient(registrationContractorUser), forgedRoleApi=await registrationClient(forgedRoleUser);
+    const implicitClientType=await registrationClientApi.rpc('initialize_my_account',{p_display_name:'Implicit type',p_phone_e164:null});assert.ok(implicitClientType.error,'public registration requires an explicit account type');
+    const initializedClient=await registrationClientApi.rpc('initialize_my_account',{p_display_name:'Client test',p_phone_e164:null,p_account_type:'client',p_business_name:null});
+    assert.ifError(initializedClient.error);
+    const clientRole=await admin.from('user_roles').select('role').eq('user_id',registrationClientUser.id).single();assert.ifError(clientRole.error);assert.equal(clientRole.data.role,'client');
+    const clientProfile=await admin.from('profiles').select('display_name').eq('user_id',registrationClientUser.id).single();assert.ifError(clientProfile.error);assert.equal(clientProfile.data.display_name,'Client test');
+    const initializedContractor=await registrationContractorApi.rpc('initialize_my_account',{p_display_name:'Contractor test',p_phone_e164:null,p_account_type:'contractor',p_business_name:'Atelier explicit'});
+    assert.ifError(initializedContractor.error);
+    const contractorRole=await admin.from('user_roles').select('role').eq('user_id',registrationContractorUser.id).single();assert.ifError(contractorRole.error);assert.equal(contractorRole.data.role,'contractor');
+    const contractorProfile=await admin.from('contractor_profiles').select('id,business_name,verification_status,contractor_type').eq('user_id',registrationContractorUser.id).single();assert.ifError(contractorProfile.error);assert.equal(contractorProfile.data.business_name,'Atelier explicit');assert.equal(contractorProfile.data.verification_status,'pending');assert.equal(contractorProfile.data.contractor_type,null);
+    const contractorTrades=await admin.from('contractor_trades').select('id').eq('contractor_id',contractorProfile.data.id);assert.ifError(contractorTrades.error);assert.deepEqual(contractorTrades.data,[]);
+    for(const account_type of ['dao_admin','dao_reviewer','service_role','internal']){
+      const rejected=await forgedRoleApi.rpc('initialize_my_account',{p_display_name:'Forged',p_phone_e164:null,p_account_type:account_type,p_business_name:null});
+      assert.ok(rejected.error,`forged role ${account_type} must be rejected`);
+    }
+    const profileOnlyUpdate=await forgedRoleApi.rpc('update_my_profile',{p_display_name:'Profil sans rôle',p_phone_e164:null});assert.ifError(profileOnlyUpdate.error);assert.equal(profileOnlyUpdate.data.display_name,'Profil sans rôle');
+    const noForgedRole=await admin.from('user_roles').select('role').eq('user_id',forgedRoleUser.id);assert.ifError(noForgedRole.error);assert.deepEqual(noForgedRole.data,[]);
+    const directRoleInsert=await forgedRoleApi.from('user_roles').insert({user_id:forgedRoleUser.id,role:'dao_admin'});assert.ok(directRoleInsert.error,'authenticated signup cannot directly assign a role');
     const client=await login(actors.clientA), a=await login(actors.plumberA), b=await login(actors.plumberB), other=await login(actors.clientB), dual=await login(actors.dual);
     const createdProject=await client.rpc('create_project_draft',{p_project_type:'repair',p_surface_m2:42,p_desired_start_date:null,p_indicative_budget_millimes:null,p_governorate_id:gov});
     assert.ifError(createdProject.error); assert.ok(createdProject.data?.id);

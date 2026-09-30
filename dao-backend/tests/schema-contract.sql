@@ -6,7 +6,7 @@ DECLARE
     '20260921084730','20260921091400','20260921094726','20260921094727',
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
-    '20260926092748','20260927102942'
+    '20260926092748','20260927102942','20260930084047'
   ];
   expected_tables text[] := ARRAY[
     'ai_proposals','ai_runs','audit_events','award_items','awards',
@@ -102,6 +102,8 @@ BEGIN
     SELECT required.signature
     FROM unnest(ARRAY[
       'public.create_project_draft(text,numeric,date,bigint,uuid,uuid,uuid)',
+      'public.initialize_my_account(text,text,text,text)',
+      'dao_private.initialize_registration_account(text,text,text,text)',
       'public.add_project_request(uuid,uuid,text,text)',
       'public.withdraw_project_request(uuid)',
       'public.publish_project(uuid,text,uuid[],uuid[],timestamptz)',
@@ -115,6 +117,27 @@ BEGIN
   LOOP
     RAISE EXCEPTION 'schema contract: critical RPC/function % is missing', missing_name;
   END LOOP;
+  IF has_table_privilege('authenticated','public.user_roles','INSERT')
+     OR has_table_privilege('authenticated','public.contractor_profiles','INSERT') THEN
+    RAISE EXCEPTION 'schema contract: authenticated must not insert roles or contractor profiles directly';
+  END IF;
+  IF has_function_privilege('authenticated','public.initialize_my_account(text,text)','EXECUTE')
+     OR has_function_privilege('anon','public.initialize_my_account(text,text,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.initialize_my_account(text,text,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','dao_private.initialize_registration_account(text,text,text,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: public registration RPC grants do not match the explicit authenticated allowlist';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='contractor_profiles'
+      AND column_name='contractor_type' AND (is_nullable<>'YES' OR column_default IS NOT NULL)
+  ) OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='contractor_profiles'
+      AND column_name='contractor_type' AND is_nullable='YES' AND column_default IS NULL
+  ) THEN
+    RAISE EXCEPTION 'schema contract: contractor_type must remain unset until explicit profile completion';
+  END IF;
   IF has_function_privilege('anon','public.rls_auto_enable()','EXECUTE')
      OR has_function_privilege('authenticated','public.rls_auto_enable()','EXECUTE')
      OR has_function_privilege('service_role','public.rls_auto_enable()','EXECUTE')
