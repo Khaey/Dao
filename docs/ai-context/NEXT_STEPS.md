@@ -14,10 +14,12 @@ final decisions are recorded in `COLLABORATION_DESIGN.md`.
 3. Checkpoint 2: controlled creation, invitations/preview/atomic confirmation,
    revoke/decline/expiry, membership/lot assignment, declarative tracking,
    preparation permissions and backend/security integration tests — validated
-   locally; publish checkpoint 2 before UX. Real integration remains for CI.
+   locally; published as `d91fb0af21689ef850188f84213e7305ffdfb0b5`.
+   Real integration remains for CI.
 4. Checkpoint 3: common Mes chantiers, separate DAO disponibles, simple client
    and contractor creation, role-aware dashboard, team/documents/tracking,
-   safe invitation summary and login/register return. Frontend build.
+   safe invitation summary and login/register return — implemented.
+   Production build passed with 45 routes; publish before E2E additions.
 5. Checkpoint 4: add isolated desktop/mobile E2E for collaboration, roles,
    revocation, private documents and regression. Preserve existing tests.
 6. Checkpoint 5: full local checks where available, disposable fresh Supabase

@@ -24,7 +24,7 @@ type Lot = { publication_id: string; trade_id: string; safe_title: string };
 const visibilityLabel: Record<Publication['visibility'], string> = {
   public: 'DAO public',
   targeted: 'DAO ciblé',
-  invite_only: 'Invitation directe',
+  invite_only: 'DAO sur invitation',
 };
 const projectTypeLabel: Record<string, string> = {
   construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre',

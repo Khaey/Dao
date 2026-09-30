@@ -1,12 +1,16 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { Button, Card, Input } from '../../../components/ui';
 
+import { invitationReturn } from '../../../lib/collaboration';
+
 export default function Register() {
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  useEffect(() => setReturnTo(invitationReturn(window.location.search)), []);
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,7 +60,7 @@ export default function Register() {
         setSaving(false);
         return;
       }
-      router.push(accountType === 'contractor' ? '/app/artisan' : '/app/projects');
+      router.push(returnTo || (accountType === 'contractor' ? '/app/artisan' : '/app/projects'));
     } else {
       setError('Votre inscription est enregistrée. Vérifiez votre email pour continuer.');
       setSaving(false);
@@ -86,7 +90,7 @@ export default function Register() {
         {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
         <Button className="w-full" disabled={saving || !accountType || (accountType === 'contractor' && !businessName.trim())}>{saving ? 'Création…' : 'Créer mon compte'}</Button>
       </form>
-      <p className="mt-5 text-sm text-black/60">Déjà inscrit ? <Link className="font-semibold text-teal" href="/auth/login">Se connecter</Link></p>
+      <p className="mt-5 text-sm text-black/60">Déjà inscrit ? <Link className="font-semibold text-teal" href={returnTo ? `/auth/login?returnTo=${encodeURIComponent(returnTo)}` : "/auth/login"}>Se connecter</Link></p>
     </Card>
   </main>;
 }

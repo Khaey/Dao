@@ -39,8 +39,8 @@ export default function RoleNav() {
   const active = (href: string) => pathname === href || (href !== '/app' && pathname.startsWith(href));
   const links = [
     { href: '/app', label: 'Tableau de bord', icon: LayoutDashboard, show: has('client') || has('contractor') || roles.length > 0 },
-    { href: '/app/projects', label: 'Mes projets', icon: FolderKanban, show: has('client') },
-    { href: '/app/artisan', label: 'Espace artisan', icon: HardHat, show: has('contractor') },
+    { href: '/app/projects', label: 'Mes chantiers', icon: FolderKanban, show: has('client') || has('contractor') },
+    { href: '/app/artisan', label: 'DAO disponibles', icon: HardHat, show: has('contractor') },
     { href: '/app/dao/review', label: 'Revue DAO', icon: ShieldCheck, show: has('dao_reviewer') || has('dao_admin') },
   ];
 

@@ -21,7 +21,8 @@ It adds migration `20260930163650`: real initiator, nullable pending client,
 independent work/payment states, client confirmation evidence, members,
 hashed invitations, document sharing and explicit private permission.
 
-Checkpoint 2 adds migration `20260930165307` and controlled JWT-scoped RPCs
+Checkpoint 2 was published as `d91fb0af21689ef850188f84213e7305ffdfb0b5`.
+It adds migration `20260930165307` and controlled JWT-scoped RPCs
 for creation, issuance/safe preview, atomic accept/decline, expiry/revocation,
 member permission/revocation, lot participation and declarative tracking.
 Preparation is limited to confirmed client or accepted contractor initiator;
@@ -40,7 +41,13 @@ New real Supabase tests cover two independent JWTs racing to confirm exactly
 one client, recipient checks, private/shared files and Storage authorization.
 Those tests are compiled but require the disposable CI stack to execute.
 
-UX and collaboration E2E remain the next checkpoints, not completed
+Checkpoint 3 implements the common Mes chantiers view, separate DAO disponibles,
+role-aware dashboard, simple existing-team/client creation, safe invitation
+summary and auth return, team permissions, document sharing and declarative
+tracking. The frontend production build passed (45 routes); the full E2E
+suite must now validate both viewports.
+
+Collaboration E2E and real disposable-stack integration remain pending, not completed
 functionality. Existing UI/E2E count is still 18; no existing test was removed.
 
 Git push from this shell has no credentials; durable branch creation and
