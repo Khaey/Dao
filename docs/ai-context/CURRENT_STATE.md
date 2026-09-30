@@ -24,14 +24,20 @@ and trades unset until explicit completion. Client and contractor redirects
 are `/app/projects` and `/app/artisan` respectively.
 
 The migration also revokes authenticated execution from the legacy two-argument
-initialization RPC, so public signup must provide a type. It does not alter any
-RLS policy. The existing `contractor_type` default is removed and the column
-made nullable to avoid silently classifying all signups as artisans.
+initialization RPC, so public signup must provide a type. `RoleNav` no longer
+calls the initialization API without a selected type, and profile updates do
+not create a role. It does not alter any RLS policy. The existing
+`contractor_type` default is removed and the column made nullable to avoid
+silently classifying all signups as artisans.
 
 Local backend unit tests pass (13/13), frontend production build passes, and
 Playwright discovers 18 desktop/mobile cases. This shell has no Docker or
 Chromium, so local disposable Supabase integration and browser execution remain
-for CI. The DEV Supabase ledger currently ends at `20260927102942`. The
+for CI. PR #7 run #169 had 16/18 E2E pass; both failures came from the profile
+test because `RoleNav` still posted an empty initialization payload and the
+profile-only RPC did not persist the name on first insert. The caller and RPC
+fallback are corrected; the rerun is pending. The DEV Supabase ledger
+currently ends at `20260927102942`. The
 `deploy-dev` workflow deploys the frontend but does not apply Supabase SQL, so
 the new migration must be applied explicitly to DEV after merge and before
 manual registration verification.

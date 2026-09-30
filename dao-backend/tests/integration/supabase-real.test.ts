@@ -47,6 +47,7 @@ test('autonomous Supabase integration', async () => {
     const initializedClient=await registrationClientApi.rpc('initialize_my_account',{p_display_name:'Client test',p_phone_e164:null,p_account_type:'client',p_business_name:null});
     assert.ifError(initializedClient.error);
     const clientRole=await admin.from('user_roles').select('role').eq('user_id',registrationClientUser.id).single();assert.ifError(clientRole.error);assert.equal(clientRole.data.role,'client');
+    const clientProfile=await admin.from('profiles').select('display_name').eq('user_id',registrationClientUser.id).single();assert.ifError(clientProfile.error);assert.equal(clientProfile.data.display_name,'Client test');
     const initializedContractor=await registrationContractorApi.rpc('initialize_my_account',{p_display_name:'Contractor test',p_phone_e164:null,p_account_type:'contractor',p_business_name:'Atelier explicit'});
     assert.ifError(initializedContractor.error);
     const contractorRole=await admin.from('user_roles').select('role').eq('user_id',registrationContractorUser.id).single();assert.ifError(contractorRole.error);assert.equal(contractorRole.data.role,'contractor');
@@ -56,6 +57,7 @@ test('autonomous Supabase integration', async () => {
       const rejected=await forgedRoleApi.rpc('initialize_my_account',{p_display_name:'Forged',p_phone_e164:null,p_account_type:account_type,p_business_name:null});
       assert.ok(rejected.error,`forged role ${account_type} must be rejected`);
     }
+    const profileOnlyUpdate=await forgedRoleApi.rpc('update_my_profile',{p_display_name:'Profil sans rôle',p_phone_e164:null});assert.ifError(profileOnlyUpdate.error);assert.equal(profileOnlyUpdate.data.display_name,'Profil sans rôle');
     const noForgedRole=await admin.from('user_roles').select('role').eq('user_id',forgedRoleUser.id);assert.ifError(noForgedRole.error);assert.deepEqual(noForgedRole.data,[]);
     const directRoleInsert=await forgedRoleApi.from('user_roles').insert({user_id:forgedRoleUser.id,role:'dao_admin'});assert.ok(directRoleInsert.error,'authenticated signup cannot directly assign a role');
     const client=await login(actors.clientA), a=await login(actors.plumberA), b=await login(actors.plumberB), other=await login(actors.clientB), dual=await login(actors.dual);

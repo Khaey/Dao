@@ -13,7 +13,8 @@ migration, CI test discovery count, tests, and this state documentation.
 - Public signup accepts only `client` and `contractor`.
 - No direct browser role-table writes; the RPC uses `auth.uid()` and has an
   explicit allowlist. Legacy two-argument initialization is no longer
-  executable by authenticated clients.
+  executable by authenticated clients, `RoleNav` no longer submits an empty
+  role initialization, and profile-only updates never assign a role.
 - Contractor signup requires the real business/activity name, creates role
   `contractor` with profile verification `pending`, and does not assign a
   contractor subtype or trade.

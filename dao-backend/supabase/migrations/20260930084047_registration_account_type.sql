@@ -54,7 +54,8 @@ begin
     nullif(split_part(coalesce((auth.jwt()->>'email'),''),'@',1),''),
     'Utilisateur'
   ) into v_name
-  from public.profiles existing where existing.user_id=v_uid;
+  from (select 1) seed
+  left join public.profiles existing on existing.user_id=v_uid;
   if v_name is null then v_name:='Utilisateur'; end if;
 
   insert into public.profiles(user_id,display_name) values(v_uid,v_name)
@@ -86,9 +87,54 @@ $$;
 revoke all on function dao_private.initialize_registration_account(text,text,text,text) from public,anon,authenticated;
 grant execute on function dao_private.initialize_registration_account(text,text,text,text) to authenticated,service_role;
 
--- The pre-existing two-argument entry point only supports implicit clients.
--- Keep it for trusted server compatibility but require authenticated browser
--- registrations to provide the explicit, validated account type above.
+-- Profile editing can create a missing profile row, but it must never assign
+-- a role. Account role creation belongs only to the explicit registration RPC.
+create or replace function dao_private.initialize_my_account(
+  p_display_name text default null,
+  p_phone_e164 text default null
+) returns public.profiles
+language plpgsql security definer set search_path=''
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_name text;
+  v_profile public.profiles;
+begin
+  if v_uid is null then
+    raise exception using errcode='42501', message='authentication required';
+  end if;
+  if p_phone_e164 is not null and p_phone_e164 !~ '^\+216[0-9]{8}$' then
+    raise exception using errcode='23514', message='invalid Tunisian phone number';
+  end if;
+  select coalesce(
+    nullif(btrim(p_display_name),''),
+    nullif(btrim(existing.display_name),''),
+    nullif(split_part(coalesce((auth.jwt()->>'email'),''),'@',1),''),
+    'Utilisateur'
+  ) into v_name
+  from (select 1) seed
+  left join public.profiles existing on existing.user_id=v_uid;
+  if v_name is null then v_name:='Utilisateur'; end if;
+
+  insert into public.profiles(user_id,display_name) values(v_uid,v_name)
+  on conflict(user_id) do update set display_name=excluded.display_name
+  returning * into v_profile;
+  if p_phone_e164 is not null then
+    insert into public.profile_contacts(user_id,phone_e164,contact_email)
+    values(v_uid,p_phone_e164,(auth.jwt()->>'email'))
+    on conflict(user_id) do update set phone_e164=excluded.phone_e164,
+      contact_email=coalesce(excluded.contact_email,public.profile_contacts.contact_email);
+  else
+    insert into public.profile_contacts(user_id,contact_email)
+    values(v_uid,(auth.jwt()->>'email'))
+    on conflict(user_id) do update set contact_email=coalesce(public.profile_contacts.contact_email,excluded.contact_email);
+  end if;
+  return v_profile;
+end;
+$$;
+
+-- Keep the old overload only for trusted server compatibility; authenticated
+-- browser registration must use the four-argument, validated RPC above.
 revoke all on function dao_private.initialize_my_account(text,text) from public,anon,authenticated;
 grant execute on function dao_private.initialize_my_account(text,text) to service_role;
 
