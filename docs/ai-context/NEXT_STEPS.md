@@ -5,6 +5,30 @@
 
 ## Current checkpoint
 
+`main` currently points to `c26b58c55a31ee3d022d409bcc55fa747100b804`;
+its latest deployment remains the successful run #158 at
+`e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
+
+Draft PR [#4](https://github.com/Khaey/Dao/pull/4) adds standard Supabase Auth
+password recovery. Its initial run [#159](https://github.com/Khaey/Dao/actions/runs/36647183172)
+passed all four active checks; `deploy-dev` was skipped. The current local
+changes add an end-to-end email capture/reset test and the exact local Auth
+redirect URL. They are not included in run #159 yet.
+
+## Password recovery — next steps
+
+1. Run the full CI for the current recovery branch changes. Confirm the local
+   SMTP inbox receives the reset email, the recovery URL reaches the reset
+   form, mismatch validation works, and the new password can sign in.
+2. Before deployment, read the DEV Auth configuration to confirm SMTP delivery
+   and the exact allowlisted URL
+   `https://dao-dev.logiclab.fr/auth/reset-password`. The available Supabase
+   connector does not expose these Auth settings; do not send a DEV email or
+   alter hosted Auth settings until they can be verified.
+3. Keep PR #4 in draft until the email flow and DEV configuration are
+   confirmed. After a successful DEV deployment, manually verify request,
+   receipt, reset, and sign-in on desktop and mobile, then stop. No P2/P3.
+
 PR [#3](https://github.com/Khaey/Dao/pull/3) is merged. Its PR head was
 `3e73939046a8b3676f4031de2cab6412fefcfde5`; the merge and deployed
 application SHA is `e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.

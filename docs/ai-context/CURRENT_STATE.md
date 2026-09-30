@@ -1,6 +1,6 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-09-28  
+> **Last verified:** 2026-09-30
 > **Repository:** `Khaey/Dao`
 
 ## 1. Main and deployment
@@ -19,6 +19,33 @@ tests on desktop and mobile with 2 workers. `deploy-dev` accepted the verified
 CI artifact, restarted `dao-dev.service`, and its `systemctl is-active`
 check returned `active`. The deploy log identifies release
 `/opt/dao/releases/e0bbcdd19c29d46821d19ba2d56e8868b676eb9d-36411292612-1`.
+
+The current GitHub `main` head is `c26b58c55a31ee3d022d409bcc55fa747100b804`
+(`docs: record public HTTP verification limit`, documentation-only, `[skip ci]`).
+The last main deployment remains run #158 at `e0bbcdd19c29d46821d19ba2d56e8868b676eb9d`.
+
+## 1.1 Password recovery work
+
+Main does not yet contain the recovery link or routes. Draft PR
+[#4](https://github.com/Khaey/Dao/pull/4) contains the initial implementation
+on `feat/password-recovery`, commit `f5b45117ec0638043d6317be950bf156a0eada87`.
+Its run [#159](https://github.com/Khaey/Dao/actions/runs/36647183172) succeeded
+(backend-verify, frontend-build, FULL E2E and timing summary); `deploy-dev` was
+skipped because this was a pull request. That run validated the prior 14-test
+suite, not the local uncommitted email-flow E2E change described below.
+
+The local branch contains uncommitted work to capture a real recovery message
+from the disposable Supabase SMTP inbox and complete the reset flow. The test
+uses the worker's isolated E2E client; desktop and mobile receive distinct
+worker emails. The local Auth allowlist now includes the exact reset route.
+Local build and sequential TypeScript checks pass, and test discovery remains
+14 cases. Docker/Supabase is unavailable in this shell, so the new email flow
+has not yet run locally or in CI.
+
+The Supabase connector exposes project metadata but not Auth SMTP or redirect
+allowlist settings. DEV settings and delivery therefore remain unconfirmed;
+no DEV recovery email has been sent and no Auth configuration was changed in
+the hosted DEV project.
 
 Public HTTP remains unverified. The Work shell returned HTTP/2 502 with
 `server: mitmproxy 12.2.3` and a TLS internal-error alert. A follow-up in the
