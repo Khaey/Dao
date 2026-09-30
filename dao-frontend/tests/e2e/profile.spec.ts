@@ -68,7 +68,7 @@ test('Mon espace affiche le profil, permet de se déconnecter et de récupérer 
   await page.getByLabel('Nouveau mot de passe', { exact: true }).fill(nextPassword);
   await page.getByLabel('Confirmer le mot de passe').fill(`${nextPassword}-different`);
   await page.getByRole('button', { name: 'Enregistrer le nouveau mot de passe' }).click();
-  await expect(page.getByRole('alert')).toHaveText('Les deux mots de passe ne correspondent pas.');
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Les deux mots de passe ne correspondent pas.');
   await page.getByLabel('Confirmer le mot de passe').fill(nextPassword);
   await page.getByRole('button', { name: 'Enregistrer le nouveau mot de passe' }).click();
   await expect(page.getByRole('status')).toContainText('Votre mot de passe a été mis à jour');
