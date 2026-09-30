@@ -172,7 +172,7 @@ jobs:
         working-directory: dao-backend
         run: |
           supabase stop --no-backup || true
-          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,mailpit,postgres-meta
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,postgres-meta
       - name: Verify fresh migration ledger and schema contract
         working-directory: dao-backend
         shell: bash

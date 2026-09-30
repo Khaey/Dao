@@ -115,6 +115,21 @@ Rules:
 - admin role must not be self-assignable.
 - a dual-role account must still respect row-level isolation.
 
+Password recovery uses Supabase Auth's standard browser flow:
+
+```text
+/auth/login -> /auth/forgot-password
+resetPasswordForEmail(email, redirectTo: /auth/reset-password)
+-> PASSWORD_RECOVERY session -> updateUser({ password })
+```
+
+The reset page accepts only a session created by the recovery event, checks
+that the current Supabase user matches that recovery session, and requires a
+matching password confirmation. The exact reset URL must be present in the
+Auth redirect allowlist for each environment. E2E captures the local Auth
+email in the disposable local SMTP inbox; it must never send a test email from
+DEV.
+
 ## 5. RLS/security invariants already validated
 
 The backend foundation has previously been validated around these principles:
