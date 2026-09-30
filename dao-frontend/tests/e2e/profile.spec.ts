@@ -32,7 +32,7 @@ test('Mon espace affiche le profil, permet de se déconnecter et de récupérer 
   await expect(page.getByRole('button', { name: 'Se connecter' })).toBeVisible();
 
   await page.goto('/auth/reset-password');
-  await expect(page.getByRole('alert')).toContainText('Ce lien est invalide ou a expiré');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Ce lien est invalide ou a expiré');
   await expect(page.getByRole('button', { name: 'Enregistrer le nouveau mot de passe' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Retour à la connexion' }).click();
   await page.getByRole('link', { name: 'Mot de passe oublié ?' }).click();
