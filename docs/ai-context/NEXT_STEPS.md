@@ -1,50 +1,53 @@
 # D.A.O — Next Steps
 
-> Verify the real GitHub branch/SHA and working tree before every resumed phase.
+> Verify path, branch, HEAD, remote SHA and working tree before every resumed
+> phase. Resume from the last published checkpoint, never from an older checkout.
 
 Active branch: `feat/project-collaboration-invitations`.
-Base main: `965054db897f18794b9f745bf86f397dea34b4d9`, CI #171 green.
-Product source: the collaboration prompt plus its later product supplement;
-final decisions are recorded in `COLLABORATION_DESIGN.md`.
+Verified main: `965054db897f18794b9f745bf86f397dea34b4d9`, latest main CI #171 green.
+Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
 
-1. Checkpoint 0: remote branch exists at the base SHA — done.
-2. Checkpoint 1: collaboration model, legacy backfill, isolated workspace RLS,
-   private/document permissions, schema contract and local tests — validated;
-   published as `f16bc61a6561ecbb9894e662218d279e368c6528`.
-3. Checkpoint 2: controlled creation, invitations/preview/atomic confirmation,
-   revoke/decline/expiry, membership/lot assignment, declarative tracking,
-   preparation permissions and backend/security integration tests — validated
-   locally; published as `d91fb0af21689ef850188f84213e7305ffdfb0b5`.
-   Real integration remains for CI.
-4. Checkpoint 3: common Mes chantiers, separate DAO disponibles, simple client
-   and contractor creation, role-aware dashboard, team/documents/tracking,
-   safe invitation summary and login/register return — implemented.
-   Production build passed with 45 routes; published as
-   `2273344b167fc814407099404d377010377ac930`.
-5. Existing E2E compatibility: current marketplace entry and chantier/private
-   labels adapted. Published as `e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
-   Checkpoint 4: core client/team and contractor/client scenarios added (22
-   viewport executions), published as `6eb02c15aa4f3d370ca46ab02bd3883762b739e1`.
-   Invitation roles/revocation/decline/isolation added next (26 executions).
-   Published as `abcca1c468448077bb7b3a26da5ef3aae53dd5ca`.
-   Invitation registration return and external-URL rejection added (32
-   executions), published as `11872b3c85ce816d0da82f531abaffc2146bb5b2`.
-   Document sharing/private permission/revocation added (34 executions).
-   Save this checkpoint; then execute full validation. Remaining scope:
-   revocation, private documents and regression. Preserve existing tests.
-6. Checkpoint 5: full local checks where available, disposable fresh Supabase
-   and reset/replay, real JWT/RPC/RLS/Storage/concurrency, complete E2E, PR CI.
-7. Merge only after all coverage is green. Verify real main, inspect DEV
-   migration ledger, apply missing SQL once, then verify deployed DEV.
-   Confirm `DEPLOY_BUILD source=verified_ci_artifact` and measure warm caches.
-8. Stop after DEV validation; no P2/P3.
+## Completed — do not recreate
 
-After each stable phase: git status, useful phase tests, commit, remote branch
-update, independent remote SHA confirmation. Never accumulate a second phase
-without a pushed checkpoint. Never commit `dao-frontend/tsconfig.tsbuildinfo`.
+- Model/backfill and schema contract: `f16bc61a6561ecbb9894e662218d279e368c6528`.
+- Controlled RPCs, invitation lifecycle, memberships, private/document rights,
+  backend/RLS and real integration test source: `d91fb0af21689ef850188f84213e7305ffdfb0b5`.
+- Common Mes chantiers, separate DAO disponibles, client/contractor dashboard,
+  simple creation, invitation/auth return, team/documents/tracking UX:
+  `2273344b167fc814407099404d377010377ac930`.
+- Existing E2E compatibility: `e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
+- Independent client/team/mixed lots and contractor/client E2E:
+  `6eb02c15aa4f3d370ca46ab02bd3883762b739e1`.
+- Invitation roles, revocation, decline and isolation E2E:
+  `abcca1c468448077bb7b3a26da5ef3aae53dd5ca`.
+- Signup invitation return and external redirect rejection:
+  `11872b3c85ce816d0da82f531abaffc2146bb5b2`.
+- Shared/private documents, explicit permission and revoked-member downloads:
+  `12846d9a6d6a1a108c316836a82c5618a5f2d729`.
+- Current local checks: 20/20 backend, 140/140 PGlite and migration/RLS checks,
+  shared schema contract, frontend production build (45 routes), TypeScript,
+  diff check and discovery of 34 executions in 13 files. Discovery is not execution.
+
+## Remaining — next small phase
+
+1. Open PR to main. The existing disposable CI must run fresh Supabase,
+   ledger/schema contract, reset/replay, real JWT/RPC/RLS/Storage/concurrency
+   integration and all 34 E2E on desktop/mobile. This checkout has no Docker;
+   never use shared DEV as a replacement for that disposable stack.
+2. Read logs/artifacts before every failure correction; audit other occurrences
+   of the same cause. Preserve all old tests and useful assertions. Each small
+   validated correction must be committed, published and remotely confirmed.
+3. Merge only when all mandatory checks and coverage are green. Verify exact
+   new main, inspect the confirmed DEV migration ledger, apply missing SQL once
+   only if needed, and verify deploy-dev and DEV desktop/mobile.
+4. Confirm `DEPLOY_BUILD source=verified_ci_artifact` and measure warm VPS
+   dependency caches. Update the verified state and stop; no P2/P3.
+
+Never commit `dao-frontend/tsconfig.tsbuildinfo`. Never reset, restore, clean,
+stash or discard unsaved collaboration changes. Keep at most one small phase
+between pushes and independently confirm the remote SHA after every checkpoint.
 
 Stop for a real product contradiction, data-loss/security risk, conflicting DEV
-migration, an ambiguous root cause, the same cause after two corrections, or
-three consecutive CI failures in the same functional area. If the checkout or
-environment changes, stop and verify path, branch, HEAD and working tree;
-resume only from the expected branch's remote checkpoint.
+migration, ambiguous root cause, the same cause after two corrections, or three
+consecutive CI failures in the same functional area. If the environment or
+checkout changes, stop coding and recover the expected remote branch first.

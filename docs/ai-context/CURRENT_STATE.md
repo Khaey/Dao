@@ -1,6 +1,6 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-09-30
+> **Last verified:** 2026-10-01
 > **Repository:** `Khaey/Dao`
 
 ## 1. Verified base and active collaboration checkpoints
@@ -10,6 +10,16 @@ The real GitHub `main` and the new remote branch were independently verified as
 (`36695297577`) succeeded, including 18 desktop/mobile E2E and DEV deployment.
 Registration PR #7 is merged; do not repeat the completed login/recovery or
 public client/contractor registration changes.
+
+Main was reverified on 2026-10-01 at the same SHA; #171 is still the latest
+completed main CI. Collaboration E2E checkpoints are published through
+`12846d9a6d6a1a108c316836a82c5618a5f2d729`. The current branch discovers
+34 viewport executions (18 existing, 16 new). On this checkout, backend
+20/20, PGlite 140/140 (including the shared schema contract), production
+frontend build with 45 routes, TypeScript and diff checks pass. No real
+Supabase or browser execution is claimed locally: Docker is unavailable.
+The next step is a PR whose disposable CI must validate fresh/reset/replay,
+real Auth/JWT/RPC/RLS/Storage and all 34 desktop/mobile E2E before merge.
 
 Active branch: `feat/project-collaboration-invitations`.
 Active worktree: `/workspace/scratch/dao-project-collaboration`.
@@ -102,7 +112,7 @@ on its disposable GitHub-hosted runner:
 5. Verify the E2E target is exactly `http://127.0.0.1:54321`.
 6. Build the frontend with the local Supabase URL/key while installing the
    Playwright Chromium browser and system dependencies in parallel.
-7. Require discovery of exactly 18 tests, then run all desktop and mobile
+7. Require discovery of exactly 34 tests, then run all desktop and mobile
    tests with 2 workers.
 8. Cleanup removes worker tracking files only; disposing of the runner is the
    database/Auth/Storage cleanup boundary.
@@ -176,7 +186,8 @@ Experiments:
 
 - Historical CI optimization preserved the then-current 22 migrations and 14
   Playwright cases. Registration increased the base to 23 migrations and 18
-  cases; checkpoint 1 now adds migration 24. All existing coverage remains.
+  cases; collaboration adds migrations 24 and 25 and 16 viewport executions.
+  All existing coverage remains.
 - Main run #158 passed backend, PGlite, frontend build, fresh Supabase,
   reset/replay, both schema contracts, real Supabase integration, and 14/14
   desktop/mobile E2E with 2 workers. `deploy-dev` accepted the verified CI
