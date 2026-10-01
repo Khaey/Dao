@@ -18,8 +18,16 @@ completed main CI. Collaboration E2E checkpoints are published through
 20/20, PGlite 140/140 (including the shared schema contract), production
 frontend build with 45 routes, TypeScript and diff checks pass. No real
 Supabase or browser execution is claimed locally: Docker is unavailable.
-The next step is a PR whose disposable CI must validate fresh/reset/replay,
-real Auth/JWT/RPC/RLS/Storage and all 34 desktop/mobile E2E before merge.
+PR #8 is open. CI #172 (`36800795598`) passed backend, build, fresh schema,
+reset/replay and real Auth/JWT/RPC/RLS/Storage integration. E2E was 31/34:
+both document-permission scenarios failed at the synchronous checkbox check,
+and client/team mobile failed when the overflowing list intercepted logout.
+No merge or DEV changes. Traces prove the permission POST is 200 and the
+subsequent team response changes contractor private access from false to true;
+the checkbox is checked in the error snapshot. The test now clicks once,
+awaits the actual POST, and asserts both refreshed UI and persisted permission.
+Mobile list overflow is the next separate small correction before the next
+complete CI result. Do not repeat the validated data/RPC/UX checkpoints.
 
 Active branch: `feat/project-collaboration-invitations`.
 Active worktree: `/workspace/scratch/dao-project-collaboration`.

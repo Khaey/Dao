@@ -30,10 +30,12 @@ Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
 
 ## Remaining — next small phase
 
-1. Open PR to main. The existing disposable CI must run fresh Supabase,
-   ledger/schema contract, reset/replay, real JWT/RPC/RLS/Storage/concurrency
-   integration and all 34 E2E on desktop/mobile. This checkout has no Docker;
-   never use shared DEV as a replacement for that disposable stack.
+1. PR #8 / CI #172 passed backend/build, fresh Supabase, schema contract,
+   reset/replay and real integration; E2E was 31/34. The async private-permission
+   assertion is corrected from trace evidence; preserve its UI and DB checks.
+   Next: fix the separately diagnosed mobile list overflow and confirm all
+   34 executions on CI. Docker is unavailable locally and browser download is
+   blocked; never use shared DEV as a replacement for the disposable CI stack.
 2. Read logs/artifacts before every failure correction; audit other occurrences
    of the same cause. Preserve all old tests and useful assertions. Each small
    validated correction must be committed, published and remotely confirmed.

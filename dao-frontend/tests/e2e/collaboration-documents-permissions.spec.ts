@@ -42,8 +42,11 @@ test('Documents partagés et coordonnées privées : autorisation explicite puis
   const members = await adminRows('project_members', `project_id=eq.${project.projectId}&user_id=eq.${e2eArtisan!.id}&select=id,can_view_private_details`);
   expect(members).toHaveLength(1); expect(members[0].can_view_private_details).toBe(false);
   const permission = page.getByRole('checkbox', { name: /^Accès aux coordonnées privées pour/ });
-  await permission.check();
+  const permissionUpdate = page.waitForResponse(response => new URL(response.url()).pathname === '/api/projects/members' && response.request().method() === 'POST');
+  await permission.click();
+  expect((await permissionUpdate).status()).toBe(200);
   await expect(permission).toBeChecked();
+  expect(await adminRows('project_members', `id=eq.${members[0].id}&select=can_view_private_details`)).toEqual([{ can_view_private_details: true }]);
   await signOut(page);
   await login(page, e2eArtisan!);
   await page.goto(`/app/projects/${project.projectId}`);
