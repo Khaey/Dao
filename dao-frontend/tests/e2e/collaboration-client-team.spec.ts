@@ -19,6 +19,7 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   const artisanRow = page.locator(`[data-testid="project-row-${project.projectId}"]:visible`);
   await expect(artisanRow).toContainText(project.title);
   await expect(artisanRow).toContainText('Travaux en cours');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'Mes chantiers doit tenir dans la largeur de l’écran').toBe(0);
   await signOut(page);
   await login(page, e2eClient!);
   await page.goto(`/app/projects/${project.projectId}`);

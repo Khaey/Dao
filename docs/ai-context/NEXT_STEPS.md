@@ -33,8 +33,9 @@ Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
 1. PR #8 / CI #172 passed backend/build, fresh Supabase, schema contract,
    reset/replay and real integration; E2E was 31/34. The async private-permission
    assertion is corrected from trace evidence; preserve its UI and DB checks.
-   Next: fix the separately diagnosed mobile list overflow and confirm all
-   34 executions on CI. Docker is unavailable locally and browser download is
+   The separate mobile list overflow is corrected with a constrained grid
+   column and a width regression assertion. Confirm all 34 executions on the
+   next CI. Docker is unavailable locally and browser download is
    blocked; never use shared DEV as a replacement for the disposable CI stack.
 2. Read logs/artifacts before every failure correction; audit other occurrences
    of the same cause. Preserve all old tests and useful assertions. Each small

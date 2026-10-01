@@ -26,8 +26,14 @@ No merge or DEV changes. Traces prove the permission POST is 200 and the
 subsequent team response changes contractor private access from false to true;
 the checkbox is checked in the error snapshot. The test now clicks once,
 awaits the actual POST, and asserts both refreshed UI and persisted permission.
-Mobile list overflow is the next separate small correction before the next
-complete CI result. Do not repeat the validated data/RPC/UX checkpoints.
+The permission correction is published as
+`5d0fedc8e5c7d1fd34f798d15696c3e579ac8f2e`.
+The separate mobile trace shows an expanded 599px layout viewport on the 390px
+device and horizontal overflow from the implicit grid column containing a
+truncated long title. The mobile list now uses an explicit minmax(0,1fr) grid
+column (`grid-cols-1`); E2E also asserts no document overflow before the genuine
+logout click. No forced click, Auth change or assertion removal. Await the
+next complete CI result; do not repeat validated data/RPC/UX checkpoints.
 
 Active branch: `feat/project-collaboration-invitations`.
 Active worktree: `/workspace/scratch/dao-project-collaboration`.
