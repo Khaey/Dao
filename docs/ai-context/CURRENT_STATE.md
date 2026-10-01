@@ -57,7 +57,8 @@ are preserved. Collaboration E2E and real disposable-stack integration remain
 pending; the 18 existing viewport executions remain. Compatibility was published as
 `e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
 
-The next small checkpoint adds two independent collaboration scenarios:
+Core collaboration E2E was published as `6eb02c15aa4f3d370ca46ab02bd3883762b739e1`.
+It adds two independent scenarios:
 client/team/lot-specific marketplace publication and contractor/client atomic
 confirmation with separate work/payment tracking. Playwright discovers 22
 executions; TypeScript and diff checks pass. Actual E2E remains pending on the
@@ -220,3 +221,8 @@ health check 0.03s. No VPS frontend build ran.
 The current-release link is switched atomically by the deployment script.
 Rollback remains available through the previous versioned release; no
 intentional rollback was performed.
+
+Invitation security/lifecycle E2E now adds incompatible-role/internal-role
+rejection, unrelated-client isolation, revocation and decline. Each scenario
+creates its own project; desktop/mobile use separate worker users. Discovery
+is 26 viewport executions; TypeScript/diff pass. Real execution remains for CI.
