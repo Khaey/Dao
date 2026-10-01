@@ -32,7 +32,7 @@ test('Documents privés : dépôt, consultation, retrait et confidentialité', a
 
   await page.getByRole('button', { name: 'Vue d’ensemble' }).click();
   await expect(page.getByRole('heading', { name: 'Informations privées et confidentielles' })).toBeVisible();
-  await expect(page.getByText('Non visibles par les artisans.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Réservées aux participants disposant d’une autorisation explicite. Jamais visibles sur le marketplace.', { exact: true })).toBeVisible();
   await page.getByLabel('Adresse exacte').fill('12 rue de Sahloul, Sousse');
   await page.getByLabel('Instructions d’accès').fill('Appeler avant l’arrivée.');
   await page.getByLabel('Téléphone privé').fill('+21620123456');

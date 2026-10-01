@@ -30,6 +30,7 @@ export async function createDraftProject(
   const endDate = dateOffset(60);
 
   await page.goto('/app/projects/new');
+  await page.getByRole('button', { name: 'Je cherche des professionnels' }).click();
   await page.getByLabel('Titre du projet').fill(title);
   await page.getByLabel('Description').fill(description);
   await page.getByLabel('Type de projet').selectOption('renovation');

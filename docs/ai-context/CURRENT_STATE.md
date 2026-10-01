@@ -41,14 +41,20 @@ New real Supabase tests cover two independent JWTs racing to confirm exactly
 one client, recipient checks, private/shared files and Storage authorization.
 Those tests are compiled but require the disposable CI stack to execute.
 
-Checkpoint 3 implements the common Mes chantiers view, separate DAO disponibles,
+Checkpoint 3 was published as `2273344b167fc814407099404d377010377ac930`.
+It implements the common Mes chantiers view, separate DAO disponibles,
 role-aware dashboard, simple existing-team/client creation, safe invitation
 summary and auth return, team permissions, document sharing and declarative
 tracking. The frontend production build passed (45 routes); the full E2E
 suite must now validate both viewports.
 
-Collaboration E2E and real disposable-stack integration remain pending, not completed
-functionality. Existing UI/E2E count is still 18; no existing test was removed.
+On 2026-10-01 the previous collaboration checkout was absent in the accessible
+workspace. The official remote branch was verified at checkpoint 3 and cloned
+in isolation, preserving all other checkouts. No post-checkpoint collaboration
+files were found. The existing E2E now choose the new client marketplace entry
+and assert the current chantier/private-permission labels. All useful assertions
+are preserved. Collaboration E2E and real disposable-stack integration remain
+pending; the current suite still contains 18 viewport executions.
 
 Git push from this shell has no credentials; durable branch creation and
 checkpoint publication use the authenticated GitHub connector. A checkpoint

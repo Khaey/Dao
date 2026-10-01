@@ -19,8 +19,11 @@ final decisions are recorded in `COLLABORATION_DESIGN.md`.
 4. Checkpoint 3: common Mes chantiers, separate DAO disponibles, simple client
    and contractor creation, role-aware dashboard, team/documents/tracking,
    safe invitation summary and login/register return — implemented.
-   Production build passed with 45 routes; publish before E2E additions.
-5. Checkpoint 4: add isolated desktop/mobile E2E for collaboration, roles,
+   Production build passed with 45 routes; published as
+   `2273344b167fc814407099404d377010377ac930`.
+5. Existing E2E compatibility: current marketplace entry and chantier/private
+   labels adapted. Save this small test checkpoint before new scenarios.
+   Checkpoint 4: add isolated desktop/mobile E2E for collaboration, roles,
    revocation, private documents and regression. Preserve existing tests.
 6. Checkpoint 5: full local checks where available, disposable fresh Supabase
    and reset/replay, real JWT/RPC/RLS/Storage/concurrency, complete E2E, PR CI.
