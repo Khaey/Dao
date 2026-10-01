@@ -64,13 +64,16 @@ export class DocumentService {
   }
 
   async listProjectDocuments(projectId: string) {
-    const { data, error } = await this.db.from('documents').select('id,project_id,owner_id,object_path,original_name,mime_type,size_bytes,status,created_at').eq('project_id', projectId).order('created_at', { ascending: false });
+    const { data, error } = await this.db.from('documents').select('id,project_id,owner_id,object_path,original_name,mime_type,size_bytes,status,share_scope,created_at').eq('project_id', projectId).order('created_at', { ascending: false });
     if (error) throw error;
     return data;
   }
 
-  async signedProjectUpload(input: { projectId: string; originalName: string; mimeType: string; sizeBytes: number }) {
+  async signedProjectUpload(input: { projectId: string; originalName: string; mimeType: string; sizeBytes: number; shareScope?: string }) {
     assertFile(input.mimeType, input.sizeBytes);
+    if (input.shareScope != null && !['owner_only','project_members'].includes(input.shareScope)) {
+      throw new DomainError('Partage du document invalide', 'BAD_REQUEST');
+    }
     const path = 'project/' + input.projectId + '/' + randomUUID() + '-' + safeName(input.originalName);
     const { data: document, error: documentError } = await this.db.rpc('create_project_document', {
       p_project_id: input.projectId,
@@ -80,9 +83,17 @@ export class DocumentService {
       p_size_bytes: input.sizeBytes,
     });
     if (documentError) throw documentError;
+    if (input.shareScope === 'project_members') await this.setProjectSharing(document.id, 'project_members');
     const { data: signed, error: signedError } = await this.storage.from('dao-private').createSignedUploadUrl(path);
     if (signedError) throw signedError;
     return { document, path, token: signed.token };
+  }
+
+  async setProjectSharing(documentId: string, shareScope: string) {
+    if (!['owner_only','project_members'].includes(shareScope)) throw new DomainError('Partage du document invalide', 'BAD_REQUEST');
+    const { data, error } = await this.db.rpc('set_project_document_sharing', { p_document_id: documentId, p_share_scope: shareScope });
+    if (error) throw error;
+    return data;
   }
 
   async signedProjectDownload(documentId: string, expiresIn = 300) {

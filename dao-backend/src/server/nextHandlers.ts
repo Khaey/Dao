@@ -14,6 +14,33 @@ export function createDaoApi(
   }
 
   return {
+    async issueProjectInvitation(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.projects.issueInvitation(i))));
+    },
+    async previewProjectInvitation(request: Request) {
+      return run(() => json(request).then(i => services.projects.previewInvitation(String(i.token ?? ''))));
+    },
+    async respondProjectInvitation(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.projects.respondInvitation(i))));
+    },
+    async revokeProjectInvitation(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.projects.revokeInvitation(String(i.invitation_id ?? '')))));
+    },
+    async updateProjectMember(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.projects.updateMember(i))));
+    },
+    async projectTeam(request: Request) {
+      return run(() => actor(request).then(() => services.projects.team(new URL(request.url).searchParams.get('project_id') ?? '')));
+    },
+    async updateProjectTracking(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.projects.tracking(i))));
+    },
+    async assignProjectMember(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.projects.assignMember(i))));
+    },
+    async shareProjectDocument(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.documents.setProjectSharing(String(i.document_id ?? ''), String(i.share_scope ?? '')))));
+    },
     async createProject(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.createProject(services, a, i))));
     },
@@ -106,7 +133,7 @@ async function run(operation: () => Promise<unknown>) {
     let status = 500;
     if (code === 'UNAUTHENTICATED') status = 401;
     else if (code === 'FORBIDDEN' || code === '42501' || code === 'PGRST116') status = 403;
-    else if (code === 'BAD_REQUEST' || code === 'INVALID_MIME' || code === 'INVALID_SIZE' || code === 'INVALID_PATH') status = 400;
+    else if (code === 'BAD_REQUEST' || code === '22023' || code === 'INVALID_MIME' || code === 'INVALID_SIZE' || code === 'INVALID_PATH') status = 400;
     else if (['23505', '23514', 'P0001', 'BID_DRAFT_METADATA_UNSUPPORTED'].includes(code)) status = 409;
     return Response.json({ error: error?.message ?? 'Request failed', code }, { status });
   }

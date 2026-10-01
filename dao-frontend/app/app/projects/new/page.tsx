@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, MapPin, Ruler, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
+import CollaborativeProjectForm from '../../../../components/CollaborativeProjectForm';
 import { Badge, Button, Card, Input } from '../../../../components/ui';
 
 type Territory = { id: string; name_fr: string; governorate_id?: string; delegation_id?: string };
@@ -11,6 +12,29 @@ const moneyToMillimes = (value: string) => value ? Math.round(Number(value) * 10
 const types = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
 
 export default function NewProject() {
+  const [ready, setReady] = useState(false);
+  const [contractor, setContractor] = useState(false);
+  const [client, setClient] = useState(false);
+  const [mode, setMode] = useState<'marketplace' | 'existing' | ''>('');
+  useEffect(() => { void (async () => {
+    const { data } = await supabaseBrowser().auth.getSession();
+    if (data.session) {
+      const { data: roles } = await supabaseBrowser().from('user_roles').select('role').eq('user_id', data.session.user.id);
+      const isClient = Boolean(roles?.some(row => row.role === 'client'));
+      const isContractor = Boolean(roles?.some(row => row.role === 'contractor'));
+      setClient(isClient); setContractor(isContractor && !isClient);
+    }
+    setReady(true);
+  })(); }, []);
+  if (!ready) return <p role="status">Chargement…</p>;
+  if (contractor) return <CollaborativeProjectForm contractor />;
+  if (!client) return <p role="alert">Un compte client ou artisan est nécessaire pour créer un chantier.</p>;
+  if (mode === 'marketplace') return <MarketplaceProjectForm />;
+  if (mode === 'existing') return <CollaborativeProjectForm contractor={false} />;
+  return <section className="mx-auto max-w-3xl space-y-6"><div><h1 className="text-3xl font-bold">Nouveau chantier</h1><p className="mt-2 text-sm text-black/55">Comment souhaitez-vous démarrer ?</p></div><div className="grid gap-4 sm:grid-cols-2"><button type="button" onClick={() => setMode('marketplace')} className="rounded-2xl border border-black/10 bg-white p-6 text-left hover:border-teal focus-visible:outline-teal"><span className="block text-lg font-bold">Je cherche des professionnels</span><span className="mt-2 block text-sm text-black/55">Préparer un DAO pour recevoir des offres.</span></button><button type="button" onClick={() => setMode('existing')} className="rounded-2xl border border-black/10 bg-white p-6 text-left hover:border-teal focus-visible:outline-teal"><span className="block text-lg font-bold">J’ai déjà mes artisans / entreprises</span><span className="mt-2 block text-sm text-black/55">Inviter mon équipe et suivre mes travaux.</span></button></div></section>;
+}
+
+function MarketplaceProjectForm() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ title: '', description: '', type: 'renovation', surface: '', budget: '', date: '', endDate: '', governorate: '', delegation: '', locality: '' });

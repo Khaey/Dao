@@ -391,3 +391,35 @@ Do not expose port 3000 publicly.
 The historical OpenConstructionERP/OCE Docker exploration is not the source of truth for the current application.
 
 The current `Khaey/Dao` application architecture is authoritative.
+
+## 15. Collaborative chantier foundation
+
+See `COLLABORATION_DESIGN.md` for the dependency audit and permission model.
+The collaboration migration adds participation on the existing projects and
+lots without replacing versioning, review, publication, offers or attribution.
+`dao_private.owner()` remains the confirmed client check. Separate private
+helpers govern accepted-member workspace reads, initiator preparation and
+explicit private-details permission. All mutations remain controlled RPCs;
+new public tables have RLS and no browser write grants.
+
+Collaboration command migration `20260930165307` uses explicit public
+SECURITY INVOKER facades delegating to private, authenticated SECURITY DEFINER
+commands. Only token preview is anonymous and whitelisted. Invitation mutations
+lock project then invitation; deferred client-membership constraints validate
+atomic confirmation. Member identity and confirmed project identity are
+immutable. Contractor-only legacy creation is blocked by the model trigger.
+
+ProjectService and the API adapters expose the commands; they never accept
+actor/client/initiator identities or role overrides during token acceptance.
+DocumentService still uses JWT/RLS checks before server-only signed Storage
+access. Shared scopes require accepted membership; revoke removes any explicit
+project document grants too. Real Auth/Storage/concurrent confirmation tests
+are included by the integration test script on the isolated CI stack.
+
+Collaboration E2E adds eight independent scenarios (16 viewport executions)
+without removing the original 18. Every scenario creates its own project and
+records ids for runner disposal. Worker users are separated by run, viewport
+and worker, including the unrelated client. CI retains strict discovery at 34
+executions in 13 files. Local-only service credentials are restricted to test
+provisioning/read/moderation; all product/API commands use real actor JWTs.
+No sleep, arbitrary .first(), timeout increase or assertion removal was added.

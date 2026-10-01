@@ -23,6 +23,7 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('f
 export default function ProjectReview() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
   const [project, setProject] = useState<any>();
   const [version, setVersion] = useState<any>();
   const [requests, setRequests] = useState<LotSnapshot[]>([]);
@@ -75,6 +76,8 @@ export default function ProjectReview() {
         return [{ ...snapshot, trade_name: tradeById.get(snapshot.trade_id) ?? 'Métier' }];
       });
 
+      const { data: auth } = await supabase.auth.getSession();
+      setIsClient(Boolean(auth.session && projectResult.data?.client_id === auth.session.user.id));
       setProject(projectResult.data);
       setVersion(current);
       setDocuments(docsResult.data ?? []);
@@ -120,7 +123,7 @@ export default function ProjectReview() {
     <Card><h2 className="font-semibold">Résumé du chantier</h2><div className="mt-4 grid gap-4 sm:grid-cols-3"><div><p className="text-xs text-black/45">Type</p><p className="font-semibold">{typeLabels[version.project_type] ?? version.project_type}</p></div><div><p className="text-xs text-black/45">Surface</p><p className="font-semibold">{version.surface_m2 ?? '—'} m²</p></div><div><p className="text-xs text-black/45">Localisation</p><p className="font-semibold">{location || 'Non renseignée'}</p></div><div><p className="text-xs text-black/45">Début souhaité</p><p className="font-semibold">{formatDate(version.desired_start_date)}</p></div><div><p className="text-xs text-black/45">Fin souhaitée</p><p className="font-semibold">{formatDate(version.desired_end_date)}</p></div><div><p className="text-xs text-black/45">Budget projet</p><p className="font-semibold">{formatTnd(version.indicative_budget_millimes)}</p></div></div></Card>
     <Card><div className="flex items-center justify-between"><h2 className="font-semibold">Lots inclus</h2><Badge>{requests.length} lot{requests.length > 1 ? 's' : ''}</Badge></div>{requests.length === 0 ? <p className="mt-4 text-sm text-black/55">Aucun lot n’est lié à cette version du projet.</p> : <div className="mt-4 space-y-3">{requests.map(request => <article key={request.id} className="rounded-xl bg-sand/70 p-4"><div className="flex flex-wrap justify-between gap-3"><div><p className="text-xs font-semibold text-teal">{request.trade_name}</p><h3 className="mt-1 font-semibold">{request.title}</h3></div><span className="text-sm">{formatTnd(request.budget_millimes)}</span></div><p className="mt-2 whitespace-pre-wrap text-sm text-black/60">{request.scope}</p><p className="mt-2 text-xs text-black/40">Version {request.version_no}</p></article>)}</div>}<div className="mt-4 border-t border-black/5 pt-3 text-right text-sm font-semibold">Total lots : {formatTnd(total)}</div></Card>
     {requests.length === 0 && version.status === 'draft' && <Card className="border-amber-200 bg-amber-50"><h2 className="font-semibold text-amber-900">Un lot actif est nécessaire avant la soumission.</h2><p className="mt-2 text-sm text-amber-800">Créez le lot principal depuis la fiche projet. Aucun lot ne sera créé avant votre validation.</p><Button className="mt-4" onClick={() => router.push('/app/projects/' + id + '?tab=lots')}>Créer le lot principal</Button></Card>}
-    {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-    <div className="flex flex-wrap gap-3">{rejected ? <Button onClick={() => void correct()} disabled={saving}>{saving ? 'Préparation…' : 'Créer une version de correction'}</Button> : <Button onClick={() => void submit()} disabled={saving || requests.length === 0 || version.status !== 'draft'}>{saving ? 'Soumission…' : 'Soumettre pour revue DAO'}</Button>}<Button type="button" className="bg-white text-ink" onClick={() => router.push('/app/projects/' + id)}>Retour au projet</Button></div>
+    {!isClient && <p className="rounded-xl bg-sand p-4 text-sm text-black/60">Seul le client peut soumettre le DAO. La confirmation du chantier et la revue DAO sont deux démarches distinctes.</p>}{error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+    <div className="flex flex-wrap gap-3">{isClient && (rejected ? <Button onClick={() => void correct()} disabled={saving}>{saving ? 'Préparation…' : 'Créer une version de correction'}</Button> : <Button onClick={() => void submit()} disabled={saving || requests.length === 0 || version.status !== 'draft'}>{saving ? 'Soumission…' : 'Soumettre pour revue DAO'}</Button>)}<Button type="button" className="bg-white text-ink" onClick={() => router.push('/app/projects/' + id)}>Retour au projet</Button></div>
   </section>;
 }

@@ -1,60 +1,119 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-09-30
+> **Last verified:** 2026-10-01
 > **Repository:** `Khaey/Dao`
 
-## 1. Main, deployment, and current registration work
+## 1. Verified base and active collaboration checkpoints
 
-The true GitHub `main` SHA was verified as
-`6fd4303b26f0e8ece4cb290ae9dcd723a13c7004`. The latest completed GitHub
-Actions run was #168 (`36685413401`): backend, frontend, full E2E, and
-`deploy-dev` succeeded. It covered 14 E2E cases on desktop and mobile.
+The real GitHub `main` and the new remote branch were independently verified as
+`965054db897f18794b9f745bf86f397dea34b4d9` on 2026-09-30. Main CI #171
+(`36695297577`) succeeded, including 18 desktop/mobile E2E and DEV deployment.
+Registration PR #7 is merged; do not repeat the completed login/recovery or
+public client/contractor registration changes.
 
-Password recovery PRs #4 and #5 are merged. Their recovery route and login
-links are on `main`; no Auth configuration change is part of this account
-registration task.
+Main was reverified on 2026-10-01 at the same SHA; #171 is still the latest
+completed main CI. Collaboration E2E checkpoints are published through
+`a923f5c3aeb6d9228e0caca7be23ab93b2285aee`. CI #174 (`36801932429`)
+is green on that exact code SHA: 34/34 desktop/mobile E2E (18 existing,
+16 new), backend, build, fresh migrations/schema contract, reset/replay and
+real Auth/JWT/RPC/RLS/Storage/concurrency integration. On this checkout, backend
+20/20, PGlite 140/140 (including the shared schema contract), production
+frontend build with 45 routes, TypeScript and diff checks pass. No real
+Supabase or browser execution is claimed locally: Docker is unavailable.
+PR #8 is open. CI #172 (`36800795598`) passed backend, build, fresh schema,
+reset/replay and real Auth/JWT/RPC/RLS/Storage integration. E2E was 31/34:
+both document-permission scenarios failed at the synchronous checkbox check,
+and client/team mobile failed when the overflowing list intercepted logout.
+No merge or DEV changes. Traces prove the permission POST is 200 and the
+subsequent team response changes contractor private access from false to true;
+the checkbox is checked in the error snapshot. The test now clicks once,
+awaits the actual POST, and asserts both refreshed UI and persisted permission.
+The permission correction is published as
+`5d0fedc8e5c7d1fd34f798d15696c3e579ac8f2e`.
+The separate mobile trace shows an expanded 599px layout viewport on the 390px
+device and horizontal overflow from the implicit grid column containing a
+truncated long title. The mobile list now uses an explicit minmax(0,1fr) grid
+column (`grid-cols-1`); E2E also asserts no document overflow before the genuine
+logout click. No forced click, Auth change or assertion removal. Both fixes
+passed in #174. The next checkpoint only records these verified results;
+merge must still wait for green checks on its exact PR HEAD. DEV deployment
+is skipped on PRs; main merge and DEV migration/deployment validation remain.
 
-Current work is on `feat/register-account-type`, based on the verified
-`main` SHA above. It adds an explicit public account type to signup. The
-server accepts exactly `client` or `contractor`; the authenticated RPC assigns
-the role from `auth.uid()`, rejects all other values, and does not grant direct
-role-table writes. Contractor signup requires a user-entered business name,
-creates a `pending` contractor profile, and leaves professional classification
-and trades unset until explicit completion. Client and contractor redirects
-are `/app/projects` and `/app/artisan` respectively.
+Active branch: `feat/project-collaboration-invitations`.
+Active worktree: `/workspace/scratch/dao-project-collaboration`.
+The branch was created remotely before any implementation. No files from the
+old `feat/login-recovery-links` worktree were carried over.
 
-The migration also revokes authenticated execution from the legacy two-argument
-initialization RPC, so public signup must provide a type. `RoleNav` no longer
-calls the initialization API without a selected type, and profile updates do
-not create a role. It does not alter any RLS policy. The existing
-`contractor_type` default is removed and the column made nullable to avoid
-silently classifying all signups as artisans.
+Checkpoint 1 was published as `f16bc61a6561ecbb9894e662218d279e368c6528`.
+It adds migration `20260930163650`: real initiator, nullable pending client,
+independent work/payment states, client confirmation evidence, members,
+hashed invitations, document sharing and explicit private permission.
 
-Local backend unit tests pass (13/13), frontend production build passes, and
-Playwright discovers 18 desktop/mobile cases. This shell has no Docker or
-Chromium, so local disposable Supabase integration and browser execution remain
-for CI. PR #7 run #169 had 16/18 E2E pass; both failures came from the profile
-test because `RoleNav` still posted an empty initialization payload and the
-profile-only RPC did not persist the name on first insert. The caller and RPC
-fallback are corrected; the rerun is pending. The DEV Supabase ledger
-currently ends at `20260927102942`. The
-`deploy-dev` workflow deploys the frontend but does not apply Supabase SQL, so
-the new migration must be applied explicitly to DEV after merge and before
-manual registration verification.
+Checkpoint 2 was published as `d91fb0af21689ef850188f84213e7305ffdfb0b5`.
+It adds migration `20260930165307` and controlled JWT-scoped RPCs
+for creation, issuance/safe preview, atomic accept/decline, expiry/revocation,
+member permission/revocation, lot participation and declarative tracking.
+Preparation is limited to confirmed client or accepted contractor initiator;
+invited contractors are read-only on project/lots. Only the confirmed client
+can submit DAO or invite contractors. Strict `dao_private.owner()` and all
+existing bid/publication/award authorization stay unchanged. Membership
+revocation also revokes project document grants and clears lot assignments.
+The new public facades use SECURITY INVOKER and explicit execution grants;
+only the safe token preview is callable anonymously.
 
-## 2. Supabase reproducibility and parity
+Local validation: 101 existing PGlite/migration controls, 15 model/backfill
+controls, 24 RPC/RLS lifecycle controls (140 total), 20 backend unit/route tests,
+and diff check pass. The shared schema contract expects 25 migrations and
+45 public DAO tables with RLS. All backend and integration TypeScript compiles.
+New real Supabase tests cover two independent JWTs racing to confirm exactly
+one client, recipient checks, private/shared files and Storage authorization.
+Those tests were executed successfully against the disposable CI stack in #174.
 
-- Before the active registration migration, the repository had 22 migrations. Fresh Supabase start, seed, the complete
-  migration ledger, schema contract, and reset/replay are validated.
-- DEV's migration ledger has those same 22 versions; the registration migration is pending merge/deploy. The read-only inventory
-  previously compared 586 DAO objects on each side, with 0 missing, 0 extra,
-  0 structural drift, and 0 semantic drift.
-- Real Supabase integration tests run against the disposable local stack and
-  cover Auth/JWT, RLS, RPC, publications, offers, immutability, Storage, and
-  award foundations. Registration adds tests for strict roles and pending
-  contractor profiles.
-- Do not use shared DEV for FULL E2E; preserve
-  `submitted_version_immutable` and `submitted_bid_content_immutable`.
+Checkpoint 3 was published as `2273344b167fc814407099404d377010377ac930`.
+It implements the common Mes chantiers view, separate DAO disponibles,
+role-aware dashboard, simple existing-team/client creation, safe invitation
+summary and auth return, team permissions, document sharing and declarative
+tracking. The frontend production build passed (45 routes), and the full E2E
+suite later passed both viewports in #174.
+
+On 2026-10-01 the previous collaboration checkout was absent in the accessible
+workspace. The official remote branch was verified at checkpoint 3 and cloned
+in isolation, preserving all other checkouts. No post-checkpoint collaboration
+files were found. The existing E2E now choose the new client marketplace entry
+and assert the current chantier/private-permission labels. All useful assertions
+are preserved. At that recovery checkpoint, collaboration E2E and real
+disposable-stack integration were pending; compatibility was published as
+`e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
+
+Core collaboration E2E was published as `6eb02c15aa4f3d370ca46ab02bd3883762b739e1`.
+It adds two independent scenarios:
+client/team/lot-specific marketplace publication and contractor/client atomic
+confirmation with separate work/payment tracking. Playwright discovers 22
+executions at that checkpoint; TypeScript and diff checks passed. Actual E2E
+was pending then and is now green in #174, never claimed as passing locally.
+
+Git push from this shell has no credentials; durable branch creation and
+checkpoint publication use the authenticated GitHub connector. A checkpoint
+is complete only after its commit is present in the remote branch and its
+SHA is confirmed with `git ls-remote`.
+
+## 2. Validation and environment boundaries
+
+PGlite reconstructs all migrations on a fresh in-memory PostgreSQL database.
+The added model suite also inserts old projects/documents before applying
+collaboration SQL, proving the data backfill independently of empty startup.
+Its shared schema contract and simulated SQL-role/RLS tests are green.
+
+This shell has no Docker/local Supabase stack. PGlite does not prove real
+Auth/JWT/HTTP/Storage integration or independent-session concurrency. Those
+checks remain mandatory on the existing disposable CI runner: fresh Supabase,
+reset/replay, schema contract, real integration and desktop/mobile E2E.
+Never substitute shared DEV for that isolated test environment.
+
+No Supabase DEV migration, Auth setting or production change has been made
+for collaboration. After all checkpoints and a green merge, inspect the
+verified DEV ledger before applying any missing migration. Frontend deploy
+alone does not apply SQL. Do not merge an incomplete older collaboration model.
 
 ## 3. CI and E2E architecture
 
@@ -71,7 +130,7 @@ on its disposable GitHub-hosted runner:
 5. Verify the E2E target is exactly `http://127.0.0.1:54321`.
 6. Build the frontend with the local Supabase URL/key while installing the
    Playwright Chromium browser and system dependencies in parallel.
-7. Require discovery of exactly 18 tests, then run all desktop and mobile
+7. Require discovery of exactly 34 tests, then run all desktop and mobile
    tests with 2 workers.
 8. Cleanup removes worker tracking files only; disposing of the runner is the
    database/Auth/Storage cleanup boundary.
@@ -143,9 +202,10 @@ Experiments:
 
 ## 5. Functional coverage and safety
 
-- The same 22 migration files, initial and post-reset schema contracts,
-  migration-ledger checks, DAO inventory, real integration test, 14 Playwright
-  tests, desktop/mobile projects, and 2-worker setting remain enabled.
+- Historical CI optimization preserved the then-current 22 migrations and 14
+  Playwright cases. Registration increased the base to 23 migrations and 18
+  cases; collaboration adds migrations 24 and 25 and 16 viewport executions.
+  All existing coverage remains.
 - Main run #158 passed backend, PGlite, frontend build, fresh Supabase,
   reset/replay, both schema contracts, real Supabase integration, and 14/14
   desktop/mobile E2E with 2 workers. `deploy-dev` accepted the verified CI
@@ -190,3 +250,23 @@ health check 0.03s. No VPS frontend build ran.
 The current-release link is switched atomically by the deployment script.
 Rollback remains available through the previous versioned release; no
 intentional rollback was performed.
+
+Invitation security/lifecycle E2E now adds incompatible-role/internal-role
+rejection, unrelated-client isolation, revocation and decline. Each scenario
+creates its own project; desktop/mobile use separate worker users. Discovery
+is 26 viewport executions; TypeScript/diff pass. Real execution remains for CI.
+
+Invitation security/lifecycle was published as
+`abcca1c468448077bb7b3a26da5ef3aae53dd5ca`.
+Registration-return coverage adds client/contractor explicit signup from the
+invitation, contractor pending verification, protected return to the chantier,
+and rejection of an external return URL. Discovery now lists 32 executions;
+TypeScript/diff pass; real browser/Auth execution remains pending in CI.
+
+Invitation registration-return coverage was published as
+`11872b3c85ce816d0da82f531abaffc2146bb5b2`.
+The document/private-permission scenario adds owner_only versus project_members,
+quarantine before approval, explicit private permission and membership revocation
+with denied signed download. Discovery now lists 34 executions (18 retained,
+16 added) in 13 files. TypeScript/diff checks pass. This is discovery and type
+validation, not a claim that the browser suite has executed locally.

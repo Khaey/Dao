@@ -9,7 +9,7 @@ type Publication = { id: string; project_id: string; visibility: string; status:
 type Lot = { id: string; request_version_id: string; trade_id: string; safe_title: string; safe_scope: string; tradeName?: string };
 type OfferLine = { price: string; duration: string; inclusions: string; exclusions: string };
 
-const visibilityLabel: Record<string, string> = { public: 'DAO public', targeted: 'DAO ciblé', invite_only: 'Invitation directe' };
+const visibilityLabel: Record<string, string> = { public: 'DAO public', targeted: 'DAO ciblé', invite_only: 'DAO sur invitation' };
 const projectTypeLabel: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
 function formatTnd(value: number | null) { return value == null ? 'Non renseigné' : new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(Number(value) / 1000); }
 

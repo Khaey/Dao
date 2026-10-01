@@ -24,6 +24,7 @@ export interface E2EUser {
 type Role = 'client' | 'dao_reviewer' | 'contractor';
 type WorkerFixtures = {
   e2eClient: E2EUser | null;
+  e2eOtherClient: E2EUser | null;
   e2eReviewer: E2EUser | null;
   e2eArtisan: E2EUser | null;
 };
@@ -117,6 +118,7 @@ async function createUser(worker: WorkerInfo, role: Role): Promise<E2EUser | nul
 
 export const test = base.extend<{}, WorkerFixtures>({
   e2eClient: [async ({}, use, worker) => use(await createUser(worker, 'client')), { scope: 'worker' }],
+  e2eOtherClient: [async ({}, use, worker) => use(await createUser(worker, 'client')), { scope: 'worker' }],
   e2eReviewer: [async ({}, use, worker) => use(await createUser(worker, 'dao_reviewer')), { scope: 'worker' }],
   e2eArtisan: [async ({}, use, worker) => use(await createUser(worker, 'contractor')), { scope: 'worker' }],
 });

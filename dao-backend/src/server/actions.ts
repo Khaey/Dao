@@ -20,7 +20,7 @@ export type BackendServices = {
 
 export async function createProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
   requireActor(actor);
-  const { client_id: _clientId, user_id: _userId, contractor_id: _contractorId, ...safeInput } = input;
+  const { client_id: _clientId, initiator_id: _initiatorId, user_id: _userId, contractor_id: _contractorId, ...safeInput } = input;
   return s.projects.create(safeInput);
 }
 export async function updateProjectDraft(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
@@ -98,6 +98,7 @@ export async function signedProjectUpload(s: BackendServices, actor: Authenticat
     originalName: String(input.original_name),
     mimeType: String(input.mime_type),
     sizeBytes: Number(input.size_bytes),
+    shareScope: input.share_scope == null ? 'owner_only' : String(input.share_scope),
   });
 }
 export async function signedProjectDownload(s: BackendServices, actor: AuthenticatedActor, documentId: string, expiresIn?: number) {

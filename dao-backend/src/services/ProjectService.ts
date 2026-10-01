@@ -12,6 +12,21 @@ export class ProjectService {
   constructor(private readonly db: any) {}
 
   async create(input: Record<string, unknown>) {
+    if (input.project_origin != null && input.project_origin !== 'client_marketplace') {
+      if (input.project_origin !== 'client_existing_team' && input.project_origin !== 'contractor_existing_client') {
+        throw new DomainError('Origine du chantier invalide', 'BAD_REQUEST');
+      }
+      return this.command('create_collaborative_project', {
+        p_origin: input.project_origin,
+        p_title: String(input.title ?? ''),
+        p_description: String(input.description ?? ''),
+        p_governorate_id: input.governorate_id,
+        p_delegation_id: input.delegation_id ?? null,
+        p_locality_id: input.locality_id ?? null,
+        p_stage: input.project_stage ?? 'not_started',
+        p_payment_status: input.payment_status ?? 'not_set',
+      });
+    }
     const { data, error } = await this.db.rpc('create_project_draft', {
       p_project_type: String(input.project_type ?? 'other'),
       p_surface_m2: optionalNumber(input.surface_m2),
@@ -143,6 +158,59 @@ export class ProjectService {
     const { data, error } = await this.db.from('projects').select('*').eq('id', id).single();
     if (error) throw error;
     return data;
+  }
+
+  private async command(name: string, input: Record<string, unknown>) {
+    const { data, error } = await this.db.rpc(name, input);
+    if (error) throw error;
+    return data;
+  }
+
+  async issueInvitation(input: Record<string, unknown>) {
+    if (input.expected_role !== 'client' && input.expected_role !== 'contractor') {
+      throw new DomainError('Type de participant invalide', 'BAD_REQUEST');
+    }
+    return this.command('issue_project_invitation', {
+      p_project_id: input.project_id,
+      p_expected_role: input.expected_role,
+      p_recipient_email: input.recipient_email ?? null,
+      p_can_view_private_details: input.can_view_private_details === true,
+    });
+  }
+
+  async previewInvitation(token: string) {
+    return this.command('preview_project_invitation', { p_token: token });
+  }
+
+  async respondInvitation(input: Record<string, unknown>) {
+    if (typeof input.accept !== 'boolean') throw new DomainError('Réponse explicite obligatoire', 'BAD_REQUEST');
+    return this.command('respond_project_invitation', { p_token: input.token, p_accept: input.accept });
+  }
+
+  async revokeInvitation(id: string) {
+    return this.command('revoke_project_invitation', { p_invitation_id: id });
+  }
+
+  async updateMember(input: Record<string, unknown>) {
+    return this.command('update_project_member', {
+      p_member_id: input.member_id,
+      p_revoke: input.revoke === true,
+      p_can_view_private_details: typeof input.can_view_private_details === 'boolean' ? input.can_view_private_details : null,
+    });
+  }
+
+  async team(projectId: string) {
+    return this.command('project_team', { p_project_id: projectId });
+  }
+
+  async tracking(input: Record<string, unknown>) {
+    return this.command('update_project_tracking', {
+      p_project_id: input.project_id, p_stage: input.project_stage, p_payment_status: input.payment_status,
+    });
+  }
+
+  async assignMember(input: Record<string, unknown>) {
+    return this.command('assign_project_request_member', { p_request_id: input.request_id, p_member_id: input.member_id ?? null });
   }
 
   // Kept for read-only compatibility with older server callers.  All writes

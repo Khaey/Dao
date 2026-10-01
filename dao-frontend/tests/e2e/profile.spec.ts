@@ -13,7 +13,7 @@ test('Mon espace affiche le profil, permet de se déconnecter et de récupérer 
   await expect(identityEmail).toHaveCount(1);
   await expect(identityEmail).toBeVisible();
   await expect(page.getByText('Espace client', { exact: true })).toBeVisible();
-  await expect(page.getByRole('main').getByText('Mes projets', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Mes chantiers', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
 
   const displayName = `Client E2E ${testInfo.project.name}-${testInfo.workerIndex}`;

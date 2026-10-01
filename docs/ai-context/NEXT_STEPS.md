@@ -1,41 +1,57 @@
 # D.A.O — Next Steps
 
-> Read `docs/ai-context/*`, then verify the real GitHub `main` and latest CI
-> before acting.
+> Verify path, branch, HEAD, remote SHA and working tree before every resumed
+> phase. Resume from the last published checkpoint, never from an older checkout.
 
-## Active task: public registration account type
+Active branch: `feat/project-collaboration-invitations`.
+Verified main: `965054db897f18794b9f745bf86f397dea34b4d9`, latest main CI #171 green.
+Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
 
-Work is on `feat/register-account-type`, based on main SHA
-`6fd4303b26f0e8ece4cb290ae9dcd723a13c7004` (latest verified run #168 green).
-The change is limited to the registration UI, profile API/backend, one
-migration, CI test discovery count, tests, and this state documentation.
+## Completed — do not recreate
 
-- Public signup accepts only `client` and `contractor`.
-- No direct browser role-table writes; the RPC uses `auth.uid()` and has an
-  explicit allowlist. Legacy two-argument initialization is no longer
-  executable by authenticated clients, `RoleNav` no longer submits an empty
-  role initialization, and profile-only updates never assign a role.
-- Contractor signup requires the real business/activity name, creates role
-  `contractor` with profile verification `pending`, and does not assign a
-  contractor subtype or trade.
-- Client redirects to `/app/projects`; contractor redirects to `/app/artisan`.
-- No RLS policy is changed. The contractor subtype column becomes nullable to
-  avoid the old implicit `artisan` default.
+- Model/backfill and schema contract: `f16bc61a6561ecbb9894e662218d279e368c6528`.
+- Controlled RPCs, invitation lifecycle, memberships, private/document rights,
+  backend/RLS and real integration test source: `d91fb0af21689ef850188f84213e7305ffdfb0b5`.
+- Common Mes chantiers, separate DAO disponibles, client/contractor dashboard,
+  simple creation, invitation/auth return, team/documents/tracking UX:
+  `2273344b167fc814407099404d377010377ac930`.
+- Existing E2E compatibility: `e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
+- Independent client/team/mixed lots and contractor/client E2E:
+  `6eb02c15aa4f3d370ca46ab02bd3883762b739e1`.
+- Invitation roles, revocation, decline and isolation E2E:
+  `abcca1c468448077bb7b3a26da5ef3aae53dd5ca`.
+- Signup invitation return and external redirect rejection:
+  `11872b3c85ce816d0da82f531abaffc2146bb5b2`.
+- Shared/private documents, explicit permission and revoked-member downloads:
+  `12846d9a6d6a1a108c316836a82c5618a5f2d729`.
+- Current local checks: 20/20 backend, 140/140 PGlite and migration/RLS checks,
+  shared schema contract, frontend production build (45 routes), TypeScript,
+  diff check and discovery of 34 executions in 13 files. Discovery is not execution.
+- CI #174 (`36801932429`) on `a923f5c3aeb6d9228e0caca7be23ab93b2285aee`:
+  backend/build, fresh schema, reset/replay, real Auth/JWT/RPC/RLS/Storage/
+  concurrency and 34/34 desktop/mobile E2E green; all old coverage preserved.
+  The async-permission test and mobile list overflow are fixed and validated.
 
-## Validation and release sequence
+## Remaining — next small phase
 
-1. Run backend tests/build, frontend production build, E2E discovery, fresh
-   migration replay, real Supabase integration, and desktop/mobile Playwright
-   in GitHub Actions. The suite now has 18 cases.
-2. If CI is green, merge the PR to `main`. Immediately apply the migration to
-   the verified DEV Supabase project; the repository's `deploy-dev` job only
-   deploys the frontend and does not push SQL migrations. Wait for main CI and
-   successful `deploy-dev`.
-3. Verify DEV registration UI and desktop/mobile layout. Use disposable CI
-   Supabase for actual account creation; do not create fake company data in DEV.
-4. Update `CURRENT_STATE.md` and this file with final main SHA, run, migration,
-   deployment, and DEV verification. Stop; no P2/P3.
+1. Merge PR #8 only after checks on its exact current HEAD are green.
+   The final pre-merge documentation checkpoint only records #174's results;
+   no product/test/migration change and no repeated local build is needed.
+   Never use shared DEV as a replacement for the disposable CI stack.
+2. Read logs/artifacts before every failure correction; audit other occurrences
+   of the same cause. Preserve all old tests and useful assertions. Each small
+   validated correction must be committed, published and remotely confirmed.
+3. Merge only when all mandatory checks and coverage are green. Verify exact
+   new main, inspect the confirmed DEV migration ledger, apply missing SQL once
+   only if needed, and verify deploy-dev and DEV desktop/mobile.
+4. Confirm `DEPLOY_BUILD source=verified_ci_artifact` and measure warm VPS
+   dependency caches. Update the verified state and stop; no P2/P3.
 
-The current shell lacks Docker and Chromium; integration/browser validation is
-therefore delegated to the required CI run. Do not run FULL E2E against shared
-DEV. Preserve all RLS policies and existing internal DAO roles.
+Never commit `dao-frontend/tsconfig.tsbuildinfo`. Never reset, restore, clean,
+stash or discard unsaved collaboration changes. Keep at most one small phase
+between pushes and independently confirm the remote SHA after every checkpoint.
+
+Stop for a real product contradiction, data-loss/security risk, conflicting DEV
+migration, ambiguous root cause, the same cause after two corrections, or three
+consecutive CI failures in the same functional area. If the environment or
+checkout changes, stop coding and recover the expected remote branch first.
