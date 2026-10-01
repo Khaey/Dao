@@ -13,8 +13,10 @@ public client/contractor registration changes.
 
 Main was reverified on 2026-10-01 at the same SHA; #171 is still the latest
 completed main CI. Collaboration E2E checkpoints are published through
-`12846d9a6d6a1a108c316836a82c5618a5f2d729`. The current branch discovers
-34 viewport executions (18 existing, 16 new). On this checkout, backend
+`a923f5c3aeb6d9228e0caca7be23ab93b2285aee`. CI #174 (`36801932429`)
+is green on that exact code SHA: 34/34 desktop/mobile E2E (18 existing,
+16 new), backend, build, fresh migrations/schema contract, reset/replay and
+real Auth/JWT/RPC/RLS/Storage/concurrency integration. On this checkout, backend
 20/20, PGlite 140/140 (including the shared schema contract), production
 frontend build with 45 routes, TypeScript and diff checks pass. No real
 Supabase or browser execution is claimed locally: Docker is unavailable.
@@ -32,8 +34,10 @@ The separate mobile trace shows an expanded 599px layout viewport on the 390px
 device and horizontal overflow from the implicit grid column containing a
 truncated long title. The mobile list now uses an explicit minmax(0,1fr) grid
 column (`grid-cols-1`); E2E also asserts no document overflow before the genuine
-logout click. No forced click, Auth change or assertion removal. Await the
-next complete CI result; do not repeat validated data/RPC/UX checkpoints.
+logout click. No forced click, Auth change or assertion removal. Both fixes
+passed in #174. The next checkpoint only records these verified results;
+merge must still wait for green checks on its exact PR HEAD. DEV deployment
+is skipped on PRs; main merge and DEV migration/deployment validation remain.
 
 Active branch: `feat/project-collaboration-invitations`.
 Active worktree: `/workspace/scratch/dao-project-collaboration`.
@@ -63,30 +67,30 @@ and diff check pass. The shared schema contract expects 25 migrations and
 45 public DAO tables with RLS. All backend and integration TypeScript compiles.
 New real Supabase tests cover two independent JWTs racing to confirm exactly
 one client, recipient checks, private/shared files and Storage authorization.
-Those tests are compiled but require the disposable CI stack to execute.
+Those tests were executed successfully against the disposable CI stack in #174.
 
 Checkpoint 3 was published as `2273344b167fc814407099404d377010377ac930`.
 It implements the common Mes chantiers view, separate DAO disponibles,
 role-aware dashboard, simple existing-team/client creation, safe invitation
 summary and auth return, team permissions, document sharing and declarative
-tracking. The frontend production build passed (45 routes); the full E2E
-suite must now validate both viewports.
+tracking. The frontend production build passed (45 routes), and the full E2E
+suite later passed both viewports in #174.
 
 On 2026-10-01 the previous collaboration checkout was absent in the accessible
 workspace. The official remote branch was verified at checkpoint 3 and cloned
 in isolation, preserving all other checkouts. No post-checkpoint collaboration
 files were found. The existing E2E now choose the new client marketplace entry
 and assert the current chantier/private-permission labels. All useful assertions
-are preserved. Collaboration E2E and real disposable-stack integration remain
-pending; the 18 existing viewport executions remain. Compatibility was published as
+are preserved. At that recovery checkpoint, collaboration E2E and real
+disposable-stack integration were pending; compatibility was published as
 `e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
 
 Core collaboration E2E was published as `6eb02c15aa4f3d370ca46ab02bd3883762b739e1`.
 It adds two independent scenarios:
 client/team/lot-specific marketplace publication and contractor/client atomic
 confirmation with separate work/payment tracking. Playwright discovers 22
-executions; TypeScript and diff checks pass. Actual E2E remains pending on the
-existing disposable CI stack, not claimed as passing locally.
+executions at that checkpoint; TypeScript and diff checks passed. Actual E2E
+was pending then and is now green in #174, never claimed as passing locally.
 
 Git push from this shell has no credentials; durable branch creation and
 checkpoint publication use the authenticated GitHub connector. A checkpoint

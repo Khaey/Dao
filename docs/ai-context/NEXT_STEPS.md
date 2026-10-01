@@ -27,16 +27,17 @@ Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
 - Current local checks: 20/20 backend, 140/140 PGlite and migration/RLS checks,
   shared schema contract, frontend production build (45 routes), TypeScript,
   diff check and discovery of 34 executions in 13 files. Discovery is not execution.
+- CI #174 (`36801932429`) on `a923f5c3aeb6d9228e0caca7be23ab93b2285aee`:
+  backend/build, fresh schema, reset/replay, real Auth/JWT/RPC/RLS/Storage/
+  concurrency and 34/34 desktop/mobile E2E green; all old coverage preserved.
+  The async-permission test and mobile list overflow are fixed and validated.
 
 ## Remaining — next small phase
 
-1. PR #8 / CI #172 passed backend/build, fresh Supabase, schema contract,
-   reset/replay and real integration; E2E was 31/34. The async private-permission
-   assertion is corrected from trace evidence; preserve its UI and DB checks.
-   The separate mobile list overflow is corrected with a constrained grid
-   column and a width regression assertion. Confirm all 34 executions on the
-   next CI. Docker is unavailable locally and browser download is
-   blocked; never use shared DEV as a replacement for the disposable CI stack.
+1. Merge PR #8 only after checks on its exact current HEAD are green.
+   The final pre-merge documentation checkpoint only records #174's results;
+   no product/test/migration change and no repeated local build is needed.
+   Never use shared DEV as a replacement for the disposable CI stack.
 2. Read logs/artifacts before every failure correction; audit other occurrences
    of the same cause. Preserve all old tests and useful assertions. Each small
    validated correction must be committed, published and remotely confirmed.
