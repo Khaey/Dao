@@ -26,7 +26,9 @@ final decisions are recorded in `COLLABORATION_DESIGN.md`.
    Checkpoint 4: core client/team and contractor/client scenarios added (22
    viewport executions), published as `6eb02c15aa4f3d370ca46ab02bd3883762b739e1`.
    Invitation roles/revocation/decline/isolation added next (26 executions).
-   Save this checkpoint; then add invitation registration return and
+   Published as `abcca1c468448077bb7b3a26da5ef3aae53dd5ca`.
+   Invitation registration return and external-URL rejection added (32
+   executions). Save this checkpoint; then add
    revocation, private documents and regression. Preserve existing tests.
 6. Checkpoint 5: full local checks where available, disposable fresh Supabase
    and reset/replay, real JWT/RPC/RLS/Storage/concurrency, complete E2E, PR CI.

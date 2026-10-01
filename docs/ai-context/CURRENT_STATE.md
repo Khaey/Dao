@@ -226,3 +226,10 @@ Invitation security/lifecycle E2E now adds incompatible-role/internal-role
 rejection, unrelated-client isolation, revocation and decline. Each scenario
 creates its own project; desktop/mobile use separate worker users. Discovery
 is 26 viewport executions; TypeScript/diff pass. Real execution remains for CI.
+
+Invitation security/lifecycle was published as
+`abcca1c468448077bb7b3a26da5ef3aae53dd5ca`.
+Registration-return coverage adds client/contractor explicit signup from the
+invitation, contractor pending verification, protected return to the chantier,
+and rejection of an external return URL. Discovery now lists 32 executions;
+TypeScript/diff pass; real browser/Auth execution remains pending in CI.
