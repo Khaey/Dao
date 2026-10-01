@@ -3,6 +3,36 @@
 > **Last verified:** 2026-10-01
 > **Repository:** `Khaey/Dao`
 
+## Verified release and remaining access boundary
+
+PR #8 is merged. Verified main is
+`16cd8d3550408007ab130fcefa7e7e9006af3323`; main CI #176 (`36803025118`)
+is green: backend 20/20, PGlite 140/140, frontend build, fresh schema,
+reset/replay, real integration 11/11 with 0 skips and E2E 34/34 desktop/mobile.
+`deploy-dev` succeeded and emitted `DEPLOY_BUILD source=verified_ci_artifact`.
+VPS frontend dependency cache hit: 0.02s; backend install: 2.34s (changed
+package.json). Artifact verification: 0.08s; service restart: 0.07s; health: 0.03s.
+
+The effective public JS served by `dao-dev.logiclab.fr` identifies Supabase
+`nmbpjdltirotoifwuzat`. Its original 23-entry ledger and structural contract
+were checked before applying the two missing migrations, using exactly the
+merged SQL. Supabase's generated transport timestamps were reconciled to the
+canonical repository versions `20260930163650` and `20260930165307`, without
+reapplying SQL or deleting ledger records. Final DEV ledger: 25 migrations;
+45 DAO tables; structural/RLS/RPC/Storage contract green. The 91 legacy
+projects and their clients were preserved, with 91 accepted client memberships.
+The CI-only synthetic territory fixture is deliberately excluded from the
+read-only DEV structural check; no E2E seed was added to DEV and the repository
+CI contract was not changed. No PROD or Auth configuration change.
+
+Live browser checks: login renders the existing auth links correctly;
+`/invite/invalid` displays the neutral unavailable/expired/revoked/used message.
+The browser has no authenticated DEV session: `/app` redirects to login.
+Client/contractor collaboration screens and their desktop/mobile live flows
+still require secure sign-in. Do not claim complete DEV UX validation from
+the green disposable E2E suite alone. Continue only that live verification;
+do not rebuild the model, replay migrations, or start P2/P3.
+
 ## 1. Verified base and active collaboration checkpoints
 
 The real GitHub `main` and the new remote branch were independently verified as
@@ -11,8 +41,8 @@ The real GitHub `main` and the new remote branch were independently verified as
 Registration PR #7 is merged; do not repeat the completed login/recovery or
 public client/contractor registration changes.
 
-Main was reverified on 2026-10-01 at the same SHA; #171 is still the latest
-completed main CI. Collaboration E2E checkpoints are published through
+Before merge, main was reverified on 2026-10-01 at the same base SHA and #171
+was its latest completed CI. Collaboration E2E checkpoints were published through
 `a923f5c3aeb6d9228e0caca7be23ab93b2285aee`. CI #174 (`36801932429`)
 is green on that exact code SHA: 34/34 desktop/mobile E2E (18 existing,
 16 new), backend, build, fresh migrations/schema contract, reset/replay and
@@ -24,7 +54,7 @@ PR #8 is open. CI #172 (`36800795598`) passed backend, build, fresh schema,
 reset/replay and real Auth/JWT/RPC/RLS/Storage integration. E2E was 31/34:
 both document-permission scenarios failed at the synchronous checkbox check,
 and client/team mobile failed when the overflowing list intercepted logout.
-No merge or DEV changes. Traces prove the permission POST is 200 and the
+At #172 there had been no merge or DEV changes. Traces prove the permission POST is 200 and the
 subsequent team response changes contractor private access from false to true;
 the checkbox is checked in the error snapshot. The test now clicks once,
 awaits the actual POST, and asserts both refreshed UI and persisted permission.
@@ -35,9 +65,9 @@ device and horizontal overflow from the implicit grid column containing a
 truncated long title. The mobile list now uses an explicit minmax(0,1fr) grid
 column (`grid-cols-1`); E2E also asserts no document overflow before the genuine
 logout click. No forced click, Auth change or assertion removal. Both fixes
-passed in #174. The next checkpoint only records these verified results;
-merge must still wait for green checks on its exact PR HEAD. DEV deployment
-is skipped on PRs; main merge and DEV migration/deployment validation remain.
+passed in #174. The pre-merge documentation checkpoint recorded these results;
+#175 then passed on its exact PR HEAD before merge. DEV deployment is skipped
+on PRs; the subsequent main deployment/migrations are recorded above.
 
 Active branch: `feat/project-collaboration-invitations`.
 Active worktree: `/workspace/scratch/dao-project-collaboration`.
@@ -110,10 +140,10 @@ checks remain mandatory on the existing disposable CI runner: fresh Supabase,
 reset/replay, schema contract, real integration and desktop/mobile E2E.
 Never substitute shared DEV for that isolated test environment.
 
-No Supabase DEV migration, Auth setting or production change has been made
-for collaboration. After all checkpoints and a green merge, inspect the
-verified DEV ledger before applying any missing migration. Frontend deploy
-alone does not apply SQL. Do not merge an incomplete older collaboration model.
+The two verified collaboration migrations have now been applied once to DEV
+after the green merge and ledger preflight, as recorded above. No Auth setting
+or production change. Frontend deploy alone does not apply SQL. Never replay
+an already-applied migration or merge an incomplete older collaboration model.
 
 ## 3. CI and E2E architecture
 

@@ -4,7 +4,7 @@
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
 Active branch: `feat/project-collaboration-invitations`.
-Verified main: `965054db897f18794b9f745bf86f397dea34b4d9`, latest main CI #171 green.
+Verified main: `16cd8d3550408007ab130fcefa7e7e9006af3323`, main CI #176 green.
 Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
 
 ## Completed — do not recreate
@@ -31,21 +31,28 @@ Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
   backend/build, fresh schema, reset/replay, real Auth/JWT/RPC/RLS/Storage/
   concurrency and 34/34 desktop/mobile E2E green; all old coverage preserved.
   The async-permission test and mobile list overflow are fixed and validated.
+- PR #8 merged; main CI #176 passed all 34 E2E and real integration; deploy-dev
+  succeeded with a verified CI artifact and a warm frontend dependency cache.
+- DEV runtime project confirmed as `nmbpjdltirotoifwuzat`; both collaboration
+  migrations applied once, canonical ledger 25, DAO tables 45, structural
+  contract green and all 91 legacy client projects backfilled safely.
+- Public DEV login and unavailable invitation render correctly. The browser
+  redirects `/app` to login because it has no authenticated session.
 
 ## Remaining — next small phase
 
-1. Merge PR #8 only after checks on its exact current HEAD are green.
-   The final pre-merge documentation checkpoint only records #174's results;
-   no product/test/migration change and no repeated local build is needed.
-   Never use shared DEV as a replacement for the disposable CI stack.
-2. Read logs/artifacts before every failure correction; audit other occurrences
-   of the same cause. Preserve all old tests and useful assertions. Each small
-   validated correction must be committed, published and remotely confirmed.
-3. Merge only when all mandatory checks and coverage are green. Verify exact
-   new main, inspect the confirmed DEV migration ledger, apply missing SQL once
-   only if needed, and verify deploy-dev and DEV desktop/mobile.
-4. Confirm `DEPLOY_BUILD source=verified_ci_artifact` and measure warm VPS
-   dependency caches. Update the verified state and stop; no P2/P3.
+1. Obtain secure DEV sign-in in the existing browser session; never request
+   passwords in chat or read Auth secrets. Validate Client/Artisan live screens,
+   common Mes chantiers, separate marketplace, simple creation, invitation
+   confirmation and responsive desktop/mobile. Report any access boundary
+   explicitly instead of claiming the live authenticated checks passed.
+2. Complete the release documentation snapshot from these actual results;
+   publish each small checkpoint. Product code/migrations/tests are already
+   green and merged; do not redo them or apply the DEV SQL again.
+3. If live validation reveals a clear technical issue, read its evidence and
+   audit the same cause before correcting. Preserve all useful assertions and
+   security boundaries; commit/push validated small corrections.
+4. Stop after live DEV verification and final documentation; no P2/P3.
 
 Never commit `dao-frontend/tsconfig.tsbuildinfo`. Never reset, restore, clean,
 stash or discard unsaved collaboration changes. Keep at most one small phase
