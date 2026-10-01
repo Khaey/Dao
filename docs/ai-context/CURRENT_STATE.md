@@ -54,7 +54,14 @@ in isolation, preserving all other checkouts. No post-checkpoint collaboration
 files were found. The existing E2E now choose the new client marketplace entry
 and assert the current chantier/private-permission labels. All useful assertions
 are preserved. Collaboration E2E and real disposable-stack integration remain
-pending; the current suite still contains 18 viewport executions.
+pending; the 18 existing viewport executions remain. Compatibility was published as
+`e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
+
+The next small checkpoint adds two independent collaboration scenarios:
+client/team/lot-specific marketplace publication and contractor/client atomic
+confirmation with separate work/payment tracking. Playwright discovers 22
+executions; TypeScript and diff checks pass. Actual E2E remains pending on the
+existing disposable CI stack, not claimed as passing locally.
 
 Git push from this shell has no credentials; durable branch creation and
 checkpoint publication use the authenticated GitHub connector. A checkpoint

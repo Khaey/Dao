@@ -22,8 +22,9 @@ final decisions are recorded in `COLLABORATION_DESIGN.md`.
    Production build passed with 45 routes; published as
    `2273344b167fc814407099404d377010377ac930`.
 5. Existing E2E compatibility: current marketplace entry and chantier/private
-   labels adapted. Save this small test checkpoint before new scenarios.
-   Checkpoint 4: add isolated desktop/mobile E2E for collaboration, roles,
+   labels adapted. Published as `e31f1bf6c1da6aeaa6cd8847cbde802144ab9f04`.
+   Checkpoint 4: core client/team and contractor/client scenarios added (22
+   viewport executions). Save this small checkpoint; then add roles,
    revocation, private documents and regression. Preserve existing tests.
 6. Checkpoint 5: full local checks where available, disposable fresh Supabase
    and reset/replay, real JWT/RPC/RLS/Storage/concurrency, complete E2E, PR CI.
