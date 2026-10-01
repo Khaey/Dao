@@ -30,6 +30,11 @@ test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et
   const members = await adminRows('project_members', `project_id=eq.${project.projectId}&status=eq.accepted&select=user_id,participation_role`);
   expect(members).toEqual(expect.arrayContaining([{ user_id: e2eClient!.id, participation_role: 'client' }, { user_id: e2eArtisan!.id, participation_role: 'contractor' }]));
   expect(members).toHaveLength(2);
+  await page.goto('/app');
+  await expect(page.getByRole('link').filter({ hasText: project.title })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'Le tableau de bord client doit tenir dans la largeur de l’écran').toBe(0);
+  await page.goto(`/app/projects/${project.projectId}`);
+  await expect(page.getByRole('heading', { name: project.title, exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Suivi', exact: true }).click();
   await page.getByLabel('Avancement actuel du chantier').selectOption('completed');
   await page.getByLabel('Situation du paiement — optionnel').selectOption('unpaid');
