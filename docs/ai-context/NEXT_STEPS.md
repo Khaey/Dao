@@ -28,7 +28,9 @@ final decisions are recorded in `COLLABORATION_DESIGN.md`.
    Invitation roles/revocation/decline/isolation added next (26 executions).
    Published as `abcca1c468448077bb7b3a26da5ef3aae53dd5ca`.
    Invitation registration return and external-URL rejection added (32
-   executions). Save this checkpoint; then add
+   executions), published as `11872b3c85ce816d0da82f531abaffc2146bb5b2`.
+   Document sharing/private permission/revocation added (34 executions).
+   Save this checkpoint; then execute full validation. Remaining scope:
    revocation, private documents and regression. Preserve existing tests.
 6. Checkpoint 5: full local checks where available, disposable fresh Supabase
    and reset/replay, real JWT/RPC/RLS/Storage/concurrency, complete E2E, PR CI.

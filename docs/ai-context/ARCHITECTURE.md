@@ -415,3 +415,11 @@ DocumentService still uses JWT/RLS checks before server-only signed Storage
 access. Shared scopes require accepted membership; revoke removes any explicit
 project document grants too. Real Auth/Storage/concurrent confirmation tests
 are included by the integration test script on the isolated CI stack.
+
+Collaboration E2E adds eight independent scenarios (16 viewport executions)
+without removing the original 18. Every scenario creates its own project and
+records ids for runner disposal. Worker users are separated by run, viewport
+and worker, including the unrelated client. CI retains strict discovery at 34
+executions in 13 files. Local-only service credentials are restricted to test
+provisioning/read/moderation; all product/API commands use real actor JWTs.
+No sleep, arbitrary .first(), timeout increase or assertion removal was added.

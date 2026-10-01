@@ -233,3 +233,11 @@ Registration-return coverage adds client/contractor explicit signup from the
 invitation, contractor pending verification, protected return to the chantier,
 and rejection of an external return URL. Discovery now lists 32 executions;
 TypeScript/diff pass; real browser/Auth execution remains pending in CI.
+
+Invitation registration-return coverage was published as
+`11872b3c85ce816d0da82f531abaffc2146bb5b2`.
+The document/private-permission scenario adds owner_only versus project_members,
+quarantine before approval, explicit private permission and membership revocation
+with denied signed download. Discovery now lists 34 executions (18 retained,
+16 added) in 13 files. TypeScript/diff checks pass. This is discovery and type
+validation, not a claim that the browser suite has executed locally.
