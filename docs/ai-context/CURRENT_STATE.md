@@ -1,41 +1,33 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-10-03 Europe/Paris (GitHub evidence)
+> **Last verified:** 2026-10-02 Europe/Paris (GitHub + operator evidence)
 > **Repository:** `Khaey/Dao`
 
-## Latest verified snapshot — Playwright 4-worker measurement
+## Latest verified snapshot — platform readiness and permanent TEST accounts
 
-- Main after the platform phase: `06e1020c4f2aa965ad522c7f26da3241dc29342b`.
-- PR #13 measured 4 workers on CI #185: 34/34 passed, 13 files, Playwright
-  75.14 s versus baseline #178 at 100.64 s (25.4% faster). The critical job
-  was 229 s versus 273 s (44 s / 16.1% faster). No flake or coverage loss.
-- PR #13 was merged with its exact HEAD. PR #10 DEV remains open and untouched.
-- Next OPT phase is the isolated Next.js cache fallback correction; no cache
-  gain is claimed until its CI evidence is measured.
-
-## Latest verified snapshot — platform tooling phase
-
-- Main base: `a7199b45e409ff38aaf7bfd407b0ed022dfe0f9c`; documentation
-  PR #11 merged after CI #181 success. Main CI #182 also succeeded.
-- WORK OPT: `chore/platform-execution-tools`, isolated clone from that main.
-  Root AGENTS.md loads this protocol; preflight, read-only HTTP smoke,
-  safe DEV status, admin helper/installer and DEV operations workflow added.
-- Local evidence: 12 targeted platform tests passed, shell syntax and YAML
-  parsing passed. Full existing CI remains mandatory; no tests removed.
-  Main/PR CI and live deployment of this phase are pending at this checkpoint.
-- Deploy changes: serialize host deployments; main runs no longer cancelled;
-  shared Actions DEV concurrency; stale-main activation guard; HTTP smoke
-  before rollback is disarmed. Runtime/product/Auth/RLS unchanged.
-- Env management requires one-time root installation of the reviewed helper
-  and protected dev environment secrets. It is prepared, not installed here.
-  Permanent TEST accounts/reset and sharding/caching are studied, not enabled.
-- PR #10 remains owned by WORK DEV and untouched. Its workflow/context edits
-  can overlap; recheck/reconcile main before final merge and preserve new tests.
-- Direct shell Git works with authorized network access. No shell SSH key was
-  acquired; GitHub Actions retains its existing protected VPS access.
-- See [../platform-operations.md](../platform-operations.md) for capabilities,
-  limitations, exact operations and recovery; remote CI/PR evidence determines
-  completion after this checkpoint, not older historical statements below.
+- Verified remote `main`: `990f65f916638431e05aa3733fffcb6cd8f103c5`.
+  Main CI #188 is green, including deploy-dev and the post-deploy HTTP smoke.
+- The VPS bootstrap is complete. `/usr/local/sbin/dao-dev-admin` is installed
+  by the reviewed `ops/install-dev-admin.sh`; `dao-dev.service`,
+  `/etc/dao/dao-dev.env` and existing environment values were left unchanged.
+  The main-only DAO DEV operations workflow can use `env-sync`; VPS access is
+  not blocked.
+- PR #10 DEV is open and untouched at
+  `fc51a90fbd92271d9d6be18d479a9f2962ee3486`. Its 38-test coverage and
+  Resend changes remain outside OPT ownership.
+- Permanent TEST DEV accounts are not provisioned. The existing E2E admin
+  provisioning is intentionally scoped to the disposable CI Supabase stack,
+  while `reset-dev-fixtures.sh` remains plan-only for shared DEV.
+- The sole missing prerequisite for account creation is one authorized,
+  protected DEV Auth administration channel that supplies/stores the two
+  account credential pairs without exposing them to Git, docs or logs. No
+  secure secret-write or account-provisioning operation is currently exposed
+  to this Work session, so no Auth data was modified.
+- Once that prerequisite exists, provision exactly one TEST client and one
+  TEST contractor through standard Auth administration, mark them with a
+  dedicated TEST DEV identity/manifest, keep the contractor at the expected
+  signup verification status `pending`, and make reset operate only on
+  explicitly owned scenario resources.
 
 ## Historical checkpoints — through 2026-10-01
 

@@ -74,52 +74,43 @@ normal execution deletes both copies. A network failure after transfer can
 leave the private payload under `/opt/dao/ops-incoming/<run>-<attempt>`; remove
 that exact private file during recovery before repeating a sync.
 
-### One-time environment administration setup
+### Environment administration setup
 
-Existing sudoers only allow service operations, so GitHub's deployment key
-cannot install a new privileged helper or edit root-owned env by itself.
-From a reviewed main release, a root-capable operator runs once:
+The one-time root bootstrap is complete. The operator ran
+`bash ops/install-dev-admin.sh` from the reviewed release and confirmed:
+`D.A.O admin helper installed; environment values and service unchanged.`
+Therefore `/usr/local/sbin/dao-dev-admin` is installed, root-owned and
+available to the main-only DAO DEV operations workflow. `env-sync` remains
+limited to the fixed allowed keys, atomic root:dao / 0640 replacement and
+protected rollback. No generic root shell, arbitrary path write, Auth setting
+or RLS change is exposed.
 
-```bash
-bash /opt/dao/current/ops/install-dev-admin.sh
-```
-
-The installer keeps existing sudoers, installs a root-owned isolated Python
-helper, and adds only its fixed environment/diagnostic commands. No generic
-sudo shell, arbitrary root file write, Auth setting or RLS change is exposed.
-The environment and backup stay root:dao / 0640; the directory is root-owned.
-The helper uses a file lock, validates allowed keys, refuses duplicates and
-multiline assignments for updated keys, and atomically replaces the file.
-
-For email configuration sync, define `RESEND_API_KEY` and `DAO_EMAIL_FROM` as
-dev environment secrets. The workflow fixes DAO_PUBLIC_URL to the DEV URL.
+For email configuration sync, define `RESEND_API_KEY` and `DAO_EMAIL_FROM`
+as dev environment secrets. The workflow fixes DAO_PUBLIC_URL to the DEV URL.
 It preserves existing database/Auth keys and does not send a test email.
-The protected backup supports rollback. A reverted invalid secret also needs
-correction in GitHub before retry; env sync does not rotate provider secrets.
 
-Raw application logs may contain tokens/user data, so they are not copied to
-public Actions logs. The workflow exposes counts only. Detailed log review
+Raw application logs may contain tokens/user data, so they are not copied to public Actions logs. Detailed log review
 remains a private operator session or a future private, redacted log channel.
-This helper installation and new secrets cannot be inferred from successful
-deployment; verify their presence explicitly with the status operation.
+The helper installation is verified by the operator; use the status operation
+to confirm it on a future VPS change.
 
-## Permanent TEST accounts and fixture reset — studied, not provisioned
+## Permanent TEST accounts and fixture reset — one prerequisite missing
 
-Permanent DEV TEST accounts are permitted for repeated targeted validation,
-separate from worker-scoped disposable CI users. Use dedicated client A/B,
-contractor A/B and reviewer accounts through standard Auth administration;
-store credentials in the protected dev environment and exact user IDs in a
-private manifest. Never expose internal roles in public signup or change RLS.
+Permanent DEV TEST accounts remain separate from worker-scoped disposable CI
+users. The only missing prerequisite is one authorized protected DEV Auth
+administration channel that can supply/store the client and contractor
+credential pairs without exposing them to Git, docs, workflow inputs or logs.
+No account or Auth data was modified in this phase.
 
-No exact permanent account IDs/credentials were available in this phase.
-No accounts have been created and no existing users relabeled. Default reset
-should rotate a scenario namespace and create fresh fixtures via normal APIs;
-retain permanent accounts and immutable submitted histories. A later cleanup
-must use explicit owned-resource IDs and existing allowed lifecycle actions.
+When available, provision one TEST client and one TEST contractor through
+standard Auth administration; keep the contractor at the expected signup
+verification status `pending`, store only non-secret IDs/labels in a private
+manifest, and reset only explicitly owned scenario resources. The contractor
+fixture in FULL E2E may be `verified` because it is disposable and is not a
+permanent DEV identity.
 
-`bash scripts/reset-dev-fixtures.sh --plan` prints that contract only; any
-other mode fails without data access. It is deliberately not a working DB
-reset. FULL E2E still uses the disposable stack, never shared DEV.
+`bash scripts/reset-dev-fixtures.sh --plan` remains plan-only and refuses
+mutation. FULL E2E still uses the disposable stack, never shared DEV.
 
 ## Next performance experiments — studied, not enabled
 

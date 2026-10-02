@@ -1,8 +1,30 @@
 # D.A.O — Optimization backlog (analysis, not implementation)
 
-Verified 2026-10-03 Europe/Paris against main
-`3d0104c658b38c1ffcd44f308ba2ba6bbe12d441`.
-This phase changes documentation only.
+Verified 2026-10-02 Europe/Paris against main
+`990f65f916638431e05aa3733fffcb6cd8f103c5`.
+This phase records the final permanent-account prerequisite; no product/Auth/RLS
+implementation is included.
+
+## Permanent TEST DEV accounts — blocked on one prerequisite
+
+The VPS admin helper is installed and the DEV operations path is ready.
+The only remaining optimization is one permanent TEST client plus one permanent
+TEST contractor, both clearly marked TEST DEV, with credentials held only by a
+protected secret mechanism and reset limited to owned scenario resources.
+
+Creation is intentionally stopped until one authorized protected DEV Auth
+administration channel can supply/store the two credential pairs. The current
+connector/workflow surface cannot write or retrieve GitHub environment secrets
+or provision Auth users on the shared DEV project without exposing credentials.
+No account, profile, role, Auth setting, RLS policy or schema was changed.
+The contractor’s expected standard signup state is `pending`; the E2E
+disposable fixture’s `verified` profile is not a permanent DEV account.
+
+`scripts/reset-dev-fixtures.sh --plan` remains the safe contract and refuses
+mutation. After the prerequisite, provision via standard Auth administration,
+record non-secret IDs in a private manifest, and reset only explicitly owned
+scenario data.
+
 
 ## Measured baseline
 
@@ -30,7 +52,7 @@ Deployment job `110559521440` confirms both dependency caches hit,
 `DEPLOY_BUILD source=verified_ci_artifact`, and release SHA matching main.
 This is historical CI/VPS evidence, not a direct live SSH check.
 Shell Git failed at its configured network proxy; authenticated GitHub API
-reads/publication work. Direct VPS access/current service state is unverified.
+reads/publication work. The VPS helper/bootstrap and DEV operations path are verified by the operator; direct shell SSH remains intentionally unnecessary.
 
 ## Ranked next phases
 
