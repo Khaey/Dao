@@ -20,3 +20,7 @@ WORK OPT starts from main on its own `chore/...` branch. It never resumes
 a functional branch named in an old checkpoint and never changes WORK DEV PRs.
 Do not treat historical headings such as “remaining” as current instructions
 without checking their dated status and the actual remote repository.
+
+Operational entry points: root [AGENTS.md](../../AGENTS.md),
+[platform operations](../platform-operations.md), and
+`bash scripts/dao-task-check.sh` from a verified checkout.

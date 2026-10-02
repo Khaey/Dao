@@ -11,6 +11,9 @@ ARTIFACT_DIR="${4:-}"
 APP_ROOT=/opt/dao
 ENV_FILE=/etc/dao/dao-dev.env
 CURRENT="$APP_ROOT/current"
+# Serialize direct SSH and Actions deployments on the host as well.
+exec 9>"$APP_ROOT/.deploy.lock"
+flock -w 120 9 || { echo "Another D.A.O deployment holds the lock" >&2; exit 1; }
 RELEASE_ID="${REVISION}-${RUN_ID}-${RUN_ATTEMPT}"
 STAGING="$APP_ROOT/releases/.staging-${RELEASE_ID}"
 RELEASE="$APP_ROOT/releases/${RELEASE_ID}"
@@ -113,8 +116,8 @@ if [ -L "$CURRENT" ]; then
 fi
 CURRENT_SWITCHED=0
 handle_error() {
-  local status=$?
-  trap - ERR
+  local status=${1:-$?}
+  trap - ERR HUP INT TERM
   if [ "$CURRENT_SWITCHED" -eq 1 ]; then
     if [ -n "$PREVIOUS_RELEASE" ]; then
       local rollback_link="$APP_ROOT/.current-rollback-${RUN_ID}-${RUN_ATTEMPT}"
@@ -135,6 +138,9 @@ handle_error() {
   exit "$status"
 }
 trap handle_error ERR
+trap 'handle_error 129' HUP
+trap 'handle_error 130' INT
+trap 'handle_error 143' TERM
 
 measure git_init "$GIT_PATH" init "$STAGING"
 measure git_remote_add "$GIT_PATH" -C "$STAGING" remote add origin https://github.com/Khaey/Dao.git
@@ -176,6 +182,14 @@ else
   measure frontend_build bash -c 'cd "$1" && "$2" run build' _ "$STAGING/dao-frontend" "$NPM_PATH"
 fi
 
+# Never activate a queued old revision over a newer main.
+latest_main="$("$GIT_PATH" ls-remote https://github.com/Khaey/Dao.git refs/heads/main | awk '{print $1}')"
+[[ "$latest_main" =~ ^[0-9a-f]{40}$ ]] || { echo "Unable to verify current main" >&2; false; }
+if [ "$latest_main" != "$REVISION" ]; then
+  echo "DEPLOY_SKIPPED reason=main_advanced sha=$REVISION"
+  rm -rf "$STAGING"
+  exit 0
+fi
 measure release_prepare mv "$STAGING" "$RELEASE"
 
 switch_release() {
@@ -187,9 +201,11 @@ switch_release() {
 measure release_symlink switch_release
 measure service_restart sudo -n /usr/bin/systemctl restart dao-dev.service
 measure health_check sudo -n /usr/bin/systemctl is-active dao-dev.service
+measure http_smoke bash "$RELEASE/scripts/validate-dev.sh" http://127.0.0.1:3000
+bash "$RELEASE/scripts/dev-status.sh"
 
 # Do not roll back a healthy activation because retention cleanup failed.
 CURRENT_SWITCHED=0
-trap - ERR
+trap - ERR HUP INT TERM
 echo "DEPLOY_RELEASE sha=$REVISION path=$RELEASE"
 ls -1dt "$APP_ROOT"/releases/* 2>/dev/null | tail -n +6 | xargs -r rm -rf

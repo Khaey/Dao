@@ -333,3 +333,18 @@ Preserve all coverage, new tests merged by DEV, deployment gates and rollback.
 Keep current state separate from historical checkpoints. Use
 [OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md) for measured priorities;
 proposals are not implemented improvements.
+
+## D-032 — Platform startup, DEV operations and readiness
+
+Root AGENTS.md loads the execution protocol for repository-aware Work sessions.
+Use read-only task preflight and impact suggestions; all required CI coverage
+remains. Main/deploy operations are not cancelled mid-activation. Serialize
+DEV jobs and host deploys, reject stale main revisions, and keep rollback
+armed until bounded HTTP readiness succeeds.
+
+GitHub Actions is the stable DEV control path independent of shell Work SSH.
+Environment administration uses a reviewed root-owned helper, installed once,
+with protected secrets and atomic root:dao / 0640 env replacement. Raw logs
+and secret values never enter public Actions output. Permanent TEST DEV
+accounts are separate from disposable FULL E2E; fixture reset initially stays
+plan-only until exact account/resource ownership is established.
