@@ -348,3 +348,12 @@ with protected secrets and atomic root:dao / 0640 env replacement. Raw logs
 and secret values never enter public Actions output. Permanent TEST DEV
 accounts are separate from disposable FULL E2E; fixture reset initially stays
 plan-only until exact account/resource ownership is established.
+
+## D-033 — Playwright four-worker result
+
+PR #13 tested the unchanged 34 desktop/mobile executions with four CI workers.
+CI #185 passed all 34; Playwright dropped from 100.64 s (main #178, two
+workers) to 75.14 s, and the critical job from 273 s to 229 s. Keep four
+workers as the CI default. The worker count remains overrideable through
+`PLAYWRIGHT_WORKERS` for controlled comparisons; never reduce coverage to
+improve timing.

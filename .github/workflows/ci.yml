@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: dao-frontend/.next/cache
-          key: dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ hashFiles('dao-frontend/**', 'dao-backend/src/**') }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'dev' || 'ci' }}
+          key: dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'dev' || 'ci' }}-${{ hashFiles('dao-frontend/**', 'dao-backend/src/**') }}
           restore-keys: |
             dao-next-${{ runner.os }}-${{ hashFiles('dao-frontend/package-lock.json') }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'dev' || 'ci' }}-
       - name: Install backend runtime dependencies for Next.js API routes

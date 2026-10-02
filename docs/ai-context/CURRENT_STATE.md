@@ -3,6 +3,16 @@
 > **Last verified:** 2026-10-03 Europe/Paris (GitHub evidence)
 > **Repository:** `Khaey/Dao`
 
+## Latest verified snapshot — Playwright 4-worker measurement
+
+- Main after the platform phase: `06e1020c4f2aa965ad522c7f26da3241dc29342b`.
+- PR #13 measured 4 workers on CI #185: 34/34 passed, 13 files, Playwright
+  75.14 s versus baseline #178 at 100.64 s (25.4% faster). The critical job
+  was 229 s versus 273 s (44 s / 16.1% faster). No flake or coverage loss.
+- PR #13 was merged with its exact HEAD. PR #10 DEV remains open and untouched.
+- Next OPT phase is the isolated Next.js cache fallback correction; no cache
+  gain is claimed until its CI evidence is measured.
+
 ## Latest verified snapshot — platform tooling phase
 
 - Main base: `a7199b45e409ff38aaf7bfd407b0ed022dfe0f9c`; documentation
