@@ -5,23 +5,25 @@
 
 ## Current WORK OPT next steps — 2026-10-03 Europe/Paris
 
-Verified main: `3d0104c658b38c1ffcd44f308ba2ba6bbe12d441`, main CI #178
-successful. WORK DEV owns open PR #10; CI #180 successful on its current head.
+Base main `a7199b45e409ff38aaf7bfd407b0ed022dfe0f9c`; #182 successful.
+Documentation PR #11 is merged. Platform branch: chore/platform-execution-tools.
 
-1. Complete documentation phase on `chore/autonomous-execution-context`;
-   inspect its own automatic PR checks without rerunning application checks
-   locally for a documentation-only diff.
-2. Follow [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md). Re-read main
-   before each change phase and before merge. Reconcile overlapping context
-   files if WORK DEV merges; preserve new tests and its latest state.
-3. Start the read-only preflight/report script from fresh main in its own
-   chore phase, then evaluate the measured priorities in
-   [OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md).
-4. Keep product, RLS, Auth and business changes with WORK DEV. Do not touch
-   its branch/PR or run FULL E2E against shared DEV.
+1. Publish the stable platform phase, observe its full automatic CI, reconcile
+   live main and merge when green under the user's standing authorization.
+2. Verify main CI/deploy and the new VPS HTTP smoke/status evidence. Do not
+   claim an installed admin helper or permanent TEST accounts without proof.
+3. Install the reviewed root helper once via an existing authorized root path;
+   if unavailable, report that precise bootstrap requirement. Thereafter DEV
+   env/service/status operations use the main-only GitHub Actions workflow.
+4. Provision exact permanent TEST identities through standard administration
+   when access is available; implement scoped scenario renewal from a private
+   manifest. reset-dev-fixtures.sh is currently plan-only and refuses mutation.
+5. Benchmark workers/sharding/cache separately against newly merged coverage.
+   Follow [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) and
+   [../platform-operations.md](../platform-operations.md).
 
-This documentation phase does not merge or deploy. No technical optimization
-or timing gain is claimed until implemented and measured.
+WORK DEV's PR #10 remains untouched. No product/RLS/Auth/business changes.
+FULL E2E stays on the disposable local stack.
 
 ## Historical WORK DEV checkpoint — superseded by merged PR #8
 

@@ -1,0 +1,97 @@
+name: DAO DEV operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: D.A.O DEV operation (never put credentials in inputs)
+        type: choice
+        required: true
+        default: status
+        options: [status, health, restart, env-sync, log-summary]
+
+permissions:
+  contents: read
+
+jobs:
+  operate:
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: dao-dev-operations
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 8
+    steps:
+      - name: Prepare private environment payload
+        if: inputs.operation == 'env-sync'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DAO_EMAIL_FROM: ${{ secrets.DAO_EMAIL_FROM }}
+          DAO_PUBLIC_URL: https://dao-dev.logiclab.fr
+        run: |
+          umask 077
+          python3 - <<'PY'
+          import json, os
+          if not os.environ.get('RESEND_API_KEY') or not os.environ.get('DAO_EMAIL_FROM'):
+              raise SystemExit('Missing required dev environment secrets (values withheld)')
+          with open('dao-env.json', 'w') as f:
+              json.dump({k: os.environ[k] for k in ('RESEND_API_KEY', 'DAO_EMAIL_FROM', 'DAO_PUBLIC_URL')}, f)
+          PY
+      - name: Transfer private payload
+        if: inputs.operation == 'env-sync'
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          source: dao-env.json
+          target: /opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}
+          timeout: 30s
+          command_timeout: 2m
+      - name: Execute fixed DEV operation
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          DAO_OPERATION: ${{ inputs.operation }}
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          envs: DAO_OPERATION
+          timeout: 30s
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            payload_dir='/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}'
+            trap 'rm -f "$payload_dir/dao-env.json"; rmdir "$payload_dir" 2>/dev/null || true' EXIT
+            cd /opt/dao/current
+            case "$DAO_OPERATION" in
+              status) bash scripts/dev-status.sh ;;
+              health) bash scripts/validate-dev.sh http://127.0.0.1:3000 ;;
+              restart)
+                sudo -n /usr/bin/systemctl restart dao-dev.service
+                bash scripts/validate-dev.sh http://127.0.0.1:3000
+                bash scripts/dev-status.sh
+                ;;
+              env-sync)
+                test -x /usr/local/sbin/dao-dev-admin || { echo 'One-time root install required: ops/install-dev-admin.sh'; exit 2; }
+                chmod 0600 "$payload_dir/dao-env.json"
+                result="$(sudo -n /usr/local/sbin/dao-dev-admin env-sync < "$payload_dir/dao-env.json")"
+                rm -f "$payload_dir/dao-env.json"
+                printf '%s\n' "$result"
+                if ! sudo -n /usr/bin/systemctl restart dao-dev.service || ! bash scripts/validate-dev.sh http://127.0.0.1:3000; then
+                  if [[ "$result" == ENV_SYNC\ updated* ]]; then
+                    sudo -n /usr/local/sbin/dao-dev-admin env-restore
+                    sudo -n /usr/bin/systemctl restart dao-dev.service
+                    bash scripts/validate-dev.sh http://127.0.0.1:3000
+                  fi
+                  exit 1
+                fi
+                bash scripts/dev-status.sh
+                ;;
+              log-summary) sudo -n /usr/local/sbin/dao-dev-admin log-summary ;;
+              *) echo 'Unsupported operation'; exit 2 ;;
+            esac
+      - name: Remove runner payload
+        if: always()
+        run: rm -f dao-env.json

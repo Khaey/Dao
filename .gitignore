@@ -6,3 +6,5 @@ dao-frontend/test-results/
 dao-frontend/playwright-report/
 .env*
 !.env.example
+__pycache__/
+*.pyc

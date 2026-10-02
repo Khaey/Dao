@@ -12,6 +12,14 @@ SQL/RPC/schema, production, infrastructure unrelated to D.A.O, or another
 Work's branch. Explicit current user instructions take precedence over old
 checkpoints. Do not ask again for already authorized routine work.
 
+Repository-root `AGENTS.md` is the startup instruction for new Work/Codex
+sessions. Read this protocol first, then the complete context index. The user
+has authorized WORK OPT to complete its own normal branch → checks → PR → CI
+→ merge workflow without repeated confirmations. WORK DEV remains separate.
+Permanent DEV TEST accounts are allowed for targeted validation; they do not
+replace isolated CI users. See [../platform-operations.md](../platform-operations.md)
+for scripts, DEV operations and the fixture reset boundary.
+
 ## 1. Resume from remote evidence
 
 1. Identify the official repository `Khaey/Dao`, local path (if any), branch,
@@ -104,7 +112,7 @@ Do not remove tests, introduce skips, reduce viewports, add force clicks,
 arbitrary sleeps/retries/timeouts, share mutable scenarios, or replace real
 user/API behavior with privileged fixture shortcuts to improve timing.
 
-TEST users/data remain scoped to run, attempt, viewport and worker, with a
+CI TEST users/data remain scoped to run, attempt, viewport and worker, with a
 project unique to each scenario. Privileged setup is limited to the existing
 disposable test-provisioning boundary. Product commands keep real actor JWTs.
 FULL E2E requires the exact local target `http://127.0.0.1:54321`.

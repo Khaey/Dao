@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: dao-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend-verify:
@@ -31,6 +31,10 @@ jobs:
             echo "| Stage | Duration |"
             echo "| --- | ---: |"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Platform script checks
+        run: |
+          python3 -m unittest discover -s scripts/tests -v
+          for script in scripts/*.sh ops/*.sh; do bash -n "$script"; done
       - name: Install backend dependencies
         working-directory: dao-backend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install" npm ci --no-audit --no-fund
@@ -303,6 +307,9 @@ jobs:
   deploy-dev:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [backend-verify, frontend-build, full-e2e]
+    concurrency:
+      group: dao-dev-operations
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: dev
     steps:
