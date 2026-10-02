@@ -318,3 +318,18 @@ Create the remote branch before code. Test, commit and publish every stable
 phase before starting the next; confirm its remote SHA. A changed environment
 or checkout requires identity verification and recovery from GitHub, not an
 assumed local state. Do not commit tsconfig.tsbuildinfo.
+
+## D-031 — Separate WORK OPT ownership and autonomous execution
+
+WORK OPT owns CI, Playwright infrastructure, TEST fixtures, validation and
+DEV tooling, access diagnostics and AI context. It starts from verified remote
+main on its own chore branch and never changes WORK DEV branches or PRs.
+No product, business, RLS, Auth or schema modification belongs to this scope.
+
+[AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) defines FAST EXECUTION MODE:
+bounded preflight, reuse of valid evidence, proportional checks, durable
+remote checkpoints and main freshness checks before modifications/merge.
+Preserve all coverage, new tests merged by DEV, deployment gates and rollback.
+Keep current state separate from historical checkpoints. Use
+[OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md) for measured priorities;
+proposals are not implemented improvements.

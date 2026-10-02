@@ -4,6 +4,14 @@
 > This file describes what D.A.O is and what the project is trying to achieve.
 > Update `CURRENT_STATE.md` and `NEXT_STEPS.md` after every meaningful development session.
 
+## Execution entry point
+
+Read [README.md](README.md) and
+[AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) with all AI context files.
+WORK OPT owns execution efficiency on separate chore branches; WORK DEV owns
+functional work. Use the latest dated snapshot in CURRENT_STATE; older phase
+descriptions below are historical where remote code and CI have advanced.
+
 ## 1. Product
 
 **Name:** D.A.O  
