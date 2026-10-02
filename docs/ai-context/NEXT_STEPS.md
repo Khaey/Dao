@@ -8,8 +8,8 @@
 Base main `a7199b45e409ff38aaf7bfd407b0ed022dfe0f9c`; #182 successful.
 Documentation PR #11 is merged. Platform branch: chore/platform-execution-tools.
 
-1. Publish the stable platform phase, observe its full automatic CI, reconcile
-   live main and merge when green under the user's standing authorization.
+1. Platform phase and Playwright 4-worker experiment are merged. Recheck live
+   main before each new phase; PR #10 remains untouched.
 2. Verify main CI/deploy and the new VPS HTTP smoke/status evidence. Do not
    claim an installed admin helper or permanent TEST accounts without proof.
 3. Install the reviewed root helper once via an existing authorized root path;
@@ -18,7 +18,7 @@ Documentation PR #11 is merged. Platform branch: chore/platform-execution-tools.
 4. Provision exact permanent TEST identities through standard administration
    when access is available; implement scoped scenario renewal from a private
    manifest. reset-dev-fixtures.sh is currently plan-only and refuses mutation.
-5. Benchmark workers/sharding/cache separately against newly merged coverage.
+5. Benchmark sharding/cache separately against newly merged coverage.
    Follow [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) and
    [../platform-operations.md](../platform-operations.md).
 
