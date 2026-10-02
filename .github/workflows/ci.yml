@@ -287,9 +287,9 @@ jobs:
             npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
           '
           grep -Eq 'Total: 34 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
-      - name: Run FULL Playwright E2E on desktop and mobile with two workers
+      - name: Run FULL Playwright E2E on desktop and mobile with configurable workers
         working-directory: dao-frontend
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, 2 workers)" npm run test:e2e -- --reporter=line
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, configured workers)" npm run test:e2e -- --reporter=line
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
