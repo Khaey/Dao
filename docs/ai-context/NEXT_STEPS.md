@@ -84,3 +84,24 @@ Stop for a real product contradiction, data-loss/security risk, conflicting DEV
 migration, ambiguous root cause, the same cause after two corrections, or three
 consecutive CI failures in the same functional area. If the environment or
 checkout changes, stop coding and recover the expected remote branch first.
+
+
+## Email V1 completion
+
+1. Publish the tested checkpoint and PR; verify the exact remote SHA. Check
+   the complete CI on its current HEAD: backend, build, fresh Supabase/schema
+   contract, reset/replay, real integration and all 38 E2E executions.
+2. Inspect failure logs/artifacts before changing anything. Keep the 34 old
+   E2E cases and their assertions. The provider must remain mocked in CI.
+   No DEV email, migration, RLS/Auth change or bypass for a failing test.
+3. Report the PR/CI and external setup. No automatic merge is requested in
+   this phase. Do not claim real delivery until tested with a TEST mailbox.
+4. Configure Resend/domain and server-only `RESEND_API_KEY`, `DAO_EMAIL_FROM`,
+   `DAO_PUBLIC_URL` out-of-band in `/etc/dao/dao-dev.env`, per
+   `DEV_DEPLOYMENT.md`. No secret in Git/chat/logs; no Supabase Auth SMTP change.
+5. After a separately authorized merge/deployment, test real receipt and
+   acceptance with an authorized TEST mailbox. No resend after reload in V1.
+
+Stop if a DB migration, RLS change, Auth change or new product choice is
+required. Do not commit `dao-frontend/tsconfig.tsbuildinfo`. Never discard
+unsaved work. Read current PR state rather than using historical checkpoints.

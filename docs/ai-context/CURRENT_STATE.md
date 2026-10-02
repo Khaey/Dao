@@ -302,3 +302,49 @@ quarantine before approval, explicit private permission and membership revocatio
 with denied signed download. Discovery now lists 34 executions (18 retained,
 16 added) in 13 files. TypeScript/diff checks pass. This is discovery and type
 validation, not a claim that the browser suite has executed locally.
+
+
+## Current — invitation email V1
+
+Verified actual main: `3d0104c658b38c1ffcd44f308ba2ba6bbe12d441`.
+Latest completed main CI #178 (`36918284057`) is green, including DEV deployment.
+The user confirms the prior DEV validation: client, contractor, client
+invitation, permissions/isolation, documents, desktop 1440×900 and mobile
+390×844 all PASS. Collaboration PR #8 and the responsive correction are
+already merged. Do not recreate their model, migrations, Auth or validation.
+
+Active branch: `feat/project-invitation-email`, created locally and remotely
+from that exact main before implementation. Checkout:
+`/workspace/scratch/dao-analysis-main`. The initial working tree was clean.
+
+V1 adds authenticated server Resend sending of the invitation just created;
+copy link remains. Canonical JWT/RLS invitation preflight is shared by
+issuance, revocation and email. Only after authorization is the specific
+invitation's hash read with the server secret. Recipient is DB-only; token is
+compared using SHA-256 UTF-8 / constant time, never persisted or logged.
+No DB, migration, RLS or Supabase Auth configuration change. No provider SDK
+dependency, resend UI, new invitation, token rotation or delivery table.
+
+Local evidence: backend 54/54, existing PGlite/migration/RLS 140/140,
+production frontend build and TypeScript pass. Playwright discovers 38
+viewport executions (34 existing plus 4 email cases), in 14 files. Discovery
+is not execution. The new production-handler integration uses real local
+Auth/JWT/RLS and mocks Resend; actual integration and FULL E2E execution
+must be checked in the latest CI attached to this branch/PR. Docker is not
+available in this Work shell. No real email or DEV data mutation is claimed.
+
+PR #10 publishes the feature. CI #179 (`36947283719`) on
+`6f5087e9732a09b9713b41bc5b935c2e756418b8` passes backend/build, fresh schema,
+reset/replay and all real integration tests. Playwright is 36/38: all 34 old
+cases and both artisan email cases pass. Both client email cases fail solely
+because the global alert locator also selects Next.js's route announcer.
+The masked screenshots show the correct error, retry and copy-link UI; error
+contexts contain no token. Scope both error assertions to main and wait on
+the first intercepted request before checking double-click count. No product
+change, sleep, timeout increase or assertion removal. Check the latest CI
+on the corrected PR HEAD for the final full-execution result.
+
+External setup before a real DEV email test: validated Resend sender/domain
+and server-only `RESEND_API_KEY`, `DAO_EMAIL_FROM`, `DAO_PUBLIC_URL` in the
+existing protected `/etc/dao/dao-dev.env`, then service restart/deployment.
+See `DEV_DEPLOYMENT.md` and decision D-031. No change to password recovery.

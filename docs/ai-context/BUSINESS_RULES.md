@@ -346,3 +346,19 @@ approved documents shared as project_members reach accepted participants;
 owner_only documents keep their existing owner/staff/explicit-grant boundary.
 Revocation removes shared and private access. Tokens are random, stored only
 as hashes, expire, can be revoked/declined and are single-use.
+
+
+## 22. Invitation email V1
+
+Email is an additional transport of the same invitation, not a second
+invitation or a DAO publication. The DB recipient is authoritative. Only a
+user already authorized to manage the invitation may send it, while pending,
+nonexpired and neither accepted, revoked nor declined. Hash verification is
+mandatory; email does not confer or change any project/global role.
+
+Copy link remains usable even when email is unavailable or delivery fails.
+Retry reuses the current token without changing expiry/hash/DB; after provider
+acceptance the action is disabled. No resend after leaving/reloading the
+screen in V1. Missing email is explained without requesting it again. Email
+contains no private details: only inviter name, chantier title, secure link
+and the 7-day/single-use notice. Password recovery/Auth emails are unchanged.

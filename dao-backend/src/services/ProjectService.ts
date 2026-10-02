@@ -1,4 +1,5 @@
 import { DomainError } from '../lib/errors.js';
+import { InvitationAuthorization, invitationRole } from './InvitationAuthorization.js';
 
 function optionalNumber(value: unknown) {
   return value === null || value === undefined || value === '' ? null : Number(value);
@@ -166,13 +167,12 @@ export class ProjectService {
     return data;
   }
 
-  async issueInvitation(input: Record<string, unknown>) {
-    if (input.expected_role !== 'client' && input.expected_role !== 'contractor') {
-      throw new DomainError('Type de participant invalide', 'BAD_REQUEST');
-    }
+  async issueInvitation(input: Record<string, unknown>, actorId: string) {
+    const role = invitationRole(input.expected_role);
+    await new InvitationAuthorization(this.db).issuance(actorId, String(input.project_id ?? ''), role);
     return this.command('issue_project_invitation', {
       p_project_id: input.project_id,
-      p_expected_role: input.expected_role,
+      p_expected_role: role,
       p_recipient_email: input.recipient_email ?? null,
       p_can_view_private_details: input.can_view_private_details === true,
     });
@@ -187,7 +187,9 @@ export class ProjectService {
     return this.command('respond_project_invitation', { p_token: input.token, p_accept: input.accept });
   }
 
-  async revokeInvitation(id: string) {
+  async revokeInvitation(id: string, actorId: string) {
+    const authorization = new InvitationAuthorization(this.db);
+    await authorization.management(actorId, await authorization.visibleInvitation(id));
     return this.command('revoke_project_invitation', { p_invitation_id: id });
   }
 

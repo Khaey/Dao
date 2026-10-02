@@ -419,7 +419,36 @@ are included by the integration test script on the isolated CI stack.
 Collaboration E2E adds eight independent scenarios (16 viewport executions)
 without removing the original 18. Every scenario creates its own project and
 records ids for runner disposal. Worker users are separated by run, viewport
-and worker, including the unrelated client. CI retains strict discovery at 34
-executions in 13 files. Local-only service credentials are restricted to test
+and worker, including the unrelated client. Email V1 adds two scenarios (four viewport executions), taking strict CI
+discovery to 38 executions in 14 files. Local-only service credentials are restricted to test
 provisioning/read/moderation; all product/API commands use real actor JWTs.
 No sleep, arbitrary .first(), timeout increase or assertion removal was added.
+
+
+## Application invitation email V1 (2026-10-02)
+
+POST `/api/project-invitations/[id]/send-email` uses the existing bearer JWT
+verification (`getUser`). Its only body field is token. `InvitationAuthorization`
+is the shared API preflight for issue/revoke/send; it obtains preparation and
+confirmed-client authority from the existing SQL `project_team` RPC. The
+original SQL command guards are unchanged. Normal JWT/RLS reads precede a
+lazy server-secret read of this one invitation's hash and minimal metadata.
+Revalidate its identity, role, creator and lifecycle, compare SHA-256 UTF-8 in
+constant time, and obtain recipient exclusively from DB. The preview RPC is
+reused only to select inviter name and public title for the email.
+
+`ResendEmailTransport` isolates the fixed HTTPS sending endpoint, HTML/text
+rendering and stable per-invitation idempotency. Server configuration validates
+`DAO_PUBLIC_URL` and sender; no host is hardcoded in the email service. Tokens,
+request bodies and provider errors are never logged/persisted. Responses omit
+hash, token and provider ID. No privileged mutation, migration or RLS change.
+
+The two creation screens keep ID/token only in current React state and share
+`InvitationEmailButton`. Copy remains enabled while sending, after failure and
+after success. No recipient means a disabled action with an explicit message.
+After navigation/reload, no historical resend is offered. Email acceptance
+means provider acceptance; actual delivery is checked separately on DEV.
+
+The new integration invokes the production handler with real local Auth/JWT/
+RLS and intercepts only Resend. E2E checks UI states and DB immutability on
+1440×900 and 390×844; email POSTs are mocked and sensitive traces are disabled.

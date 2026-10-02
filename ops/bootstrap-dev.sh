@@ -37,6 +37,10 @@ if [ ! -f "$ETC_ROOT/dao-dev.env" ]; then
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 DAO_SUPABASE_SECRET_KEY=
+# Optional application invitation email (server only, no Auth configuration).
+RESEND_API_KEY=
+DAO_EMAIL_FROM=
+DAO_PUBLIC_URL=
 EOF
 fi
 chown root:dao "$ETC_ROOT/dao-dev.env"; chmod 0640 "$ETC_ROOT/dao-dev.env"
