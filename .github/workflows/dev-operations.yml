@@ -38,6 +38,9 @@ jobs:
           with open('dao-env.json', 'w') as f:
               json.dump({k: os.environ[k] for k in ('RESEND_API_KEY', 'DAO_EMAIL_FROM', 'DAO_PUBLIC_URL')}, f)
           PY
+          # scp-action runs in a container and needs read access to the
+          # ephemeral source file. The file is removed immediately after copy.
+          chmod 0644 dao-env.json
       - name: Transfer private payload
         if: inputs.operation == 'env-sync'
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
@@ -49,6 +52,9 @@ jobs:
           target: /opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}
           timeout: 30s
           command_timeout: 2m
+      - name: Remove runner payload after transfer
+        if: always() && inputs.operation == 'env-sync'
+        run: rm -f dao-env.json
       - name: Execute fixed DEV operation
         uses: appleboy/ssh-action@v1.2.2
         env:
