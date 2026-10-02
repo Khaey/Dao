@@ -357,3 +357,19 @@ workers) to 75.14 s, and the critical job from 273 s to 229 s. Keep four
 workers as the CI default. The worker count remains overrideable through
 `PLAYWRIGHT_WORKERS` for controlled comparisons; never reduce coverage to
 improve timing.
+
+
+## D-034 — VPS helper installed; permanent TEST accounts await one secure channel
+
+The reviewed root bootstrap has completed successfully. `/usr/local/sbin/dao-dev-admin`
+is installed, environment values and `dao-dev.service` are unchanged, and the
+main-only DAO DEV operations workflow is the stable control path. VPS access is
+not a blocker.
+
+The final OPT reliquat is one permanent TEST client and one permanent TEST
+contractor. Provisioning is paused until one authorized protected DEV Auth
+administration channel can supply/store their credential pairs without exposing
+secrets in Git, docs, workflow inputs or logs. The contractor must retain the
+expected standard signup verification status `pending`. FULL E2E’s disposable
+`verified` contractor fixture is not reused. `reset-dev-fixtures.sh` remains
+plan-only until explicit owned-resource IDs exist.
