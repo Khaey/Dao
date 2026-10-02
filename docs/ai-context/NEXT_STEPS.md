@@ -3,7 +3,33 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
-Active branch: `feat/project-collaboration-invitations`.
+## Current WORK OPT next steps — 2026-10-03 Europe/Paris
+
+Verified main: `3d0104c658b38c1ffcd44f308ba2ba6bbe12d441`, main CI #178
+successful. WORK DEV owns open PR #10; CI #180 successful on its current head.
+
+1. Complete documentation phase on `chore/autonomous-execution-context`;
+   inspect its own automatic PR checks without rerunning application checks
+   locally for a documentation-only diff.
+2. Follow [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md). Re-read main
+   before each change phase and before merge. Reconcile overlapping context
+   files if WORK DEV merges; preserve new tests and its latest state.
+3. Start the read-only preflight/report script from fresh main in its own
+   chore phase, then evaluate the measured priorities in
+   [OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md).
+4. Keep product, RLS, Auth and business changes with WORK DEV. Do not touch
+   its branch/PR or run FULL E2E against shared DEV.
+
+This documentation phase does not merge or deploy. No technical optimization
+or timing gain is claimed until implemented and measured.
+
+## Historical WORK DEV checkpoint — superseded by merged PR #8
+
+The remaining text preserves the prior collaboration checkpoint as history.
+Do not resume its branch or execute its old “merge PR #8” instructions:
+PR #8 and #9 are already merged; use live main/PR/CI evidence.
+
+Historical active branch: `feat/project-collaboration-invitations`.
 Verified main: `965054db897f18794b9f745bf86f397dea34b4d9`, latest main CI #171 green.
 Product decisions: `COLLABORATION_DESIGN.md` and the final product supplement.
 

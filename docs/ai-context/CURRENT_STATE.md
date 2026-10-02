@@ -1,7 +1,36 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-10-01
+> **Last verified:** 2026-10-03 Europe/Paris (GitHub evidence)
 > **Repository:** `Khaey/Dao`
+
+## Latest verified snapshot — WORK OPT documentation phase
+
+- Official main: `3d0104c658b38c1ffcd44f308ba2ba6bbe12d441`.
+- Main CI [#178](https://github.com/Khaey/Dao/actions/runs/36918284057),
+  attempt 1: success; 34/34 desktop/mobile E2E. deploy-dev succeeded with the
+  verified CI artifact and both VPS dependency caches hit.
+- PR #8 and #9 are merged. The earlier PR #8 “open / merge next” checkpoint
+  below is history, not current work.
+- WORK DEV owns open PR #10, head `f6674946f6767cdb6af3367e39798aca2f5f88a2`;
+  CI #180 is successful. It was inspected read-only; no branch/PR changes.
+- WORK OPT branch: `chore/autonomous-execution-context`, from verified main.
+  This phase adds the execution protocol, context index and measured backlog.
+  Runtime, workflow and fixtures remain unchanged.
+- Read [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) and
+  [OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md) for the contract and plan.
+- GitHub connector access works. Local /workspace/sites/dao has no remote or
+  AI context and is not used as a base. Shell Git failed at its proxy.
+  Direct VPS access was not established or changed.
+- Deployment observations above are from #178 logs, not a live inspection.
+  No merge, deployment, migration, Auth or RLS change is part of this phase.
+- PR #10 overlaps context files; recheck main and preserve its latest
+  context/tests when rebasing before any final OPT merge.
+
+## Historical checkpoints — through 2026-10-01
+
+The sections below retain earlier evidence and pending actions as history.
+They do not override the latest snapshot. Local paths, counts, PR states
+and environment limitations are dated observations.
 
 ## 1. Verified base and active collaboration checkpoints
 
