@@ -17,6 +17,19 @@ export class ProjectService {
       if (input.project_origin !== 'client_existing_team' && input.project_origin !== 'contractor_existing_client') {
         throw new DomainError('Origine du chantier invalide', 'BAD_REQUEST');
       }
+      if (input.project_origin === 'client_existing_team' && Array.isArray(input.team)) {
+        if (input.team.length < 1) throw new DomainError('Ajoutez au moins un artisan et son lot principal.', 'BAD_REQUEST');
+        return this.command('create_client_existing_team_project', {
+          p_title: String(input.title ?? ''),
+          p_description: String(input.description ?? ''),
+          p_governorate_id: input.governorate_id,
+          p_delegation_id: input.delegation_id ?? null,
+          p_locality_id: input.locality_id ?? null,
+          p_stage: input.project_stage ?? 'not_started',
+          p_payment_status: input.payment_status ?? 'not_set',
+          p_team: input.team,
+        });
+      }
       return this.command('create_collaborative_project', {
         p_origin: input.project_origin,
         p_title: String(input.title ?? ''),
@@ -175,6 +188,7 @@ export class ProjectService {
       p_expected_role: role,
       p_recipient_email: input.recipient_email ?? null,
       p_recipient_name: input.recipient_name ?? null,
+      p_principal_request_id: input.request_id ?? null,
       p_can_view_private_details: input.can_view_private_details === true,
     });
   }
