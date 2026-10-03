@@ -362,3 +362,46 @@ acceptance the action is disabled. No resend after leaving/reloading the
 screen in V1. Missing email is explained without requesting it again. Email
 contains no private details: only inviter name, chantier title, secure link
 and the 7-day/single-use notice. Password recovery/Auth emails are unchanged.
+
+## 23. Existing-team onboarding and principal lots
+
+For a client who already knows the professionals on the chantier, the MVP
+onboarding rule is:
+
+```text
+1 invited artisan / enterprise = 1 principal real lot
+```
+
+The client prepares at least one artisan/lot row on the same screen. Each row
+contains:
+
+- contractor / enterprise name;
+- recipient email;
+- trade;
+- principal lot title;
+- optional indicative lot budget in TND, persisted in millimes.
+
+Multiple artisan/lot rows may be prepared before creation. The project, each
+real `project_request` + v1, and each contractor invitation must be created as
+one controlled business operation so a partial project/team is not left behind.
+
+A contractor invitation must reference one active principal request belonging
+to the same project. A principal lot cannot simultaneously have another active
+contractor member or another nonexpired pending contractor invitation.
+
+Accepting the contractor invitation:
+
+- creates/activates the chantier membership;
+- binds that accepted contractor member to the invitation's principal lot;
+- does **not** create a DAO award, bid, contract or marketplace entitlement.
+
+If an enterprise performs several lots, onboarding still uses only its principal
+lot. After acceptance, the client may create additional real lots and assign
+the same accepted contractor member to them from the chantier. These additional
+lot assignments remain project participation data, distinct from DAO award
+semantics.
+
+The minimum-one-artisan rule applies only to the `client_existing_team`
+creation path. A marketplace-first client project may contain lots with no known
+professional and use the normal DAO search/publication workflow.
+
