@@ -33,13 +33,32 @@ test('invitation email: production handler, real JWT/RLS and mocked Resend witho
   const owner = await actor('owner', 'client'), outside = await actor('outside', 'client');
   const pro = await actor('initiator', 'contractor'), member = await actor('member', 'contractor');
   const region = await admin.from('governorates').select('id').eq('code', 'E2E_TEST').single(); assert.ifError(region.error);
+  const trade = await admin.from('trades').select('id').eq('code', 'plumbing').single(); assert.ifError(trade.error);
   const create = (db: any, origin: string) => command(db, 'create_collaborative_project', {
     p_origin: origin, p_title: 'Chantier email <test>', p_description: 'Description publique', p_governorate_id: region.data!.id,
     p_delegation_id: null, p_locality_id: null, p_stage: 'in_progress', p_payment_status: 'partial',
   });
   const project = await create(owner.db, 'client_existing_team');
-  const invite = (actor: typeof owner, projectId = project.id, role = 'contractor', email = member.email) =>
-    new ProjectService(actor.db).issueInvitation({ project_id: projectId, expected_role: role, recipient_email: email, can_view_private_details: false }, actor.id);
+  const invite = async (actor: typeof owner, projectId = project.id, role = 'contractor', email = member.email) => {
+    let requestId: string | null = null;
+    if (role === 'contractor') {
+      const lot = await command(actor.db, 'add_project_request', {
+        p_project_id: projectId,
+        p_trade_id: trade.data!.id,
+        p_title: 'Lot email ' + randomUUID(),
+        p_scope: 'Lot principal pour invitation e-mail',
+        p_budget_millimes: 1000,
+      });
+      requestId = lot.id;
+    }
+    return new ProjectService(actor.db).issueInvitation({
+      project_id: projectId,
+      expected_role: role,
+      recipient_email: email,
+      request_id: requestId,
+      can_view_private_details: false,
+    }, actor.id);
+  };
   const invitation = await invite(owner);
   const memberInvite = await invite(owner);
   await command(member.db, 'respond_project_invitation', { p_token: memberInvite.token, p_accept: true });
