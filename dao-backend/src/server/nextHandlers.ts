@@ -20,6 +20,9 @@ export function createDaoApi(
     async previewProjectInvitation(request: Request) {
       return run(() => json(request).then(i => services.projects.previewInvitation(String(i.token ?? ''))));
     },
+    async projectInvitationRegistrationContext(request: Request) {
+      return run(() => json(request).then(i => services.projects.invitationRegistrationContext(String(i.token ?? ''))));
+    },
     async respondProjectInvitation(request: Request) {
       return run(() => actor(request).then(() => json(request).then(i => services.projects.respondInvitation(i))));
     },
