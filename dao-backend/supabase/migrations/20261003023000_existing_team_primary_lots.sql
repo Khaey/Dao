@@ -553,7 +553,7 @@ begin
     raise exception using errcode='22023',message='each artisan requires a unique email';
   end if;
 
-  select dao_private.create_collaborative_project(
+  v_project:=dao_private.create_collaborative_project(
     'client_existing_team',
     p_title,
     p_description,
@@ -562,8 +562,7 @@ begin
     p_locality_id,
     p_stage,
     p_payment_status
-  )
-  into v_project;
+  );
 
   for v_item in select value from jsonb_array_elements(p_team)
   loop
@@ -591,14 +590,13 @@ begin
       raise exception using errcode='22023',message='lot budget cannot be negative';
     end if;
 
-    select dao_private.add_project_request(
+    v_request:=dao_private.add_project_request(
       v_project.id,
       v_trade_id,
       v_lot_title,
       v_lot_title,
       v_budget
-    )
-    into v_request;
+    );
 
     v_invitation:=dao_private.issue_project_invitation(
       v_project.id,
