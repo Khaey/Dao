@@ -3,10 +3,10 @@ import { DomainError } from '../lib/errors.js';
 export type InvitationRole = 'client' | 'contractor';
 export type InvitationMetadata = {
   id: string; project_id: string; created_by: string; expected_role: InvitationRole;
-  recipient_email: string | null; status: string; expires_at: string;
+  recipient_email: string | null; principal_request_id: string | null; status: string; expires_at: string;
   accepted_at: string | null; revoked_at: string | null; declined_at: string | null;
 };
-export const invitationMetadataColumns = 'id,project_id,created_by,expected_role,recipient_email,status,expires_at,accepted_at,revoked_at,declined_at';
+export const invitationMetadataColumns = 'id,project_id,created_by,expected_role,recipient_email,principal_request_id,status,expires_at,accepted_at,revoked_at,declined_at';
 
 export function invitationRole(value: unknown): InvitationRole {
   if (value !== 'client' && value !== 'contractor') throw new DomainError('Type de participant invalide', 'BAD_REQUEST');
@@ -64,10 +64,12 @@ export class InvitationAuthorization {
     if (error || !data || data.project_id !== projectId || typeof data.title !== 'string' || typeof data.inviter_name !== 'string') {
       throw new DomainError('Invitation indisponible.', 'INVITATION_UNAVAILABLE');
     }
+    const principalLot = Array.isArray(data.lots) && data.lots.length === 1 && typeof data.lots[0]?.title === 'string' ? data.lots[0].title.trim() : null;
     return {
       title: data.title,
       inviterName: data.inviter_name,
       location: typeof data.location === 'string' && data.location.trim() ? data.location.trim() : null,
+      principalLot: principalLot || null,
     };
   }
 }
