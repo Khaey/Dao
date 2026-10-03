@@ -1,7 +1,35 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-10-02 Europe/Paris (GitHub + operator evidence)
+> **Last verified:** 2026-10-03 Europe/Paris (GitHub + DEV database evidence)
 > **Repository:** `Khaey/Dao`
+
+## Latest verified snapshot — client team with principal lots
+
+- Remote `main`: `352d2a13ee124d0bfa2b8d5247bc8f0b78ac8483`.
+- Main CI #222 is green, including backend, build, fresh schema, real integration,
+  38/38 desktop+mobile E2E and DEV deployment.
+- The DEV database is aligned through migration `20261003030134`.
+- The client `client_existing_team` creation flow now prepares the chantier,
+  at least one real principal lot and at least one contractor invitation in one
+  atomic command.
+- MVP rule: **1 invited artisan/enterprise = 1 principal lot at invitation time**.
+  Each row captures recipient name, email, trade, principal lot title and
+  optional indicative lot budget. Multiple rows/artisans can be prepared on
+  the same screen before creation.
+- Contractor invitations require a real active principal request. A pending
+  contractor invitation reserves that lot; a second pending invitation for the
+  same lot is refused. A contractor-accepted invitation automatically binds the
+  accepted project member to that principal lot.
+- If an enterprise later performs more work, the client can create additional
+  lots and assign any accepted contractor to them from the Lots tab. The
+  principal lot is only the invitation/onboarding lot, not an award or contract.
+- Membership, lot assignment and DAO award remain separate concepts. No
+  invitation publishes a DAO or grants competitor bid visibility.
+- Invitation preview/email now carries only the principal lot concerned for
+  contractor invitations; registration remains guided by the invitation role.
+
+The older sections below are retained as historical evidence and must not
+override this snapshot.
 
 ## Latest verified snapshot — platform readiness and permanent TEST accounts
 
