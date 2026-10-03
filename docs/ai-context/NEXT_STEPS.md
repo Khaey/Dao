@@ -3,6 +3,31 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
+## Current product next steps — 2026-10-03
+
+Verified main `352d2a13ee124d0bfa2b8d5247bc8f0b78ac8483`; CI #222 and
+DEV deploy are green.
+
+1. Treat **client existing team + principal lots** as completed. Do not recreate
+   its schema, atomic RPC, principal-lot invitation binding or E2E coverage.
+2. For any manual DEV check, validate one multi-artisan creation:
+   each artisan has name/email/trade/title/budget, each receives a distinct
+   principal lot invitation, and acceptance attaches that contractor member to
+   the corresponding lot.
+3. Validate the follow-up path separately: create another lot after acceptance
+   and assign the already accepted contractor from the Lots tab. This is an
+   additional project participation assignment, not a bid/award.
+4. Preserve the MVP rule **1 invitation = 1 principal lot**. Do not add
+   multi-select lots to invitation onboarding unless product explicitly changes
+   this rule.
+5. Preserve minimum 1 artisan/lot only for the `client_existing_team` flow.
+   Marketplace-first client projects may still prepare lots without known
+   professionals.
+6. Permanent shared-DEV TEST accounts/reset automation remains a separate OPT
+   concern and must not weaken Auth/RLS or expose credentials.
+
+Historical instructions below are retained only for traceability.
+
 ## Current WORK OPT next steps — 2026-10-02 Europe/Paris
 
 Verified main `990f65f916638431e05aa3733fffcb6cd8f103c5`; main CI #188 and
