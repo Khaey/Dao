@@ -19,7 +19,6 @@ jobs:
     env:
       PLAYWRIGHT_BASE_URL: https://dao-dev.logiclab.fr
       DAO_DEV_REAL_TEST: "1"
-      DAO_E2E_STATE_DIR: ${{ runner.temp }}/dao-dev-real-email-state
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,9 +54,10 @@ jobs:
         run: |
           set -Eeuo pipefail
           results_dir="$RUNNER_TEMP/dao-dev-real-email-playwright"
-          rm -rf "$results_dir" "$DAO_E2E_STATE_DIR"
+          state_dir="$RUNNER_TEMP/dao-dev-real-email-state"
+          rm -rf "$results_dir" "$state_dir"
           mkdir -p "$results_dir"
-          trap 'rm -rf "$results_dir" "$DAO_E2E_STATE_DIR"' EXIT
+          trap 'rm -rf "$results_dir" "$state_dir"' EXIT
           npx playwright test tests/dev-email/invitation-real.spec.ts \
             --config=playwright.dev.config.ts \
             --reporter=line
@@ -72,4 +72,4 @@ jobs:
           DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
         run: |
           node scripts/dev-test-fixtures.mjs reset
-          rm -rf "$RUNNER_TEMP/dao-dev-real-email-playwright" "$DAO_E2E_STATE_DIR"
+          rm -rf "$RUNNER_TEMP/dao-dev-real-email-playwright" "$RUNNER_TEMP/dao-dev-real-email-state"
