@@ -34,6 +34,53 @@ test('collaboration: real Auth/JWT, atomic confirmation and RLS/Storage boundari
   const pro=await actor('initiator','contractor'),member=await actor('member','contractor');
   const governorate=await admin.from('governorates').select('id').eq('code','E2E_TEST').single();assert.ifError(governorate.error);
   const trade=await admin.from('trades').select('id').eq('code','plumbing').single();assert.ifError(trade.error);
+  await t.test('client existing team creates multiple artisans, principal lots and invitations atomically', async () => {
+    const before = await admin.from('projects').select('id', { count: 'exact', head: true });
+    assert.ifError(before.error);
+    const created = await command(client.db, 'create_client_existing_team_project', {
+      p_title: 'Équipe existante multi-artisans',
+      p_description: 'Création atomique',
+      p_governorate_id: governorate.data!.id,
+      p_delegation_id: null,
+      p_locality_id: null,
+      p_stage: 'in_progress',
+      p_payment_status: 'partial',
+      p_team: [
+        { recipient_name: 'Plombier fixture', recipient_email: `plombier-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Plomberie principale', budget_millimes: 2500000, can_view_private_details: false },
+        { recipient_name: 'Électricien fixture', recipient_email: `electricien-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Électricité principale', budget_millimes: 1800000, can_view_private_details: true },
+      ],
+    });
+    assert.ok(created.id);
+    assert.equal(created.invitations.length, 2);
+    const lots = await admin.from('project_requests').select('id,contractor_member_id').eq('project_id', created.id).order('id');
+    assert.ifError(lots.error); assert.equal(lots.data!.length, 2);
+    assert.equal(lots.data!.every(row => row.contractor_member_id === null), true);
+    const invites = await admin.from('project_invitations').select('id,principal_request_id,recipient_email,status').eq('project_id', created.id).order('id');
+    assert.ifError(invites.error); assert.equal(invites.data!.length, 2);
+    assert.equal(invites.data!.every(row => row.status === 'pending' && lots.data!.some(lot => lot.id === row.principal_request_id)), true);
+    const linked = new Set(created.invitations.map((value:any) => value.request_id));
+    assert.equal(linked.size, 2);
+    assert.equal(lots.data!.every(lot => linked.has(lot.id)), true);
+
+    const failed = await client.db.rpc('create_client_existing_team_project', {
+      p_title: 'Équipe invalide',
+      p_description: '',
+      p_governorate_id: governorate.data!.id,
+      p_delegation_id: null,
+      p_locality_id: null,
+      p_stage: 'not_started',
+      p_payment_status: 'not_set',
+      p_team: [
+        { recipient_name: 'A', recipient_email: `duplicate-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Lot A', budget_millimes: null },
+        { recipient_name: 'B', recipient_email: `duplicate-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Lot B', budget_millimes: null },
+      ],
+    });
+    assert.ok(failed.error, 'duplicate artisan emails must reject the whole atomic command');
+    const after = await admin.from('projects').select('id', { count: 'exact', head: true });
+    assert.ifError(after.error);
+    assert.equal(after.count, (before.count ?? 0) + 1, 'failed batch must not leave a partial project');
+  });
+
   const create=(db:any,origin:string)=>command(db,'create_collaborative_project',{
     p_origin:origin,p_title:'Chantier réel JWT',p_description:'Description publique sûre',
     p_governorate_id:governorate.data!.id,p_delegation_id:null,p_locality_id:null,
