@@ -3,28 +3,33 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
-## Current WORK OPT next steps — 2026-10-02 Europe/Paris
+## Current WORK OPT next steps — 2026-10-03 Europe/Paris
 
-Verified main `990f65f916638431e05aa3733fffcb6cd8f103c5`; main CI #188 and
-deploy-dev are green. PR #10 remains open and untouched at
-`fc51a90fbd92271d9d6be18d479a9f2962ee3486`.
+Verified main `1af71770eb660825e42fa1a2e9925276bb396a06`; main CI #193 and
+DEV deploy are green. DAO DEV operations #2 is green:
+**ENV-SYNC DEV = PASS**. PR #10 remains open and untouched at
+`8d3d5298b4c34a764aad441a4ae0758d46e06989`; CI #194 is in progress.
 
-1. Keep the installed VPS helper as the source of truth for DEV operations:
-   `/usr/local/sbin/dao-dev-admin` is present, `env-sync` is available,
-   and VPS access is no longer a blocker.
-2. The only remaining OPT prerequisite is one protected, authorized DEV Auth
-   administration channel for the permanent TEST client/contractor credential
-   pairs. Do not place credentials in Git, docs, workflow inputs or logs.
-3. After that prerequisite is supplied, provision one TEST client and one TEST
-   contractor through standard Auth administration; the contractor must use
-   the expected signup status `pending`. Record only non-secret IDs/labels in
-   an access-controlled manifest and implement a bounded reset for owned
-   scenario resources.
-4. Until provisioning is authorized and secret-backed, keep
-   `bash scripts/reset-dev-fixtures.sh --plan` as the only supported reset.
-   FULL E2E continues to use the disposable local Supabase stack.
+1. Do not merge any OPT branch while PR #10 is open. Do not modify or rebase
+   PR #10 from OPT.
+2. Keep the prepared OPT V3 branch separate. After PR #10 is merged and DEV
+   is validated, recheck the new main, rebase/recreate OPT V3 from that SHA,
+   then run its own CI before any merge.
+3. V3-A: remove the routine manual `workflow_dispatch` dependency by making
+   the fixed DEV operations needed by a normal deployment available from the
+   deployment pipeline.
+4. V3-B: make env-sync automatically available during DEV deployment through
+   protected environment secrets, fixed operations, concurrency and rollback;
+   never expose secret values in artifacts, logs or inputs.
+5. V3-C: provision one permanent TEST client and one TEST contractor through
+   standard Auth administration once the protected credential channel exists;
+   keep contractor verification `pending`, store only non-secret IDs, and
+   make `reset-dev-fixtures.sh` reset only owned scenario resources.
+6. V3-D: make normal DEV status, health, restart, env-sync and fixture actions
+   autonomous for Work DEV without product, Auth/RLS, schema or migration
+   changes.
 
-No product, RLS, Auth or business code changes are authorized in this phase.
+FULL E2E remains disposable and isolated from shared DEV.
 
 ## Historical WORK DEV checkpoint — superseded by merged PR #8
 

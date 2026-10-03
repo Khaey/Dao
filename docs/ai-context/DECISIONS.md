@@ -373,3 +373,18 @@ secrets in Git, docs, workflow inputs or logs. The contractor must retain the
 expected standard signup verification status `pending`. FULL E2E’s disposable
 `verified` contractor fixture is not reused. `reset-dev-fixtures.sh` remains
 plan-only until explicit owned-resource IDs exist.
+
+
+## D-035 — ENV-SYNC DEV verified; OPT V3 waits behind PR #10
+
+DAO DEV operations run #2 (`37079779120`) passed on main
+`1af71770eb660825e42fa1a2e9925276bb396a06`. The protected Resend environment
+sync is operational, the SCP payload fix works in the real workflow, and the
+VPS/helper/bootstrap path is closed as an optimization blocker.
+
+PR #10 remains the active DEV boundary at
+`8d3d5298b4c34a764aad441a4ae0758d46e06989`; CI #194 is in progress. OPT must
+not merge or modify anything while that PR is open. OPT V3 may be prepared on a
+separate `chore/*` branch, but must be rebased/recreated from the post-PR main
+before merge. V3 must not change product behavior, Auth, RLS, schema or
+migrations.

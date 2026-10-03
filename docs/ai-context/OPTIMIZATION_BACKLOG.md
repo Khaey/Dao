@@ -1,30 +1,30 @@
 # D.A.O — Optimization backlog (analysis, not implementation)
 
-Verified 2026-10-02 Europe/Paris against main
-`990f65f916638431e05aa3733fffcb6cd8f103c5`.
-This phase records the final permanent-account prerequisite; no product/Auth/RLS
-implementation is included.
+Verified 2026-10-03 Europe/Paris against main
+`1af71770eb660825e42fa1a2e9925276bb396a06`.
+ENV-SYNC DEV is verified PASS on DAO DEV operations run #2
+(`37079779120`). PR #10 remains the active DEV boundary; no OPT merge is
+authorized until it is merged and DEV is validated.
 
-## Permanent TEST DEV accounts — blocked on one prerequisite
+## Autonomy DEV V3 — prepared, not merged
 
-The VPS admin helper is installed and the DEV operations path is ready.
-The only remaining optimization is one permanent TEST client plus one permanent
-TEST contractor, both clearly marked TEST DEV, with credentials held only by a
-protected secret mechanism and reset limited to owned scenario resources.
+| Phase | Prepared objective | Guardrail |
+| --- | --- | --- |
+| V3-A | Remove routine manual `workflow_dispatch` for normal DEV deployment operations | Fixed operations, main-only, serialized and auditable |
+| V3-B | Make env-sync automatically available in the DEV deployment pipeline | Protected secrets only; no output/artifact/input exposure; preserve rollback and root:dao / 0640 |
+| V3-C | Add one permanent TEST client, one TEST contractor and bounded reset | Standard Auth administration only; contractor `pending`; no shared DB reset, RLS or Auth-policy change |
+| V3-D | Remove Ahmed intervention from routine Work DEV operations | Reuse helper, health checks, host lock and concurrency; retain explicit stop gates |
 
-Creation is intentionally stopped until one authorized protected DEV Auth
-administration channel can supply/store the two credential pairs. The current
-connector/workflow surface cannot write or retrieve GitHub environment secrets
-or provision Auth users on the shared DEV project without exposing credentials.
-No account, profile, role, Auth setting, RLS policy or schema was changed.
-The contractor’s expected standard signup state is `pending`; the E2E
-disposable fixture’s `verified` profile is not a permanent DEV account.
+Execution gate: do not implement or merge V3 while PR #10 is open. Once PR #10
+is merged and DEV is validated, recheck the new main, reconcile this branch
+with new DEV tests/context, measure baseline, then implement one phase at a time.
 
-`scripts/reset-dev-fixtures.sh --plan` remains the safe contract and refuses
-mutation. After the prerequisite, provision via standard Auth administration,
-record non-secret IDs in a private manifest, and reset only explicitly owned
-scenario data.
+## Permanent TEST DEV accounts — one prerequisite remains
 
+The VPS helper, SCP transfer and Resend env-sync are closed and verified.
+Permanent accounts are still not provisioned. Creation waits for one protected,
+authorized DEV Auth administration channel that can supply/store credentials
+without exposing them to Git, docs, workflow inputs or logs.
 
 ## Measured baseline
 
