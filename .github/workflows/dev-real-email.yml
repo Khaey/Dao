@@ -1,7 +1,7 @@
 name: DAO DEV real email E2E
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: read
