@@ -35,6 +35,8 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/tests -v
           for script in scripts/*.sh ops/*.sh; do bash -n "$script"; done
+          node --check scripts/dev-test-fixtures.mjs
+          node --check scripts/dev-mailbox-smoke.mjs
       - name: Install backend dependencies
         working-directory: dao-backend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install" npm ci --no-audit --no-fund

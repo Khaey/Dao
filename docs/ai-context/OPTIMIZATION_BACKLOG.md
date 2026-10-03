@@ -2,28 +2,26 @@
 
 Verified 2026-10-02 Europe/Paris against main
 `990f65f916638431e05aa3733fffcb6cd8f103c5`.
-This phase records the final permanent-account prerequisite; no product/Auth/RLS
-implementation is included.
+V3-C is implemented as platform tooling only; no product/Auth/RLS logic,
+migration or schema implementation is included.
 
-## Permanent TEST DEV accounts — blocked on one prerequisite
+## Permanent TEST DEV accounts — protected workflow implemented
 
 The VPS admin helper is installed and the DEV operations path is ready.
 The only remaining optimization is one permanent TEST client plus one permanent
 TEST contractor, both clearly marked TEST DEV, with credentials held only by a
 protected secret mechanism and reset limited to owned scenario resources.
 
-Creation is intentionally stopped until one authorized protected DEV Auth
-administration channel can supply/store the two credential pairs. The current
-connector/workflow surface cannot write or retrieve GitHub environment secrets
-or provision Auth users on the shared DEV project without exposing credentials.
-No account, profile, role, Auth setting, RLS policy or schema was changed.
-The contractor’s expected standard signup state is `pending`; the E2E
-disposable fixture’s `verified` profile is not a permanent DEV account.
+The `DAO DEV TEST fixtures` workflow consumes the two protected credential pairs
+from GitHub Environment `dev`, reconciles the Auth users and ensures their
+fixture role/profile rows. It also performs real login verification and keeps
+the contractor at `pending` / `draft`. The disposable E2E fixture’s `verified`
+profile is not reused.
 
-`scripts/reset-dev-fixtures.sh --plan` remains the safe contract and refuses
-mutation. After the prerequisite, provision via standard Auth administration,
-record non-secret IDs in a private manifest, and reset only explicitly owned
-scenario data.
+`scripts/reset-dev-fixtures.sh --plan` remains the safe description; the
+protected `--apply` path archives only projects owned or initiated by the two
+TEST identities and revokes their pending invitations. It preserves accounts,
+memberships, documents, Storage, submitted offers and immutable history.
 
 
 ## Measured baseline

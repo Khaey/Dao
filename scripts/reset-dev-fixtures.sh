@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Deliberately plan-only until exact permanent TEST account/resource IDs exist.
-if [ "${1:---plan}" != --plan ]; then
-  echo 'Reset refused: no approved DEV fixture manifest/implementation. Never reset the shared database.' >&2
-  exit 2
-fi
-cat <<'EOF'
+operation="${1:---plan}"
+case "$operation" in
+  --plan)
+    cat <<'EOF'
 DEV_FIXTURE_RESET status=plan_only
-Permanent TEST accounts: provision through existing standard Auth administration.
-Identify exact client/artisan/reviewer IDs in an access-controlled manifest.
-Default reset: rotate scenario namespace; create fresh TEST projects via normal APIs.
-Preserve accounts, memberships required by fixtures, submitted offers and immutable history.
-No shared DEV db reset, broad email-prefix deletion, RLS bypass or Auth-policy changes.
-No data was read or modified. See docs/platform-operations.md.
+Permanent TEST accounts are resolved by their protected DEV credentials.
+The apply path archives only projects owned/initiated by the two TEST accounts
+and revokes only their pending invitations. Accounts, memberships, documents,
+submitted offers, audit history and Storage objects are preserved.
+No shared DEV database reset, broad email-prefix deletion, RLS bypass or Auth
+policy change is permitted. No data was read or modified.
 EOF
+    ;;
+  --apply)
+    : "${DAO_FIXTURE_TARGET:?DAO_FIXTURE_TARGET=dev is required for a mutation}"
+    [ "$DAO_FIXTURE_TARGET" = dev ] || { echo 'Reset refused: target must be dev' >&2; exit 2; }
+    exec node "$(dirname "${BASH_SOURCE[0]}")/dev-test-fixtures.mjs" reset
+    ;;
+  *)
+    echo 'Usage: bash scripts/reset-dev-fixtures.sh [--plan|--apply]' >&2
+    exit 2
+    ;;
+esac
