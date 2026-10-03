@@ -1,5 +1,5 @@
 import { test, expect } from './support/fixtures';
-import { login, createMainLot } from './support/flow';
+import { login } from './support/flow';
 import { recordE2EValue } from './support/state';
 import { acceptWithLogin, adminRows, createCollaborative, signOut } from './support/collaboration';
 
@@ -23,14 +23,14 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   await signOut(page);
   await login(page, e2eClient!);
   await page.goto(`/app/projects/${project.projectId}`);
-  await createMainLot(page, project.title, 'Équipe déjà présente sur le chantier.', 'Électricité existante');
   const members = await adminRows('project_members', `project_id=eq.${project.projectId}&user_id=eq.${e2eArtisan!.id}&select=id`);
   expect(members).toHaveLength(1);
-  const assigned = page.getByLabel('Professionnel de Électricité existante');
-  await assigned.selectOption(members[0].id);
-  await expect(assigned).toHaveValue(members[0].id);
-  const existingRow = page.getByRole('row').filter({ hasText: 'Électricité existante' });
-  await expect(existingRow.getByRole('link', { name: 'Trouver un professionnel' })).toHaveCount(0);
+  const principalRows = await adminRows('project_requests', `project_id=eq.${project.projectId}&contractor_member_id=eq.${members[0].id}&select=id`);
+  expect(principalRows).toHaveLength(1);
+  const principalLotRow = page.getByRole('row').filter({ hasText: 'Lot principal E2E' });
+  await expect(principalLotRow).toHaveCount(1);
+  await expect(principalLotRow.getByRole('link', { name: 'Trouver un professionnel' })).toHaveCount(0);
+  await expect(page.getByLabel('Professionnel de Lot principal E2E')).toHaveValue(members[0].id);
   await page.getByRole('button', { name: 'Ajouter un lot', exact: true }).click();
   await page.getByLabel('Métier', { exact: true }).selectOption({ label: 'Plomberie' });
   await page.getByLabel('Intitulé du lot').fill('Plomberie à rechercher');
@@ -39,7 +39,7 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   const missingRow = page.getByRole('row').filter({ hasText: 'Plomberie à rechercher' });
   await expect(missingRow).toHaveCount(1);
   await expect(missingRow.getByRole('link', { name: 'Trouver un professionnel' })).toBeVisible();
-  await expect(page.getByLabel('Professionnel de Électricité existante')).toHaveValue(members[0].id);
+  await expect(page.getByLabel('Professionnel de Lot principal E2E')).toHaveValue(members[0].id);
   await missingRow.getByRole('link', { name: 'Trouver un professionnel' }).click();
   await expect(page.getByRole('button', { name: 'Soumettre pour revue DAO' })).toBeEnabled();
   expect(await adminRows('publications', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
@@ -56,7 +56,7 @@ test('Client avec équipe existante : invitation, chantier commun et publication
     await card.getByRole('button', { name: 'Approuver' }).click();
     await expect(reviewer.getByRole('heading', { name: project.title, exact: true })).toHaveCount(0);
     await reviewer.goto(`/app/dao/publications/new?project_id=${project.projectId}`);
-    await expect(reviewer.locator('label').filter({ hasText: 'Électricité existante' }).getByRole('checkbox')).not.toBeChecked();
+    await expect(reviewer.locator('label').filter({ hasText: 'Lot principal E2E' }).getByRole('checkbox')).not.toBeChecked();
     await expect(reviewer.locator('label').filter({ hasText: 'Plomberie à rechercher' }).getByRole('checkbox')).toBeChecked();
     await reviewer.getByRole('button', { name: 'Publier le DAO' }).click();
     await expect(reviewer).toHaveURL(/\/app\/publications\/[0-9a-f-]{36}$/);
