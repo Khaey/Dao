@@ -35,7 +35,7 @@ export default function Register() {
       return;
     }
     const token = target.slice('/invite/'.length);
-    void projectApi<InvitationRegistration | null>('/api/projects/invitations/preview', { token }, true)
+    void projectApi<InvitationRegistration | null>('/api/projects/invitations/registration-context', { token }, true)
       .then(summary => {
         if (!summary) return;
         setInvitation(summary);
