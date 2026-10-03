@@ -131,7 +131,7 @@ export default function Register() {
         <Input type="password" placeholder="Mot de passe" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required />
         {guided && <p className="text-xs text-black/50">Votre nom est prérempli par l’invitant et reste modifiable avant validation.</p>}
         {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
-        <Button className="w-full" disabled={saving || !accountType || !name.trim() || !email.trim() || (accountType === 'contractor' && !effectiveBusinessName)}>{saving ? 'Création…' : 'Créer mon compte'}</Button>
+        <Button className="w-full" disabled={saving || !accountType || !name.trim() || !email.trim() || password.length < 8 || (accountType === 'contractor' && !effectiveBusinessName)}>{saving ? 'Création…' : 'Créer mon compte'}</Button>
       </form>}
       <p className="mt-5 text-sm text-black/60">Déjà inscrit ? <Link className="font-semibold text-teal" href={returnTo ? `/auth/login?returnTo=${encodeURIComponent(returnTo)}` : "/auth/login"}>Se connecter</Link></p>
     </Card>
