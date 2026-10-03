@@ -90,6 +90,7 @@ test('Email artisan : absence d’adresse explicite, invitation depuis Équipe e
   // sending itself must not perform either mutation.
   await page.getByRole('button', { name: 'Révoquer l’invitation', exact: true }).click();
   await expect(page.getByLabel('Email du destinataire — optionnel')).toBeVisible();
+  await page.getByLabel('Nom du destinataire').fill('Client E2E invité');
   await page.getByLabel('Email du destinataire — optionnel').fill(e2eClient!.email);
   await page.getByRole('button', { name: 'Préparer l’invitation', exact: true }).click();
   await expect(page.getByLabel('Lien d’invitation')).toBeVisible();
