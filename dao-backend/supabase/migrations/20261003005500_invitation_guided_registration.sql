@@ -186,21 +186,19 @@ begin
     'lots',v_lots
   );
 end;
-$;
+$$;
 
 create function dao_private.project_invitation_registration_context(p_token text) returns jsonb
 language plpgsql
 stable
 security definer
 set search_path=''
-as $
+as $$
 declare
   v public.project_invitations;
   p public.projects;
 begin
-  if p_token is null or p_token !~ '^[a-f0-9]{64}
-commit;
- then return null; end if;
+  if p_token is null or p_token !~ '^[a-f0-9]{64}$' then return null; end if;
 
   select * into v
   from public.project_invitations
@@ -219,15 +217,15 @@ commit;
     'recipient_name',v.recipient_name
   );
 end;
-$;
+$$;
 
 create function public.project_invitation_registration_context(p_token text) returns jsonb
 language sql
 security invoker
 set search_path=''
-as $
+as $$
   select dao_private.project_invitation_registration_context($1);
-$;
+$$;
 
 revoke all on function dao_private.project_invitation_registration_context(text) from public,anon,authenticated;
 grant execute on function dao_private.project_invitation_registration_context(text) to anon,authenticated,service_role;
