@@ -183,6 +183,10 @@ export class ProjectService {
     return this.command('preview_project_invitation', { p_token: token });
   }
 
+  async invitationRegistrationContext(token: string) {
+    return this.command('project_invitation_registration_context', { p_token: token });
+  }
+
   async respondInvitation(input: Record<string, unknown>) {
     if (typeof input.accept !== 'boolean') throw new DomainError('Réponse explicite obligatoire', 'BAD_REQUEST');
     return this.command('respond_project_invitation', { p_token: input.token, p_accept: input.accept });
