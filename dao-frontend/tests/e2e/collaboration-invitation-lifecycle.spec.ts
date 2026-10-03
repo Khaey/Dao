@@ -37,6 +37,7 @@ test('Invitation révoquée : lien inutilisable, puis nouvelle invitation refus�
   expect(response.status()).toBe(409);
   await page.goto(`/app/projects/${project.projectId}?tab=team`);
   await page.getByLabel('Nom du destinataire').fill('Artisan réinvité E2E');
+  await page.getByLabel('Lot principal de l’invitation').selectOption({ index: 1 });
   await page.getByLabel('Email du destinataire — optionnel').fill(e2eArtisan!.email);
   await page.getByRole('button', { name: 'Préparer l’invitation', exact: true }).click();
   await expect(page.getByLabel('Lien d’invitation')).toBeVisible();

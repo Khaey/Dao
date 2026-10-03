@@ -40,14 +40,41 @@ export async function createCollaborative(page: Page, info: TestInfo, contractor
   await page.getByRole('radio', { name: 'Travaux en cours', exact: true }).check();
   await page.getByLabel('Situation du paiement — optionnel').selectOption('partial');
   await page.getByRole('button', { name: 'Continuer', exact: true }).click();
-  if (email) {
-    await page.getByLabel('Nom du destinataire').fill(recipientName);
-    await page.getByLabel('Email du destinataire — optionnel').fill(email);
+
+  if (contractor) {
+    if (email) {
+      await page.getByLabel('Nom du destinataire').fill(recipientName);
+      await page.getByLabel('Email du destinataire — optionnel').fill(email);
+    } else {
+      await page.getByLabel('Nom du destinataire').fill('Client E2E sans email');
+    }
+    await page.getByRole('button', { name: 'Continuer', exact: true }).click();
+    await page.getByRole('button', { name: 'Créer et préparer l’invitation', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Invitation au chantier prête' })).toBeVisible();
+    const link = await page.getByLabel('Lien d’invitation').inputValue();
+    const href = await page.getByRole('link', { name: 'Ouvrir le chantier' }).getAttribute('href');
+    const projectId = href?.match(/\/app\/projects\/([0-9a-f-]{36})/)?.[1];
+    if (!projectId) throw new Error('Created collaboration project id is missing');
+    recordE2EValue(info, 'projects', projectId);
+    if (!stayOnInvitation) {
+      await page.getByRole('link', { name: 'Ouvrir le chantier' }).click();
+      await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    }
+    return { projectId, title, link, recipientName };
   }
+
+  await page.getByLabel('Nom de l’artisan 1').fill(recipientName);
+  await page.getByLabel('Email de l’artisan 1').fill(email);
+  const trade = page.getByLabel('Métier de l’artisan 1');
+  await expect(trade.getByRole('option')).not.toHaveCount(1);
+  await trade.selectOption({ index: 1 });
+  await page.getByLabel('Titre du lot de l’artisan 1').fill('Lot principal E2E');
+  await page.getByLabel('Budget du lot de l’artisan 1').fill('1500');
   await page.getByRole('button', { name: 'Continuer', exact: true }).click();
-  await page.getByRole('button', { name: 'Créer et préparer l’invitation', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Invitation au chantier prête' })).toBeVisible();
-  const link = await page.getByLabel('Lien d’invitation').inputValue();
+  await page.getByRole('button', { name: 'Créer le chantier et préparer les invitations', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Chantier et invitations prêts' })).toBeVisible();
+
+  const link = await page.getByLabel(`Lien d’invitation de ${recipientName}`).inputValue();
   const href = await page.getByRole('link', { name: 'Ouvrir le chantier' }).getAttribute('href');
   const projectId = href?.match(/\/app\/projects\/([0-9a-f-]{36})/)?.[1];
   if (!projectId) throw new Error('Created collaboration project id is missing');

@@ -34,13 +34,60 @@ test('collaboration: real Auth/JWT, atomic confirmation and RLS/Storage boundari
   const pro=await actor('initiator','contractor'),member=await actor('member','contractor');
   const governorate=await admin.from('governorates').select('id').eq('code','E2E_TEST').single();assert.ifError(governorate.error);
   const trade=await admin.from('trades').select('id').eq('code','plumbing').single();assert.ifError(trade.error);
+  await t.test('client existing team creates multiple artisans, principal lots and invitations atomically', async () => {
+    const before = await admin.from('projects').select('id', { count: 'exact', head: true });
+    assert.ifError(before.error);
+    const created = await command(client.db, 'create_client_existing_team_project', {
+      p_title: 'Équipe existante multi-artisans',
+      p_description: 'Création atomique',
+      p_governorate_id: governorate.data!.id,
+      p_delegation_id: null,
+      p_locality_id: null,
+      p_stage: 'in_progress',
+      p_payment_status: 'partial',
+      p_team: [
+        { recipient_name: 'Plombier fixture', recipient_email: `plombier-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Plomberie principale', budget_millimes: 2500000, can_view_private_details: false },
+        { recipient_name: 'Électricien fixture', recipient_email: `electricien-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Électricité principale', budget_millimes: 1800000, can_view_private_details: true },
+      ],
+    });
+    assert.ok(created.id);
+    assert.equal(created.invitations.length, 2);
+    const lots = await admin.from('project_requests').select('id,contractor_member_id').eq('project_id', created.id).order('id');
+    assert.ifError(lots.error); assert.equal(lots.data!.length, 2);
+    assert.equal(lots.data!.every(row => row.contractor_member_id === null), true);
+    const invites = await admin.from('project_invitations').select('id,principal_request_id,recipient_email,status').eq('project_id', created.id).order('id');
+    assert.ifError(invites.error); assert.equal(invites.data!.length, 2);
+    assert.equal(invites.data!.every(row => row.status === 'pending' && lots.data!.some(lot => lot.id === row.principal_request_id)), true);
+    const linked = new Set(created.invitations.map((value:any) => value.request_id));
+    assert.equal(linked.size, 2);
+    assert.equal(lots.data!.every(lot => linked.has(lot.id)), true);
+
+    const failed = await client.db.rpc('create_client_existing_team_project', {
+      p_title: 'Équipe invalide',
+      p_description: '',
+      p_governorate_id: governorate.data!.id,
+      p_delegation_id: null,
+      p_locality_id: null,
+      p_stage: 'not_started',
+      p_payment_status: 'not_set',
+      p_team: [
+        { recipient_name: 'A', recipient_email: `duplicate-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Lot A', budget_millimes: null },
+        { recipient_name: 'B', recipient_email: `duplicate-${suffix}@example.invalid`, trade_id: trade.data!.id, lot_title: 'Lot B', budget_millimes: null },
+      ],
+    });
+    assert.ok(failed.error, 'duplicate artisan emails must reject the whole atomic command');
+    const after = await admin.from('projects').select('id', { count: 'exact', head: true });
+    assert.ifError(after.error);
+    assert.equal(after.count, (before.count ?? 0) + 1, 'failed batch must not leave a partial project');
+  });
+
   const create=(db:any,origin:string)=>command(db,'create_collaborative_project',{
     p_origin:origin,p_title:'Chantier réel JWT',p_description:'Description publique sûre',
     p_governorate_id:governorate.data!.id,p_delegation_id:null,p_locality_id:null,
     p_stage:'in_progress',p_payment_status:'partial',
   });
-  const invite=(db:any,projectId:string,role:string,email:string|null=null)=>command(db,'issue_project_invitation',{
-    p_project_id:projectId,p_expected_role:role,p_recipient_email:email,p_can_view_private_details:false,
+  const invite=(db:any,projectId:string,role:string,email:string|null=null,requestId:string|null=null)=>command(db,'issue_project_invitation',{
+    p_project_id:projectId,p_expected_role:role,p_recipient_email:email,p_recipient_name:null,p_principal_request_id:requestId,p_can_view_private_details:false,
   });
   const project=await create(pro.db,'contractor_existing_client');
   const versionBefore=await admin.from('project_versions').select('id,status,version_no').eq('project_id',project.id).single();assert.ifError(versionBefore.error);
@@ -79,9 +126,11 @@ test('collaboration: real Auth/JWT, atomic confirmation and RLS/Storage boundari
   const confirmed=await admin.from('projects').select('client_id').eq('id',project.id).single();assert.ifError(confirmed.error);
   const owner=confirmed.data!.client_id===client.id?client:other;
   const unrelated=owner.id===client.id?other:client;
-  const memberInvite=await invite(owner.db,project.id,'contractor',member.email);
+  const lot=await command(owner.db,'add_project_request',{p_project_id:project.id,p_trade_id:trade.data!.id,p_title:'Lot partagé',p_scope:'Scope explicite',p_budget_millimes:1000});
+  const memberInvite=await invite(owner.db,project.id,'contractor',member.email,lot.id);
   await command(member.db,'respond_project_invitation',{p_token:memberInvite.token,p_accept:true});
   const membership=await admin.from('project_members').select('id').eq('project_id',project.id).eq('user_id',member.id).single();assert.ifError(membership.error);
+  const principalAssignment=await admin.from('project_requests').select('contractor_member_id').eq('id',lot.id).single();assert.ifError(principalAssignment.error);assert.equal(principalAssignment.data!.contractor_member_id,membership.data!.id);
   await t.test('invited contractor can read shared workspace but cannot edit or submit',async()=> {
     const read=await member.db.from('projects').select('id').eq('id',project.id);assert.ifError(read.error);assert.equal(read.data!.length,1);
     const otherRead=await unrelated.db.from('projects').select('id').eq('id',project.id);assert.ifError(otherRead.error);assert.equal(otherRead.data!.length,0);
@@ -91,7 +140,6 @@ test('collaboration: real Auth/JWT, atomic confirmation and RLS/Storage boundari
     const write=await member.db.from('project_members').update({can_view_private_details:true}).eq('id',membership.data!.id);assert.ok(write.error);
     await denied(member.db,'update_project_member',{p_member_id:membership.data!.id,p_revoke:false,p_can_view_private_details:true},'42501');
   });
-  const lot=await command(pro.db,'add_project_request',{p_project_id:project.id,p_trade_id:trade.data!.id,p_title:'Lot partagé',p_scope:'Scope explicite',p_budget_millimes:1000});
   const privateDetails=await command(pro.db,'upsert_project_private_details',{p_project_id:project.id,p_exact_address:'Fixture privée',p_access_instructions:null,p_contact_phone:null,p_contact_email:null});
   await t.test('private details require explicit client permission',async()=> {
     const hidden=await member.db.from('project_private_details').select('id').eq('id',privateDetails.id);assert.ifError(hidden.error);assert.equal(hidden.data!.length,0);

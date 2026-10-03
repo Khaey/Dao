@@ -8,7 +8,7 @@ export const paymentLabels: Record<string, string> = {
   not_set: 'Non renseignée', unpaid: 'Non payé', partial: 'Partiellement payé', paid: 'Payé',
 };
 export type Member = { id: string; user_id: string; participation_role: 'client' | 'contractor'; status: string; can_view_private_details: boolean; name: string };
-export type Invitation = { id: string; expected_role: 'client' | 'contractor'; recipient_email: string | null; status: string; expires_at: string };
+export type Invitation = { id: string; expected_role: 'client' | 'contractor'; recipient_email: string | null; recipient_name?: string | null; principal_request_id?: string | null; status: string; expires_at: string };
 export type Team = { members: Member[]; invitations: Invitation[]; events: { id: string; action: string; created_at: string }[]; is_client: boolean; can_prepare: boolean; can_view_private_details: boolean };
 export const emptyTeam: Team = { members: [], invitations: [], events: [], is_client: false, can_prepare: false, can_view_private_details: false };
 

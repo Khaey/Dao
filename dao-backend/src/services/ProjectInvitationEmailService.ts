@@ -36,7 +36,7 @@ export class ProjectInvitationEmailService {
     pending(visible, this.now());
     const config = this.configuration();
     const invitation = await this.readHash(id);
-    if (!invitation || invitation.id !== id || invitation.project_id !== visible.project_id || invitation.created_by !== visible.created_by || invitation.expected_role !== visible.expected_role) unavailable();
+    if (!invitation || invitation.id !== id || invitation.project_id !== visible.project_id || invitation.created_by !== visible.created_by || invitation.expected_role !== visible.expected_role || invitation.principal_request_id !== visible.principal_request_id) unavailable();
     pending(invitation, this.now());
     if (!invitationTokenMatches(token, invitation.token_hash)) throw new DomainError('Invitation indisponible.', 'FORBIDDEN');
     const recipient = invitation.recipient_email;
@@ -52,6 +52,7 @@ export class ProjectInvitationEmailService {
       inviterName: details.inviterName,
       title: details.title,
       location: details.location,
+      principalLot: details.principalLot,
       expectedRole: invitation.expected_role,
       url: `${config.publicUrl}/invite/${token}`,
       expiresAt: invitation.expires_at,

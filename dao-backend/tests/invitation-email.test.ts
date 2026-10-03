@@ -17,7 +17,7 @@ function fixture() {
   const token = randomBytes(32).toString('hex');
   const invitation: any = {
     id: invitationId, project_id: projectId, created_by: actorId, expected_role: 'contractor',
-    recipient_email: 'recipient@example.invalid', recipient_name: 'Artisan Test', status: 'pending', expires_at: new Date(now + 7 * 86400_000).toISOString(),
+    recipient_email: 'recipient@example.invalid', recipient_name: 'Artisan Test', principal_request_id: '40000000-0000-4000-8000-000000000004', status: 'pending', expires_at: new Date(now + 7 * 86400_000).toISOString(),
     accepted_at: null, revoked_at: null, declined_at: null,
     token_hash: createHash('sha256').update(token, 'utf8').digest('hex'),
   };
@@ -40,7 +40,7 @@ function fixture() {
     async rpc(name: string, args: any) {
       events.push(`rpc:${name}`);
       if (name === 'project_team') return { data: { ...team }, error: null };
-      if (name === 'preview_project_invitation') return { data: { project_id: projectId, title: '<Chantier & équipe>', inviter_name: 'Client <test>', location: 'Sousse · Sahloul', private_address: 'Must never leave RPC' }, error: null };
+      if (name === 'preview_project_invitation') return { data: { project_id: projectId, title: '<Chantier & équipe>', inviter_name: 'Client <test>', location: 'Sousse · Sahloul', lots: [{ title: 'Lot plomberie' }], private_address: 'Must never leave RPC' }, error: null };
       return { data: {}, error: null };
     },
   };
@@ -81,6 +81,7 @@ test('email authentication and canonical authorization precede any secret read',
     assert.equal(f.delivered[0].input.to, f.invitation.recipient_email);
     assert.equal(f.delivered[0].input.recipientName, f.invitation.recipient_name);
     assert.equal(f.delivered[0].input.location, 'Sousse · Sahloul');
+    assert.equal(f.delivered[0].input.principalLot, 'Lot plomberie');
     assert.equal(f.delivered[0].input.expectedRole, 'contractor');
     assert.equal(f.delivered[0].input.url === `${config.publicUrl}/invite/${f.token}`, true);
     const body = await result.text();
@@ -100,7 +101,7 @@ test('email authentication and canonical authorization precede any secret read',
 
 test('issuance, revocation and email use the shared invitation authorization', async () => {
   const f = fixture(); const projects = new ProjectService(f.db);
-  await projects.issueInvitation({ project_id: projectId, expected_role: 'contractor', recipient_email: 'recipient@example.invalid' }, actorId);
+  await projects.issueInvitation({ project_id: projectId, expected_role: 'contractor', recipient_email: 'recipient@example.invalid', request_id: f.invitation.principal_request_id }, actorId);
   await projects.revokeInvitation(invitationId, actorId);
   assert.equal((await f.send()).status, 200);
   f.team.can_prepare = false;
@@ -193,6 +194,7 @@ test('HTML and plain text are branded, responsive, safe and keep the raw URL out
     inviterName: '<img src=x onerror=alert(1)>',
     title: 'Chantier <script>&"',
     location: 'Sousse · Sahloul',
+    principalLot: 'Lot plomberie',
     expectedRole: 'contractor' as const,
     url: 'https://prod.example.invalid/invite/opaque',
     expiresAt: new Date(now + 7 * 86400_000).toISOString(),
@@ -222,7 +224,7 @@ test('Resend stable idempotency allows retry before acceptance and never caches 
     return Response.json({ id: 'mock-accepted-id' });
   }) as typeof fetch;
   const transport = new ResendEmailTransport(request);
-  const input = { to: 'db@example.invalid', recipientName: 'Artisan test', inviterName: 'Client test', title: 'Chantier test', location: 'Sousse', expectedRole: 'contractor' as const, url: 'https://prod.example.invalid/invite/opaque', expiresAt: new Date(now + 7 * 86400_000).toISOString(), invitationId };
+  const input = { to: 'db@example.invalid', recipientName: 'Artisan test', inviterName: 'Client test', title: 'Chantier test', location: 'Sousse', principalLot: 'Lot plomberie', expectedRole: 'contractor' as const, url: 'https://prod.example.invalid/invite/opaque', expiresAt: new Date(now + 7 * 86400_000).toISOString(), invitationId };
   for (let i = 0; i < 2; i++) await assert.rejects(transport.sendProjectInvitationEmail(input, config), (e: any) => e.code === 'EMAIL_DELIVERY' && e.message === invitationEmailFailure);
   await transport.sendProjectInvitationEmail(input, config);
   assert.equal(calls.length, 3);
@@ -235,7 +237,7 @@ test('Resend stable idempotency allows retry before acceptance and never caches 
 });
 
 test('all provider HTTP failures and malformed success responses return a clean error', async () => {
-  const input = { to: 'db@example.invalid', recipientName: null, inviterName: 'Client', title: 'Chantier', location: null, expectedRole: 'client' as const, url: 'https://prod.example.invalid/invite/opaque', expiresAt: new Date(now + 7 * 86400_000).toISOString(), invitationId };
+  const input = { to: 'db@example.invalid', recipientName: null, inviterName: 'Client', title: 'Chantier', location: null, principalLot: null, expectedRole: 'client' as const, url: 'https://prod.example.invalid/invite/opaque', expiresAt: new Date(now + 7 * 86400_000).toISOString(), invitationId };
   for (const status of [400, 401, 403, 409, 429, 500, 503, 200]) {
     const transport = new ResendEmailTransport((async () => Response.json({ message: 'provider secret/details', id: null }, { status })) as typeof fetch);
     await assert.rejects(transport.sendProjectInvitationEmail(input, config), (e: any) => e.code === 'EMAIL_DELIVERY' && !e.message.includes('provider'));
