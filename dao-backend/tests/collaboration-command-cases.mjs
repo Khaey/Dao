@@ -27,7 +27,7 @@ export async function collaborationCommands({ db, as, client, other, contractor 
   const gov=(await db.query("select id from public.governorates where code='E2E_TEST'")).rows[0].id;
   const trade=(await db.query("select id from public.trades where code='plumbing'")).rows[0].id;
   const create=origin=>rpc('create_collaborative_project',[origin,'Chantier RPC','Description sûre',gov,null,null,'in_progress','partial']);
-  const invite=(project,role,email=null,privateDetails=false)=>rpc('issue_project_invitation',[project,role,email,privateDetails]);
+  const invite=(project,role,email=null,privateDetails=false,requestId=null)=>rpc('issue_project_invitation',[project,role,email,null,requestId,privateDetails]);
   const project=await as(contractor,()=>create('contractor_existing_client'));
   const clientProject=await as(client,()=>create('client_existing_team'));
   await check('strict origin and matching global role',async()=> {
@@ -126,18 +126,22 @@ export async function collaborationCommands({ db, as, client, other, contractor 
   await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[competitor,'competitor@fixture.invalid']);
   await db.query("insert into public.user_roles(user_id,role) values($1,'contractor')",[competitor]);
   const competitorProfile=(await db.query("insert into public.contractor_profiles(user_id,business_name,verification_status) values($1,'Competitor fixture','verified') returning id",[competitor])).rows[0].id;
-  const memberInvite=await as(client,()=>invite(project.id,'contractor'));
+  const memberInvite=await as(client,()=>invite(project.id,'contractor',null,false,lot.id));
   await as(competitor,()=>rpc('respond_project_invitation',[memberInvite.token,true]));
   const member=(await db.query('select * from public.project_members where project_id=$1 and user_id=$2',[project.id,competitor])).rows[0];
+  assert.equal((await db.query('select contractor_member_id from public.project_requests where id=$1',[lot.id])).rows[0].contractor_member_id,member.id);
   await check('invited contractor is read-only and cannot escalate private permission',()=>as(competitor,async()=> {
     const team=await rpc('project_team',[project.id]);assert.equal(team.can_prepare,false);assert.equal(team.can_view_private_details,false);
     await deny('add_project_request',[project.id,trade,'Forged','Scope',null],'42501');
     await deny('update_project_member',[member.id,false,true],'42501');
     await deny('update_project_tracking',[project.id,'completed','paid'],'42501');
   }));
-  await check('lot assignment stays project-bound and separate from awards',async()=> {
-    await as(client,()=>rpc('assign_project_request_member',[lot.id,member.id]));
+  await check('principal lot auto-assignment and additional lot assignment stay separate from awards',async()=> {
     assert.equal((await db.query('select status from public.project_requests where id=$1',[lot.id])).rows[0].status,'open');
+    assert.equal((await db.query('select contractor_member_id from public.project_requests where id=$1',[lot.id])).rows[0].contractor_member_id,member.id);
+    const additional=await as(client,()=>rpc('add_project_request',[project.id,trade,'Lot complémentaire','Autres travaux',null]));
+    await as(client,()=>rpc('assign_project_request_member',[additional.id,member.id]));
+    assert.equal((await db.query('select contractor_member_id from public.project_requests where id=$1',[additional.id])).rows[0].contractor_member_id,member.id);
     assert.equal((await db.query('select count(*)::int as n from public.awards where project_id=$1',[project.id])).rows[0].n,0);
     const another=await as(client,()=>rpc('add_project_request',[clientProject.id,trade,'Other','Other',null]));
     await as(client,()=>deny('assign_project_request_member',[another.id,member.id],'23514'));
