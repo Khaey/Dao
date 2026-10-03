@@ -8,6 +8,7 @@ export type ProjectInvitationEmail = {
   inviterName: string;
   title: string;
   location: string | null;
+  principalLot: string | null;
   expectedRole: 'client' | 'contractor';
   url: string;
   expiresAt: string;
@@ -61,6 +62,7 @@ export function projectInvitationMessage(input: ProjectInvitationEmail, from: st
   const inviterName = inviterLabel(input.inviterName);
   const title = cleanText(input.title);
   const location = input.location ? cleanText(input.location) : '';
+  const principalLot = input.principalLot ? cleanText(input.principalLot) : '';
   const role = roleLabel(input.expectedRole);
   const expiry = expiryLabel(input.expiresAt);
   const greeting = recipientName ? `Bonjour ${recipientName},` : 'Bonjour,';
@@ -74,6 +76,7 @@ export function projectInvitationMessage(input: ProjectInvitationEmail, from: st
     `${inviterName} vous invite à rejoindre un chantier sur D.A.O.`,
     '',
     `Chantier : ${title}`,
+    ...(principalLot ? [`Lot principal : ${principalLot}`] : []),
     ...(location ? [`Localisation : ${location}`] : []),
     `Votre rôle : ${role}`,
     '',
@@ -94,9 +97,18 @@ export function projectInvitationMessage(input: ProjectInvitationEmail, from: st
   const safeInviter = escapeHtml(inviterName);
   const safeTitle = escapeHtml(title);
   const safeLocation = escapeHtml(location);
+  const safePrincipalLot = escapeHtml(principalLot);
   const safeRole = escapeHtml(role);
   const safeUrl = escapeHtml(input.url);
   const safeValidity = escapeHtml(validity);
+
+  const principalLotRow = principalLot ? `
+    <tr>
+      <td style="padding:12px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:21px;color:#51615f;">
+        <span style="color:#7a8987;">Lot principal</span><br>
+        <strong style="font-weight:700;color:#173330;">${safePrincipalLot}</strong>
+      </td>
+    </tr>` : '';
 
   const locationRow = location ? `
     <tr>
@@ -168,6 +180,7 @@ export function projectInvitationMessage(input: ProjectInvitationEmail, from: st
                                 ${safeTitle}
                               </td>
                             </tr>
+                            ${principalLotRow}
                             ${locationRow}
                             <tr>
                               <td style="padding:12px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:21px;color:#51615f;">
