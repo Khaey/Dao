@@ -23,6 +23,7 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   await signOut(page);
   await login(page, e2eClient!);
   await page.goto(`/app/projects/${project.projectId}`);
+  await page.getByRole('button', { name: /^Lots/ }).click();
   const members = await adminRows('project_members', `project_id=eq.${project.projectId}&user_id=eq.${e2eArtisan!.id}&select=id`);
   expect(members).toHaveLength(1);
   const principalRows = await adminRows('project_requests', `project_id=eq.${project.projectId}&contractor_member_id=eq.${members[0].id}&select=id`);
