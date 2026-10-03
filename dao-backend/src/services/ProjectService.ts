@@ -174,12 +174,17 @@ export class ProjectService {
       p_project_id: input.project_id,
       p_expected_role: role,
       p_recipient_email: input.recipient_email ?? null,
+      p_recipient_name: input.recipient_name ?? null,
       p_can_view_private_details: input.can_view_private_details === true,
     });
   }
 
   async previewInvitation(token: string) {
     return this.command('preview_project_invitation', { p_token: token });
+  }
+
+  async invitationRegistrationContext(token: string) {
+    return this.command('project_invitation_registration_context', { p_token: token });
   }
 
   async respondInvitation(input: Record<string, unknown>) {

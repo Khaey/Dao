@@ -3,8 +3,8 @@ import { DomainError } from '../lib/errors.js';
 import { InvitationAuthorization, InvitationMetadata, invitationMetadataColumns } from './InvitationAuthorization.js';
 import type { EmailConfiguration, EmailTransport } from './ResendEmailTransport.js';
 
-export const invitationSecretColumns = `${invitationMetadataColumns},token_hash`;
-export type InvitationWithHash = InvitationMetadata & { token_hash: string };
+export const invitationSecretColumns = `${invitationMetadataColumns},recipient_name,token_hash`;
+export type InvitationWithHash = InvitationMetadata & { recipient_name: string | null; token_hash: string };
 export type InvitationHashReader = (id: string) => Promise<InvitationWithHash | null>;
 
 function unavailable(): never { throw new DomainError('Invitation indisponible.', 'INVITATION_UNAVAILABLE'); }
@@ -47,8 +47,15 @@ export class ProjectInvitationEmailService {
     if (current.project.status === 'archived') unavailable();
     pending(invitation, this.now());
     await this.transport.sendProjectInvitationEmail({
-      to: recipient, inviterName: details.inviterName, title: details.title,
-      url: `${config.publicUrl}/invite/${token}`, expiresAt: invitation.expires_at, invitationId: id,
+      to: recipient,
+      recipientName: invitation.recipient_name,
+      inviterName: details.inviterName,
+      title: details.title,
+      location: details.location,
+      expectedRole: invitation.expected_role,
+      url: `${config.publicUrl}/invite/${token}`,
+      expiresAt: invitation.expires_at,
+      invitationId: id,
     }, config);
     return { sent: true, recipient_masked: maskEmail(recipient) };
   }

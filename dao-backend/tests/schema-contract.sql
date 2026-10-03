@@ -6,7 +6,8 @@ DECLARE
     '20260921084730','20260921091400','20260921094726','20260921094727',
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
-    '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307'
+    '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
+    '20261003005500'
   ];
   expected_tables text[] := ARRAY[
     'ai_proposals','ai_runs','audit_events','award_items','awards',
@@ -106,7 +107,9 @@ BEGIN
       'dao_private.initialize_registration_account(text,text,text,text)',
       'public.create_collaborative_project(text,text,text,uuid,uuid,uuid,text,text)',
       'public.issue_project_invitation(uuid,text,text,boolean)',
+      'public.issue_project_invitation(uuid,text,text,text,boolean)',
       'public.preview_project_invitation(text)',
+      'public.project_invitation_registration_context(text)',
       'public.respond_project_invitation(text,boolean)',
       'public.update_project_tracking(uuid,text,text)',
       'public.project_team(uuid)',
@@ -152,6 +155,7 @@ BEGIN
   FOR missing_name IN SELECT unnest(ARRAY[
     'public.create_collaborative_project(text,text,text,uuid,uuid,uuid,text,text)',
     'public.issue_project_invitation(uuid,text,text,boolean)',
+    'public.issue_project_invitation(uuid,text,text,text,boolean)',
     'public.respond_project_invitation(text,boolean)',
     'public.revoke_project_invitation(uuid)',
     'public.update_project_member(uuid,boolean,boolean)',
@@ -167,6 +171,9 @@ BEGIN
   END LOOP;
   IF NOT has_function_privilege('anon','public.preview_project_invitation(text)','EXECUTE') THEN
     RAISE EXCEPTION 'schema contract: token preview must be available before sign-in';
+  END IF;
+  IF NOT has_function_privilege('anon','public.project_invitation_registration_context(text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: invitation registration context must be available before sign-in';
   END IF;
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
