@@ -181,14 +181,58 @@ begin
     'inviter_name',v_name,
     'location',v_location,
     'expected_role',v.expected_role,
-    'recipient_email',v.recipient_email,
-    'recipient_name',v.recipient_name,
     'project_stage',p.project_stage,
     'payment_status',p.payment_status,
     'lots',v_lots
   );
 end;
-$$;
+$;
+
+create function dao_private.project_invitation_registration_context(p_token text) returns jsonb
+language plpgsql
+stable
+security definer
+set search_path=''
+as $
+declare
+  v public.project_invitations;
+  p public.projects;
+begin
+  if p_token is null or p_token !~ '^[a-f0-9]{64}
+commit;
+ then return null; end if;
+
+  select * into v
+  from public.project_invitations
+  where token_hash=encode(sha256(convert_to(p_token,'UTF8')),'hex')
+    and status='pending'
+    and expires_at>now();
+
+  if v.id is null then return null; end if;
+
+  select * into p from public.projects where id=v.project_id;
+  if p.id is null or p.status='archived' then return null; end if;
+
+  return jsonb_build_object(
+    'expected_role',v.expected_role,
+    'recipient_email',v.recipient_email,
+    'recipient_name',v.recipient_name
+  );
+end;
+$;
+
+create function public.project_invitation_registration_context(p_token text) returns jsonb
+language sql
+security invoker
+set search_path=''
+as $
+  select dao_private.project_invitation_registration_context($1);
+$;
+
+revoke all on function dao_private.project_invitation_registration_context(text) from public,anon,authenticated;
+grant execute on function dao_private.project_invitation_registration_context(text) to anon,authenticated,service_role;
+revoke all on function public.project_invitation_registration_context(text) from public,anon,authenticated;
+grant execute on function public.project_invitation_registration_context(text) to anon,authenticated,service_role;
 
 grant select(recipient_name) on public.project_invitations to authenticated;
 
