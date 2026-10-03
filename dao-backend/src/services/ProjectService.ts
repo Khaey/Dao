@@ -174,6 +174,7 @@ export class ProjectService {
       p_project_id: input.project_id,
       p_expected_role: role,
       p_recipient_email: input.recipient_email ?? null,
+      p_recipient_name: input.recipient_name ?? null,
       p_can_view_private_details: input.can_view_private_details === true,
     });
   }
