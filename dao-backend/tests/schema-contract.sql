@@ -109,6 +109,7 @@ BEGIN
       'public.issue_project_invitation(uuid,text,text,boolean)',
       'public.issue_project_invitation(uuid,text,text,text,boolean)',
       'public.preview_project_invitation(text)',
+      'public.project_invitation_registration_context(text)',
       'public.respond_project_invitation(text,boolean)',
       'public.update_project_tracking(uuid,text,text)',
       'public.project_team(uuid)',
@@ -170,6 +171,9 @@ BEGIN
   END LOOP;
   IF NOT has_function_privilege('anon','public.preview_project_invitation(text)','EXECUTE') THEN
     RAISE EXCEPTION 'schema contract: token preview must be available before sign-in';
+  END IF;
+  IF NOT has_function_privilege('anon','public.project_invitation_registration_context(text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: invitation registration context must be available before sign-in';
   END IF;
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
