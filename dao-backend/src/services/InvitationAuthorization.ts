@@ -64,6 +64,10 @@ export class InvitationAuthorization {
     if (error || !data || data.project_id !== projectId || typeof data.title !== 'string' || typeof data.inviter_name !== 'string') {
       throw new DomainError('Invitation indisponible.', 'INVITATION_UNAVAILABLE');
     }
-    return { title: data.title, inviterName: data.inviter_name };
+    return {
+      title: data.title,
+      inviterName: data.inviter_name,
+      location: typeof data.location === 'string' && data.location.trim() ? data.location.trim() : null,
+    };
   }
 }
