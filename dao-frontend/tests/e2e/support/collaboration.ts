@@ -26,7 +26,7 @@ export async function actorCommand(page: Page, user: E2EUser, path: string, body
   if (login.error || !login.data.session) throw new Error('Could not authenticate collaboration fixture');
   return page.request.post(path, { headers: { Authorization: 'Bearer ' + login.data.session.access_token }, data: body });
 }
-export async function createCollaborative(page: Page, info: TestInfo, contractor: boolean, email = '') {
+export async function createCollaborative(page: Page, info: TestInfo, contractor: boolean, email = '', stayOnInvitation = false) {
   const title = `Chantier E2E ${info.project.name} ${randomUUID()}`;
   await page.goto('/app/projects/new');
   if (!contractor) await page.getByRole('button', { name: 'J’ai déjà mes artisans / entreprises' }).click();
@@ -48,8 +48,10 @@ export async function createCollaborative(page: Page, info: TestInfo, contractor
   const projectId = href?.match(/\/app\/projects\/([0-9a-f-]{36})/)?.[1];
   if (!projectId) throw new Error('Created collaboration project id is missing');
   recordE2EValue(info, 'projects', projectId);
-  await page.getByRole('link', { name: 'Ouvrir le chantier' }).click();
-  await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  if (!stayOnInvitation) {
+    await page.getByRole('link', { name: 'Ouvrir le chantier' }).click();
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  }
   return { projectId, title, link };
 }
 export async function signOut(page: Page) {

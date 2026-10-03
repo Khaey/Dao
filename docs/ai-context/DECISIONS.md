@@ -373,3 +373,70 @@ secrets in Git, docs, workflow inputs or logs. The contractor must retain the
 expected standard signup verification status `pending`. FULL E2E’s disposable
 `verified` contractor fixture is not reused. `reset-dev-fixtures.sh` remains
 plan-only until explicit owned-resource IDs exist.
+
+
+## D-031 — Separate WORK OPT ownership and autonomous execution
+
+WORK OPT owns CI, Playwright infrastructure, TEST fixtures, validation and
+DEV tooling, access diagnostics and AI context. It starts from verified remote
+main on its own chore branch and never changes WORK DEV branches or PRs.
+No product, business, RLS, Auth or schema modification belongs to this scope.
+
+[AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) defines FAST EXECUTION MODE:
+bounded preflight, reuse of valid evidence, proportional checks, durable
+remote checkpoints and main freshness checks before modifications/merge.
+Preserve all coverage, new tests merged by DEV, deployment gates and rollback.
+Keep current state separate from historical checkpoints. Use
+[OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md) for measured priorities;
+proposals are not implemented improvements.
+
+## D-032 — Platform startup, DEV operations and readiness
+
+Root AGENTS.md loads the execution protocol for repository-aware Work sessions.
+Use read-only task preflight and impact suggestions; all required CI coverage
+remains. Main/deploy operations are not cancelled mid-activation. Serialize
+DEV jobs and host deploys, reject stale main revisions, and keep rollback
+armed until bounded HTTP readiness succeeds.
+
+GitHub Actions is the stable DEV control path independent of shell Work SSH.
+Environment administration uses a reviewed root-owned helper, installed once,
+with protected secrets and atomic root:dao / 0640 env replacement. Raw logs
+and secret values never enter public Actions output. Permanent TEST DEV
+accounts are separate from disposable FULL E2E; fixture reset initially stays
+plan-only until exact account/resource ownership is established.
+
+## D-033 — Playwright four-worker result
+
+PR #13 tested the unchanged 34 desktop/mobile executions with four CI workers.
+CI #185 passed all 34; Playwright dropped from 100.64 s (main #178, two
+workers) to 75.14 s, and the critical job from 273 s to 229 s. Keep four
+workers as the CI default. The worker count remains overrideable through
+`PLAYWRIGHT_WORKERS` for controlled comparisons; never reduce coverage to
+improve timing.
+
+
+## D-031 — Email transports the existing one-time chantier invitation
+
+Approved 2026-10-02. Preserve the issuance/acceptance SQL RPCs, SHA-256 hash,
+7-day expiry, single use, expected role and explicit confirmation. Add server
+Resend delivery only while the current browser state holds the token. Copy
+link stays available; no resend after reload and no extra invitation, rotation,
+plaintext persistence or delivery table. No migration, RLS or Auth change.
+
+The authenticated send route accepts only `{token}`. JWT/RLS metadata and a
+shared invitation authorization preflight precede a narrowly scoped privileged
+hash read. The preflight is also used by issuance and revocation, delegates
+ownership/preparation facts to `project_team`, and preserves the existing SQL
+management/role rules. SQL RPCs remain the final atomic mutation authority.
+Compare SHA-256 UTF-8 with the stored hex hash using a constant-time comparison;
+use recipient email exclusively from DB. Never log the route body or provider
+errors. Replies contain only success and a masked recipient, or a clean error.
+
+Server-only configuration: `RESEND_API_KEY`, `DAO_EMAIL_FROM`, `DAO_PUBLIC_URL`.
+Validate the public origin and build the invitation URL on the server. Resend
+idempotency is stable per invitation/operation, never derived from its token;
+accepted requests are replayed for 24h and failures are not cached locally.
+Keep the same key for retries, including ambiguous network failures. Provider
+payload conflicts fail cleanly, without silently issuing a fresh invitation.
+HTML and text contain only inviter name, chantier title, CTA/link and validity.
+CI mocks delivery and uses only disposable local Supabase.

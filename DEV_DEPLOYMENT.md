@@ -32,6 +32,48 @@ Caddy expose `https://dao-dev.logiclab.fr` et reverse-proxy vers `127.0.0.1:3000
 
 Logs : `journalctl -u dao-dev.service -f` et `journalctl -u caddy -f`.
 
+## E-mails métier d’invitation — V1
+
+L’envoi utilise Resend depuis le Route Handler Next.js authentifié. Le SMTP,
+les templates et la configuration Supabase Auth ne sont pas modifiés : le
+parcours « Mot de passe oublié » garde son fonctionnement actuel.
+
+Configurer hors Git, dans `/etc/dao/dao-dev.env` (propriétaire `root:dao`, mode
+`0640`), les trois variables **serveur** suivantes :
+
+| Variable | Configuration DEV |
+| --- | --- |
+| `RESEND_API_KEY` | Clé Resend avec permission d’envoi, idéalement limitée au domaine transactionnel validé. Valeur secrète, jamais dans le chat, les logs ou un artifact. |
+| `DAO_EMAIL_FROM` | `D.A.O <adresse@domaine-valide>` : adresse du domaine expéditeur vérifié dans Resend. |
+| `DAO_PUBLIC_URL` | `https://dao-dev.logiclab.fr` ; origine HTTPS uniquement, sans identifiants, chemin, query ou fragment. |
+
+Valider le domaine dans Resend et publier exactement les enregistrements DNS
+fournis (DKIM et SPF/MX selon le domaine d’envoi), puis une politique DMARC
+adaptée au domaine. Aucun nouveau compte fournisseur ni secret n’est créé
+automatiquement par le code. Le bootstrap prépare seulement des champs vides
+sur une installation neuve et ne réécrit pas un fichier existant.
+
+Le service systemd charge déjà ce fichier via `EnvironmentFile` ; après ajout
+sécurisé de la configuration, redémarrer `dao-dev.service`. Les secrets restent
+au runtime et ne sont pas nécessaires au build GitHub. Ne pas ajouter de
+variable `NEXT_PUBLIC_*` pour Resend. L’actuel `DAO_SUPABASE_SECRET_KEY` est
+réutilisé seulement pour lire le hash de l’invitation déjà autorisée.
+
+Le canal est utilisable uniquement tant que l’écran conserve le token issu du
+RPC : aucun renvoi après reload/navigation. Resend reçoit une clé d’idempotence
+`project-invitation-email/<invitation_id>` ; il déduplique les requêtes acceptées
+pendant 24 heures. Les retries gardent la même clé et le même contenu ; un
+changement concurrent de contenu peut être refusé par Resend, sans modifier
+l’invitation. Cette V1 n’ajoute aucun registre d’envoi en DB.
+
+Tests : fournisseur mocké, aucune clé réelle et aucun vrai e-mail en CI. Le
+test d’intégration appelle le handler de production avec Auth/JWT/RLS réels
+sur `127.0.0.1:54321`. Les nouveaux scénarios Playwright désactivent traces et
+captures automatiques contenant le token ; une capture masquée est produite
+en cas d’échec. Après merge/deploy et configuration externe, vérifier la
+réception et l’acceptation du lien avec une boîte TEST autorisée. Le succès UI
+signifie « accepté par Resend », pas une garantie de livraison en boîte.
+
 ## Rollback
 
 Chaque déploiement est préparé dans un répertoire versionné par SHA et tentative avant de remplacer atomiquement `/opt/dao/current`. Les `node_modules` sont réutilisés dans un cache indexé par hashes de `package.json`/lockfile, versions de Node/npm et plateforme, sans modifier les dépendances d’une release existante. Le service ne redémarre qu’après préparation complète. Si le redémarrage ou le contrôle `systemctl is-active` échoue, le script repointe `current` vers la release précédente et redémarre celle-ci. Les cinq releases les plus récentes sont conservées.

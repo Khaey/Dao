@@ -15,7 +15,7 @@ export function createDaoApi(
 
   return {
     async issueProjectInvitation(request: Request) {
-      return run(() => actor(request).then(() => json(request).then(i => services.projects.issueInvitation(i))));
+      return run(() => actor(request).then(a => json(request).then(i => services.projects.issueInvitation(i, a.id))));
     },
     async previewProjectInvitation(request: Request) {
       return run(() => json(request).then(i => services.projects.previewInvitation(String(i.token ?? ''))));
@@ -24,7 +24,7 @@ export function createDaoApi(
       return run(() => actor(request).then(() => json(request).then(i => services.projects.respondInvitation(i))));
     },
     async revokeProjectInvitation(request: Request) {
-      return run(() => actor(request).then(() => json(request).then(i => services.projects.revokeInvitation(String(i.invitation_id ?? '')))));
+      return run(() => actor(request).then(a => json(request).then(i => services.projects.revokeInvitation(String(i.invitation_id ?? ''), a.id))));
     },
     async updateProjectMember(request: Request) {
       return run(() => actor(request).then(() => json(request).then(i => services.projects.updateMember(i))));
