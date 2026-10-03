@@ -3,6 +3,26 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
+## V3-C handoff
+
+The permanent TEST DEV fixture mechanism is the dedicated `DAO DEV TEST
+fixtures` workflow on `main`:
+
+1. `provision` reconciles the protected client and contractor Auth identities,
+   roles and fixture profiles.
+2. `verify` performs real password login for both accounts and asserts the
+   contractor remains `pending` / `draft`.
+3. `reset` archives only projects owned or initiated by those two identities
+   and revokes their pending invitations; it preserves immutable history.
+4. `mailbox-smoke` sends a real Resend marker to the contractor alias. Confirm
+   receipt in `ahmedhattab.pro@gmail.com` before using the mailbox for product
+   validation.
+
+No credential value belongs in this file. The only documented identifiers are
+the two aliases and the controlled mailbox. WORK DEV can now run the real
+email invitation flow with these accounts and hand the received link through
+the normal acceptance journey.
+
 ## Handoff — new ChatGPT conversation
 
 The next conversation must start by reading, in order:

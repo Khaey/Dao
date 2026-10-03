@@ -3,6 +3,32 @@
 > **Last verified:** 2026-10-03 Europe/Paris (GitHub + DEV database evidence)
 > **Repository:** `Khaey/Dao`
 
+## V3-C checkpoint — protected permanent TEST DEV fixtures
+
+- Base main for this phase: `7b2893a06798cfc17bba9c74456bf372062b3151`.
+- WORK OPT branch: `chore/autonomy-dev-v3c-permanent-fixtures`.
+- The protected `dev` Environment supplies the TEST fixture credentials;
+  values are never stored in Git, docs, workflow inputs, logs or artifacts.
+- Approved mailbox aliases are `ahmedhattab.pro+dao-client@gmail.com` and
+  `ahmedhattab.pro+dao-contractor@gmail.com`, delivered to the controlled
+  mailbox `ahmedhattab.pro@gmail.com`.
+- Provisioning uses standard Supabase Auth Admin only for these two fixture
+  identities, then ensures the expected public role/profile rows. It does not
+  change Auth configuration, product code, SQL, RLS or migrations.
+- The contractor fixture is deliberately kept at `verification_status=pending`
+  and `public_identity_status=draft`.
+- `scripts/reset-dev-fixtures.sh --apply` is bounded to projects whose
+  `client_id` or `initiator_id` is one of these two TEST users. It archives
+  those projects and revokes only their still-pending invitations. It never
+  deletes accounts, memberships, documents, Storage objects, submitted offers
+  or immutable history.
+- The dedicated `DAO DEV TEST fixtures` workflow provides `provision`,
+  `verify`, `reset` and `mailbox-smoke` operations on `main` only. The
+  mailbox smoke sends a marker email through the real Resend configuration;
+  receipt is confirmed separately in the controlled Gmail mailbox.
+- This checkpoint is infrastructure-only. WORK DEV owns the subsequent real
+  invitation-email A→Z validation.
+
 ## Latest verified snapshot — client team with principal lots
 
 - Remote `main`: `352d2a13ee124d0bfa2b8d5247bc8f0b78ac8483`.

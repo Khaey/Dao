@@ -374,6 +374,27 @@ expected standard signup verification status `pending`. FULL E2E’s disposable
 `verified` contractor fixture is not reused. `reset-dev-fixtures.sh` remains
 plan-only until explicit owned-resource IDs exist.
 
+## D-035 — Permanent TEST DEV fixtures use a protected workflow
+
+The V3-C prerequisite is now available through GitHub Environment `dev`. The
+dedicated `DAO DEV TEST fixtures` workflow is the only supported provisioning
+surface. It accepts an operation choice, never a credential input, and injects
+the two TEST credential pairs only into the protected runner process. Scripts
+never print passwords, service keys, Auth responses or Resend response bodies.
+
+Provisioning reconciles exactly the approved client and contractor aliases and
+ensures the existing public role/profile rows. The contractor is always reset
+to `verification_status=pending` and `public_identity_status=draft`; no Auth
+configuration or product authorization logic changes.
+
+Reset is deliberately non-destructive: it resolves the two fixture users,
+archives only projects where either is `client_id` or `initiator_id`, and
+revokes only their pending invitations. Accounts, memberships, documents,
+Storage objects, submitted offers, audit events and other immutable history
+remain intact. A real Resend mailbox smoke uses the contractor alias and is
+confirmed in the controlled Gmail mailbox before WORK DEV runs the product
+invitation-email flow.
+
 
 ## D-031 — Separate WORK OPT ownership and autonomous execution
 

@@ -94,23 +94,39 @@ remains a private operator session or a future private, redacted log channel.
 The helper installation is verified by the operator; use the status operation
 to confirm it on a future VPS change.
 
-## Permanent TEST accounts and fixture reset — one prerequisite missing
+## Permanent TEST accounts and fixture reset
 
 Permanent DEV TEST accounts remain separate from worker-scoped disposable CI
-users. The only missing prerequisite is one authorized protected DEV Auth
-administration channel that can supply/store the client and contractor
-credential pairs without exposing them to Git, docs, workflow inputs or logs.
-No account or Auth data was modified in this phase.
+users. The protected `dev` Environment supplies the two credential pairs to
+the dedicated `DAO DEV TEST fixtures` workflow; values never enter Git,
+documentation, workflow inputs, logs or artifacts.
 
-When available, provision one TEST client and one TEST contractor through
-standard Auth administration; keep the contractor at the expected signup
-verification status `pending`, store only non-secret IDs/labels in a private
-manifest, and reset only explicitly owned scenario resources. The contractor
-fixture in FULL E2E may be `verified` because it is disposable and is not a
-permanent DEV identity.
+Approved identities:
 
-`bash scripts/reset-dev-fixtures.sh --plan` remains plan-only and refuses
-mutation. FULL E2E still uses the disposable stack, never shared DEV.
+- client: `ahmedhattab.pro+dao-client@gmail.com`;
+- contractor: `ahmedhattab.pro+dao-contractor@gmail.com`;
+- controlled mailbox: `ahmedhattab.pro@gmail.com` (Gmail plus aliases).
+
+The workflow operations are:
+
+```text
+provision      reconcile Auth users, roles and profiles
+verify         real password login for both users + contractor pending/draft
+reset          archive TEST-owned projects + revoke TEST-owned pending invites
+mailbox-smoke  send a real Resend marker to the contractor alias
+```
+
+The fixture script refuses every target except the protected DEV Supabase URL.
+The reset path resolves the two users by the protected aliases, selects only
+projects where either `client_id` or `initiator_id` matches them, and never
+deletes accounts, memberships, documents, Storage objects, submitted offers or
+immutable audit history. The contractor remains
+`verification_status=pending` / `public_identity_status=draft`.
+
+Run `bash scripts/reset-dev-fixtures.sh --plan` for a no-op description. The
+mutating `--apply` path is intended for the protected workflow or an equally
+authorized DEV environment only. FULL E2E continues to use the disposable
+local stack and never shared DEV.
 
 ## Next performance experiments — studied, not enabled
 

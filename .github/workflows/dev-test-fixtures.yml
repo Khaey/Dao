@@ -1,0 +1,68 @@
+name: DAO DEV TEST fixtures
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Protected TEST DEV operation (credentials are never inputs)
+        type: choice
+        required: true
+        default: verify
+        options: [provision, verify, reset, mailbox-smoke]
+
+permissions:
+  contents: read
+
+jobs:
+  fixtures:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Provision or reconcile permanent TEST accounts
+        if: inputs.operation == 'provision'
+        env:
+          DAO_FIXTURE_TARGET: dev
+          DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
+          DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
+          DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
+          DAO_TEST_CLIENT_EMAIL: ${{ secrets.DAO_TEST_CLIENT_EMAIL }}
+          DAO_TEST_CLIENT_PASSWORD: ${{ secrets.DAO_TEST_CLIENT_PASSWORD }}
+          DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
+          DAO_TEST_CONTRACTOR_PASSWORD: ${{ secrets.DAO_TEST_CONTRACTOR_PASSWORD }}
+        run: node scripts/dev-test-fixtures.mjs provision
+      - name: Verify protected TEST logins and contractor state
+        if: inputs.operation == 'verify'
+        env:
+          DAO_FIXTURE_TARGET: dev
+          DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
+          DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
+          DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
+          DAO_TEST_CLIENT_EMAIL: ${{ secrets.DAO_TEST_CLIENT_EMAIL }}
+          DAO_TEST_CLIENT_PASSWORD: ${{ secrets.DAO_TEST_CLIENT_PASSWORD }}
+          DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
+          DAO_TEST_CONTRACTOR_PASSWORD: ${{ secrets.DAO_TEST_CONTRACTOR_PASSWORD }}
+        run: node scripts/dev-test-fixtures.mjs verify
+      - name: Reset only TEST-owned mutable DEV fixtures
+        if: inputs.operation == 'reset'
+        env:
+          DAO_FIXTURE_TARGET: dev
+          DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
+          DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
+          DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
+          DAO_TEST_CLIENT_EMAIL: ${{ secrets.DAO_TEST_CLIENT_EMAIL }}
+          DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
+        run: node scripts/dev-test-fixtures.mjs reset
+      - name: Send real Resend mailbox smoke email
+        if: inputs.operation == 'mailbox-smoke'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DAO_EMAIL_FROM: ${{ secrets.DAO_EMAIL_FROM }}
+          DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: node scripts/dev-mailbox-smoke.mjs
