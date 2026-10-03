@@ -94,7 +94,9 @@ jobs:
       - name: Package frontend build and release script
         run: |
           set -euo pipefail
-          package_path="$RUNNER_TEMP/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          # The artifact content must be reusable by a deploy job rerun.
+          # GITHUB_RUN_ATTEMPT remains an execution-isolation detail only.
+          package_path="$RUNNER_TEMP/dao-deploy-package.tar.gz"
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend deployment package validation" bash -euo pipefail -c '
             manifest="$RUNNER_TEMP/.dao-deploy-manifest.json"
             node ops/deploy-artifact-manifest.mjs create \
@@ -127,7 +129,7 @@ jobs:
           grep -Fxq '.dao-deploy-manifest.json' "$RUNNER_TEMP/dao-deploy-package-files.txt"
           grep -Fxq 'ops/deploy-dev.sh' "$RUNNER_TEMP/dao-deploy-package-files.txt"
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
-            cp "$package_path" "$GITHUB_WORKSPACE/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+            cp "$package_path" "$GITHUB_WORKSPACE/dao-deploy-package.tar.gz"
           fi
           ls -lh "$package_path"
       - name: Upload DEV frontend deployment artifact
@@ -135,7 +137,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dao-deploy-frontend-${{ github.sha }}
-          path: ${{ runner.temp }}/dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
+          path: ${{ runner.temp }}/dao-deploy-package.tar.gz
           if-no-files-found: error
           retention-days: 1
 
@@ -319,7 +321,13 @@ jobs:
           name: dao-deploy-frontend-${{ github.sha }}
           path: ${{ runner.temp }}/dao-deploy-frontend
       - name: Prepare artifact for transfer
-        run: cp "$RUNNER_TEMP/dao-deploy-frontend/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz" "$GITHUB_WORKSPACE/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+        run: |
+          set -euo pipefail
+          stable_package="$RUNNER_TEMP/dao-deploy-frontend/dao-deploy-package.tar.gz"
+          run_package="$GITHUB_WORKSPACE/dao-deploy-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.tar.gz"
+          test -s "$stable_package"
+          cp "$stable_package" "$run_package"
+          test -s "$run_package"
       - name: Transfer verified build package to DEV host
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
