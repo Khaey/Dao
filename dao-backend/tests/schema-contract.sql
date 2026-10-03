@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740'
+    '20261003015740','20261003023000'
   ];
   expected_tables text[] := ARRAY[
     'ai_proposals','ai_runs','audit_events','award_items','awards',
@@ -108,6 +108,8 @@ BEGIN
       'public.create_collaborative_project(text,text,text,uuid,uuid,uuid,text,text)',
       'public.issue_project_invitation(uuid,text,text,boolean)',
       'public.issue_project_invitation(uuid,text,text,text,boolean)',
+      'public.issue_project_invitation(uuid,text,text,text,uuid,boolean)',
+      'public.create_client_existing_team_project(text,text,uuid,uuid,uuid,text,text,jsonb)',
       'public.preview_project_invitation(text)',
       'public.project_invitation_registration_context(text)',
       'public.respond_project_invitation(text,boolean)',
@@ -156,6 +158,8 @@ BEGIN
     'public.create_collaborative_project(text,text,text,uuid,uuid,uuid,text,text)',
     'public.issue_project_invitation(uuid,text,text,boolean)',
     'public.issue_project_invitation(uuid,text,text,text,boolean)',
+    'public.issue_project_invitation(uuid,text,text,text,uuid,boolean)',
+    'public.create_client_existing_team_project(text,text,uuid,uuid,uuid,text,text,jsonb)',
     'public.respond_project_invitation(text,boolean)',
     'public.revoke_project_invitation(uuid)',
     'public.update_project_member(uuid,boolean,boolean)',
@@ -169,6 +173,12 @@ BEGIN
       RAISE EXCEPTION 'schema contract: collaboration RPC % must require authenticated execution', missing_name;
     END IF;
   END LOOP;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='project_invitations' AND column_name='principal_request_id'
+  ) THEN
+    RAISE EXCEPTION 'schema contract: contractor invitations require principal_request_id support';
+  END IF;
   IF NOT has_function_privilege('anon','public.preview_project_invitation(text)','EXECUTE') THEN
     RAISE EXCEPTION 'schema contract: token preview must be available before sign-in';
   END IF;
