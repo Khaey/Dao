@@ -5,6 +5,16 @@ Verified 2026-10-02 Europe/Paris against main
 V3-C is implemented as platform tooling only; no product/Auth/RLS logic,
 migration or schema implementation is included.
 
+## Protected real DEV email runner — implemented on OPT branch
+
+The follow-up runner is a separate main-only workflow. It uses the existing
+permanent TEST accounts and browser helpers against the deployed DEV origin,
+with the four credential values injected only into the protected GitHub job.
+It disables Playwright traces/screenshots/video, never uploads results, clears
+browser state, and performs the existing bounded reset before and after the
+scenario. The full local disposable E2E remains unchanged and remains the
+coverage gate for product changes.
+
 ## Permanent TEST DEV accounts — protected workflow implemented
 
 The VPS admin helper is installed and the DEV operations path is ready.

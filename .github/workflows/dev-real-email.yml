@@ -1,0 +1,75 @@
+name: DAO DEV real email E2E
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dao-dev-test-scope
+  cancel-in-progress: false
+
+jobs:
+  real-email-e2e:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BASE_URL: https://dao-dev.logiclab.fr
+      DAO_DEV_REAL_TEST: "1"
+      DAO_E2E_STATE_DIR: ${{ runner.temp }}/dao-dev-real-email-state
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dao-frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: dao-frontend
+        run: npm ci --no-audit --no-fund
+      - name: Install Playwright Chromium
+        working-directory: dao-frontend
+        run: npx playwright install --with-deps chromium
+      - name: Reset only TEST-owned DEV fixtures before the scenario
+        env:
+          DAO_FIXTURE_TARGET: dev
+          DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
+          DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
+          DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
+          DAO_TEST_CLIENT_EMAIL: ${{ secrets.DAO_TEST_CLIENT_EMAIL }}
+          DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
+        run: node scripts/dev-test-fixtures.mjs reset
+      - name: Run real DEV invitation and email scenario
+        working-directory: dao-frontend
+        env:
+          DAO_TEST_CLIENT_EMAIL: ${{ secrets.DAO_TEST_CLIENT_EMAIL }}
+          DAO_TEST_CLIENT_PASSWORD: ${{ secrets.DAO_TEST_CLIENT_PASSWORD }}
+          DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
+          DAO_TEST_CONTRACTOR_PASSWORD: ${{ secrets.DAO_TEST_CONTRACTOR_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          results_dir="$RUNNER_TEMP/dao-dev-real-email-playwright"
+          rm -rf "$results_dir" "$DAO_E2E_STATE_DIR"
+          mkdir -p "$results_dir"
+          trap 'rm -rf "$results_dir" "$DAO_E2E_STATE_DIR"' EXIT
+          npx playwright test tests/dev-email/invitation-real.spec.ts \
+            --config=playwright.dev.config.ts \
+            --reporter=line
+      - name: Reset only TEST-owned DEV fixtures after the scenario
+        if: always()
+        env:
+          DAO_FIXTURE_TARGET: dev
+          DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
+          DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
+          DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
+          DAO_TEST_CLIENT_EMAIL: ${{ secrets.DAO_TEST_CLIENT_EMAIL }}
+          DAO_TEST_CONTRACTOR_EMAIL: ${{ secrets.DAO_TEST_CONTRACTOR_EMAIL }}
+        run: |
+          node scripts/dev-test-fixtures.mjs reset
+          rm -rf "$RUNNER_TEMP/dao-dev-real-email-playwright" "$DAO_E2E_STATE_DIR"

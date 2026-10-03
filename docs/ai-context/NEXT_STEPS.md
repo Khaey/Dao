@@ -3,6 +3,19 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
+## Protected real DEV email test
+
+After merge, launch from GitHub Actions on `main`:
+
+`DAO DEV real email E2E` → `Run workflow`
+
+The workflow has no credential inputs. It injects the four TEST credential
+secrets from Environment `dev`, resets only TEST-owned mutable resources,
+executes the real client → invitation email → contractor acceptance path, and
+resets the same bounded scope in an `always()` cleanup step. It emits only
+sanitized PASS/FAIL output; no session state, token, screenshot or trace is
+published.
+
 ## V3-C handoff
 
 The permanent TEST DEV fixture mechanism is the dedicated `DAO DEV TEST

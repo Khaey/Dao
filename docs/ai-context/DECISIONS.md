@@ -2,6 +2,18 @@
 
 > Decisions already made. Agents should not reopen them without new evidence or an explicit product request.
 
+## D-036 — Protected real DEV email E2E path
+
+The real shared-DEV invitation check is a separate, manually dispatched,
+main-only GitHub Actions workflow. It uses the permanent TEST client and
+contractor credentials from Environment `dev` only; credentials are read into
+the Playwright worker and removed from its environment before browser launch.
+The workflow never writes storage state, token-bearing traces, screenshots or
+reports, and logs only sanitized result markers plus TEST-owned UUIDs. The
+existing bounded reset runs before and after, serialized with fixture workflows.
+This does not replace FULL E2E and does not modify product, Auth, RLS, SQL or
+migration behavior.
+
 ## D-001 — GitHub repository is the durable source of project context
 
 **Decision:** Important context must live in the repository, not only in chats.

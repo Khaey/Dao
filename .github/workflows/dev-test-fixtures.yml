@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: dao-dev-test-scope
+  cancel-in-progress: false
+
 jobs:
   fixtures:
     if: github.ref == 'refs/heads/main'

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, Page, TestInfo } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { E2EUser } from './fixtures';
+import type { E2EUser } from './fixtures';
 import { recordE2EValue } from './state';
 
 function localConfig() {
