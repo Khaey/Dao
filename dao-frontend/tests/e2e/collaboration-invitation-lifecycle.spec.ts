@@ -36,6 +36,7 @@ test('Invitation révoquée : lien inutilisable, puis nouvelle invitation refus�
   const response = await actorCommand(page, e2eArtisan!, '/api/projects/invitations/respond', { token: new URL(project.link).pathname.split('/').pop(), accept: true });
   expect(response.status()).toBe(409);
   await page.goto(`/app/projects/${project.projectId}?tab=team`);
+  await page.getByLabel('Nom du destinataire').fill('Artisan réinvité E2E');
   await page.getByLabel('Email du destinataire — optionnel').fill(e2eArtisan!.email);
   await page.getByRole('button', { name: 'Préparer l’invitation', exact: true }).click();
   await expect(page.getByLabel('Lien d’invitation')).toBeVisible();
