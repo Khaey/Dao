@@ -3,6 +3,24 @@
 > **Last verified:** 2026-10-03 Europe/Paris (GitHub + DEV database evidence)
 > **Repository:** `Khaey/Dao`
 
+## V3-C follow-up — protected real DEV invitation runner
+
+- Base main: `3083f1b7d429f51641b2737c9fa2d40ad02dac3b`.
+- WORK OPT branch: `chore/dev-test-auth-playwright`.
+- The new main-only `DAO DEV real email E2E` workflow uses GitHub Environment
+  `dev` secrets only inside the runner job. It passes no credentials through
+  workflow inputs, commits, artifacts or reports.
+- The dedicated Playwright config targets only `https://dao-dev.logiclab.fr`,
+  runs one desktop scenario, keeps browser state in memory, disables traces,
+  screenshots and video, and removes temporary state in all paths.
+- The scenario logs only sanitized PASS markers and a TEST-owned project UUID.
+  It sends the real invitation email through the deployed product, then
+  accepts the invitation with the permanent contractor account.
+- A bounded fixture reset runs before and after the scenario. A shared
+  `dao-dev-test-scope` concurrency group prevents overlapping fixture/reset
+  operations. No product, Auth, RLS, SQL, migration or business behavior is
+  changed.
+
 ## V3-C checkpoint — protected permanent TEST DEV fixtures
 
 - Base main for this phase: `7b2893a06798cfc17bba9c74456bf372062b3151`.
