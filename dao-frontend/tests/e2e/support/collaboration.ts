@@ -28,6 +28,7 @@ export async function actorCommand(page: Page, user: E2EUser, path: string, body
 }
 export async function createCollaborative(page: Page, info: TestInfo, contractor: boolean, email = '', stayOnInvitation = false) {
   const title = `Chantier E2E ${info.project.name} ${randomUUID()}`;
+  const recipientName = email ? `Destinataire E2E ${randomUUID()}` : '';
   await page.goto('/app/projects/new');
   if (!contractor) await page.getByRole('button', { name: 'J’ai déjà mes artisans / entreprises' }).click();
   await page.getByLabel('Titre du chantier').fill(title);
@@ -39,7 +40,10 @@ export async function createCollaborative(page: Page, info: TestInfo, contractor
   await page.getByRole('radio', { name: 'Travaux en cours', exact: true }).check();
   await page.getByLabel('Situation du paiement — optionnel').selectOption('partial');
   await page.getByRole('button', { name: 'Continuer', exact: true }).click();
-  if (email) await page.getByLabel('Email du destinataire — optionnel').fill(email);
+  if (email) {
+    await page.getByLabel('Nom du destinataire').fill(recipientName);
+    await page.getByLabel('Email du destinataire — optionnel').fill(email);
+  }
   await page.getByRole('button', { name: 'Continuer', exact: true }).click();
   await page.getByRole('button', { name: 'Créer et préparer l’invitation', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Invitation au chantier prête' })).toBeVisible();
@@ -52,7 +56,7 @@ export async function createCollaborative(page: Page, info: TestInfo, contractor
     await page.getByRole('link', { name: 'Ouvrir le chantier' }).click();
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
   }
-  return { projectId, title, link };
+  return { projectId, title, link, recipientName };
 }
 export async function signOut(page: Page) {
   await page.getByRole('button', { name: 'Déconnexion', exact: true }).click();
