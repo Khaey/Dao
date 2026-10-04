@@ -29,9 +29,8 @@
 
 ## Autonomy DEV V3 — live status
 
-- Verified remote `main`: `f87ab8f0887cb5acfbba32a6333ef21228382077`;
-  main CI #246 and DEV deployment are green.
-- CI main `#244` and DEV deployment are green. The real DEV email workflow
+- Verified remote `main`: `c09b8e1e39706c4946e5f075a8fe166e85b443aa`.
+- CI main `#272` and DEV deployment are green. The real DEV email workflow
   `#6` (`37166009683`) passed the complete client → Resend → contractor
   acceptance scenario, with bounded TEST-owned reset before and after.
 - **V3-C permanent TEST accounts:** complete and validated. Credentials remain
@@ -43,12 +42,11 @@
   deployment; a prior successful run for the same SHA is skipped. The shared
   concurrency lock and `workflow_dispatch` fallback remain. A future published
   release is still needed to observe the automatic path once.
-- **V3-B automatic env-sync:** implemented in this OPT phase. Normal main
-  deployment now consumes only protected `dev` secrets through a private
-  run-scoped payload and the existing root helper; the manual operation remains
-  available for recovery. Environment and release rollback stay coupled to
-  readiness, while unmanaged keys and the `root:dao / 0640` contract remain
-  unchanged.
+- **V3-B automatic env-sync:** implemented and validated in this OPT phase.
+  Main CI #272 transferred the protected payload, ran the existing root helper
+  idempotently, passed readiness and activated release `c09b8e1`. The manual
+  operation remains available for recovery; environment/release rollback,
+  unmanaged keys and the `root:dao / 0640` contract remain unchanged.
 - **V3-D routine technical autonomy:** next. The stable GitHub Actions
   control path exists, but normal operational actions are not yet inferred or
   scheduled automatically.

@@ -49,7 +49,7 @@ RLS, SQL, migrations, Resend transport or fixture ownership. A published
 release observation is still required before treating the automatic path as
 operationally proven.
 
-## D-038 — Protected env-sync is part of normal DEV deployment
+## D-039 — Protected env-sync is part of normal DEV deployment
 
 The main-only `deploy-dev` job injects only the required `dev` Environment
 secrets into a run-scoped private payload. The payload is never part of the

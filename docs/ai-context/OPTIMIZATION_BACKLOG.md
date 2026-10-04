@@ -1,7 +1,7 @@
 # D.A.O — Optimization backlog (analysis, not implementation)
 
 Verified 2026-10-04 Europe/Paris against main
-`f87ab8f0887cb5acfbba32a6333ef21228382077` (CI main #246 green).
+`c09b8e1e39706c4946e5f075a8fe166e85b443aa` (CI main #272 and DEV deploy green).
 V3-C is implemented as platform tooling only; no product/Auth/RLS logic,
 migration or schema implementation is included.
 
