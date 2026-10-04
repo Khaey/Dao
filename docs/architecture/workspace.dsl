@@ -336,6 +336,6 @@ views {
 }
 
 configuration {
-  scope softwaresystem
+  scope landscape
 }
 }
