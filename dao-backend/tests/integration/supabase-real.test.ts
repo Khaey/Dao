@@ -27,7 +27,7 @@ test('autonomous Supabase integration', async () => {
     const versionC=await insert('project_versions',{project_id:projectC,version_no:1,title:'Invite disposable',description:'test',governorate_id:gov,status:'approved'});
     const request=await insert('project_requests',{project_id:project}); const rv=await insert('project_request_versions',{request_id:request,project_id:project,version_no:1,trade_id:trade,title:'Plomberie',scope:'test'});
     const publicPub=await insert('publications',{project_id:project,project_version_id:version,visibility:'public',safe_title:'Public',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
-    await insert('publication_requests',{publication_id:publicPub,request_version_id:rv,trade_id:trade,safe_title:'Plomberie',safe_scope:'test'});
+    const publicRequest=await insert('publication_requests',{publication_id:publicPub,request_version_id:rv,trade_id:trade,safe_title:'Plomberie',safe_scope:'test'});
     const targeted=await insert('publications',{project_id:projectB,project_version_id:versionB,visibility:'targeted',safe_title:'Targeted',safe_description:'test',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});
     await insert('publication_recipients',{publication_id:targeted,contractor_id:actors.plumberA.contractorId,source:'targeted'});
     const bid=await insert('bids',{project_id:project,contractor_id:actors.plumberB.contractorId});
@@ -36,8 +36,6 @@ test('autonomous Supabase integration', async () => {
     const bid2=await insert('bids',{project_id:project,contractor_id:actors.plumberA.contractorId});
     const submitted2=await insert('bid_versions',{bid_id:bid2,project_id:project,contractor_id:actors.plumberA.contractorId,version_no:1,expires_at:'2099-01-01T00:00:00Z',status:'draft'});
     const item2=await insert('bid_items',{bid_version_id:submitted2,project_id:project,contractor_id:actors.plumberA.contractorId,request_version_id:rv,request_id:request,price_millimes:1100,duration_days:1,inclusions:'test'});
-    const award=await insert('awards',{project_id:project,contractor_id:actors.plumberB.contractorId});
-    const award2=await insert('awards',{project_id:project,contractor_id:actors.plumberA.contractorId});
     const login=async(a:any)=>{const userClient=createClient(url,pub);const r=await userClient.auth.signInWithPassword({email:a.email,password});assert.ifError(r.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+r.data.session!.access_token}}});};
     const registrationUser=async(label:string)=>{const email=`dao-registration-${label}-${suffix}@example.invalid`;const created=await admin.auth.admin.createUser({email,password,email_confirm:true});assert.ifError(created.error);return {id:created.data.user!.id,email};};
     const registrationClient=async(user:any)=>{const client=createClient(url,pub);const signed=await client.auth.signInWithPassword({email:user.email,password});assert.ifError(signed.error);return createClient(url,pub,{global:{headers:{Authorization:'Bearer '+signed.data.session!.access_token}}});};
@@ -136,9 +134,16 @@ test('autonomous Supabase integration', async () => {
     const immutableDocumentUpdate=await admin.from('bid_documents').update({original_name:'mutated.pdf'}).eq('id',doc);
     assert.ok(immutableDocumentUpdate.error,'submitted bid document update must be rejected');
     const signed=await admin.storage.from('dao-private').createSignedUrl(objectPath,60); assert.ifError(signed.error); assert.ok(signed.data?.signedUrl);
-    const key='autonomous-'+suffix, params={p_idempotency_key:key,p_award_id:award,p_project_id:project,p_contractor_id:actors.plumberB.contractorId,p_request_id:request,p_bid_item_id:item,p_agreed_millimes:1000};
-    const first=await client.rpc('award_request_atomic',params); assert.ifError(first.error); const replay=await client.rpc('award_request_atomic',params); assert.ifError(replay.error); assert.deepEqual(first.data,replay.data);
-    const denied=await other.rpc('award_request_atomic',{...params,p_idempotency_key:key+'-other'}); assert.ok(denied.error);
-    const second=await client.rpc('award_request_atomic',{...params,p_idempotency_key:key+'-second',p_award_id:award2,p_contractor_id:actors.plumberA.contractorId,p_bid_item_id:item2});
+    const nextDraft=await b.rpc('create_bid_draft',{p_publication_id:publicPub});assert.ifError(nextDraft.error);assert.equal(nextDraft.data.version_no,2);
+    const nextItem=await b.rpc('upsert_bid_item',{p_publication_id:publicPub,p_version_id:nextDraft.data.id,p_publication_request_id:publicRequest,p_price_millimes:900,p_duration_days:2,p_inclusions:'latest',p_exclusions:null});assert.ifError(nextItem.error);
+    const nextSubmitted=await b.rpc('submit_bid_version',{p_version_id:nextDraft.data.id});assert.ifError(nextSubmitted.error);
+    const previousVersion=await admin.from('bid_versions').select('status,validity').eq('id',submitted).single();assert.ifError(previousVersion.error);assert.deepEqual(previousVersion.data,{status:'superseded',validity:'obsolete'});
+    const staleAward=await client.rpc('award_bid_item_atomic',{p_idempotency_key:'stale-'+suffix,p_bid_item_id:item});assert.ok(staleAward.error,'a superseded offer version must not remain awardable');
+    const key='autonomous-'+suffix, params={p_idempotency_key:key,p_bid_item_id:nextItem.data.id};
+    const first=await client.rpc('award_bid_item_atomic',params); assert.ifError(first.error); const replay=await client.rpc('award_bid_item_atomic',params); assert.ifError(replay.error); assert.deepEqual(first.data,replay.data);
+    const persistedAward=await admin.from('award_items').select('project_id,contractor_id,request_id,bid_item_id,agreed_millimes,active').eq('id',first.data.award_item_id).single();assert.ifError(persistedAward.error);assert.deepEqual(persistedAward.data,{project_id:project,contractor_id:actors.plumberB.contractorId,request_id:request,bid_item_id:nextItem.data.id,agreed_millimes:900,active:true});
+    const awardedRequest=await admin.from('project_requests').select('status').eq('id',request).single();assert.ifError(awardedRequest.error);assert.equal(awardedRequest.data.status,'awarded');
+    const denied=await other.rpc('award_bid_item_atomic',{...params,p_idempotency_key:key+'-other'}); assert.ok(denied.error);
+    const second=await client.rpc('award_bid_item_atomic',{p_idempotency_key:key+'-second',p_bid_item_id:item2});
     assert.ok(second.error); assert.match((second.error?.code||'')+' '+(second.error?.message||''),/23505|one_active_award_per_request/i);
 });

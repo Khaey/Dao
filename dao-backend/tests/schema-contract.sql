@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134'
+    '20261003015740','20261003030134','20261004120000'
   ];
   expected_tables text[] := ARRAY[
     'ai_proposals','ai_runs','audit_events','award_items','awards',
@@ -121,6 +121,7 @@ BEGIN
       'public.create_bid_draft(uuid)',
       'public.submit_bid_version(uuid)',
       'public.award_request_atomic(text,uuid,uuid,uuid,uuid,uuid,bigint)',
+      'public.award_bid_item_atomic(text,uuid)',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -153,6 +154,10 @@ BEGIN
      OR NOT has_function_privilege('authenticated','public.initialize_my_account(text,text,text,text)','EXECUTE')
      OR NOT has_function_privilege('authenticated','dao_private.initialize_registration_account(text,text,text,text)','EXECUTE') THEN
     RAISE EXCEPTION 'schema contract: public registration RPC grants do not match the explicit authenticated allowlist';
+  END IF;
+  IF has_function_privilege('authenticated','public.award_request_atomic(text,uuid,uuid,uuid,uuid,uuid,bigint)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.award_bid_item_atomic(text,uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: browser award grants must expose only the derived-input command';
   END IF;
   FOR missing_name IN SELECT unnest(ARRAY[
     'public.create_collaborative_project(text,text,text,uuid,uuid,uuid,text,text)',

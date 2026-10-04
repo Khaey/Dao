@@ -27,6 +27,7 @@ type WorkerFixtures = {
   e2eOtherClient: E2EUser | null;
   e2eReviewer: E2EUser | null;
   e2eArtisan: E2EUser | null;
+  e2eSecondArtisan: E2EUser | null;
 };
 
 function config() {
@@ -121,6 +122,7 @@ export const test = base.extend<{}, WorkerFixtures>({
   e2eOtherClient: [async ({}, use, worker) => use(await createUser(worker, 'client')), { scope: 'worker' }],
   e2eReviewer: [async ({}, use, worker) => use(await createUser(worker, 'dao_reviewer')), { scope: 'worker' }],
   e2eArtisan: [async ({}, use, worker) => use(await createUser(worker, 'contractor')), { scope: 'worker' }],
+  e2eSecondArtisan: [async ({}, use, worker) => use(await createUser(worker, 'contractor')), { scope: 'worker' }],
 });
 
 export { expect };

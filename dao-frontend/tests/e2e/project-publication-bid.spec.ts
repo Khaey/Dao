@@ -1,9 +1,10 @@
 import { test, expect } from './support/fixtures';
 import { createProjectWithMainLot, login } from './support/flow';
 import { recordE2EValue } from './support/state';
+import { adminRows } from './support/collaboration';
 
-test('Publication, artisan, offre versionnée et confidentialité publique', async ({ page, browser, e2eClient, e2eReviewer, e2eArtisan }, testInfo) => {
-  test.skip(!e2eClient || !e2eReviewer || !e2eArtisan, 'E2E Supabase credentials are not available');
+test('Publication, comparaison, attribution par lot et confidentialité publique', async ({ page, browser, e2eClient, e2eReviewer, e2eArtisan, e2eSecondArtisan }, testInfo) => {
+  test.skip(!e2eClient || !e2eReviewer || !e2eArtisan || !e2eSecondArtisan, 'E2E Supabase credentials are not available');
 
   await login(page, e2eClient!);
   const project = await createProjectWithMainLot(page, testInfo, 'publication-bid', 'Fourniture, pose, essais et remise en état.', 'Lot plomberie E2E publication');
@@ -87,8 +88,39 @@ test('Publication, artisan, offre versionnée et confidentialité publique', asy
   await expect(artisan.getByText(/Version 2 soumise/)).toBeVisible();
   await artisanContext.close();
 
+  const secondArtisanContext = await browser.newContext();
+  const secondArtisan = await secondArtisanContext.newPage();
+  await login(secondArtisan, e2eSecondArtisan!);
+  await secondArtisan.goto(`/app/artisan/publications/${publicationId}`);
+  await secondArtisan.getByLabel('Répondre à ce lot').check();
+  await secondArtisan.getByLabel('Prix proposé (TND)').fill('24000');
+  await secondArtisan.getByLabel('Délai (jours)').fill('25');
+  await secondArtisan.getByLabel('Proposition technique / inclusions').fill('Seconde offre concurrente complète.');
+  await secondArtisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
+  await expect(secondArtisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
+  await secondArtisanContext.close();
+
   await page.goto(publicationUrl);
   await expect(page.getByText(project.title)).toBeVisible();
   await expect(page.getByText('12 rue de Sahloul, Sousse', { exact: true })).toHaveCount(0);
   await expect(page.getByText('client-e2e@example.invalid', { exact: true })).toHaveCount(0);
+  const comparison = page.getByRole('heading', { name: 'Comparer et attribuer les offres' }).locator('..');
+  await expect(comparison.getByTestId('offer-card')).toHaveCount(2);
+  await expect(comparison.getByText('Version révisée avec délai actualisé.', { exact: true })).toBeVisible();
+  await expect(comparison.getByText('Fourniture, pose, essais et remise en état.', { exact: true })).toHaveCount(0);
+  const selectedOffer = comparison.getByTestId('offer-card').filter({ hasText: 'Seconde offre concurrente complète.' });
+  await selectedOffer.getByRole('button', { name: 'Attribuer cette offre' }).click();
+  const awardResponse = page.waitForResponse(response => response.url().includes('/api/awards') && response.request().method() === 'POST');
+  await selectedOffer.getByRole('button', { name: 'Confirmer l’attribution' }).click();
+  expect((await awardResponse).ok()).toBeTruthy();
+  await expect(comparison.getByRole('status')).toContainText('Aucun contrat');
+  await expect(comparison.getByText('Lot attribué', { exact: true })).toBeVisible();
+  await expect(selectedOffer.getByText(/Offre retenue/)).toBeVisible();
+
+  const requests = await adminRows('project_requests', `project_id=eq.${project.projectId}&select=id,status`);
+  expect(requests).toEqual([{ id: expect.any(String), status: 'awarded' }]);
+  const awards = await adminRows('award_items', `project_id=eq.${project.projectId}&active=eq.true&select=id,request_id,bid_item_id,agreed_millimes`);
+  expect(awards).toHaveLength(1);
+  expect(awards[0]).toEqual(expect.objectContaining({ request_id: requests[0].id, agreed_millimes: 24000000 }));
+  expect(await adminRows('contracts', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
 });
