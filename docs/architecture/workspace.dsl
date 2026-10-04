@@ -85,6 +85,7 @@ model {
 
   reviewer -> dao.web.manager "Pilote les opérations"
   reviewer -> dao.web.managerReview "Traite les revues"
+  reviewer -> dao.web.review "Décide sur les dossiers"
   reviewer -> dao.web.managerPublications "Supervise les publications"
   reviewer -> dao.web.managerProfessionals "Consulte les professionnels"
   admin -> dao.web.manager "Pilote avec droits admin"
