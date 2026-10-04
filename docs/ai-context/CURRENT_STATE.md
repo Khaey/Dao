@@ -12,10 +12,12 @@
 - **V3-C permanent TEST accounts:** complete and validated. Credentials remain
   only in the protected GitHub Environment `dev`; no values are documented or
   emitted.
-- **V3-A release-triggered real email E2E:** next OPT phase. The current
-  workflow is manual-only; the owned branch adds a GitHub Release trigger,
-  waits for the green main deployment, and skips an already successful run for
-  the same commit SHA. `workflow_dispatch` remains available as fallback.
+- **V3-A release-triggered real email E2E:** implementation merged in
+  `3ea59c383a5a09ead906e3c87ace4ac30db18dc2` (PR #28). Published GitHub
+  Releases now trigger the protected runner only after the matching green main
+  deployment; a prior successful run for the same SHA is skipped. The shared
+  concurrency lock and `workflow_dispatch` fallback remain. A future published
+  release is still needed to observe the automatic path once.
 - **V3-B automatic env-sync:** still open. Normal main deployment consumes the
   existing VPS environment; the protected `env-sync` operation remains manual.
 - **V3-D routine technical autonomy:** still open. The stable GitHub Actions
