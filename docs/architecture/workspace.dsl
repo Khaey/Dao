@@ -231,22 +231,30 @@ views {
 
   dynamic dao.web "ExistingTeamFlow" "Création client avec artisans connus et lots principaux." {
     client -> dao.web.teamCreation "Saisit chantier + lignes artisans/lots"
-    dao.web.teamCreation -> dao.web.api "Envoie la préparation"
-    dao.web.api -> dao.web.rpc "Crée atomiquement projet/lots/invitations"
+    dao.web.teamCreation -> dao.web.invitations "Prépare les invitations liées aux lots principaux"
+    dao.web.invitations -> dao.web.api "Envoie la préparation"
+    dao.web.api -> dao.web.services "Valide et orchestre"
+    dao.web.services -> dao.web.rpc "Crée atomiquement projet/lots/invitations"
     dao.web.rpc -> supabase.database "Persiste le tout"
     dao.web.services -> dao.web.email "Envoie l'invitation"
     dao.web.email -> resend "Livre l'email"
     contractor -> dao.web.invitations "Accepte"
-    dao.web.invitations -> dao.web.rpc "Active membership + lot principal"
+    dao.web.invitations -> dao.web.api "Soumet l'acceptation"
+    dao.web.api -> dao.web.services "Valide l'acceptation"
+    dao.web.services -> dao.web.rpc "Active membership + lot principal"
     autoLayout lr
   }
 
   dynamic dao.web "PublicationBidFlow" "Publication, offre et confidentialité." {
     reviewer -> dao.web.publications "Supervise le projet approuvé"
-    dao.web.publications -> dao.web.rpc "Publie les snapshots autorisés"
+    dao.web.publications -> dao.web.api "Demande la publication"
+    dao.web.api -> dao.web.services "Valide et orchestre"
+    dao.web.services -> dao.web.rpc "Publie les snapshots autorisés"
     contractor -> dao.web.marketplace "Voit une publication autorisée"
     contractor -> dao.web.bids "Crée puis soumet son offre"
-    dao.web.bids -> dao.web.rpc "Versionne et fige"
+    dao.web.bids -> dao.web.api "Soumet la commande d'offre"
+    dao.web.api -> dao.web.services "Valide l'offre"
+    dao.web.services -> dao.web.rpc "Versionne et fige"
     dao.web.rpc -> supabase.rls "Isole concurrents et données privées"
     client -> dao.web.compare "Compare les offres soumises" "P2 en attente"
     autoLayout lr
@@ -255,7 +263,9 @@ views {
   dynamic dao.web "AwardFlow" "Attribution atomique par lot." {
     client -> dao.web.compare "Sélectionne une offre" "P2"
     dao.web.compare -> dao.web.awards "Demande l'attribution"
-    dao.web.awards -> dao.web.rpc "Commande atomique"
+    dao.web.awards -> dao.web.api "Soumet la demande"
+    dao.web.api -> dao.web.services "Valide et orchestre"
+    dao.web.services -> dao.web.rpc "Commande atomique"
     dao.web.rpc -> supabase.database "Verrouille et crée l'attribution"
     dao.web.rpc -> supabase.rls "Empêche les accès non autorisés"
     autoLayout lr
@@ -264,8 +274,11 @@ views {
   dynamic dao.web "ManagerFlow" "Back-office Gestionnaire V1." {
     reviewer -> dao.web.manager "Ouvre le pilotage"
     dao.web.manager -> dao.web.managerReview "Accède aux revues"
-    dao.web.managerReview -> dao.web.services "Charge via staff()"
-    dao.web.services -> supabase.rls "Autorise le périmètre staff"
+    reviewer -> dao.web.review "Traite les dossiers"
+    dao.web.review -> dao.web.api "Soumet la décision"
+    dao.web.api -> dao.web.services "Valide et orchestre"
+    dao.web.services -> dao.web.rpc "Charge/exécute via staff()"
+    dao.web.rpc -> supabase.rls "Autorise le périmètre staff"
     reviewer -> dao.web.managerPublications "Supervise les publications"
     reviewer -> dao.web.managerProfessionals "Consulte les professionnels"
     autoLayout lr
@@ -275,7 +288,8 @@ views {
     client -> dao.web.documents "Demande le document"
     dao.web.documents -> dao.web.api "Demande une URL signée"
     dao.web.api -> dao.web.services "Vérifie acteur et droits"
-    dao.web.services -> supabase.rls "Contrôle l'accès"
+    dao.web.services -> dao.web.rpc "Vérifie les droits métier"
+    dao.web.rpc -> supabase.rls "Contrôle l'accès"
     dao.web.services -> supabase.storage "Crée URL signée"
     autoLayout lr
   }
