@@ -55,9 +55,9 @@ model {
     rls = container "RLS / dao_private" "Frontière d'autorisation et helpers privés." "PostgreSQL RLS" 
   }
 
-  resend = softwareSystem "Resend" "Transport des emails transactionnels." { tags "External" }
-  github = softwareSystem "GitHub" "Source de vérité, PR, Actions, Releases et CI/CD." { tags "External" }
-  vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr et dao-dev.service." { tags "External" }
+  resend = softwareSystem "Resend" "Transport des emails transactionnels." "External"
+  github = softwareSystem "GitHub" "Source de vérité, PR, Actions, Releases et CI/CD." "External"
+  vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr et dao-dev.service." "External"
 
   client -> dao.web.shell "Utilise l'espace client"
   contractor -> dao.web.shell "Utilise l'espace artisan"
