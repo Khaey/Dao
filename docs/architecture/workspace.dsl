@@ -335,5 +335,7 @@ views {
   }
 }
 
-configuration { scope softwaresystem }
+configuration {
+  scope softwaresystem
+}
 }
