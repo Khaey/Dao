@@ -107,6 +107,7 @@ declare
   v_item public.bid_items;
   v_award_id uuid;
   v_award_item_id uuid;
+  v_request_status text;
 begin
   if v_actor is null then
     raise exception using errcode='42501', message='award authorization required';
@@ -135,12 +136,15 @@ begin
     raise exception using errcode='42501', message='award authorization required';
   end if;
 
-  perform 1
+  select pr.status into v_request_status
   from public.project_requests pr
   where pr.id=v_item.request_id and pr.project_id=v_item.project_id
   for update;
   if not found then
     raise exception using errcode='23503', message='unknown project request';
+  end if;
+  if v_request_status not in ('open','reserved') then
+    raise exception using errcode='23514', message='project request is not awardable';
   end if;
 
   if exists (
