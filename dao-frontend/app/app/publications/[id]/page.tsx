@@ -48,6 +48,6 @@ export default function PublicationDetail() {
         </article>)}
       </div>
     </Card>
-    <PublicationOffersPanel publicationId={id} projectId={publication.project_id} lots={lots} />
+    <PublicationOffersPanel projectId={publication.project_id} lots={lots} />
   </section>;
 }
