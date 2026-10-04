@@ -61,7 +61,8 @@ model {
   supabase -> supabaseRls "Fournit RLS/dao_private"
   supabase -> supabaseStorage "Fournit Storage privé"
   github = softwareSystem "GitHub" "Source de vérité, PR, Actions, Releases et CI/CD." "External"
-  vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr et dao-dev.service." "External"
+  githubDevEnv = softwareSystem "GitHub Environment dev" "Stockage protégé des variables/secrets DEV consommés uniquement par les workflows autorisés." "External"
+  vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr, dao-dev.service et /etc/dao/dao-dev.env." "External"
 
   client -> dao.web.shell "Utilise l'espace client"
   contractor -> dao.web.shell "Utilise l'espace artisan"
@@ -136,8 +137,10 @@ model {
   dao.web.services -> dao.web.email "Envoie une invitation"
   dao.web.email -> resend "POST transactionnel"
 
-  github -> vps "Déploie uniquement main validé"
-  vps -> dao.web "Exécute la release DEV"
+  github -> githubDevEnv "Lit les variables/secrets protégés du déploiement DEV"
+  githubDevEnv -> vps "Alimente env-sync via un payload éphémère hors artifact"
+  github -> vps "Déploie uniquement main validé sous host lock; sync env idempotent avant readiness"
+  vps -> dao.web "Exécute la release DEV et restaure env + release si readiness échoue"
   github -> supabase "CI utilise une stack Supabase locale jetable, pas DEV" "CI"
 
   development = deploymentEnvironment "DEV" {
@@ -149,7 +152,7 @@ model {
 
 views {
   systemLandscape "Landscape" "Vision globale acteurs, D.A.O, Supabase, Resend et exploitation." {
-    include client contractor reviewer admin dao supabase resend github vps
+    include client contractor reviewer admin dao supabase resend github githubDevEnv vps
     autoLayout lr
   }
 
@@ -300,7 +303,7 @@ views {
     autoLayout lr
   }
 
-  deployment * development "DevDeployment" "Déploiement DEV actuel sur VPS." {
+  deployment * development "DevDeployment" "Déploiement DEV actuel : artifact vérifié, env-sync protégé/idempotent, readiness et rollback env+release." {
     include *
     autoLayout lr
   }
