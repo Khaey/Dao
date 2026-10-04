@@ -333,8 +333,15 @@ Storage.
 
 `deploy-dev` is strictly limited to a push on `refs/heads/main`, after backend,
 frontend, and FULL E2E validation succeeds. Pull requests cannot trigger
-deployment. The final timing summary records stage, critical-job, and workflow
-durations; skipped PR deployment jobs are omitted from job duration totals.
+deployment. Its protected `dev` environment secrets are assembled into a
+run-scoped private payload outside the immutable build artifact. After the
+stale-main check, the deploy script invokes the installed root `env-sync`
+helper under the host deployment lock, preserving unmanaged environment keys
+and the `root:dao / 0640` file contract. Release readiness failure restores the
+previous environment and release together. Payload cleanup is attempted on
+both the runner and VPS in `always()` paths. The final timing summary records
+stage, critical-job, and workflow durations; skipped PR deployment jobs are
+omitted from job duration totals.
 
 The repository and DEV contain 22 matching migration versions. Fresh schema
 reconstruction and the read-only DAO inventory match DEV structurally and

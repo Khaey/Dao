@@ -51,7 +51,7 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | status | Service state, exact release name, helper presence, selected env key presence | Existing Actions SSH secret and deployed scripts |
 | health | Read-only local HTTP smoke | Existing Actions SSH secret |
 | restart | Restart only dao-dev.service, then smoke/status | Existing dao service sudoers |
-| env-sync | Update three email configuration keys from dev environment secrets, restart, smoke; restore previous env on smoke failure after a change | One-time admin helper installation plus Resend secrets |
+| env-sync | Manual recovery operation; normal main deploys now run the same three-key sync automatically before release activation | One-time admin helper installation plus Resend secrets |
 | log-summary | Last hour priority counts, at most 200 journal entries; no message bodies | One-time admin helper installation |
 
 Example with a credential authorized for Actions dispatch:
@@ -86,8 +86,19 @@ protected rollback. No generic root shell, arbitrary path write, Auth setting
 or RLS change is exposed.
 
 For email configuration sync, define `RESEND_API_KEY` and `DAO_EMAIL_FROM`
-as dev environment secrets. The workflow fixes DAO_PUBLIC_URL to the DEV URL.
-It preserves existing database/Auth keys and does not send a test email.
+as dev environment secrets. The workflow fixes `DAO_PUBLIC_URL` to the DEV
+URL. The normal main-only `deploy-dev` job creates a private, run-scoped JSON
+payload from those protected secrets, transfers it outside the build artifact,
+and deletes it from the runner and VPS in `always()` cleanup paths. The runner
+temporarily changes only the payload's mode to `0644` for the pinned SCP
+container; the VPS payload is changed to `0600` before root-helper consumption.
+The deploy script invokes the installed helper under the existing host lock,
+after stale-main validation and before release activation. The helper preserves
+all non-managed keys and atomically keeps `/etc/dao/dao-dev.env` at `root:dao /
+0640`. If service readiness fails after a changed sync, the deploy rollback
+restores both the previous release and the previous environment, then restarts
+the service with the restored values. Manual `DAO DEV operations` `env-sync`
+remains available as a recovery path and does not send a test email.
 
 Raw application logs may contain tokens/user data, so they are not copied to public Actions logs. Detailed log review
 remains a private operator session or a future private, redacted log channel.

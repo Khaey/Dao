@@ -330,6 +330,32 @@ jobs:
           test -s "$stable_package"
           cp "$stable_package" "$run_package"
           test -s "$run_package"
+      - name: Prepare protected DEV environment payload
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DAO_EMAIL_FROM: ${{ secrets.DAO_EMAIL_FROM }}
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path('dao-env.json')
+          values = {
+              'RESEND_API_KEY': os.environ.get('RESEND_API_KEY', ''),
+              'DAO_EMAIL_FROM': os.environ.get('DAO_EMAIL_FROM', ''),
+              'DAO_PUBLIC_URL': 'https://dao-dev.logiclab.fr',
+          }
+          if not values['RESEND_API_KEY'] or not values['DAO_EMAIL_FROM']:
+              raise SystemExit('Missing protected DEV environment configuration')
+          with path.open('x', encoding='utf-8') as stream:
+              json.dump(values, stream, separators=(',', ':'))
+              stream.write('\n')
+          path.chmod(0o600)
+          PY
+          test "$(stat -c '%a' dao-env.json)" = 600
       - name: Transfer verified build package to DEV host
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
@@ -338,6 +364,19 @@ jobs:
           key: ${{ secrets.DEV_SSH_KEY }}
           source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
           target: /opt/dao
+          overwrite: true
+          timeout: 30s
+          command_timeout: 10m
+      - name: Make private environment payload readable to SCP container
+        run: chmod 0644 dao-env.json
+      - name: Transfer protected DEV environment payload to DEV host
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          source: dao-env.json
+          target: /opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}
           overwrite: true
           timeout: 30s
           command_timeout: 10m
@@ -352,8 +391,13 @@ jobs:
             echo "DEPLOY_TIMING stage=ssh_connection_complete epoch_ms=$(date +%s%3N)"
             run_dir="/opt/dao/incoming/${{ github.run_id }}-${{ github.run_attempt }}"
             package="/opt/dao/dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz"
+            env_payload_dir="/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}"
+            env_payload="$env_payload_dir/dao-env.json"
             payload="$run_dir/payload"
+            cleanup() { rm -rf -- "$run_dir" "$package" "$env_payload_dir"; }
+            trap cleanup EXIT
             test -s "$package"
+            test -s "$env_payload"
             mkdir -p "$payload"
             if tar -tzf "$package" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
               echo "Deployment package contains an unsafe path" >&2
@@ -367,8 +411,22 @@ jobs:
             test -s "$payload/.next/BUILD_ID"
             test -f "$payload/ops/deploy-dev.sh"
             chmod 0750 "$payload/ops/deploy-dev.sh"
-            bash "$payload/ops/deploy-dev.sh" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.run_attempt }}" "$payload"
-            rm -rf "$run_dir" "$package"
+            bash "$payload/ops/deploy-dev.sh" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.run_attempt }}" "$payload" "$env_payload"
+      - name: Remove private DEV environment payload from host
+        if: always()
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            rm -rf -- "/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "Private DEV environment payload cleanup attempted"
+      - name: Remove private DEV environment payload from runner
+        if: always()
+        run: rm -f -- dao-env.json
 
   ci-timing-summary:
     if: always()
@@ -433,6 +491,8 @@ jobs:
             frontend-build|Package frontend build and release script
             deploy-dev|Download the DEV-configured build artifact
             deploy-dev|Transfer verified build package to DEV host
+            deploy-dev|Prepare protected DEV environment payload
+            deploy-dev|Transfer protected DEV environment payload to DEV host
             deploy-dev|Deploy verified revision over SSH
           TIMED_STEPS
           fi

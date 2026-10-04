@@ -1,7 +1,7 @@
 # D.A.O — Optimization backlog (analysis, not implementation)
 
 Verified 2026-10-04 Europe/Paris against main
-`d4650514234be0c8e20ce89dae10dd14c63ba844`.
+`f87ab8f0887cb5acfbba32a6333ef21228382077` (CI main #246 green).
 V3-C is implemented as platform tooling only; no product/Auth/RLS logic,
 migration or schema implementation is included.
 
@@ -19,8 +19,23 @@ PR #28 and main CI #242 are green, with DEV deploy PASS. Acceptance of the
 automatic path still needs one intentionally published-release observation;
 the existing manual run #6 remains the validated scenario evidence.
 
-V3-B automatic env-sync and V3-D routine technical autonomy remain open and
-must be implemented in separate phases.
+V3-B automatic env-sync is implemented in the current OPT phase and remains
+separate from V3-D routine technical autonomy. The next phase may address only
+bounded, rollback-safe technical operations; no product, Auth, RLS, migration
+or data-model choice is implied.
+
+## V3-B — automatic DEV environment sync (implemented in this phase)
+
+The main-only `deploy-dev` job now injects `RESEND_API_KEY` and
+`DAO_EMAIL_FROM` from the protected GitHub Environment `dev`, fixes
+`DAO_PUBLIC_URL` to the DEV origin, and transfers a run-scoped private payload
+outside the immutable build artifact. The existing root helper applies only
+the allowlisted keys and preserves the remaining environment. The deploy host
+lock covers environment sync and release activation; stale-main validation is
+performed first. Readiness failure restores the helper's previous environment
+backup and the previous release. Payloads are mode `0600` before VPS
+consumption and are removed from runner/VPS cleanup paths. `workflow_dispatch`
+env-sync remains available for recovery.
 
 ## Protected real DEV email runner — implemented on OPT branch
 

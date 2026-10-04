@@ -35,14 +35,19 @@ a previously successful run for that SHA. The shared `dao-dev-test-scope`
 concurrency group remains in place, so fixture reset and email validation
 cannot overlap. Observe this path on the next intentionally published release.
 
-### V3-B — automatic environment availability
+### V3-B — automatic environment availability (implemented)
 
-After V3-A is merged and observed, connect the protected `env-sync` operation
-to the normal DEV deployment path only where the required environment payload
-is present. Preserve the root helper, `root:dao / 0640` environment file,
-rollback and readiness checks; never move secrets into artifacts or inputs.
+The normal main-only DEV deployment now assembles the protected `dev`
+environment secrets into a run-scoped private payload, transfers it outside
+the immutable artifact, and passes it to the existing root `env-sync` helper
+under the host deployment lock. Only the managed Resend/public-URL keys are
+updated; the helper preserves all other values and keeps
+`/etc/dao/dao-dev.env` at `root:dao / 0640`. Stale-main validation runs before
+sync. A readiness failure restores both the previous environment and release;
+runner/VPS payload cleanup is attempted in `always()` paths. The manual
+`DAO DEV operations` `env-sync` command remains the recovery path.
 
-### V3-D — routine technical autonomy
+### V3-D — routine technical autonomy (next)
 
 After V3-B, remove only repetitive manual operations that have a bounded,
 read-only or rollback-safe implementation. Keep `workflow_dispatch` recovery
