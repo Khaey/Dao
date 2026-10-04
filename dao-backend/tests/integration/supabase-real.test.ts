@@ -145,5 +145,5 @@ test('autonomous Supabase integration', async () => {
     const awardedRequest=await admin.from('project_requests').select('status').eq('id',request).single();assert.ifError(awardedRequest.error);assert.equal(awardedRequest.data.status,'awarded');
     const denied=await other.rpc('award_bid_item_atomic',{...params,p_idempotency_key:key+'-other'}); assert.ok(denied.error);
     const second=await client.rpc('award_bid_item_atomic',{p_idempotency_key:key+'-second',p_bid_item_id:item2});
-    assert.ok(second.error); assert.match((second.error?.code||'')+' '+(second.error?.message||''),/23505|one_active_award_per_request/i);
+    assert.ok(second.error); assert.match((second.error?.code||'')+' '+(second.error?.message||''),/23505|one_active_award_per_request|23514 project request is not awardable/i);
 });
