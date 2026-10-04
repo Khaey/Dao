@@ -302,13 +302,36 @@ views {
   }
 
   styles {
-    element "Person" { shape person background #084c61 color #ffffff }
-    element "Software System" { background #177e89 color #ffffff }
-    element "Container" { background #4f6d7a color #ffffff }
-    element "Component" { background #d9e4e8 color #14252b }
-    element "External" { background #6c757d color #ffffff }
-    element "InProgress" { background #d9a441 color #14252b }
-    element "Planned" { background #eeeeee color #666666 opacity 55 }
+    element "Person" {
+      shape person
+      background #084c61
+      color #ffffff
+    }
+    element "Software System" {
+      background #177e89
+      color #ffffff
+    }
+    element "Container" {
+      background #4f6d7a
+      color #ffffff
+    }
+    element "Component" {
+      background #d9e4e8
+      color #14252b
+    }
+    element "External" {
+      background #6c757d
+      color #ffffff
+    }
+    element "InProgress" {
+      background #d9a441
+      color #14252b
+    }
+    element "Planned" {
+      background #eeeeee
+      color #666666
+      opacity 55
+    }
   }
 }
 
