@@ -15,6 +15,7 @@ and actual repository/CI evidence take precedence over historical checkpoints.
 | [BUSINESS_RULES.md](BUSINESS_RULES.md) | Protected product/business constraints |
 | [COLLABORATION_DESIGN.md](COLLABORATION_DESIGN.md) | Collaborative chantier decisions and authorization model |
 | [DECISIONS.md](DECISIONS.md) | Durable decisions, including completed and rejected optimizations |
+| [../architecture/README.md](../architecture/README.md) | Living C4/Structurizr visual architecture and maintenance workflow |
 
 WORK OPT starts from main on its own `chore/...` branch. It never resumes
 a functional branch named in an old checkpoint and never changes WORK DEV PRs.
