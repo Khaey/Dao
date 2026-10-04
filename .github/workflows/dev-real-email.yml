@@ -2,8 +2,11 @@ name: DAO DEV real email E2E
 
 on:
   workflow_dispatch: {}
+  release:
+    types: [published]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -11,8 +14,94 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  release_guard:
+    name: Guard release execution
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      should_run: ${{ steps.guard.outputs.should_run }}
+    steps:
+      - name: Wait for the verified DEV deployment and deduplicate the release
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          release_sha="$EVENT_SHA"
+          if [[ ! "$release_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Release guard refused a non-commit workflow SHA" >&2
+            exit 1
+          fi
+
+          runs_json="$(gh api "repos/$REPOSITORY/actions/workflows/dev-real-email.yml/runs?per_page=100")"
+          prior_success="$(printf '%s' "$runs_json" | jq -r \
+            --arg sha "$release_sha" \
+            --arg current "$CURRENT_RUN_ID" \
+            '.workflow_runs[]
+            | select((.id | tostring) != $current)
+            | select(.head_sha == $sha and .conclusion == "success")
+            | .id' | head -n 1)"
+          if [ -n "$prior_success" ]; then
+            echo "RELEASE_GUARD skip=duplicate prior_run=$prior_success sha=$release_sha"
+            echo 'should_run=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$EVENT_NAME" = release ]; then
+            main_sha="$(gh api "repos/$REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+            if [ "$main_sha" != "$release_sha" ]; then
+              echo "RELEASE_GUARD skip=release_not_current_main sha=$release_sha main=$main_sha"
+              echo 'should_run=false' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          ci_run_id=''
+          for attempt in {1..30}; do
+            ci_runs="$(gh api "repos/$REPOSITORY/actions/runs?head_sha=$release_sha&per_page=100")"
+            ci_state="$(printf '%s' "$ci_runs" | jq -r '
+              [.workflow_runs[]
+                | select(.name == "DAO CI and DEV deploy" and .head_branch == "main")]
+              | sort_by(.id)
+              | last
+              | [.id // "", .status // "", .conclusion // ""]
+              | @tsv')"
+            IFS=$'\t' read -r candidate_id candidate_status candidate_conclusion <<< "$ci_state"
+            if [ "$candidate_conclusion" = success ]; then
+              ci_run_id="$candidate_id"
+              break
+            fi
+            if [ "$candidate_conclusion" = failure ] \
+              || [ "$candidate_conclusion" = cancelled ] \
+              || [ "$candidate_conclusion" = timed_out ]; then
+              echo "Release guard refused non-green main CI run=$candidate_id conclusion=$candidate_conclusion" >&2
+              exit 1
+            fi
+            if [ "$attempt" -lt 30 ]; then
+              sleep 20
+            fi
+          done
+
+          if [ -z "$ci_run_id" ]; then
+            echo "Release guard timed out waiting for green DAO CI and DEV deploy sha=$release_sha" >&2
+            exit 1
+          fi
+          echo "RELEASE_GUARD run=enabled sha=$release_sha ci_run=$ci_run_id"
+          echo 'should_run=true' >> "$GITHUB_OUTPUT"
+
   real-email-e2e:
-    if: github.ref == 'refs/heads/main'
+    if: needs.release_guard.outputs.should_run == 'true'
+    needs: release_guard
     runs-on: ubuntu-latest
     environment: dev
     timeout-minutes: 15
