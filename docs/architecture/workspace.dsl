@@ -87,6 +87,7 @@ model {
   contractor -> dao.web.bids "Prépare/soumet ses offres"
   contractor -> dao.web.invitations "Accepte/refuse une invitation"
   contractor -> dao.web.collaboration "Travaille sur un chantier accepté"
+  contractor -> dao.web.contracts "Participe à l’exécution" "Futur"
 
   reviewer -> dao.web.manager "Pilote les opérations"
   reviewer -> dao.web.managerReview "Traite les revues"
@@ -300,6 +301,15 @@ views {
     dao.web.services -> dao.web.rpc "Vérifie les droits métier"
     dao.web.rpc -> supabaseRls "Contrôle l'accès"
     dao.web.services -> supabaseStorage "Crée URL signée"
+    autoLayout lr
+  }
+
+  component dao.web "ExecutiveOverview" "Vue d’ensemble simplifiée pour le pilotage global de D.A.O, sans détails techniques." {
+    include client contractor reviewer admin
+    include dao.web.projects dao.web.lots dao.web.collaboration
+    include dao.web.review dao.web.publications dao.web.marketplace
+    include dao.web.bids dao.web.compare dao.web.awards
+    include dao.web.contracts dao.web.subcontract
     autoLayout lr
   }
 
