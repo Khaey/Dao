@@ -3,9 +3,34 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
+## Autonomy DEV V3 — next phases
+
+### V3-A — release-triggered real email validation
+
+The owned OPT phase adds `release: published` to `DAO DEV real email E2E`.
+The workflow keeps `workflow_dispatch` as a fallback, waits for the green
+`DAO CI and DEV deploy` run for the same commit, and uses a read-only Actions
+API guard to skip a previously successful run for that SHA. The shared
+`dao-dev-test-scope` concurrency group remains in place, so fixture reset and
+email validation cannot overlap.
+
+### V3-B — automatic environment availability
+
+After V3-A is merged and observed, connect the protected `env-sync` operation
+to the normal DEV deployment path only where the required environment payload
+is present. Preserve the root helper, `root:dao / 0640` environment file,
+rollback and readiness checks; never move secrets into artifacts or inputs.
+
+### V3-D — routine technical autonomy
+
+After V3-B, remove only repetitive manual operations that have a bounded,
+read-only or rollback-safe implementation. Keep `workflow_dispatch` recovery
+paths and stop on any new product, Auth, RLS, migration or architecture choice.
+
 ## Protected real DEV email test
 
-After merge, launch from GitHub Actions on `main`:
+The protected workflow can still be launched manually from GitHub Actions on
+`main`:
 
 `DAO DEV real email E2E` → `Run workflow`
 

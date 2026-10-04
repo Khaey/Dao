@@ -1,7 +1,26 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-10-03 Europe/Paris (GitHub + DEV database evidence)
+> **Last verified:** 2026-10-04 Europe/Paris (GitHub + DEV workflow evidence)
 > **Repository:** `Khaey/Dao`
+
+## Autonomy DEV V3 — live status
+
+- Verified remote `main`: `6c3965a797d6af70714a96557ae192632b8c8b74`.
+- CI main `#236` and DEV deployment are green. The real DEV email workflow
+  `#6` (`37166009683`) passed the complete client → Resend → contractor
+  acceptance scenario, with bounded TEST-owned reset before and after.
+- **V3-C permanent TEST accounts:** complete and validated. Credentials remain
+  only in the protected GitHub Environment `dev`; no values are documented or
+  emitted.
+- **V3-A release-triggered real email E2E:** next OPT phase. The current
+  workflow is manual-only; the owned branch adds a GitHub Release trigger,
+  waits for the green main deployment, and skips an already successful run for
+  the same commit SHA. `workflow_dispatch` remains available as fallback.
+- **V3-B automatic env-sync:** still open. Normal main deployment consumes the
+  existing VPS environment; the protected `env-sync` operation remains manual.
+- **V3-D routine technical autonomy:** still open. The stable GitHub Actions
+  control path exists, but normal operational actions are not yet inferred or
+  scheduled automatically.
 
 ## V3-C follow-up — protected real DEV invitation runner
 

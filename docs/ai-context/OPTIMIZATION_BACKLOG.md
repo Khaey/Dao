@@ -1,9 +1,26 @@
 # D.A.O — Optimization backlog (analysis, not implementation)
 
-Verified 2026-10-02 Europe/Paris against main
-`990f65f916638431e05aa3733fffcb6cd8f103c5`.
+Verified 2026-10-04 Europe/Paris against main
+`6c3965a797d6af70714a96557ae192632b8c8b74`.
 V3-C is implemented as platform tooling only; no product/Auth/RLS logic,
 migration or schema implementation is included.
+
+## V3-A — release-triggered real email validation (owned phase)
+
+The candidate workflow adds an explicit GitHub Release trigger while keeping
+`workflow_dispatch` as the recovery path. A read-only Actions API guard waits
+for the green main CI/deploy run for the same commit and refuses a duplicate
+after a successful run already exists for that SHA. The existing shared
+`dao-dev-test-scope` concurrency group is unchanged, so reset and mailbox
+validation remain serialized with fixture operations. No automatic trigger is
+attached to ordinary pushes or pull requests.
+
+Acceptance requires workflow syntax, PR CI, and a later published-release
+observation. Until that observation, this remains a candidate rather than a
+claim that a release was executed.
+
+V3-B automatic env-sync and V3-D routine technical autonomy remain open and
+must be implemented in separate phases.
 
 ## Protected real DEV email runner — implemented on OPT branch
 
