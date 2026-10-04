@@ -5,8 +5,8 @@
 
 ## Autonomy DEV V3 — live status
 
-- Verified remote `main`: `6c3965a797d6af70714a96557ae192632b8c8b74`.
-- CI main `#236` and DEV deployment are green. The real DEV email workflow
+- Verified remote `main`: `d4650514234be0c8e20ce89dae10dd14c63ba844`.
+- CI main `#244` and DEV deployment are green. The real DEV email workflow
   `#6` (`37166009683`) passed the complete client → Resend → contractor
   acceptance scenario, with bounded TEST-owned reset before and after.
 - **V3-C permanent TEST accounts:** complete and validated. Credentials remain
