@@ -405,3 +405,41 @@ The minimum-one-artisan rule applies only to the `client_existing_team`
 creation path. A marketplace-first client project may contain lots with no known
 professional and use the normal DAO search/publication workflow.
 
+
+
+## Future subcontracting rule — P3
+
+An artisan/enterprise account is not permanently limited to the role of bidder.
+
+In a future P3 execution flow, an enterprise that has legitimately received or
+is responsible for a chantier may subcontract part of its scope through D.A.O.
+
+Target principle:
+
+```text
+Client
+-> main enterprise / principal contractor
+-> keeps some lots
+-> opens selected eligible lots to subcontracting
+-> receives subcontractor offers
+-> awards a subcontracting lot
+```
+
+This future workflow must preserve real-lot semantics, offer isolation,
+authorization, auditability and contractual responsibility. It must not be
+implemented as an implicit award, hidden publication or simple role bypass.
+
+The user's global `contractor` role does not by itself determine whether they
+are principal or subcontractor on a specific chantier. Contextual project/lot
+participation and permissions must decide that.
+
+## Back-office/settings scope rule
+
+For the current phase, keep manager/admin settings deliberately simple.
+Do not build the advanced configurable rules engine yet.
+
+Future advanced configuration may adapt D.A.O to different client and
+artisan/enterprise profiles, but business-security invariants are never
+ordinary toggles. In particular RLS, anti-self-promotion, immutable submitted
+history, private-data isolation, single active award constraints and financial
+ledger integrity remain fixed safeguards.
