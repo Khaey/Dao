@@ -87,6 +87,7 @@ model {
   reviewer -> dao.web.managerReview "Traite les revues"
   reviewer -> dao.web.review "Décide sur les dossiers"
   reviewer -> dao.web.managerPublications "Supervise les publications"
+  reviewer -> dao.web.publications "Supervise les publications"
   reviewer -> dao.web.managerProfessionals "Consulte les professionnels"
   admin -> dao.web.manager "Pilote avec droits admin"
   admin -> dao.web.staffAdmin "Gère l'équipe" "Futur"
@@ -103,6 +104,7 @@ model {
   dao.web.marketplace -> dao.web.bids "Permet une offre autorisée"
   dao.web.bids -> dao.web.compare "Alimente la comparaison"
   dao.web.bids -> dao.web.awards "Alimente l'attribution"
+  dao.web.compare -> dao.web.awards "Prépare l'attribution"
   dao.web.awards -> dao.web.contracts "Déclenche le cycle contractuel" "Futur"
   dao.web.contracts -> dao.web.subcontract "Permet la sous-traitance contrôlée" "Futur"
 
