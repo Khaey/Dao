@@ -103,9 +103,7 @@ AFTER APPROVAL
 
 ## 4. Current development phase
 
-The project is currently in **P1.1 stabilization**.
-
-P1/P1.1 concerns the client project preparation and review workflow, plus UX coherence around:
+**P1/P1.1 is complete.** Its client preparation/review scope covered:
 
 - project creation and editing;
 - project status;
@@ -116,7 +114,11 @@ P1/P1.1 concerns the client project preparation and review workflow, plus UX coh
 - responsive behavior;
 - E2E stabilization.
 
-Do **not** start a new product phase until P1.1 is explicitly validated.
+The current authorized product lot is **Back-office Gestionnaire V1**. P2 is
+partial: offer submission/versioning/privacy and award foundations exist, while
+advanced comparison/award UX remains pending in PR #27. Contract and execution
+domains (milestones, financial ledger, reception, amendments, termination and
+warranty) are not operational product flows yet.
 
 ## 5. Important product boundaries
 

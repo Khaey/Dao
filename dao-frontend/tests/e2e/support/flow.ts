@@ -8,7 +8,7 @@ export async function login(page: Page, user: E2EUser) {
   await page.getByPlaceholder('Votre email').fill(user.email);
   await page.getByPlaceholder('Mot de passe').fill(user.password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).toHaveURL(/\/app\/projects/);
+  await expect(page).toHaveURL(/\/app\/(?:projects|dao)(?:[/?#]|$)/);
 }
 
 export function dateOffset(days: number) {

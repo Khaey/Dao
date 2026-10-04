@@ -2,6 +2,23 @@
 
 > Decisions already made. Agents should not reopen them without new evidence or an explicit product request.
 
+## D-038 — Back-office Gestionnaire V1 reuses the existing staff perimeter
+
+The first manager back-office is available to `dao_reviewer` and `dao_admin`
+through the existing `dao_private.staff()` authorization and RLS policies. It
+provides operational queues and read-only supervision, then delegates review
+and publication to the existing secured commands.
+
+V1 does not add a browser-side privileged client, a service-role path, a new
+RLS policy or a migration. It does not permit staff-role assignment,
+contractor verification mutation or platform settings. A rejection requires a
+specific client-facing correction reason; comments are isolated per submitted
+version. Publication continues to use the exact approved version and its linked
+lot snapshots.
+
+Any later role administration, contractor verification decision or mutable
+platform configuration requires a separate product/security decision.
+
 ## D-036 — Protected real DEV email E2E path
 
 The real shared-DEV invitation check is a separate, manually dispatched,

@@ -5,6 +5,8 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   test.skip(!e2eClient || !e2eReviewer, 'E2E Supabase credentials are not available');
 
   await login(page, e2eClient!);
+  await page.goto('/app/dao');
+  await expect(page.getByRole('heading', { name: 'Accès réservé' })).toBeVisible();
   const project = await createProjectWithMainLot(page, testInfo, 'review', 'Installation et essais des réseaux d’eau.', 'Lot plomberie E2E revue');
   const initialLotRow = page.locator('tr').filter({ hasText: project.lotTitle });
   await expect(initialLotRow).toHaveCount(1);
@@ -20,12 +22,21 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   const reviewerContext = await browser.newContext();
   const reviewer = await reviewerContext.newPage();
   await login(reviewer, e2eReviewer!);
+  await expect(reviewer).toHaveURL(/\/app\/dao(?:[/?#]|$)/);
+  await expect(reviewer.getByRole('heading', { name: 'Pilotage D.A.O' })).toBeVisible();
+  if (testInfo.project.name === 'mobile') await reviewer.getByRole('button', { name: 'Ouvrir le menu' }).click();
+  await expect(reviewer.getByRole('link', { name: 'Vue gestionnaire' })).toBeVisible();
+  await expect(reviewer.getByRole('link', { name: 'Revues' })).toBeVisible();
+  await expect(reviewer.getByRole('link', { name: 'Publications' })).toBeVisible();
   await reviewer.goto('/app/dao/review');
   const reviewHeading = reviewer.getByRole('heading', { name: project.title, exact: true });
   await expect(reviewHeading).toHaveCount(1);
   const reviewCard = reviewHeading.locator('xpath=../../..');
   await expect(reviewCard.getByText(project.lotTitle, { exact: true })).toBeVisible();
   await expect(reviewCard.getByText(project.lotScope, { exact: true })).toBeVisible();
+  await reviewCard.getByRole('button', { name: 'Refuser' }).click();
+  await expect(reviewCard.getByRole('alert')).toContainText('Indiquez la correction attendue');
+  await expect(reviewHeading).toHaveCount(1);
   await reviewCard.getByLabel('Commentaire de revue').fill('Commentaire E2E DAO');
   await reviewCard.getByRole('button', { name: 'Passer en revue DAO' }).click();
   await expect(reviewCard.getByText('dao_review', { exact: true })).toBeVisible();
@@ -57,5 +68,7 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await finalReviewCard.getByLabel('Commentaire de revue').fill('Validation finale E2E');
   await finalReviewCard.getByRole('button', { name: 'Approuver' }).click();
   await expect(finalHeading).toHaveCount(0);
+  await reviewer.goto('/app/dao/publications');
+  await expect(reviewer.getByRole('heading', { name: 'Publications D.A.O' })).toBeVisible();
   await reviewerContext.close();
 });
