@@ -27,7 +27,7 @@ model {
       marketplace = component "DAO disponibles" "Découverte artisan des publications autorisées." "Next.js / RLS"
 
       bids = component "Offres / bids" "Brouillon, items, versioning, pièces et soumission immuable." "Next.js / RPC"
-      compare = component "Comparaison offres P2" "Comparaison client par lot des offres soumises." "En attente PR #27" { tags "InProgress" }
+      compare = component "Comparaison offres P2" "Comparaison client par lot des offres soumises." "En attente PR #27" "InProgress"
       awards = component "Attribution" "Attribution atomique par lot avec une seule attribution active." "Supabase RPC"
 
       manager = component "Back-office Gestionnaire V1" "Landing interne, files de revue, publications et supervision professionnelle." "Next.js"
@@ -40,11 +40,11 @@ model {
       rpc = component "Façades RPC métier" "Commandes publiques contrôlées déléguant aux fonctions privées." "PostgreSQL RPC"
       email = component "Email invitation" "Authorization preflight, hash check, idempotence, HTML/text." "Resend transport"
 
-      staffAdmin = component "Équipe D.A.O & permissions" "Utilisateurs internes, droits fins, activation/révocation et audit." "Futur" { tags "Planned" }
-      settings = component "Paramétrage avancé" "Configuration clients/artisans/workflows/pays; hors V1." "Futur" { tags "Planned" }
-      contracts = component "Contrats & exécution" "Contrat, jalons, versements, réception, réserves, avenants, résiliation, garantie." "P2/P3 futur" { tags "Planned" }
-      subcontract = component "Sous-traitance entreprise" "Entreprise titulaire pouvant publier certains lots aux sous-traitants." "P3 futur" { tags "Planned" }
-      sessionPolicy = component "Politique de session" "Timeout/re-auth plus strict pour staff/admin; politique à définir." "Futur sécurité" { tags "Planned" }
+      staffAdmin = component "Équipe D.A.O & permissions" "Utilisateurs internes, droits fins, activation/révocation et audit." "Futur" "Planned"
+      settings = component "Paramétrage avancé" "Configuration clients/artisans/workflows/pays; hors V1." "Futur" "Planned"
+      contracts = component "Contrats & exécution" "Contrat, jalons, versements, réception, réserves, avenants, résiliation, garantie." "P2/P3 futur" "Planned"
+      subcontract = component "Sous-traitance entreprise" "Entreprise titulaire pouvant publier certains lots aux sous-traitants." "P3 futur" "Planned"
+      sessionPolicy = component "Politique de session" "Timeout/re-auth plus strict pour staff/admin; politique à définir." "Futur sécurité" "Planned"
     }
   }
 
