@@ -3,6 +3,27 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
+## Product handoff — Back-office Gestionnaire V1
+
+The authorized V1 is implemented on `feat/manager-backoffice-v1` from verified
+main `f87ab8f0887cb5acfbba32a6333ef21228382077`. It must complete normal PR CI,
+merge and DEV deployment before another product lot starts.
+
+After that merge, stop for DAO Pilot prioritization. Keep PR #27
+`feat/p2-offer-comparison` pending: do not merge, rebase or duplicate it without
+the explicit final decision already requested. The next downstream product lot
+should be chosen between the pending offer comparison/award work and a newly
+specified execution-domain slice. Do not infer contract, milestone, financial
+ledger, reception, amendment, termination or warranty transitions from the
+existing foundation tables.
+
+Back-office follow-ups also require explicit product rules before work starts:
+
+- internal user and role administration;
+- contractor verification approval/refusal lifecycle;
+- catalogues and platform settings;
+- publication suspension/closure administration beyond existing commands.
+
 ## Autonomy DEV V3 — next phases
 
 ### V3-A — release-triggered real email validation (merged)

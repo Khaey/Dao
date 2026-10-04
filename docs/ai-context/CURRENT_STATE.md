@@ -3,9 +3,34 @@
 > **Last verified:** 2026-10-04 Europe/Paris (GitHub + DEV workflow evidence)
 > **Repository:** `Khaey/Dao`
 
+## Product roadmap reality — Back-office Gestionnaire V1
+
+- Verified implementation base: remote `main`
+  `f87ab8f0887cb5acfbba32a6333ef21228382077`.
+- P1/P1.1 is complete and validated: project preparation, lots, documents,
+  review/correction, publication continuity and desktop/mobile coverage are on
+  main. Collaborative chantiers, principal-lot invitations and the real Resend
+  invitation journey are also complete; do not recreate them.
+- P2 is partial. Secure offer creation/versioning/submission, confidentiality
+  and the atomic award foundation exist. The advanced comparison/award UX in
+  PR #27 remains deliberately pending and is not part of this delivery.
+- P3/P4 execution is not operational. Contract, milestone, payment ledger,
+  reception/reservations, amendment, termination/recovery and warranty flows
+  remain future product lots. `projects.payment_status` is only declarative
+  chantier tracking and is not a financial ledger.
+- `feat/manager-backoffice-v1` delivers the first internal operational surface
+  without a migration or new privilege: a role-aware manager landing page,
+  exact review queues, approved projects ready for publication, an active
+  publication registry and read-only supervision of professional profiles.
+  Existing staff RLS and review/publication commands remain the authority.
+- V1 intentionally excludes internal-user/role administration, contractor
+  verification decisions and global settings because those rules have not yet
+  been defined by the DAO Pilot.
+
 ## Autonomy DEV V3 — live status
 
-- Verified remote `main`: `d4650514234be0c8e20ce89dae10dd14c63ba844`.
+- Verified remote `main`: `f87ab8f0887cb5acfbba32a6333ef21228382077`;
+  main CI #246 and DEV deployment are green.
 - CI main `#244` and DEV deployment are green. The real DEV email workflow
   `#6` (`37166009683`) passed the complete client → Resend → contractor
   acceptance scenario, with bounded TEST-owned reset before and after.
