@@ -14,6 +14,24 @@ existing bounded reset runs before and after, serialized with fixture workflows.
 This does not replace FULL E2E and does not modify product, Auth, RLS, SQL or
 migration behavior.
 
+## D-037 — Release-scoped automatic real DEV email validation
+
+The real shared-DEV email workflow remains available through
+`workflow_dispatch`, but ordinary pushes and pull requests must not send test
+emails. The automatic trigger is an explicit published GitHub Release.
+
+Before using protected secrets, the workflow checks the release commit against
+the current `main`, waits for a successful `DAO CI and DEV deploy` run for the
+same SHA, and queries prior runs of this workflow. A previously successful run
+for that SHA causes a sanitized skip. The existing global
+`dao-dev-test-scope` concurrency group is preserved so this runner cannot
+overlap fixture provisioning/reset operations.
+
+This is execution control only: it does not change product behavior, Auth,
+RLS, SQL, migrations, Resend transport or fixture ownership. A published
+release observation is still required before treating the automatic path as
+operationally proven.
+
 ## D-001 — GitHub repository is the durable source of project context
 
 **Decision:** Important context must live in the repository, not only in chats.
