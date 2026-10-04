@@ -35,7 +35,7 @@ test('collaboration: real Auth/JWT, atomic confirmation and RLS/Storage boundari
   const governorate=await admin.from('governorates').select('id').eq('code','E2E_TEST').single();assert.ifError(governorate.error);
   const trade=await admin.from('trades').select('id').eq('code','plumbing').single();assert.ifError(trade.error);
   await t.test('client existing team creates multiple artisans, principal lots and invitations atomically', async () => {
-    const before = await admin.from('projects').select('id', { count: 'exact', head: true });
+    const before = await admin.from('projects').select('id', { count: 'exact', head: true }).eq('initiator_id', client.id);
     assert.ifError(before.error);
     const created = await command(client.db, 'create_client_existing_team_project', {
       p_title: 'Équipe existante multi-artisans',
@@ -76,7 +76,7 @@ test('collaboration: real Auth/JWT, atomic confirmation and RLS/Storage boundari
       ],
     });
     assert.ok(failed.error, 'duplicate artisan emails must reject the whole atomic command');
-    const after = await admin.from('projects').select('id', { count: 'exact', head: true });
+    const after = await admin.from('projects').select('id', { count: 'exact', head: true }).eq('initiator_id', client.id);
     assert.ifError(after.error);
     assert.equal(after.count, (before.count ?? 0) + 1, 'failed batch must not leave a partial project');
   });
