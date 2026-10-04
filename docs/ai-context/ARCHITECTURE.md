@@ -452,3 +452,53 @@ means provider acceptance; actual delivery is checked separately on DEV.
 The new integration invokes the production handler with real local Auth/JWT/
 RLS and intercepts only Resend. E2E checks UI states and DB immutability on
 1440×900 and 390×844; email POSTs are mocked and sensitive traces are disabled.
+
+
+## 16. Future role/context separation
+
+Do not hard-code the assumption that an account with global role
+`contractor` can only consume publications or submit offers.
+
+The durable direction is:
+
+```text
+global account role / eligibility
+        !=
+role played in one chantier or one lot
+```
+
+A future enterprise may simultaneously be:
+
+- contractor/titulaire on a chantier;
+- member of a project team;
+- principal for a subset of work it is allowed to subcontract;
+- issuer of a subcontracting DAO for selected real lots;
+- contractor/subcontractor on another chantier.
+
+This is a future P3 execution-domain concern, not a current schema migration.
+Current code must simply avoid architecture choices that make this evolution
+impossible.
+
+## 17. Back-office and settings architecture direction
+
+Use one shared internal back-office perimeter for `dao_reviewer` and
+`dao_admin`, with server-side authorization deciding the available actions.
+Never treat hidden browser controls as authorization.
+
+Current/simple V1 stays operational. A later settings phase may introduce a
+richer configuration engine for client types, contractor types, publication
+rules, notifications, workflows, countries and other adaptable business
+parameters. Security invariants, RLS, immutable history, authorization and
+ledger integrity must never become ordinary mutable settings.
+
+Internal-user privilege assignment, when implemented, must be server-controlled
+and auditable. A browser payload must never be able to promote its own user or
+grant itself `dao_admin`/sensitive permissions.
+
+## 18. Session security direction
+
+Do not assume an indefinitely refreshed authenticated session is the desired
+final UX. A later security/session lot should define explicit session policy,
+with stricter inactivity/re-authentication rules for staff/admin than for
+ordinary client/contractor users. Account deactivation or privilege revocation
+must take effect server-side regardless of cached UI state.
