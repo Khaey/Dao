@@ -5,14 +5,14 @@
 
 ## Autonomy DEV V3 — next phases
 
-### V3-A — release-triggered real email validation
+### V3-A — release-triggered real email validation (merged)
 
-The owned OPT phase adds `release: published` to `DAO DEV real email E2E`.
-The workflow keeps `workflow_dispatch` as a fallback, waits for the green
-`DAO CI and DEV deploy` run for the same commit, and uses a read-only Actions
-API guard to skip a previously successful run for that SHA. The shared
-`dao-dev-test-scope` concurrency group remains in place, so fixture reset and
-email validation cannot overlap.
+PR #28 adds `release: published` to `DAO DEV real email E2E`. The workflow
+keeps `workflow_dispatch` as a fallback, waits for the green `DAO CI and DEV
+deploy` run for the same commit, and uses a read-only Actions API guard to skip
+a previously successful run for that SHA. The shared `dao-dev-test-scope`
+concurrency group remains in place, so fixture reset and email validation
+cannot overlap. Observe this path on the next intentionally published release.
 
 ### V3-B — automatic environment availability
 

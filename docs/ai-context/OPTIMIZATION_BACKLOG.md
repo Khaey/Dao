@@ -5,7 +5,7 @@ Verified 2026-10-04 Europe/Paris against main
 V3-C is implemented as platform tooling only; no product/Auth/RLS logic,
 migration or schema implementation is included.
 
-## V3-A — release-triggered real email validation (owned phase)
+## V3-A — release-triggered real email validation (merged PR #28)
 
 The candidate workflow adds an explicit GitHub Release trigger while keeping
 `workflow_dispatch` as the recovery path. A read-only Actions API guard waits
@@ -15,9 +15,9 @@ after a successful run already exists for that SHA. The existing shared
 validation remain serialized with fixture operations. No automatic trigger is
 attached to ordinary pushes or pull requests.
 
-Acceptance requires workflow syntax, PR CI, and a later published-release
-observation. Until that observation, this remains a candidate rather than a
-claim that a release was executed.
+PR #28 and main CI #242 are green, with DEV deploy PASS. Acceptance of the
+automatic path still needs one intentionally published-release observation;
+the existing manual run #6 remains the validated scenario evidence.
 
 V3-B automatic env-sync and V3-D routine technical autonomy remain open and
 must be implemented in separate phases.
