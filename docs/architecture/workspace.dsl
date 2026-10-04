@@ -220,7 +220,9 @@ views {
   dynamic dao.web "CorrectionFlow" "Rejet puis correction sans mutation historique." {
     reviewer -> dao.web.managerReview "Ouvre le dossier"
     reviewer -> dao.web.review "Refuse avec motif"
-    dao.web.review -> dao.web.rpc "Enregistre la décision"
+    dao.web.review -> dao.web.api "Soumet la décision"
+    dao.web.api -> dao.web.services "Valide et orchestre"
+    dao.web.services -> dao.web.rpc "Enregistre la décision"
     client -> dao.web.projects "Voit le motif"
     client -> dao.web.projects "Crée/corrige un nouveau draft"
     client -> dao.web.review "Resoumet"
