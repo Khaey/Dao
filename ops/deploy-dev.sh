@@ -5,12 +5,22 @@ REVISION="${1:?revision required}"
 RUN_ID="${2:?GitHub run ID required}"
 RUN_ATTEMPT="${3:?GitHub run attempt required}"
 ARTIFACT_DIR="${4:-}"
+ENV_PAYLOAD="${5:-}"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || { echo "Expected a full commit SHA" >&2; exit 2; }
 [[ "$RUN_ID" =~ ^[0-9]+$ && "$RUN_ATTEMPT" =~ ^[0-9]+$ ]] || { echo "Invalid GitHub run identifier" >&2; exit 2; }
 
 APP_ROOT=/opt/dao
 ENV_FILE=/etc/dao/dao-dev.env
 CURRENT="$APP_ROOT/current"
+if [ -n "$ENV_PAYLOAD" ]; then
+  case "$ENV_PAYLOAD" in
+    "$APP_ROOT/ops-incoming/"*) ;;
+    *) echo "Environment payload must stay under the private DEV operations directory" >&2; exit 2 ;;
+  esac
+  [ -f "$ENV_PAYLOAD" ] || { echo "Missing private environment payload" >&2; exit 2; }
+  [ ! -L "$ENV_PAYLOAD" ] || { echo "Private environment payload cannot be a symlink" >&2; exit 2; }
+  test -x /usr/local/sbin/dao-dev-admin || { echo "DEV environment helper is not installed" >&2; exit 2; }
+fi
 # Serialize direct SSH and Actions deployments on the host as well.
 exec 9>"$APP_ROOT/.deploy.lock"
 flock -w 120 9 || { echo "Another D.A.O deployment holds the lock" >&2; exit 1; }
@@ -115,21 +125,37 @@ if [ -L "$CURRENT" ]; then
   esac
 fi
 CURRENT_SWITCHED=0
+RELEASE_PREPARED=0
+ENV_SYNC_CHANGED=0
 handle_error() {
   local status=${1:-$?}
   trap - ERR HUP INT TERM
+  local rollback_release=0
   if [ "$CURRENT_SWITCHED" -eq 1 ]; then
     if [ -n "$PREVIOUS_RELEASE" ]; then
       local rollback_link="$APP_ROOT/.current-rollback-${RUN_ID}-${RUN_ATTEMPT}"
       ln -s "$PREVIOUS_RELEASE" "$rollback_link"
       mv -Tf "$rollback_link" "$CURRENT"
-      if ! sudo -n /usr/bin/systemctl restart dao-dev.service; then
-        echo "Rollback selected the previous release, but its restart failed" >&2
-      fi
+      rollback_release=1
     else
       rm -f "$CURRENT"
       echo "No previous release was available for rollback; the failed current link was removed" >&2
     fi
+  fi
+  if [ "$ENV_SYNC_CHANGED" -eq 1 ]; then
+    if ! sudo -n /usr/local/sbin/dao-dev-admin env-restore; then
+      echo "Environment rollback failed; manual DEV recovery is required" >&2
+    fi
+    if ! sudo -n /usr/bin/systemctl restart dao-dev.service; then
+      echo "Environment rollback completed, but its service restart failed" >&2
+    fi
+  elif [ "$rollback_release" -eq 1 ]; then
+    if ! sudo -n /usr/bin/systemctl restart dao-dev.service; then
+      echo "Rollback selected the previous release, but its restart failed" >&2
+    fi
+  fi
+  if [ "$CURRENT_SWITCHED" -eq 0 ] && [ "$RELEASE_PREPARED" -eq 1 ] && [ -d "$RELEASE" ]; then
+    rm -rf "$RELEASE"
   fi
   if [ -d "$STAGING" ]; then
     rm -rf "$STAGING"
@@ -191,6 +217,30 @@ if [ "$latest_main" != "$REVISION" ]; then
   exit 0
 fi
 measure release_prepare mv "$STAGING" "$RELEASE"
+RELEASE_PREPARED=1
+
+sync_environment() {
+  local result
+  chmod 0600 "$ENV_PAYLOAD"
+  result="$(sudo -n /usr/local/sbin/dao-dev-admin env-sync < "$ENV_PAYLOAD")"
+  case "$result" in
+    'ENV_SYNC unchanged')
+      echo "DEPLOY_ENV_SYNC result=unchanged"
+      ;;
+    'ENV_SYNC updated keys='*)
+      ENV_SYNC_CHANGED=1
+      echo "DEPLOY_ENV_SYNC result=updated keys=${result#ENV_SYNC updated keys=}"
+      ;;
+    *)
+      echo "Unexpected environment sync result" >&2
+      return 1
+      ;;
+  esac
+}
+
+if [ -n "$ENV_PAYLOAD" ]; then
+  measure env_sync sync_environment
+fi
 
 switch_release() {
   local next_link="$APP_ROOT/.current-${RUN_ID}-${RUN_ATTEMPT}"

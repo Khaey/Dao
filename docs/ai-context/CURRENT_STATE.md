@@ -43,9 +43,13 @@
   deployment; a prior successful run for the same SHA is skipped. The shared
   concurrency lock and `workflow_dispatch` fallback remain. A future published
   release is still needed to observe the automatic path once.
-- **V3-B automatic env-sync:** still open. Normal main deployment consumes the
-  existing VPS environment; the protected `env-sync` operation remains manual.
-- **V3-D routine technical autonomy:** still open. The stable GitHub Actions
+- **V3-B automatic env-sync:** implemented in this OPT phase. Normal main
+  deployment now consumes only protected `dev` secrets through a private
+  run-scoped payload and the existing root helper; the manual operation remains
+  available for recovery. Environment and release rollback stay coupled to
+  readiness, while unmanaged keys and the `root:dao / 0640` contract remain
+  unchanged.
+- **V3-D routine technical autonomy:** next. The stable GitHub Actions
   control path exists, but normal operational actions are not yet inferred or
   scheduled automatically.
 

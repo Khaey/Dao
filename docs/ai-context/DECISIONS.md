@@ -49,6 +49,24 @@ RLS, SQL, migrations, Resend transport or fixture ownership. A published
 release observation is still required before treating the automatic path as
 operationally proven.
 
+## D-038 — Protected env-sync is part of normal DEV deployment
+
+The main-only `deploy-dev` job injects only the required `dev` Environment
+secrets into a run-scoped private payload. The payload is never part of the
+immutable build artifact, a workflow input, an output, a log or an uploaded
+artifact. It is temporarily readable by the pinned SCP container on the
+ephemeral runner, becomes `0600` before VPS consumption, and is removed from
+runner/VPS cleanup paths.
+
+After stale-main validation, `ops/deploy-dev.sh` consumes that payload through
+the installed allowlisted root helper while holding the existing host lock.
+The helper updates only `RESEND_API_KEY`, `DAO_EMAIL_FROM` and the fixed DEV
+`DAO_PUBLIC_URL`, preserving every other environment value and the
+`root:dao / 0640` file contract. A readiness failure restores both the helper's
+previous environment backup and the previous release. The manual `env-sync`
+operation remains a recovery path. This decision changes deployment plumbing
+only; it does not change product, Auth, RLS, SQL, migrations or business rules.
+
 ## D-001 — GitHub repository is the durable source of project context
 
 **Decision:** Important context must live in the repository, not only in chats.

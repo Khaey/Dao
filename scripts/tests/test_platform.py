@@ -95,7 +95,7 @@ esac
 
 
 class DeploymentTests(unittest.TestCase):
-    def deploy(self, smoke_failure=False, stale=False):
+    def deploy(self, smoke_failure=False, stale=False, env_sync=False, env_sync_failure=False):
         with tempfile.TemporaryDirectory() as directory:
             tmp = Path(directory)
             app = tmp / 'app'
@@ -127,43 +127,67 @@ elif a[:1]==['-C']:
                 'git': git,
                 'node': '#!/bin/sh\ncase "$1" in --version) echo v22.1.0;; -p) echo linux-x64;; *) exit 0;; esac\n',
                 'npm': '#!/bin/sh\nif [ "$1" = --version ]; then echo 10.0.0; else mkdir -p node_modules; fi\n',
-                'sudo': '#!/bin/sh\nprintf "sudo-call\\n" >> "$MOCK_CALLS"\nexit 0\n',
+                'sudo': '#!/bin/sh\nprintf "sudo-call %s\\n" "$*" >> "$MOCK_CALLS"\ncase "$*" in *env-sync*) if [ "${MOCK_ENV_SYNC_FAILURE:-0}" = 1 ]; then exit 1; fi; printf "ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY\\n";; esac\nexit 0\n',
             }
             for name, value in commands.items():
                 (binary / name).write_text(value)
                 (binary / name).chmod(0o755)
-            script = (ROOT / 'ops/deploy-dev.sh').read_text().replace('APP_ROOT=/opt/dao', 'APP_ROOT=' + str(app)).replace('ENV_FILE=/etc/dao/dao-dev.env', 'ENV_FILE=' + str(env_file))
+            script = (ROOT / 'ops/deploy-dev.sh').read_text().replace('APP_ROOT=/opt/dao', 'APP_ROOT=' + str(app)).replace('ENV_FILE=/etc/dao/dao-dev.env', 'ENV_FILE=' + str(env_file)).replace('/usr/local/sbin/dao-dev-admin', '"$MOCK_ADMIN"')
             path = tmp / 'deploy.sh'
             path.write_text(script)
             artifact = tmp / 'artifact'
             (artifact / '.next').mkdir(parents=True)
             (artifact / '.next/BUILD_ID').write_text('test-build')
             (artifact / '.dao-deploy-manifest.json').write_text('{}')
+            payload = app / 'ops-incoming' / 'test-run' / 'dao-env.json'
+            if env_sync:
+                payload.parent.mkdir(parents=True)
+                payload.write_text('{"RESEND_API_KEY":"new_key_value","DAO_EMAIL_FROM":"D.A.O <test@example.invalid>","DAO_PUBLIC_URL":"https://dao-dev.logiclab.fr"}\n')
+            admin_path = tmp / 'dao-dev-admin'
+            admin_path.write_text('#!/bin/sh\nexit 0\n')
+            admin_path.chmod(0o755)
             calls = tmp / 'calls'
-            result = subprocess.run(['bash', str(path), revision, '1', '1', str(artifact)], env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': '1' if smoke_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
-            return result, (app / 'current').resolve().name, calls.read_text().count('sudo-call') if calls.exists() else 0
+            args = ['bash', str(path), revision, '1', '1', str(artifact)]
+            if env_sync:
+                args.append(str(payload))
+            result = subprocess.run(args, env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': '1' if smoke_failure else '0', 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
+            call_log = calls.read_text() if calls.exists() else ''
+            return result, (app / 'current').resolve().name, call_log.count('sudo-call'), call_log
 
     def test_success_activates_exact_revision(self):
-        result, active, calls = self.deploy()
+        result, active, calls, _ = self.deploy()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(active, 'a' * 40 + '-1-1')
         self.assertIn('DEPLOY_BUILD source=verified_ci_artifact', result.stdout)
         self.assertEqual(calls, 2)
 
     def test_http_failure_rolls_back(self):
-        result, active, calls = self.deploy(smoke_failure=True)
+        result, active, calls, _ = self.deploy(smoke_failure=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(active, 'previous')
         self.assertEqual(calls, 3)
 
     def test_new_main_prevents_stale_activation(self):
-        result, active, calls = self.deploy(stale=True)
+        result, active, calls, _ = self.deploy(stale=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('DEPLOY_SKIPPED reason=main_advanced', result.stdout)
         self.assertEqual(active, 'previous')
         self.assertEqual(calls, 0)
 
+    def test_environment_sync_rolls_back_with_failed_readiness(self):
+        result, active, calls, call_log = self.deploy(smoke_failure=True, env_sync=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(active, 'previous')
+        self.assertIn('DEPLOY_ENV_SYNC result=updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY', result.stdout)
+        self.assertIn('dao-dev-admin env-restore', call_log)
+        self.assertEqual(calls, 5)
+
+    def test_environment_sync_failure_does_not_leave_prepared_release(self):
+        result, active, calls, _ = self.deploy(env_sync=True, env_sync_failure=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(active, 'previous')
+        self.assertEqual(calls, 1)
+
 
 if __name__ == '__main__':
     unittest.main()
-
