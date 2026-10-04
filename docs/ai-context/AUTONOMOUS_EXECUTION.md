@@ -196,3 +196,13 @@ Do not churn the model for local UI polish or implementation details that do
 not alter architecture. Do not show planned capabilities as operational ones.
 When a future capability becomes real, update the relevant current-state view
 at the same checkpoint that makes the capability effective.
+
+This is a mandatory maintenance rule for WORK DEV and WORK OPT: if their PR
+changes architecture in one of the categories above, the same PR must update
+`docs/architecture/workspace.dsl`. Do not defer that update to a later PR
+unless the user explicitly separates the work.
+
+After such a PR is merged to `main`, the `D.A.O Architecture Pages` workflow
+must validate the Structurizr model, regenerate the static interactive site and
+publish it automatically to GitHub Pages. A green Pages workflow is the expected
+publication evidence for architecture changes.
