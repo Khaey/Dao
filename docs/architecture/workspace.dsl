@@ -258,7 +258,7 @@ views {
     dao.web.api -> dao.web.services "Valide l'offre"
     dao.web.services -> dao.web.rpc "Versionne et fige"
     dao.web.rpc -> supabase.rls "Isole concurrents et données privées"
-    client -> dao.web.compare "Compare les offres soumises" "P2 en attente"
+    client -> dao.web.compare "Compare les offres soumises" "P2"
     autoLayout lr
   }
 
