@@ -48,14 +48,18 @@ model {
     }
   }
 
-  supabase = softwareSystem "Supabase" "Fondation data et sécurité D.A.O." {
-    authService = container "Auth" "Sessions, JWT, inscription et recovery." "Supabase Auth"
-    database = container "PostgreSQL" "Données métier, fonctions, triggers, historique et ledger de migrations." "PostgreSQL"
-    storage = container "Storage privé" "Documents de projets et objets privés." "Supabase Storage"
-    rls = container "RLS / dao_private" "Frontière d'autorisation et helpers privés." "PostgreSQL RLS" 
-  }
+  supabase = softwareSystem "Supabase" "Plateforme externe fournissant Auth, PostgreSQL/RLS/RPC et Storage privé." "External"
+  supabaseAuth = softwareSystem "Supabase Auth" "Sessions, JWT, inscription et password recovery." "External"
+  supabaseDb = softwareSystem "Supabase PostgreSQL" "Données métier, fonctions, triggers et historique." "External"
+  supabaseRls = softwareSystem "Supabase RLS / dao_private" "Frontière d'autorisation et helpers privés." "External"
+  supabaseStorage = softwareSystem "Supabase Storage privé" "Documents et objets privés." "External"
 
   resend = softwareSystem "Resend" "Transport des emails transactionnels." "External"
+
+  supabase -> supabaseAuth "Fournit le service Auth"
+  supabase -> supabaseDb "Fournit PostgreSQL/RPC"
+  supabase -> supabaseRls "Fournit RLS/dao_private"
+  supabase -> supabaseStorage "Fournit Storage privé"
   github = softwareSystem "GitHub" "Source de vérité, PR, Actions, Releases et CI/CD." "External"
   vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr et dao-dev.service." "External"
 
@@ -65,8 +69,8 @@ model {
   admin -> dao.web.shell "Utilise le back-office"
 
   dao.web.shell -> dao.web.auth "Oriente selon identité/rôles"
-  dao.web.auth -> supabase.authService "Login/register/recovery"
-  dao.web.profile -> supabase.database "Lit/écrit le profil autorisé"
+  dao.web.auth -> supabaseAuth "Login/register/recovery"
+  dao.web.profile -> supabaseDb "Lit/écrit le profil autorisé"
 
   client -> dao.web.projects "Gère ses chantiers"
   client -> dao.web.lots "Gère ses lots"
@@ -124,11 +128,11 @@ model {
 
   dao.web.api -> dao.web.services "Valide et orchestre"
   dao.web.services -> dao.web.rpc "Exécute les commandes métier"
-  dao.web.rpc -> supabase.database "Exécute fonctions/triggers"
-  dao.web.rpc -> supabase.rls "Applique l'autorisation"
-  dao.web.auth -> supabase.authService "Résout auth.uid/JWT"
-  dao.web.documents -> supabase.storage "Stocke les objets privés"
-  dao.web.services -> supabase.storage "Émet signed URL après contrôle"
+  dao.web.rpc -> supabaseDb "Exécute fonctions/triggers"
+  dao.web.rpc -> supabaseRls "Applique l'autorisation"
+  dao.web.auth -> supabaseAuth "Résout auth.uid/JWT"
+  dao.web.documents -> supabaseStorage "Stocke les objets privés"
+  dao.web.services -> supabaseStorage "Émet signed URL après contrôle"
   dao.web.services -> dao.web.email "Envoie une invitation"
   dao.web.email -> resend "POST transactionnel"
 
@@ -163,7 +167,7 @@ views {
     include dao.web.bids dao.web.awards
     include dao.web.manager dao.web.managerReview dao.web.managerPublications dao.web.managerProfessionals
     include dao.web.api dao.web.services dao.web.rpc dao.web.email
-    include supabase.authService supabase.database supabase.storage supabase.rls resend
+    include supabaseAuth supabaseDb supabaseStorage supabaseRls resend
     autoLayout lr
   }
 
@@ -172,7 +176,7 @@ views {
     include dao.web.auth dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
     include dao.web.teamCreation dao.web.invitations dao.web.collaboration
     include dao.web.review dao.web.publications dao.web.compare dao.web.api dao.web.services dao.web.rpc
-    include supabase.authService supabase.database supabase.storage supabase.rls
+    include supabaseAuth supabaseDb supabaseStorage supabaseRls
     autoLayout lr
   }
 
@@ -180,7 +184,7 @@ views {
     include contractor
     include dao.web.auth dao.web.profile dao.web.marketplace dao.web.bids
     include dao.web.invitations dao.web.collaboration dao.web.api dao.web.services dao.web.rpc
-    include supabase.authService supabase.database supabase.rls
+    include supabaseAuth supabaseDb supabaseRls
     autoLayout lr
   }
 
@@ -189,14 +193,14 @@ views {
     include dao.web.auth dao.web.manager dao.web.managerReview dao.web.managerPublications dao.web.managerProfessionals
     include dao.web.review dao.web.publications dao.web.staffAdmin dao.web.settings
     include dao.web.api dao.web.services dao.web.rpc
-    include supabase.authService supabase.database supabase.rls
+    include supabaseAuth supabaseDb supabaseRls
     autoLayout lr
   }
 
   component dao.web "SecurityData" "Frontières sécurité/data: Auth, API, RPC, RLS et Storage privé." {
     include client contractor reviewer admin
     include dao.web.auth dao.web.api dao.web.services dao.web.rpc dao.web.documents dao.web.email
-    include supabase.authService supabase.database supabase.rls supabase.storage resend
+    include supabaseAuth supabaseDb supabaseRls supabaseStorage resend
     autoLayout lr
   }
 
@@ -215,7 +219,7 @@ views {
     dao.web.review -> dao.web.api "Demande la transition"
     dao.web.api -> dao.web.services "Valide"
     dao.web.services -> dao.web.rpc "Commande métier"
-    dao.web.rpc -> supabase.database "Fige la version/snapshots"
+    dao.web.rpc -> supabaseDb "Fige la version/snapshots"
     autoLayout lr
   }
 
@@ -237,7 +241,7 @@ views {
     dao.web.invitations -> dao.web.api "Envoie la préparation"
     dao.web.api -> dao.web.services "Valide et orchestre"
     dao.web.services -> dao.web.rpc "Crée atomiquement projet/lots/invitations"
-    dao.web.rpc -> supabase.database "Persiste le tout"
+    dao.web.rpc -> supabaseDb "Persiste le tout"
     dao.web.services -> dao.web.email "Envoie l'invitation"
     dao.web.email -> resend "Livre l'email"
     contractor -> dao.web.invitations "Accepte"
@@ -257,7 +261,7 @@ views {
     dao.web.bids -> dao.web.api "Soumet la commande d'offre"
     dao.web.api -> dao.web.services "Valide l'offre"
     dao.web.services -> dao.web.rpc "Versionne et fige"
-    dao.web.rpc -> supabase.rls "Isole concurrents et données privées"
+    dao.web.rpc -> supabaseRls "Isole concurrents et données privées"
     client -> dao.web.compare "Compare les offres soumises" "P2"
     autoLayout lr
   }
@@ -268,8 +272,8 @@ views {
     dao.web.awards -> dao.web.api "Soumet la demande"
     dao.web.api -> dao.web.services "Valide et orchestre"
     dao.web.services -> dao.web.rpc "Commande atomique"
-    dao.web.rpc -> supabase.database "Verrouille et crée l'attribution"
-    dao.web.rpc -> supabase.rls "Empêche les accès non autorisés"
+    dao.web.rpc -> supabaseDb "Verrouille et crée l'attribution"
+    dao.web.rpc -> supabaseRls "Empêche les accès non autorisés"
     autoLayout lr
   }
 
@@ -280,7 +284,7 @@ views {
     dao.web.review -> dao.web.api "Soumet la décision"
     dao.web.api -> dao.web.services "Valide et orchestre"
     dao.web.services -> dao.web.rpc "Charge/exécute via staff()"
-    dao.web.rpc -> supabase.rls "Autorise le périmètre staff"
+    dao.web.rpc -> supabaseRls "Autorise le périmètre staff"
     reviewer -> dao.web.managerPublications "Supervise les publications"
     reviewer -> dao.web.managerProfessionals "Consulte les professionnels"
     autoLayout lr
@@ -291,8 +295,8 @@ views {
     dao.web.documents -> dao.web.api "Demande une URL signée"
     dao.web.api -> dao.web.services "Vérifie acteur et droits"
     dao.web.services -> dao.web.rpc "Vérifie les droits métier"
-    dao.web.rpc -> supabase.rls "Contrôle l'accès"
-    dao.web.services -> supabase.storage "Crée URL signée"
+    dao.web.rpc -> supabaseRls "Contrôle l'accès"
+    dao.web.services -> supabaseStorage "Crée URL signée"
     autoLayout lr
   }
 
@@ -336,6 +340,6 @@ views {
 }
 
 configuration {
-  scope landscape
+  scope softwaresystem
 }
 }
