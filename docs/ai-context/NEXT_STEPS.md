@@ -3,6 +3,31 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
+## Durable roadmap handoff — 2026-10-04
+
+Use this order unless the DAO Pilot explicitly reprioritizes it:
+
+1. Finish/validate the current Back-office Gestionnaire V1 work from live
+   GitHub state.
+2. Keep settings simple in V1; do not start the advanced configurable rules
+   engine.
+3. Reconcile and resume the pending P2 offer comparison/award work only after
+   the manager/back-office checkpoint is stable and explicitly authorized.
+4. Complete the remaining P2 contractual/execution prerequisites in bounded
+   product lots.
+5. Treat enterprise subcontracting as P3: a main enterprise may later publish
+   selected eligible real lots to subcontractors while remaining distinct from
+   marketplace award/member semantics.
+6. Defer SaaS/multi-tenant conversion and advanced settings to later dedicated
+   phases.
+7. Define session timeout/re-authentication policy in a separate security lot;
+   do not improvise it inside unrelated UI work.
+
+Before adopting any external framework/service (for example Refine, PostHog,
+Sentry, Inngest or DocuSign), run a focused integration/architecture review.
+Prefer additive tools that preserve Supabase/RLS/Auth and existing source of
+truth. Do not migrate core architecture simply because a plugin exists.
+
 ## Product handoff — Back-office Gestionnaire V1
 
 The authorized V1 is implemented on `feat/manager-backoffice-v1` from verified
