@@ -25,7 +25,7 @@ function formatTnd(value: number) {
   }).format(value / 1000);
 }
 
-export default function PublicationOffersPanel({ projectId, lots }: { publicationId: string; projectId: string; lots: Lot[] }) {
+export default function PublicationOffersPanel({ projectId, lots }: { projectId: string; lots: Lot[] }) {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
