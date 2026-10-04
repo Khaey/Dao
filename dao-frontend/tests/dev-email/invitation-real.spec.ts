@@ -36,27 +36,32 @@ function user(
   return { id: "", email, password: protectedValue(passwordName) };
 }
 
-const client = user(
-  "DAO_TEST_CLIENT_EMAIL",
-  "DAO_TEST_CLIENT_PASSWORD",
-  expectedClientEmail,
-);
-const contractor = user(
-  "DAO_TEST_CONTRACTOR_EMAIL",
-  "DAO_TEST_CONTRACTOR_PASSWORD",
-  expectedContractorEmail,
-);
+let client: E2EUser;
+let contractor: E2EUser;
 
-// Keep credentials in the Playwright worker only; browser child processes and
-// any accidental environment dump must not inherit the protected values.
-for (const name of [
-  "DAO_TEST_CLIENT_EMAIL",
-  "DAO_TEST_CLIENT_PASSWORD",
-  "DAO_TEST_CONTRACTOR_EMAIL",
-  "DAO_TEST_CONTRACTOR_PASSWORD",
-]) {
-  delete process.env[name];
-}
+test.beforeAll(() => {
+  client = user(
+    "DAO_TEST_CLIENT_EMAIL",
+    "DAO_TEST_CLIENT_PASSWORD",
+    expectedClientEmail,
+  );
+  contractor = user(
+    "DAO_TEST_CONTRACTOR_EMAIL",
+    "DAO_TEST_CONTRACTOR_PASSWORD",
+    expectedContractorEmail,
+  );
+
+  // Keep credentials in the Playwright worker only. The browser launch
+  // environment is independently sanitized in playwright.dev.config.ts.
+  for (const name of [
+    "DAO_TEST_CLIENT_EMAIL",
+    "DAO_TEST_CLIENT_PASSWORD",
+    "DAO_TEST_CONTRACTOR_EMAIL",
+    "DAO_TEST_CONTRACTOR_PASSWORD",
+  ]) {
+    delete process.env[name];
+  }
+});
 
 async function acceptInvitation(
   page: Page,
