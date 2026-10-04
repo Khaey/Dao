@@ -27,8 +27,8 @@ model {
       marketplace = component "DAO disponibles" "Découverte artisan des publications autorisées." "Next.js / RLS"
 
       bids = component "Offres / bids" "Brouillon, items, versioning, pièces et soumission immuable." "Next.js / RPC"
-      compare = component "Comparaison offres P2" "Comparaison client par lot des offres soumises." "En attente PR #27" "InProgress"
-      awards = component "Attribution" "Attribution atomique par lot avec une seule attribution active." "Supabase RPC"
+      compare = component "Comparaison offres P2" "Comparaison client par lot de la version soumise actuelle de chaque offre." "Next.js / RLS"
+      awards = component "Attribution" "Attribution atomique par lot, valeur dérivée de l'offre et une seule attribution active." "Supabase RPC"
 
       manager = component "Back-office Gestionnaire V1" "Landing interne, files de revue, publications et supervision professionnelle." "Next.js"
       managerReview = component "File Revues" "Dossiers client_review/dao_review et décisions staff." "Next.js"
@@ -168,7 +168,7 @@ views {
     include dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
     include dao.web.teamCreation dao.web.invitations dao.web.collaboration
     include dao.web.review dao.web.publications dao.web.marketplace
-    include dao.web.bids dao.web.awards
+    include dao.web.bids dao.web.compare dao.web.awards
     include dao.web.manager dao.web.managerReview dao.web.managerPublications dao.web.managerProfessionals
     include dao.web.api dao.web.services dao.web.rpc dao.web.email
     include supabaseAuth supabaseDb supabaseStorage supabaseRls resend
@@ -209,7 +209,7 @@ views {
   }
 
   component dao.web "Roadmap" "Capacités en cours/futures clairement séparées de l'opérationnel." {
-    include dao.web.compare dao.web.awards dao.web.contracts dao.web.subcontract
+    include dao.web.contracts dao.web.subcontract
     include dao.web.staffAdmin dao.web.settings dao.web.sessionPolicy
     autoLayout lr
   }
@@ -266,12 +266,12 @@ views {
     dao.web.api -> dao.web.services "Valide l'offre"
     dao.web.services -> dao.web.rpc "Versionne et fige"
     dao.web.rpc -> supabaseRls "Isole concurrents et données privées"
-    client -> dao.web.compare "Compare les offres soumises" "P2"
+    client -> dao.web.compare "Compare les offres soumises actuelles"
     autoLayout lr
   }
 
   dynamic dao.web "AwardFlow" "Attribution atomique par lot." {
-    client -> dao.web.compare "Sélectionne une offre" "P2"
+    client -> dao.web.compare "Sélectionne une offre par lot"
     dao.web.compare -> dao.web.awards "Demande l'attribution"
     dao.web.awards -> dao.web.api "Soumet la demande"
     dao.web.api -> dao.web.services "Valide et orchestre"
