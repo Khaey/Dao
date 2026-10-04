@@ -176,3 +176,23 @@ On session recovery, read remote state and resume after the last verified
 checkpoint. Do not repeat completed setup or tests without a specific reason.
 The assigned OPT role does not imply a background scheduler: only claim work
 actually executed in an active session or separately configured automation.
+
+
+## 9. Keep the visual architecture model current
+
+The living C4/Structurizr model is stored in:
+
+```text
+docs/architecture/workspace.dsl
+```
+
+Read [../architecture/README.md](../architecture/README.md) before changing it.
+
+Update the model in the same PR whenever a change materially affects an actor,
+major functional domain, external system/provider, runtime container,
+structuring business flow, deployment topology, or authorization boundary.
+
+Do not churn the model for local UI polish or implementation details that do
+not alter architecture. Do not show planned capabilities as operational ones.
+When a future capability becomes real, update the relevant current-state view
+at the same checkpoint that makes the capability effective.
