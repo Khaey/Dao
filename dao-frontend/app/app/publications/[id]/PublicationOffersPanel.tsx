@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Card } from '../../../../../components/ui';
-import { supabaseBrowser } from '../../../../../lib/supabase-browser';
+import { Card } from '../../../../components/ui';
+import { supabaseBrowser } from '../../../../lib/supabase-browser';
 
 type Lot = { id: string; request_version_id: string; safe_title: string };
 type Offer = {
