@@ -67,6 +67,28 @@ change de manière significative :
 Les modifications purement UI, correctifs locaux et changements sans impact
 architectural n'exigent pas une modification du diagramme.
 
+Cette règle s'applique à WORK DEV comme à WORK OPT : lorsqu'une PR modifie
+l'architecture dans l'un des cas ci-dessus, cette même PR doit mettre à jour
+`docs/architecture/workspace.dsl`. La mise à jour ne doit pas être reportée
+à une PR ultérieure sauf instruction explicite de l'utilisateur.
+
+## Publication automatique
+
+Après merge sur `main`, le workflow GitHub Actions
+`D.A.O Architecture Pages` :
+
+1. valide le modèle Structurizr ;
+2. régénère le site HTML interactif ;
+3. publie automatiquement la nouvelle version sur GitHub Pages.
+
+Vue publiée :
+
+`https://khaey.github.io/Dao/`
+
+La publication web est donc automatique après merge ; seule la mise à jour du
+modèle reste une responsabilité explicite de la PR qui introduit le changement
+architectural.
+
 ## Ce que le diagramme ne remplace pas
 
 Le modèle C4 donne une **vision globale**. Les règles détaillées restent dans
