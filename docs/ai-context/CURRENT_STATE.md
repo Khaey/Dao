@@ -1,5 +1,23 @@
 # D.A.O — Current State
 
+> **Live snapshot — 2026-10-04**
+> **Repository:** `Khaey/Dao`
+> **main:** `6c3965a797d6af70714a96557ae192632b8c8b74`
+> **CI:** main #236 PASS; DEV deploy PASS
+> **Open PRs:** none
+
+## Product roadmap reconciliation
+
+The collaboration/existing-team foundation, principal-lot invitations, acceptance and lot assignment, private/document permissions, invitation email V1, and the protected Resend DEV flow are complete on the live main. They are not part of the next lot and must not be recreated.
+
+P1/P1.1 are complete for the validated project preparation/review/publication continuity: project creation/editing, lots, private details, documents, review/correction/approval, publication and responsive client/contractor flows are covered by the current CI and deployed DEV evidence.
+
+P2 is not complete. The downstream foundation exists for submitted versioned bids, request-level award integrity and contracts, but the client-side offer comparison/attribution journey is not yet complete. Payments, milestones/tranches, chantier tracking beyond the existing stage/payment declarations, reception/reserves, amendments, termination/abandonment/restart and warranty remain future product work.
+
+A dedicated branch `feat/p2-offer-comparison` starts the next small lot: a read-only, client-scoped comparison panel on a published DAO. It reads only submitted bid versions/items allowed by existing RLS, groups them by published lot, and does not create awards, contracts, payments or marketplace publications.
+
+# D.A.O — Current State
+
 > **Last verified:** 2026-10-03 Europe/Paris (GitHub + DEV database evidence)
 > **Repository:** `Khaey/Dao`
 

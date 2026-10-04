@@ -1,5 +1,24 @@
 # D.A.O — Next Steps
 
+> **Live roadmap — 2026-10-04**
+> Verify live main and latest CI before every resumed phase. Keep each phase small, remotely checkpointed and isolated from WORK OPT.
+
+## Recommended next lot — P2.1 offer comparison
+
+Implement and validate the client journey to compare submitted offers for one published lot at a time. The first increment is intentionally read-only: submitted/current bid versions only, no draft or competitor-private data, no award/contract/payment side effects, and no change to existing email, Auth, RLS or CI workflows.
+
+Current implementation branch: `feat/p2-offer-comparison`. The branch adds a client-scoped comparison panel to the publication detail page. The next checkpoint is targeted TypeScript/frontend validation and an E2E scenario with two independent submitted offers. Preserve `project_requests` as the award unit and keep the existing request-level award integrity rules for the subsequent attribution phase.
+
+## Roadmap status
+
+- **Done:** P1/P1.1 project preparation/review/publication continuity; collaboration/existing-team and principal-lot invitations; acceptance/membership/lot assignment; documents/private permissions; invitation email V1; Resend DEV validation.
+- **Partial:** P2 downstream commerce foundations (versioned bids, submitted-offer visibility, award integrity primitives, contract tables). Client comparison and award UX are still missing.
+- **Remaining P2:** offer comparison, explicit client attribution/award per lot, contract preparation/signature lifecycle, milestones/tranches and payment declarations/integration, chantier follow-up, reception/reserves, amendments, termination/abandonment/restart, warranty.
+- **P3/P4:** not started as a product implementation phase; do not begin until the P2 lot is validated and the next priority is explicit.
+- **WORK OPT:** CI/tooling/fixtures/workflow changes remain outside this branch.
+
+# D.A.O — Next Steps
+
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
