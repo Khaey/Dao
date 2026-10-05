@@ -1,19 +1,21 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-10-04 Europe/Paris (GitHub + DEV workflow evidence)
+> **Last verified:** 2026-10-05 Europe/Paris (GitHub + DEV workflow evidence)
 > **Repository:** `Khaey/Dao`
 
-## Product roadmap reality — Back-office Gestionnaire V1
+## Product roadmap reality — Back-office Gestionnaire V1 and P2 offers/awards
 
 - Verified implementation base: remote `main`
-  `f87ab8f0887cb5acfbba32a6333ef21228382077`.
+  `3136264c59362749cf536e5fa2317ba04affd31b`.
 - P1/P1.1 is complete and validated: project preparation, lots, documents,
   review/correction, publication continuity and desktop/mobile coverage are on
   main. Collaborative chantiers, principal-lot invitations and the real Resend
   invitation journey are also complete; do not recreate them.
-- P2 is partial. Secure offer creation/versioning/submission, confidentiality
-  and the atomic award foundation exist. The advanced comparison/award UX in
-  PR #27 remains deliberately pending and is not part of this delivery.
+- P2 comparison and per-lot attribution are operational on main after PR #39.
+  The current flow supports secure offer creation/versioning/submission,
+  read-only comparison of submitted offers by lot, confidentiality and
+  authorization boundaries, plus explicit partial/atomic attribution with one
+  active award per lot.
 - P3/P4 execution is not operational. Contract, milestone, payment ledger,
   reception/reservations, amendment, termination/recovery and warranty flows
   remain future product lots. `projects.payment_status` is only declarative

@@ -280,6 +280,13 @@ The system supports:
 
 The first request must remain v1 at creation; v2 appears only after a real user modification.
 
+Current main also provides the operational P2 flow:
+- submitted offers can be compared read-only by lot;
+- attribution is explicit and per lot, with partial selection supported;
+- only one active award is allowed per lot;
+- offer confidentiality and competitor isolation remain enforced;
+- contract/execution is not inferred or activated by attribution.
+
 ## 11. Review/versioning
 
 Expected project review flow:
