@@ -3,19 +3,17 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
-## Product handoff — Back-office Gestionnaire V1
+## Product handoff — P2 comparison and per-lot attribution complete
 
-The authorized V1 is implemented on `feat/manager-backoffice-v1` from verified
-main `c09b8e1e39706c4946e5f075a8fe166e85b443aa`. It completed normal PR CI,
-merge and DEV deployment before another product lot starts.
+The current verified `main` is
+`3136264c59362749cf536e5fa2317ba04affd31b`. Main CI #285 and DEV deployment
+are green. P2 offer comparison and explicit per-lot attribution are operational
+after PR #39; do not recreate or duplicate that work.
 
-After that merge, stop for DAO Pilot prioritization. Keep PR #27
-`feat/p2-offer-comparison` pending: do not merge, rebase or duplicate it without
-the explicit final decision already requested. The next downstream product lot
-should be chosen between the pending offer comparison/award work and a newly
-specified execution-domain slice. Do not infer contract, milestone, financial
-ledger, reception, amendment, termination or warranty transitions from the
-existing foundation tables.
+The next product scope is the contract/execution domain only after an explicit
+DAO Pilot decision. Do not infer contract, milestone, financial ledger,
+reception, amendment, termination or warranty transitions from the existing
+foundation tables.
 
 Back-office follow-ups also require explicit product rules before work starts:
 
