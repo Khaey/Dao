@@ -6,7 +6,7 @@
 ## Product roadmap reality — Back-office Gestionnaire V1 and P2 offers/awards
 
 - Verified implementation base: remote `main`
-  `c01eac228210b65108e6273a6393f2de82aae036`.
+  `6e42eb279249bc3d8c9098b326f246a4072ae2f3`.
 - P1/P1.1 is complete and validated: project preparation, lots, documents,
   review/correction, publication continuity and desktop/mobile coverage are on
   main. Collaborative chantiers, principal-lot invitations and the real Resend
@@ -31,8 +31,8 @@
 
 ## Autonomy DEV V3 — live status
 
-- Verified remote `main`: `c01eac228210b65108e6273a6393f2de82aae036`.
-- CI main `#287` and DEV deployment are green. The real DEV email workflow
+- Verified remote `main`: `6e42eb279249bc3d8c9098b326f246a4072ae2f3`.
+- CI main `#289` and DEV deployment are green. The real DEV email workflow
   `#6` (`37166009683`) passed the complete client → Resend → contractor
   acceptance scenario, with bounded TEST-owned reset before and after.
 - **V3-C permanent TEST accounts:** complete and validated. Credentials remain
