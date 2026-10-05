@@ -3,6 +3,34 @@
 > **Last verified:** 2026-10-04 Europe/Paris (GitHub + DEV workflow evidence)
 > **Repository:** `Khaey/Dao`
 
+## Conversation handoff consolidation — 2026-10-04
+
+The following product decisions have been made and should survive chat/session
+boundaries:
+
+- Back-office direction: one shared internal D.A.O interface for
+  `dao_reviewer` and `dao_admin`; admin has additional sensitive
+  capabilities. Authorization remains server-side.
+- Current settings scope stays simple. The sophisticated adaptable settings /
+  business rules engine is intentionally deferred.
+- Future internal-team administration may support multiple internal users and
+  rights, but no browser self-promotion is ever allowed.
+- D.A.O SaaS/multi-tenant is a possible future evolution only; it is not an
+  active implementation phase.
+- Future enterprise subcontracting is explicitly planned for P3: an enterprise
+  can be principal on a chantier and later publish selected work for
+  subcontractors. Global `contractor` identity must not be modeled as
+  "bidder only".
+- A later session-security lot should define explicit inactivity and
+  re-authentication policy, especially for reviewer/admin roles.
+- Integration candidates discussed for later evaluation include observability/
+  analytics (Sentry/PostHog), back-office acceleration (Refine), durable
+  workflows (Inngest) and e-signature (DocuSign). None of these are approved as
+  current architecture replacements merely by being listed here.
+
+Always verify live `main`, latest CI and open PRs before acting; this section
+records product intent, not implementation status.
+
 ## Product roadmap reality — Back-office Gestionnaire V1
 
 - Verified implementation base: remote `main`

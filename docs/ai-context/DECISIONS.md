@@ -2,6 +2,47 @@
 
 > Decisions already made. Agents should not reopen them without new evidence or an explicit product request.
 
+## D-042 — Enterprise subcontracting is a P3 product capability
+
+An enterprise/contractor may eventually be both a service provider and a
+principal that subcontracts selected work. This belongs to P3 execution, not
+the current manager V1 or P2 comparison scope.
+
+Do not equate global `contractor` identity with a permanent "bidder only"
+business role. Future authorization must derive principal/subcontractor rights
+from the chantier/lot context, while preserving real lots, publication,
+offer isolation, auditability and contract responsibility.
+
+## D-041 — SaaS/multi-tenant conversion is deferred
+
+D.A.O may later evolve toward SaaS/multi-tenant usage, including enterprise
+workspaces, but this is explicitly out of current scope. Do not introduce
+tenant tables, `organization_id` propagation or tenant RLS merely for future
+possibility.
+
+Current code should avoid unnecessarily blocking that evolution, but the
+marketplace/workflow product remains the active architecture.
+
+## D-040 — Settings V1 stays simple; advanced rules engine is deferred
+
+The manager/admin back-office should expose only settings/reference data that
+are required by current product flows. Do not create a generic configurable
+rules engine now.
+
+A later dedicated phase may support configuration by client type,
+artisan/enterprise type, country, publication mode, notification policy and
+workflow. Security and integrity constraints are not configurable settings.
+
+## D-039 — Internal privileges are server-controlled, never browser-promoted
+
+A browser may request an authorized administrative action, but it must never be
+able to assign itself `dao_admin` or sensitive permissions by changing UI
+state, JavaScript or request payloads.
+
+Any future internal-team administration must verify the acting user's
+privilege server-side, constrain assignable rights, apply changes through a
+controlled backend/RPC path, and retain an audit trail.
+
 ## D-038 — Back-office Gestionnaire V1 reuses the existing staff perimeter
 
 The first manager back-office is available to `dao_reviewer` and `dao_admin`

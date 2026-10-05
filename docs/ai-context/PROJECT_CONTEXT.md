@@ -223,3 +223,26 @@ When information conflicts, use this priority:
 6. older chat history.
 
 Chat history is **not** the project source of truth.
+
+
+## 11. Consolidated product direction — 2026-10-04
+
+These decisions are durable context for future ChatGPT/Work sessions:
+
+- Keep the current product focused on the Tunisia-first marketplace/workflow.
+  Do not start a SaaS/multi-tenant conversion now.
+- Preserve architectural room for a future SaaS evolution, but do not add
+  `organization_id`, tenant tables or tenant-specific RLS until that product
+  phase is explicitly authorized.
+- A contractor/enterprise is not conceptually limited to answering DAO
+  publications. In a future execution phase, an enterprise that is the main
+  contractor on a chantier may act as a principal and subcontract selected
+  lots through D.A.O.
+- Therefore distinguish the account-level identity/eligibility
+  (`contractor`) from the role played inside a specific chantier or lot.
+- The first manager/admin back-office should stay simple and operational.
+  Advanced platform configurability is deferred to a dedicated later phase.
+- External platforms/frameworks may be evaluated when they clearly reduce
+  implementation effort, but they must not replace established Supabase/RLS,
+  Auth, immutable history or GitHub source-of-truth boundaries without an
+  explicit architecture decision.
