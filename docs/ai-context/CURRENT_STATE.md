@@ -3,6 +3,29 @@
 > **Last verified:** 2026-10-05 Europe/Paris (GitHub + DEV workflow evidence)
 > **Repository:** `Khaey/Dao`
 
+## Active DEV checkpoint — issue #44 P2.1 (2026-10-06 Europe/Paris)
+
+- Base verified main: `6e42eb279249bc3d8c9098b326f246a4072ae2f3`;
+  main CI #289 (`37258094821`, attempt 1) and deploy-dev SUCCESS.
+- Owned branch: `feat/p21-award-closure`. Open documentation PRs #34/#46
+  are untouched. Existing PR #39 comparison and simple attribution are reused.
+- P2.1 implementation: per-lot SQL offer closure, append-only
+  `bid_item_results` (`selected` / `not_selected` / `available`), mandatory
+  cancellation reason/comment for other in immutable `award_cancellations`,
+  safe reopen/reassignment, atomic whole-package award/cancellation, client
+  history and contractor availability/results UI. Project row serialization
+  covers offer creation/edit/submission and award/cancellation commands.
+- Migration: `20261006203956_award_closure_reassignment.sql`. Adds two
+  RLS-protected history tables, immutable triggers and authenticated commands.
+  No membership grant, Auth setting, contract, ledger or actual payment.
+- Local backend, PGlite/schema/RLS and frontend checks are recorded in the
+  issue/PR. CI real Auth/JWT/concurrency and FULL E2E remain pending publication;
+  Playwright discovery is 40 (38 retained + 2 package executions), not execution.
+- DEV ledger read before changes: 28 migrations through `20261004120000`.
+  No DEV migration applied at this checkpoint. After exact-head green CI/merge,
+  apply only the missing migration, preserve its repository ledger version,
+  verify DEV deployment and record final evidence in #44.
+
 ## Product roadmap reality — Back-office Gestionnaire V1 and P2 offers/awards
 
 - Verified implementation base: remote `main`

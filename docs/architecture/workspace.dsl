@@ -28,7 +28,7 @@ model {
 
       bids = component "Offres / bids" "Brouillon, items, versioning, pièces et soumission immuable." "Next.js / RPC"
       compare = component "Comparaison offres P2" "Comparaison client par lot de la version soumise actuelle de chaque offre." "Next.js / RLS"
-      awards = component "Attribution" "Attribution atomique par lot, valeur dérivée de l'offre et une seule attribution active." "Supabase RPC"
+      awards = component "Attribution" "Attribution par lot ou package indivisible, fermeture aux offres, résultats confidentiels, annulation motivée et réattribution auditées." "Supabase RPC"
 
       manager = component "Back-office Gestionnaire V1" "Landing interne, files de revue, publications et supervision professionnelle." "Next.js"
       managerReview = component "File Revues" "Dossiers client_review/dao_review et décisions staff." "Next.js"
@@ -270,13 +270,13 @@ views {
     autoLayout lr
   }
 
-  dynamic dao.web "AwardFlow" "Attribution atomique par lot." {
-    client -> dao.web.compare "Sélectionne une offre par lot"
+  dynamic dao.web "AwardFlow" "Clôture, attribution atomique et réattribution." {
+    client -> dao.web.compare "Sélectionne un lot ou package"
     dao.web.compare -> dao.web.awards "Demande l'attribution"
     dao.web.awards -> dao.web.api "Soumet la demande"
     dao.web.api -> dao.web.services "Valide et orchestre"
     dao.web.services -> dao.web.rpc "Commande atomique"
-    dao.web.rpc -> supabaseDb "Verrouille et crée l'attribution"
+    dao.web.rpc -> supabaseDb "Ferme les lots et historise les résultats"
     dao.web.rpc -> supabaseRls "Empêche les accès non autorisés"
     autoLayout lr
   }

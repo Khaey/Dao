@@ -42,3 +42,14 @@ test('profile initialization forwards only the public client/contractor choice t
   assert.equal(calls[0].business_name,'Atelier DAO');
   assert.notEqual(calls[0].user_id,'forged');
 });
+
+test('P2.1 package/cancellation endpoints require actor identity and preserve SQL denial codes',async()=>{
+  const services:any={projects:{},publications:{},bids:{configurePackage:async()=>{throw {code:'42501',message:'denied'};}},awards:{cancel:async()=>{throw {code:'22023',message:'motif obligatoire'};}},documents:{}};
+  const anonymous=createDaoApi(services,async()=>null as any);
+  const request=()=>new Request('http://localhost/api/action',{method:'POST',body:'{}'});
+  assert.equal((await anonymous.cancelAward(request())).status,401);
+  assert.equal((await anonymous.configureBidPackage(request())).status,401);
+  const authenticated=createDaoApi(services,async()=>({id:'actor'}));
+  assert.equal((await authenticated.cancelAward(request())).status,400);
+  assert.equal((await authenticated.configureBidPackage(request())).status,403);
+});

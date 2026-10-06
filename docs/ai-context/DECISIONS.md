@@ -2,6 +2,24 @@
 
 > Decisions already made. Agents should not reopen them without new evidence or an explicit product request.
 
+## D-040 — P2.1 award closure, per-lot results and audited reassignment
+
+Authorized by issue #44. Confirmed lots close immediately to new offers,
+independently of payment. Already submitted competitors receive `not_selected`
+per lot; their immutable commercial content and other lots remain intact.
+Cancellation is owner/staff-controlled, requires an enumerated reason and a
+comment for other, records actor/date/reason without deletion, and reopens the
+lot. Current, unexpired submitted offers become available again; superseded
+or expired versions do not regain eligibility.
+
+A package is attributed all-or-none and cancelled as a whole group to preserve
+its indivisibility. Legacy stored package discounts use deterministic cumulative
+proportional rounding in millimes, preserving the exact package total without
+negative line amounts; the MVP authoring UI introduces no discount input.
+Reassignment creates fresh award identities, never reactivates old history.
+A pre-existing contract/contracted lot blocks this marketplace cancellation;
+contractual termination remains a separate future product decision.
+
 ## D-038 — Back-office Gestionnaire V1 reuses the existing staff perimeter
 
 The first manager back-office is available to `dao_reviewer` and `dao_admin`

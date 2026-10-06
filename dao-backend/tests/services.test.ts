@@ -26,3 +26,12 @@ test('ProfileService sends the public account type and business name through the
     {name:'initialize_my_account',args:{p_display_name:'Artisan',p_phone_e164:null,p_account_type:'contractor',p_business_name:'Atelier DAO'}},
   ]);
 });
+
+test('P2.1 group/cancel services derive identities in SQL and ignore forged ownership/value',async()=>{
+  const calls:any[]=[];
+  const db:any={rpc:async(name:any,args:any)=>{calls.push({name,args});return {data:args,error:null};}};
+  const service=new AwardService(db);
+  await service.award({group_id:'group',bid_item_id:'ignored',idempotency_key:'key',project_id:'forged',contractor_id:'forged',agreed_millimes:1});
+  await service.cancel({award_item_id:'award-item',reason:'financing',idempotency_key:'key2',actor_id:'forged'});
+  assert.deepEqual(calls,[{name:'award_bid_group_atomic',args:{p_group_id:'group',p_idempotency_key:'key'}},{name:'cancel_award_item_atomic',args:{p_award_item_id:'award-item',p_reason:'financing',p_comment:null,p_idempotency_key:'key2'}}]);
+});

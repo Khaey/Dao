@@ -3,6 +3,18 @@
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 
+## Active WORK DEV — #44 P2.1
+
+Resume the owned `feat/p21-award-closure` branch from GitHub evidence.
+Finish exact-head CI (fresh/reset, real integration/concurrency, 40 FULL E2E),
+reconcile current main, merge within issue #44 authorization, apply missing DEV
+migration `20261006203956`, verify main CI/deploy and Architecture Pages, then
+close #44 with SHA/run/migration/result evidence. Do not repeat PR #39, touch
+other Work PRs, start contracts/execution, reset shared DEV or rewrite history.
+
+The older next-scope descriptions below are historical where superseded by
+issue #44. Its validated business decisions are the active instruction.
+
 ## Product handoff — P2 comparison and per-lot attribution complete
 
 The current verified `main` is

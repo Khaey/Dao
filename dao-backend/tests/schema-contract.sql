@@ -7,10 +7,10 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000'
+    '20261003015740','20261003030134','20261004120000','20261006203956'
   ];
   expected_tables text[] := ARRAY[
-    'ai_proposals','ai_runs','audit_events','award_items','awards',
+    'ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
     'bid_documents','bid_group_items','bid_groups','bid_items','bid_versions','bids',
     'command_receipts','contract_parties','contract_versions',
     'contractor_profiles','contractor_service_areas','contractor_trades',
@@ -122,6 +122,10 @@ BEGIN
       'public.submit_bid_version(uuid)',
       'public.award_request_atomic(text,uuid,uuid,uuid,uuid,uuid,bigint)',
       'public.award_bid_item_atomic(text,uuid)',
+      'public.award_bid_group_atomic(text,uuid)',
+      'public.cancel_award_item_atomic(text,uuid,text,text)',
+      'public.publication_lot_availability(uuid)',
+      'public.configure_bid_package(uuid,boolean,uuid[])',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -159,6 +163,10 @@ BEGIN
      OR NOT has_function_privilege('authenticated','public.award_bid_item_atomic(text,uuid)','EXECUTE') THEN
     RAISE EXCEPTION 'schema contract: browser award grants must expose only the derived-input command';
   END IF;
+  FOR missing_name IN SELECT unnest(ARRAY['public.award_bid_group_atomic(text,uuid)','public.cancel_award_item_atomic(text,uuid,text,text)','public.publication_lot_availability(uuid)','public.configure_bid_package(uuid,boolean,uuid[])']) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN RAISE EXCEPTION 'P2.1 RPC grant mismatch: %',missing_name; END IF;
+  END LOOP;
+  IF has_table_privilege('authenticated','public.bid_item_results','INSERT') OR has_table_privilege('authenticated','public.award_cancellations','INSERT') OR has_column_privilege('authenticated','public.bid_item_results','source_award_item_id','SELECT') THEN RAISE EXCEPTION 'P2.1 history writes or competing source award exposed'; END IF;
   FOR missing_name IN SELECT unnest(ARRAY[
     'public.create_collaborative_project(text,text,text,uuid,uuid,uuid,text,text)',
     'public.issue_project_invitation(uuid,text,text,boolean)',
@@ -233,7 +241,10 @@ BEGIN
       ('bid_documents','immutable_bid_document'),
       ('bid_group_items','immutable_bid_group_items'),
       ('bid_groups','immutable_bid_groups'),
-      ('bid_items','immutable_bid_items')
+      ('bid_items','immutable_bid_items'),
+      ('bid_item_results','immutable_bid_item_results'),
+      ('award_cancellations','immutable_award_cancellations'),
+      ('award_items','protect_award_item')
     ) AS required(table_name,trigger_name)
   LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
