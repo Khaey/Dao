@@ -55,7 +55,7 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots 
     const bidIds = (bidsResult.data ?? []).map((bid: { id: string }) => bid.id);
     const awardResult = await supabase
       .from('award_items')
-      .select('id,request_id,bid_item_id,agreed_millimes,active,bid_items(bid_version_id)')
+      .select('id,request_id,bid_item_id,agreed_millimes,active,bid_items!award_items_bid_item_id_fkey(bid_version_id)')
       .eq('project_id', projectId);
     if (awardResult.error) throw new Error('Les attributions ne sont pas disponibles.');
     setAwards((awardResult.data ?? []).filter((row) => row.active) as Award[]);

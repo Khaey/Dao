@@ -18,9 +18,14 @@
 - Migration: `20261006203956_award_closure_reassignment.sql`. Adds two
   RLS-protected history tables, immutable triggers and authenticated commands.
   No membership grant, Auth setting, contract, ledger or actual payment.
-- Local backend, PGlite/schema/RLS and frontend checks are recorded in the
-  issue/PR. CI real Auth/JWT/concurrency and FULL E2E remain pending publication;
-  Playwright discovery is 40 (38 retained + 2 package executions), not execution.
+- Local checks: 56/56 backend, 152/152 PGlite/schema/RLS, frontend build and
+  TypeScript PASS; populated legacy-award migration check PASS.
+- PR #47 / CI #291 (`37529526799`) on `9f3be03` passed fresh/reset,
+  real Auth/JWT/RLS/concurrency and 36/40 E2E. Four desktop/mobile offer-flow
+  executions failed because the panel used an ambiguous PostgREST relationship
+  (`PGRST201`, two award-item FKs). The read now names the direct bid-item FK;
+  real integration also verifies this exact UI query. All 40 scenarios/assertions
+  remain, with no waits/retries/permission changes. Observe the next exact-head CI.
 - DEV ledger read before changes: 28 migrations through `20261004120000`.
   No DEV migration applied at this checkpoint. After exact-head green CI/merge,
   apply only the missing migration, preserve its repository ledger version,

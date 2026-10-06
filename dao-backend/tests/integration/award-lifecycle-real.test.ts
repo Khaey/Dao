@@ -45,6 +45,7 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
     const f=await fixture();for(const role of ['pro','competitor'])await rpc(role,'submit_bid_version',{p_version_id:f.offers[role].version});
     const outcomes=await Promise.all(['pro','competitor'].map(role=>users.client.db.rpc('award_bid_item_atomic',awardArgs(f.offers[role].items[0].id))));assert.equal(outcomes.filter(r=>!r.error).length,1);
     const winner=outcomes.find(r=>!r.error)!.data;const ai=(await admin.from('award_items').select('*').eq('id',winner.award_item_id).single()).data!;
+    const uiRead=await users.client.db.from('award_items').select('id,request_id,bid_item_id,agreed_millimes,active,bid_items!award_items_bid_item_id_fkey(bid_version_id)').eq('project_id',f.project);assert.ifError(uiRead.error);assert.equal(uiRead.data!.length,1);assert.ok((uiRead.data![0] as any).bid_items.bid_version_id);
     const loser=ai.bid_item_id===f.offers.pro.items[0].id?'competitor':'pro';const loserItem=f.offers[loser].items[0].id;
     const own=await users[loser].db.from('bid_item_results').select('id,bid_item_id,status').eq('bid_item_id',loserItem);assert.ifError(own.error);assert.equal(own.data![0].status,'not_selected');
     const other=await users.other.db.from('bid_item_results').select('id,bid_item_id,status').eq('bid_item_id',loserItem);assert.ifError(other.error);assert.equal(other.data!.length,0);
