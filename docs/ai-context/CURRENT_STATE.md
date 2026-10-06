@@ -1,6 +1,6 @@
 # D.A.O — Current State
 
-> **Last verified:** 2026-10-05 Europe/Paris (GitHub + DEV workflow evidence)
+> **Last verified:** 2026-10-06 Europe/Paris (GitHub PR #47 validation; final deployment evidence in issue #44)
 > **Repository:** `Khaey/Dao`
 
 ## Active DEV checkpoint — issue #44 P2.1 (2026-10-06 Europe/Paris)
@@ -25,11 +25,19 @@
   executions failed because the panel used an ambiguous PostgREST relationship
   (`PGRST201`, two award-item FKs). The read now names the direct bid-item FK;
   real integration also verifies this exact UI query. All 40 scenarios/assertions
-  remain, with no waits/retries/permission changes. Observe the next exact-head CI.
+  remain, with no waits/retries/permission changes.
+- Corrected code head: `bc2611b6db33e7441811d496fbf0a95ef9fc4f23`.
+  PR CI #292 (`37530250664`, attempt 1) SUCCESS: backend/build, fresh schema,
+  full reset/replay, 21/21 real Auth/JWT/RLS/concurrency tests and 40/40 FULL
+  E2E desktop/mobile (100.14 s). Architecture #23 (`37530250637`) SUCCESS.
+  This final documentation checkpoint changes no validated product code;
+  observe its automatically required CI once before merge.
 - DEV ledger read before changes: 28 migrations through `20261004120000`.
   No DEV migration applied at this checkpoint. After exact-head green CI/merge,
   apply only the missing migration, preserve its repository ledger version,
-  verify DEV deployment and record final evidence in #44.
+  verify DEV deployment and record final evidence in [issue #44](https://github.com/Khaey/Dao/issues/44).
+  That issue is the canonical continuation/final deployment record: consult
+  its latest comment and live GitHub main/CI before repeating any step.
 
 ## Product roadmap reality — Back-office Gestionnaire V1 and P2 offers/awards
 

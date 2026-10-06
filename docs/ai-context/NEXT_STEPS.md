@@ -5,12 +5,21 @@
 
 ## Active WORK DEV — #44 P2.1
 
-Resume the owned `feat/p21-award-closure` branch from GitHub evidence.
-Finish exact-head CI (fresh/reset, real integration/concurrency, 40 FULL E2E),
-reconcile current main, merge within issue #44 authorization, apply missing DEV
-migration `20261006203956`, verify main CI/deploy and Architecture Pages, then
-close #44 with SHA/run/migration/result evidence. Do not repeat PR #39, touch
-other Work PRs, start contracts/execution, reset shared DEV or rewrite history.
+P2.1 code is complete in [PR #47](https://github.com/Khaey/Dao/pull/47).
+Corrected product head `bc2611b6db33e7441811d496fbf0a95ef9fc4f23` is validated
+by CI #292 (`37530250664`, attempt 1): fresh/reset, 21/21 real integration
+and 40/40 FULL E2E; Architecture #23 (`37530250637`) is green.
+
+The final documentation checkpoint must pass its automatic exact-head CI,
+then merge under issue #44 authorization, apply missing DEV migration
+`20261006203956`, verify main CI/deploy and Architecture Pages. Read the latest
+[issue #44 execution record](https://github.com/Khaey/Dao/issues/44) and live
+main first: it records the final merge SHA, workflow runs and migration result.
+If #44 is closed with green main/deployment evidence, P2.1 is finished; do not
+repeat it. No subsequent product phase is authorized by this checkpoint.
+
+Do not repeat PR #39, touch other Work PRs, start contracts/execution, reset
+shared DEV or rewrite history.
 
 The older next-scope descriptions below are historical where superseded by
 issue #44. Its validated business decisions are the active instruction.
