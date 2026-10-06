@@ -45,6 +45,16 @@ two independent attempts
 
 Preserve this invariant.
 
+### P2.1 closure and reassignment (issue #44)
+
+Confirmed lots accept no new offer lines/submissions, regardless of payment.
+Submitted competing lines become Non retenues (`not_selected`), never
+`rejected`. Results are per lot and append-only; submitted commercial content
+is untouched. Cancellation requires a reason (and comment for other), records
+author/date/reason, preserves awards and reopens the concerned lots. A package
+is attributed/cancelled atomically across all its lots. Reassignment uses fresh
+award identities and keeps existing membership and contract boundaries.
+
 ## 4. Project versioning
 
 Before first submission:

@@ -86,6 +86,12 @@ export function createDaoApi(
     async submitBid(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.submitBid(services, a, String(i.version_id ?? i.versionId ?? '')))));
     },
+    async cancelAward(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.cancelAward(services, a, i))));
+    },
+    async configureBidPackage(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.configureBidPackage(services, a, i))));
+    },
     async awardRequest(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.awardRequest(services, a, i))));
     },

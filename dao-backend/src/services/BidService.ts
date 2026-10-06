@@ -8,6 +8,15 @@ export class BidService {
     if (error) throw error;
     return data;
   }
+  async configurePackage(input: Record<string, unknown>) {
+    const { data, error } = await this.db.rpc('configure_bid_package', {
+      p_version_id: input.version_id,
+      p_indivisible: input.indivisible === true,
+      p_item_ids: input.item_ids ?? null,
+    });
+    if (error) throw error;
+    return data;
+  }
   async submit(versionId: string) { return this.submitForActor(versionId); }
   async get(id: string) { const { data, error } = await this.db.from('bids').select('*').eq('id',id).single(); if(error) throw error; return data; }
   async updateDraft(_versionId: string, _patch: Record<string, unknown>) {

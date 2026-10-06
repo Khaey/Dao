@@ -285,6 +285,11 @@ Current main also provides the operational P2 flow:
 - attribution is explicit and per lot, with partial selection supported;
 - only one active award is allowed per lot;
 - offer confidentiality and competitor isolation remain enforced;
+- P2.1 adds per-lot closure, append-only results/cancellations and atomic packages;
+- all product offer/award mutations serialize on the project before child rows;
+- safe publication availability exposes no competing commercial data;
+- `bid_item_results` allows only own offer/owner/staff reads and hides source award;
+- `award_cancellations` is restricted to authorized award readers;
 - contract/execution is not inferred or activated by attribution.
 
 ## 11. Review/versioning

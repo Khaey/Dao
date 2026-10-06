@@ -54,6 +54,6 @@ export default function PublicationDetail() {
         <p className="mt-2 text-sm text-black/60">{lot.safe_scope}</p>
       </article>)}</div>
     </Card>
-    {isClientOwner && <PublicationOffersPanel projectId={publication.project_id} lots={lots} />}
+    {isClientOwner && <PublicationOffersPanel publicationId={publication.id} projectId={publication.project_id} lots={lots} />}
   </section>;
 }

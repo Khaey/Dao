@@ -145,3 +145,12 @@ export async function rejectAiProposal(s: BackendServices, actor: AuthenticatedA
   requireActor(actor);
   return s.ai.reject(proposalId);
 }
+
+export async function cancelAward(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.awards.cancel(input);
+}
+export async function configureBidPackage(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.bids.configurePackage(input);
+}
