@@ -1,22 +1,35 @@
 # D.A.O — Next Steps
 
-## Active OPT — continue issue #45 from audit evidence
+## OCE audit #45 complete — next action requires product approval
 
-Read the latest [issue #45 record](https://github.com/Khaey/Dao/issues/45)
-and actual main before any further execution. Audit #1 (`37554348424`) already
-confirmed host resources and public OCE health; do not recreate that channel.
-Branch `chore/oce-audit-auth-reads` adds a fixed loopback-only API reader and
-removes local credential discovery. After exact-head green CI and merge,
-observe the automatically triggered `DAO OCE read-only audit` once and report
-its sanitized evidence in #45. A successful workflow means the audit ran;
-individual denied/unavailable checks must remain explicit blockers.
+Do **not** repeat the OCE discovery/audit runs. The final evidence is in
+[issue #45](https://github.com/Khaey/Dao/issues/45) and audit #5
+(`37560361477`).
 
-If demo login is disabled, do not enable it or try other credentials. If
-Docker remains denied, do not add Docker-group membership or generic sudo.
-Record the missing bounded host inventory capability and need for controlled
-non-admin tenant fixtures; do not claim isolation from one accessible list.
-No imports, calculations, upgrades, reset, business writes or D.A.O–OCE wiring.
+Current recommendation: **hybrid, conditional GO for one isolated PoC**.
+D.A.O remains the business authority; OCE is only a candidate technical engine.
 
+The next OCE step is not automatic. Only after explicit DAO Pilot approval,
+open a separate PoC issue scoped to:
+`D.A.O project → one commercial lot → OCE project → WBS → activities → planning`.
+Use synthetic/non-sensitive data, explicit identifier mapping and idempotent
+sync/recovery. Do not include contracts, payments, ledger, legal reception or
+production user provisioning.
+
+Before any production integration, resolve these gates:
+- AGPL/commercial-license review for the intended deployment/integration model;
+- coherent OCE DB + /data backup and a real restoration test;
+- deploy OCE by immutable digest rather than floating `latest`;
+- qualify/install only the converters actually required by the PoC (live audit:
+  DWG healthy; RVT/IFC/DGN converter packages absent; IFC fallback not qualified);
+- define non-admin service/user mapping and revocation without sharing D.A.O
+  Auth/JWT secrets;
+- benchmark real workload and resize/isolate OCE if BIM/planning exceeds the
+  current 2 vCPU / ~4 GiB / ~40 GiB host envelope.
+
+Do not update C4/Structurizr merely because the audit recommends an architecture.
+Update `workspace.dsl` only when an actual D.A.O↔OCE integration design is
+approved for implementation.
 
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
