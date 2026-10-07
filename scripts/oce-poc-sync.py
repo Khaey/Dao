@@ -73,6 +73,14 @@ def _rows(body: object) -> list[dict]:
     return []
 
 
+def _metadata(row: dict) -> dict:
+    """Accept OCE response keys serialized as either metadata or metadata_."""
+    value = row.get("metadata")
+    if not isinstance(value, dict):
+        value = row.get("metadata_")
+    return value if isinstance(value, dict) else {}
+
+
 def _memory_available_mib() -> int | None:
     try:
         with open("/proc/meminfo", encoding="utf-8") as stream:
@@ -227,8 +235,8 @@ def ensure_wbs(client: Client, token: str, project_id: str) -> tuple[dict, bool]
         if not isinstance(node, dict):
             raise RuntimeError("unexpected WBS create response")
         created = True
-    metadata = node.get("metadata") or {}
-    if not isinstance(metadata, dict) or metadata.get("dao_lot_id") != DAO_LOT_ID:
+    metadata = _metadata(node)
+    if metadata.get("dao_lot_id") != DAO_LOT_ID:
         raise RuntimeError("WBS mapping mismatch")
     _uuid(node.get("id"))
     return node, created
@@ -241,8 +249,7 @@ def ensure_schedule(client: Client, token: str, project_id: str) -> tuple[dict, 
     matches = [
         s for s in schedules
         if s.get("name") == SCHEDULE_NAME
-        and isinstance(s.get("metadata"), dict)
-        and s["metadata"].get("dao_project_id") == DAO_PROJECT_ID
+        and _metadata(s).get("dao_project_id") == DAO_PROJECT_ID
     ]
     schedule = _assert_exactly_one(matches, label="schedule")
     created = False
@@ -308,8 +315,8 @@ def ensure_activities(client: Client, token: str, schedule_id: str) -> tuple[dic
             if not isinstance(row, dict):
                 raise RuntimeError("unexpected activity create response")
             created_count += 1
-        metadata = row.get("metadata") or {}
-        if not isinstance(metadata, dict) or metadata.get("dao_activity_code") != code:
+        metadata = _metadata(row)
+        if metadata.get("dao_activity_code") != code:
             raise RuntimeError(f"activity mapping mismatch {code}")
         _uuid(row.get("id"))
         results[code] = row
