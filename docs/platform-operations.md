@@ -53,6 +53,7 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | restart | Restart only dao-dev.service, then smoke/status | Existing dao service sudoers |
 | env-sync | Manual recovery operation; normal main deploys now run the same three-key sync automatically before release activation | One-time admin helper installation plus Resend secrets |
 | log-summary | Last hour priority counts, at most 200 journal entries; no message bodies | One-time admin helper installation |
+| oce-audit | Fixed read-only OCE container/image/converter/backup metadata; no env values, file contents or arbitrary Docker command | Reinstall reviewed admin helper once as root after this operation is added |
 
 Example with a credential authorized for Actions dispatch:
 
@@ -76,8 +77,8 @@ that exact private file during recovery before repeating a sync.
 
 ### Environment administration setup
 
-The one-time root bootstrap is complete. The operator ran
-`bash ops/install-dev-admin.sh` from the reviewed release and confirmed:
+The initial root bootstrap is complete. When a reviewed helper release adds a new fixed operation (for example `oce-audit`), rerun
+`bash ops/install-dev-admin.sh` once as root from that exact reviewed main release; the installer only replaces the root-owned helper and its fixed sudoers allowlist, without changing environment values or service state. The operator originally ran the same installer and confirmed:
 `D.A.O admin helper installed; environment values and service unchanged.`
 Therefore `/usr/local/sbin/dao-dev-admin` is installed, root-owned and
 available to the main-only DAO DEV operations workflow. `env-sync` remains
