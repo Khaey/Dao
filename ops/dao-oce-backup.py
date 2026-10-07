@@ -94,6 +94,13 @@ def write_json(path, data):
             os.unlink(name)
 
 
+def read_private_json(path):
+    meta = path.lstat()
+    if not stat.S_ISREG(meta.st_mode) or meta.st_uid != 0 or meta.st_mode & 0o077:
+        raise Halt('unsafe private metadata')
+    return json.loads(path.read_text())
+
+
 def load_state():
     path = ROOT / 'active.json'
     meta = path.lstat()
@@ -438,6 +445,36 @@ def cleanup(state):
     return ok
 
 
+def restore_exit_reason(name):
+    try:
+        result = subprocess.run(DOCKER + ['logs', '--tail', '80', name], capture_output=True,
+                                stdin=subprocess.DEVNULL, timeout=5)
+        payload = (result.stdout + result.stderr).decode(errors='replace').lower()
+    except Exception:
+        return 'restore database exited'
+    for needle, reason in (
+        ('permission denied', 'restore database permission'),
+        ('operation not permitted', 'restore database permission'),
+        ('invalid permissions', 'restore database permissions invalid'),
+        ('lock file', 'restore database lock file'),
+        ('postmaster.pid', 'restore database lock file'),
+        ('incompatible with server', 'restore database image incompatibility'),
+        ('valid checkpoint record', 'restore database checkpoint invalid'),
+        ('could not locate a valid checkpoint', 'restore database checkpoint invalid'),
+    ):
+        if needle in payload:
+            return reason
+    return 'restore database exited'
+
+
+def clone_accepting_connections(name, target):
+    result = subprocess.run(
+        DOCKER + ['exec', '--user', f"{target['uid']}:{target['gid']}", name,
+                  'pg_isready', '-h', '/tmp', '-q'],
+        capture_output=True, stdin=subprocess.DEVNULL, timeout=6)
+    return result.returncode == 0
+
+
 def isolated_restore(state, manifests, proof):
     name, volumes = clone_names(state)
     folder = ROOT / state['id']
@@ -483,11 +520,75 @@ def isolated_restore(state, manifests, proof):
     mounts = obj.get('Mounts', [])
     if len(mounts) != 1 or mounts[0].get('Name') != volumes['pg']:
         raise Halt('restore mount isolation')
-    docker('start', name)
-    actual = wait_for(lambda: db_proof(name, pg, clone=True), 60)
+    try:
+        docker('start', name)
+    except subprocess.CalledProcessError:
+        raise Halt('restore database start failed')
+    try:
+        actual = wait_for(lambda: db_proof(name, pg, clone=True), 60)
+    except TimeoutError:
+        try:
+            row = inspect([name])[0]
+            if not row.get('State', {}).get('Running'):
+                raise Halt(restore_exit_reason(name))
+            if clone_accepting_connections(name, pg):
+                raise Halt('restore database proof rejected')
+        except Halt:
+            raise
+        except Exception:
+            pass
+        raise Halt('restore database readiness timeout')
     if actual != proof:
         raise Halt('restored database identity/schema mismatch')
     save(state, restore_verified=True)
+
+
+def verify_existing_restore():
+    state = load_state()
+    if (not state.get('backup_complete') or not state.get('live_resumed')
+            or not state.get('cleanup_complete') or state.get('need_resume')):
+        raise Halt('backup not eligible for restore-only verification')
+    if state.get('restore_verified') and state.get('phase') == 'complete':
+        print(json.dumps(public_status(state)))
+        return
+    if state.get('phase') not in {'failed', 'restoring'}:
+        raise Halt('restore-only verification requires failed backup state')
+    folder = ROOT / state['id']
+    manifests = read_private_json(folder / 'file-manifest-private.json')
+    if set(manifests) != {'app', 'pg'}:
+        raise Halt('private manifest shape')
+    hashes = state.get('archive_hashes')
+    if not isinstance(hashes, dict) or set(hashes) != {'app', 'pg'}:
+        raise Halt('archive hashes unavailable')
+    for role in ('app', 'pg'):
+        path = folder / (role + '.tar')
+        meta = path.lstat()
+        if (not stat.S_ISREG(meta.st_mode) or meta.st_uid != 0 or meta.st_mode & 0o077
+                or file_hash(path) != hashes[role]):
+            raise Halt('retained archive changed')
+    found, _ = discover()
+    for role in ('app', 'pg'):
+        previous = state['targets'][role]
+        current = found[role]
+        if any(current.get(key) != previous.get(key) for key in ('id', 'image', 'volume', 'source')):
+            raise Halt('original runtime changed since backup')
+    proof = db_proof(found['pg']['id'], found['pg'])
+    save(state, phase='restoring', restore_verified=False, cleanup_complete=False)
+    failure = None
+    try:
+        isolated_restore(state, manifests, proof)
+    except Exception as exc:
+        failure = exc
+    finally:
+        clean = cleanup(state)
+    if failure is not None:
+        save(state, phase='failed')
+        raise failure
+    if not clean or not state.get('restore_verified'):
+        save(state, phase='failed')
+        raise Halt('restore-only cleanup or verification incomplete')
+    save(state, phase='complete')
+    print(json.dumps(public_status(state)))
 
 
 def worker():
@@ -568,7 +669,7 @@ def recover():
 
 
 def main():
-    if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] not in {'plan', 'start', 'status', 'worker', 'recover'}:
+    if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] not in {'plan', 'start', 'status', 'worker', 'recover', 'verify-restore'}:
         raise Halt('installed root command required')
     if Path(__file__).resolve() != INSTALLED:
         raise Halt('install the reviewed helper first')
@@ -582,12 +683,13 @@ def main():
         return
     lock = os.open(ROOT / '.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     # Worker may start before the scheduling command has released its lock.
-    flags = fcntl.LOCK_EX | (fcntl.LOCK_NB if operation in {'plan', 'start'} else 0)
+    flags = fcntl.LOCK_EX | (fcntl.LOCK_NB if operation in {'plan', 'start', 'verify-restore'} else 0)
     fcntl.flock(lock, flags)
-    if operation in {'plan', 'start'}:
+    if operation in {'plan', 'start', 'verify-restore'}:
         active = subprocess.run(['/usr/bin/systemctl', 'is-active', UNIT], capture_output=True, text=True, timeout=5).stdout.strip()
         if active in {'active', 'activating', 'deactivating', 'reloading'}:
             raise Halt('operation already active')
+    if operation in {'plan', 'start'}:
         if (ROOT / 'active.json').exists():
             previous = load_state()
             if previous.get('need_resume') or not previous.get('cleanup_complete'):
@@ -609,6 +711,8 @@ def main():
         print(json.dumps(public_status(state)))
     elif operation == 'worker':
         worker()
+    elif operation == 'verify-restore':
+        verify_existing_restore()
     else:
         recover()
 
@@ -619,5 +723,6 @@ if __name__ == '__main__':
         main()
     except Exception as exc:
         reason = str(exc) if isinstance(exc, Halt) else 'internal_or_command_error'
-        print(json.dumps({'oce_backup_error': reason, 'recovery': 'attached_to_service'}), file=sys.stderr)
+        recovery = 'none_required' if len(sys.argv) == 2 and sys.argv[1] == 'verify-restore' else 'attached_to_service'
+        print(json.dumps({'oce_backup_error': reason, 'recovery': recovery}), file=sys.stderr)
         sys.exit(1)
