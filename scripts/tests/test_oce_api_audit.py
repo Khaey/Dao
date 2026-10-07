@@ -185,6 +185,43 @@ class AuditTests(unittest.TestCase):
         self.assertIn('"denial_confirmed": false', output.getvalue())
         self.assertNotIn(shared, output.getvalue())
 
+
+    def test_converter_audit_emits_only_safe_fields(self):
+        class FakeClient:
+            def request(self, path, token=None, demo_email=None):
+                self.path = path
+                self.token = token
+                return 200, {
+                    "converters": [
+                        {
+                            "id": "ifc",
+                            "version": "1.0.0",
+                            "installed": True,
+                            "health": "healthy",
+                            "path": "/root/private/converter",
+                            "health_message": "private host detail",
+                        }
+                    ]
+                }, "ok"
+
+        client = FakeClient()
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            audit.audit_converters(
+                client,
+                {audit.CONVERTERS: {"get": {}}},
+                "sentinel-token",
+            )
+        text = output.getvalue()
+        self.assertIn('"id": "ifc"', text)
+        self.assertIn('"installed": true', text)
+        self.assertIn('"health": "healthy"', text)
+        self.assertIn('"verify_requested": true', text)
+        self.assertNotIn("/root/private", text)
+        self.assertNotIn("private host detail", text)
+        self.assertNotIn("sentinel-token", text)
+        self.assertEqual(client.path, audit.CONVERTERS + "?verify=true")
+
     def test_admin_role_stops_module_reads(self):
         calls = []
 
