@@ -13,8 +13,18 @@ import uuid
 
 BASES = ("http://127.0.0.1:8080", "http://127.0.0.1:8000")
 LOGIN = "/api/v1/users/auth/demo-login/"
-FIXED_GETS = {"/api/health", "/openapi.json", "/openapi.json/", "/api/openapi.json",
-              "/api/v1/users/me/", "/api/v1/projects/"}
+FIXED_GETS = {
+    "/api/health",
+    "/openapi.json",
+    "/openapi.json/",
+    "/api/openapi.json",
+    "/api/v1/users/me/",
+    "/api/v1/projects/",
+}
+PROJECT_DETAIL_TEMPLATES = (
+    "/api/v1/projects/{project_id}",
+    "/api/v1/projects/{project_id}/",
+)
 PROJECT_GETS = {
     "wbs": "/api/v1/projects/{project_id}/wbs/",
     "schedule": "/api/v1/schedule/schedules/",
@@ -23,6 +33,12 @@ PROJECT_GETS = {
     "cost_5d": "/api/v1/costmodel/projects/{project_id}/5d/snapshots/",
     "qaqc": "/api/v1/inspections/",
     "cde": "/api/v1/cde/containers/",
+}
+EXPECTED_DEMO_ROLES = {
+    # Upstream v17.7.0 seeds this login with role="editor"; an older docstring
+    # still calls it "estimator". Trust the actual seeder, not the stale prose.
+    "estimator": "editor",
+    "manager": "manager",
 }
 
 
@@ -37,17 +53,24 @@ def valid_id(value):
         return None
 
 
+def _template_matches(path, template):
+    if "{project_id}" not in template:
+        return path == template
+    prefix, suffix = template.split("{project_id}")
+    if not path.startswith(prefix) or not path.endswith(suffix):
+        return False
+    middle = path[len(prefix): len(path) - len(suffix) if suffix else None]
+    return valid_id(middle) is not None
+
+
 def allowed_get(path):
     path = urllib.parse.urlsplit(path).path
-    if path in FIXED_GETS or path in PROJECT_GETS.values():
+    if path in FIXED_GETS:
         return True
-    for template in PROJECT_GETS.values():
-        if "{project_id}" in template:
-            prefix, suffix = template.split("{project_id}")
-            if path.startswith(prefix) and path.endswith(suffix):
-                if valid_id(path[len(prefix):-len(suffix)]):
-                    return True
-    return False
+    return any(
+        _template_matches(path, template)
+        for template in (*PROJECT_DETAIL_TEMPLATES, *PROJECT_GETS.values())
+    )
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -105,10 +128,14 @@ class LocalClient:
                 # Redirects may only add/remove a trailing slash on this same GET.
                 # Never forward tokens to a new origin or another API operation.
                 original = urllib.parse.urlsplit(self.base + path)
-                if (method != "GET" or not location or
-                    (target.scheme, target.netloc) != (origin.scheme, origin.netloc) or
-                    target.path.rstrip("/") != original.path.rstrip("/") or
-                    target.query != original.query or target.fragment):
+                if (
+                    method != "GET"
+                    or not location
+                    or (target.scheme, target.netloc) != (origin.scheme, origin.netloc)
+                    or target.path.rstrip("/") != original.path.rstrip("/")
+                    or target.query != original.query
+                    or target.fragment
+                ):
                     return status, None, "redirect_blocked"
                 url = newurl
             except Exception:
@@ -127,13 +154,99 @@ def rows(body):
     return None
 
 
+def project_ids(body):
+    result = set()
+    for row in rows(body) or ():
+        if isinstance(row, dict):
+            value = valid_id(row.get("id"))
+            if value:
+                result.add(value)
+    return result
+
+
 def read(client, label, path, token=None, account="anonymous"):
     status, body, outcome = client.request(path, token=token)
     items = rows(body)
-    emit("OCE_READ", account=account, check=label, status=status, outcome=outcome,
-         shape="list" if isinstance(body, list) else "object" if isinstance(body, dict) else "none",
-         count=len(items) if items is not None else None)
+    emit(
+        "OCE_READ",
+        account=account,
+        check=label,
+        status=status,
+        outcome=outcome,
+        shape="list" if isinstance(body, list) else "object" if isinstance(body, dict) else "none",
+        count=len(items) if items is not None else None,
+    )
     return status, body
+
+
+def project_detail_template(paths):
+    for template in PROJECT_DETAIL_TEMPLATES:
+        if "get" in paths.get(template, {}):
+            return template
+    return None
+
+
+def probe_isolation(client, paths, principals):
+    if not all(name in principals for name in ("estimator", "manager")):
+        emit("OCE_ISOLATION_PROBE", outcome="principals_unavailable", denial_confirmed=False)
+        return
+
+    estimator_ids = principals["estimator"]["project_ids"]
+    manager_ids = principals["manager"]["project_ids"]
+    estimator_only = estimator_ids - manager_ids
+    manager_only = manager_ids - estimator_ids
+    emit(
+        "OCE_PROJECT_SCOPE",
+        estimator_count=len(estimator_ids),
+        manager_count=len(manager_ids),
+        shared_count=len(estimator_ids & manager_ids),
+        estimator_only_count=len(estimator_only),
+        manager_only_count=len(manager_only),
+    )
+
+    template = project_detail_template(paths)
+    if not template:
+        emit("OCE_ISOLATION_PROBE", outcome="project_detail_route_absent", denial_confirmed=False)
+        return
+
+    probes = (
+        ("estimator", "manager", estimator_only),
+        ("manager", "estimator", manager_only),
+    )
+    attempted = 0
+    confirmed = 0
+    for owner, foreign, exclusive_ids in probes:
+        if not exclusive_ids:
+            continue
+        attempted += 1
+        project_id = sorted(exclusive_ids)[0]
+        path = template.replace("{project_id}", project_id)
+        owner_status, _, _ = client.request(path, token=principals[owner]["token"])
+        foreign_status, _, _ = client.request(path, token=principals[foreign]["token"])
+        denied = owner_status == 200 and foreign_status in (403, 404)
+        if denied:
+            confirmed += 1
+        emit(
+            "OCE_ISOLATION_PROBE",
+            owner=owner,
+            foreign=foreign,
+            owner_status=owner_status,
+            foreign_status=foreign_status,
+            denial_confirmed=denied,
+        )
+    if attempted == 0:
+        emit(
+            "OCE_ISOLATION_PROBE",
+            outcome="no_exclusive_existing_fixture",
+            denial_confirmed=False,
+        )
+    else:
+        emit(
+            "OCE_ISOLATION_SUMMARY",
+            attempted=attempted,
+            confirmed=confirmed,
+            all_confirmed=attempted == confirmed,
+        )
 
 
 def run():
@@ -149,32 +262,48 @@ def run():
                 modules = {}
             enabled = health.get("modules_enabled", modules.get("enabled"))
             loaded = health.get("modules_loaded", modules.get("loaded"))
-            emit("OCE_LOCAL", health="ok",
-                 version=version if isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version) else "unknown",
-                 healthy=health.get("status") == "healthy",
-                 database_ok=health.get("database") == "ok",
-                 modules_enabled=enabled if type(enabled) is int else None,
-                 modules_loaded=loaded if type(loaded) is int else None)
+            emit(
+                "OCE_LOCAL",
+                health="ok",
+                version=version if isinstance(version, str) and re.fullmatch(r"\d+\.\d+\.\d+", version) else "unknown",
+                healthy=health.get("status") == "healthy",
+                database_ok=health.get("database") == "ok",
+                modules_enabled=enabled if type(enabled) is int else None,
+                modules_loaded=loaded if type(loaded) is int else None,
+            )
             break
     if client is None:
         emit("OCE_LOCAL", health="unreachable")
         return
+
     # v17.7.0 configures this canonical URL in backend/app/main.py.
-    # The historical /openapi.json alias may redirect to it with HTTP 308.
     status, schema, outcome = client.request("/api/openapi.json")
     paths = schema.get("paths", {}) if isinstance(schema, dict) else {}
     if not isinstance(paths, dict):
         paths = {}
-    emit("OCE_OPENAPI", status=status, outcome=outcome, paths=len(paths),
-         operations=sum(1 for item in paths.values() if isinstance(item, dict)
-                        for verb in item if verb in {"get", "post", "put", "patch", "delete", "head", "options"}),
-         domains={label: "get" in paths.get(route, {}) for label, route in PROJECT_GETS.items()},
-         demo_login_documented="post" in paths.get(LOGIN, {}))
+    emit(
+        "OCE_OPENAPI",
+        status=status,
+        outcome=outcome,
+        paths=len(paths),
+        operations=sum(
+            1
+            for item in paths.values()
+            if isinstance(item, dict)
+            for verb in item
+            if verb in {"get", "post", "put", "patch", "delete", "head", "options"}
+        ),
+        domains={label: "get" in paths.get(route, {}) for label, route in PROJECT_GETS.items()},
+        demo_login_documented="post" in paths.get(LOGIN, {}),
+    )
     read(client, "me", "/api/v1/users/me/")
     read(client, "projects", "/api/v1/projects/?limit=1")
+
     if "post" not in paths.get(LOGIN, {}):
         emit("OCE_AUTH", status="not_attempted", reason="demo_route_not_verified")
         return
+
+    principals = {}
     for account in ("estimator", "manager"):
         status, login, outcome = client.request(LOGIN, demo_email=account + "@openconstructionerp.com")
         token = login.get("access_token") if isinstance(login, dict) else None
@@ -184,19 +313,35 @@ def run():
             if status == 429:
                 break
             continue
+
         emit("OCE_AUTH", account=account, status=status, login_ok=True)
         me_status, me = read(client, "me", "/api/v1/users/me/", token, account)
         role = me.get("role") if isinstance(me, dict) else None
-        # Fail closed if these nominally lesser-privileged accounts became admins.
-        if me_status != 200 or role not in ("estimator", "manager") or me.get("is_superuser") is True:
-            emit("OCE_AUTH", account=account, scope="stopped_unverified_nonadmin_role")
+        expected_role = EXPECTED_DEMO_ROLES[account]
+        # Fail closed if a nominally lesser-privileged demo identity drifted.
+        if me_status != 200 or role != expected_role or me.get("is_superuser") is True:
+            emit(
+                "OCE_AUTH",
+                account=account,
+                scope="stopped_unverified_nonadmin_role",
+                role_matches_expected=False,
+            )
             token = None
             continue
-        emit("OCE_ROLE", account=account, role=role,
-             read_only_principal=False, audit_requests_read_only=True)
-        _, projects = read(client, "projects", "/api/v1/projects/?limit=1", token, account)
-        project_rows = rows(projects) or []
-        project_id = valid_id(project_rows[0].get("id")) if project_rows and isinstance(project_rows[0], dict) else None
+
+        emit(
+            "OCE_ROLE",
+            account=account,
+            role=role,
+            role_matches_expected=True,
+            read_only_principal=False,
+            audit_requests_read_only=True,
+        )
+        _, projects = read(client, "projects", "/api/v1/projects/?limit=100", token, account)
+        ids = project_ids(projects)
+        principals[account] = {"token": token, "project_ids": ids}
+
+        project_id = sorted(ids)[0] if ids else None
         if not project_id:
             emit("OCE_MODULE_READS", account=account, status="blocked_no_accessible_project")
         else:
@@ -207,10 +352,20 @@ def run():
                 path = template.replace("{project_id}", project_id)
                 path += "?limit=1" if "{project_id}" in template else "?limit=1&project_id=" + project_id
                 read(client, label, path, token, account)
-        token = me = projects = project_rows = None
-    emit("OCE_QUALIFICATION", isolation="not_proven_no_controlled_tenant_fixtures",
-         bim_4d_5d="list_reads_only_no_conversion_or_calculation",
-         sso="not_tested", business_writes=False)
+        me = projects = None
+
+    probe_isolation(client, paths, principals)
+    for principal in principals.values():
+        principal["token"] = None
+        principal["project_ids"] = set()
+
+    emit(
+        "OCE_QUALIFICATION",
+        isolation="probed_only_when_existing_demo_project_scopes_differ",
+        bim_4d_5d="list_reads_only_no_conversion_or_calculation",
+        sso="not_tested",
+        business_writes=False,
+    )
 
 
 if __name__ == "__main__":
