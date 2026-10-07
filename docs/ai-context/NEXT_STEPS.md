@@ -1,5 +1,21 @@
 # D.A.O — Next Steps
 
+## OPT #58 — active operator diagnostic checkpoint
+
+The helper installation requested below has now succeeded. The two Compose
+sources are ubuntu-owned 0664 beneath ubuntu-owned 0775 checkout directories.
+Do not ask for installation again or change their ownership recursively.
+
+Run the pinned, reviewed `ops/oce-v1-preflight.py` from
+`chore/oce-v1-host-preflight` as ubuntu; the [host preflight note](../oce-v1-host-preflight.md)
+and latest #58 comment contain its limits and operator invocation. After the
+sanitized output, continue topology-specific backup/restore and controlled
+runtime configuration/pin work on this owned branch. Finish a coherent PR and
+normal CI/merge cycle for the implementation. The standalone operator diagnostic
+is locally tested but has not yet been run on the VPS or merged. Preserve
+D.A.O product/Auth/RLS and the existing OCE checkout; no READY DEV handoff.
+
+
 ## Active OPT — continue #58 through its host prerequisite
 
 The private bounded gateway is approved in #58. Audit #45 and PoC #54 are

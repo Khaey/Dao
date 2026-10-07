@@ -1,5 +1,23 @@
 # D.A.O — Current State
 
+## OPT #58 — operator bootstrap confirmed; host preflight prepared (2026-10-07)
+
+Main `6741f60f0401cf0846db58739c953883eb5d0de5`, CI/deploy #316 green.
+The operator installed the PR #62 helper successfully with `sudo -n` and
+returned its sanitized inventory at 20:38 Europe/Paris. Both DB URL hints
+resolve to the same postgres peer. At 20:45, the operator confirmed the two
+Compose sources and their ancestors are ubuntu-owned and group-writable;
+this explains the root-control flag without implying an OCE outage.
+
+Owned branch `chore/oce-v1-host-preflight` prepares a consolidated read-only
+operator probe: Compose structural metadata and live named-volume capacity.
+Six local redaction/boundary tests pass. No PR CI, merge or live execution of
+this probe is claimed; it is a reviewable checkpoint pending operator output.
+See [host preflight](../oce-v1-host-preflight.md) and the latest [#58 record](https://github.com/Khaey/Dao/issues/58).
+The earlier installer blocker is resolved. Do not reinstall it, recursively
+change checkout ownership, restart OCE or repeat #45/#54. No production
+integration or READY DEV handoff; backup/restore, pin and gateway remain open.
+
 ## Active OPT — OCE V1 #58 (2026-10-07 Europe/Paris)
 
 Verified implementation base: `b531382495f5e508ba5d37064e5e4970571d450f`;
