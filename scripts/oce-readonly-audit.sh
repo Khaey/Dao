@@ -4,7 +4,7 @@ set -euo pipefail
 # Read-only, sanitized audit for the self-hosted OpenConstructionERP instance.
 # Never print environment values, credentials, tokens, response bodies or business rows.
 
-echo "OCE_AUDIT schema=3 mode=readonly"
+echo "OCE_AUDIT schema=4 mode=readonly"
 echo "OCE_AUDIT_TIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 python3 - <<'PY'
@@ -160,6 +160,69 @@ if [[ -n "$timers" ]]; then
 else
   echo 'OCE_BACKUP_SIGNAL systemd_timer_matches=0'
 fi
+
+python3 - <<'PY'
+import json, re, subprocess
+
+def run(argv):
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=8, check=True).stdout
+    except Exception:
+        return ""
+
+def props(unit, names):
+    if not unit or not re.fullmatch(r"[A-Za-z0-9_.@:-]{1,160}", unit):
+        return {}
+    raw = run(["systemctl", "show", unit, "--no-pager", *[f"--property={x}" for x in names]])
+    result = {}
+    for line in raw.splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key in names:
+            result[key] = value
+    return result
+
+raw = run(["systemctl", "list-timers", "--all", "--no-legend", "--no-pager"])
+pairs = []
+for line in raw.splitlines():
+    if not re.search(r"backup|openconstruction|openestimate|oce", line, re.I):
+        continue
+    match = re.search(r"([A-Za-z0-9_.@:-]+\.timer)\s+([A-Za-z0-9_.@:-]+\.service)\s*$", line)
+    if match:
+        pairs.append((match.group(1), match.group(2)))
+
+out = []
+for timer, service in pairs[:8]:
+    t = props(timer, {"Id", "LastTriggerUSec", "NextElapseUSecRealtime", "Unit", "ActiveState"})
+    svc = props(service, {"Id", "ActiveState", "Result", "ExecMainStatus", "ExecStart"})
+    exec_raw = svc.pop("ExecStart", "")
+    exec_kinds = sorted({
+        kind for kind in ("pg_dump", "docker", "tar", "rsync", "restic", "borg", "rclone", "gzip", "zstd")
+        if re.search(rf"\b{re.escape(kind)}\b", exec_raw, re.I)
+    })
+    target_classes = sorted({
+        label for label, pattern in (
+            ("var_backups", r"/var/backups(?:/|\b)"),
+            ("opt", r"/opt(?:/|\b)"),
+            ("srv", r"/srv(?:/|\b)"),
+            ("data", r"(?:^|[\s=])/data(?:/|\b)"),
+            ("docker_volume", r"/var/lib/docker/volumes(?:/|\b)"),
+        )
+        if re.search(pattern, exec_raw)
+    })
+    out.append({
+        "timer": timer,
+        "service": service,
+        "timer_active": t.get("ActiveState") or None,
+        "last_trigger": t.get("LastTriggerUSec") or None,
+        "next_trigger": t.get("NextElapseUSecRealtime") or None,
+        "service_active": svc.get("ActiveState") or None,
+        "last_result": svc.get("Result") or None,
+        "exec_main_status": svc.get("ExecMainStatus") or None,
+        "exec_kinds": exec_kinds,
+        "target_classes": target_classes,
+    })
+print("OCE_BACKUP_TIMER_META " + json.dumps({"matches": out}, sort_keys=True))
+PY
 
 python3 - <<'PY'
 import json, os, pathlib, time
