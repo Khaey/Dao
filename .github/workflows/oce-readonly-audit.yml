@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/oce-readonly-audit.yml'
       - 'scripts/oce-readonly-audit.sh'
+      - 'scripts/oce-api-readonly-audit.py'
 
 permissions:
   contents: read
@@ -17,6 +18,7 @@ concurrency:
 
 jobs:
   audit:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
     timeout-minutes: 10
@@ -24,7 +26,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate audit helper
-        run: bash -n scripts/oce-readonly-audit.sh
+        run: |
+          bash -n scripts/oce-readonly-audit.sh
+          python3 -m unittest discover -s scripts/tests -p 'test_oce_api_audit.py'
 
       - name: Stage audit helper on VPS
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
@@ -32,7 +36,7 @@ jobs:
           host: 137.74.168.122
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
-          source: scripts/oce-readonly-audit.sh
+          source: "scripts/oce-readonly-audit.sh,scripts/oce-api-readonly-audit.py"
           target: /opt/dao/ops-incoming/oce-audit-${{ github.run_id }}-${{ github.run_attempt }}
           timeout: 30s
           command_timeout: 2m
@@ -56,4 +60,5 @@ jobs:
 
       - name: Runner cleanup
         if: always()
-        run: rm -f scripts/oce-readonly-audit.sh
+        run: rm -f scripts/oce-readonly-audit.sh scripts/oce-api-readonly-audit.py
+
