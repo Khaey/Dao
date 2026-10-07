@@ -27,7 +27,7 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   if (testInfo.project.name === 'mobile') await reviewer.getByRole('button', { name: 'Ouvrir le menu' }).click();
   await expect(reviewer.getByRole('link', { name: 'Tableau de bord' })).toBeVisible();
   await expect(reviewer.getByRole('link', { name: 'Revues', exact: true })).toBeVisible();
-  await expect(reviewer.getByRole('link', { name: 'Publications' })).toBeVisible();
+  await expect(reviewer.getByRole('link', { name: 'Publications', exact: true })).toBeVisible();
   await reviewer.goto('/app/dao/review');
   const reviewHeading = reviewer.getByRole('heading', { name: project.title, exact: true });
   await expect(reviewHeading).toHaveCount(1);
