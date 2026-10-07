@@ -4,7 +4,50 @@
 
 Reprise E2E : CI #318 sur `fe39ce141047552f22ad311fa5a6c279971c94c9` valide backend, frontend, schéma/replay et intégration Supabase réelle ; Architecture #27 passe. FULL E2E : 38/48, cinq scénarios en échec sur les deux viewports. Correctif ciblé : noms accessibles stables des champs staff, navigation Revues exacte et clic de rôle suivi de confirmation (état persisté vérifié). Aucun changement SQL/backend ni nouvelle migration. La preuve de livraison courante (HEAD validé, 48/48, SHA fusionné, ledger DEV et smoke) est tenue dans [#64](https://github.com/Khaey/Dao/issues/64) ; lire son état réel avant de reprendre. Ne pas rejouer les validations réussies pour des entrées inchangées.
 
-Owned branch `feat/backoffice-v2`, exact base main `6741f60f0401cf0846db58739c953883eb5d0de5` (main CI/deploy #316 green). Implements assigned review/Option A versions, technical sub-lots, professional/client/admin directories, motivated lot withdrawal, assisted P2.1, append-only history and transactional outbox. See [operational contract](../backoffice-v2.md). Checkpoint is not yet a merged/deployed claim. Existing OPT #58 and PRs #34/#46 untouched; #65/#66/#67 stay absorbed. Exact-head CI, migration and final smoke evidence belong to #64.
+CI #320 reached 46/48. Remaining fixes invalidate stale directory rows after confirmed mutation and scope the business alert outside the Next.js route announcer. The branch is reconciled with main `8343756b73723c6143cf5a8f9a48d92cb76811f6`, preserving all OPT additions.
+
+Owned branch `feat/backoffice-v2`, initial base main `6741f60f0401cf0846db58739c953883eb5d0de5` (main CI/deploy #316 green). Implements assigned review/Option A versions, technical sub-lots, professional/client/admin directories, motivated lot withdrawal, assisted P2.1, append-only history and transactional outbox. See [operational contract](../backoffice-v2.md). Checkpoint is not yet a merged/deployed claim. Existing OPT #58 and PRs #34/#46 untouched; #65/#66/#67 stay absorbed. Exact-head CI, migration and final smoke evidence belong to #64.
+
+## OPT #58 — host preflight received; bounded backup/restore prepared (2026-10-07)
+
+Verified base remains main `6741f60f0401cf0846db58739c953883eb5d0de5`,
+CI/deploy #316 (`37645521354`) green. The operator ran preflight commit
+`8a3a7857fbcd649ad1fb34cf29a7450b29e57842` at 21:57 Europe/Paris:
+app + PostgreSQL 16, two local named volumes, 593 MB allocated / 18.6 GB free,
+both running, no restart. Do not repeat that completed diagnostic.
+
+Owned branch `chore/oce-v1-host-preflight` now prepares the fixed operator-only
+cold backup and isolated PostgreSQL restore, systemd recovery, private
+checksummed archives, safe status and disposable Docker validation. No new dao
+sudo grant; no automatic VPS execution. See [backup operation](../oce-backup-restore.md).
+Local 19 tests and shell/Python syntax passed before publication. Actual PR/main
+CI, merged release and operator execution outcomes are recorded in
+[issue #58](https://github.com/Khaey/Dao/issues/58); they are not inferred here.
+
+A real backup still requires root installation from the reviewed merged release
+and an operator-triggered maintenance window. Restore proof covers files and
+an isolated PostgreSQL boot, not a full OCE recovery or all host writers.
+Runtime custody/pin, full recovery qualification and private gateway gates
+remain open: no READY DEV handoff. WORK DEV PR #68 and older docs PRs #34/#46
+are untouched. The checkpoints below are historical where superseded.
+
+## OPT #58 — operator bootstrap confirmed; host preflight prepared (2026-10-07)
+
+Main `6741f60f0401cf0846db58739c953883eb5d0de5`, CI/deploy #316 green.
+The operator installed the PR #62 helper successfully with `sudo -n` and
+returned its sanitized inventory at 20:38 Europe/Paris. Both DB URL hints
+resolve to the same postgres peer. At 20:45, the operator confirmed the two
+Compose sources and their ancestors are ubuntu-owned and group-writable;
+this explains the root-control flag without implying an OCE outage.
+
+Owned branch `chore/oce-v1-host-preflight` prepares a consolidated read-only
+operator probe: Compose structural metadata and live named-volume capacity.
+Six local redaction/boundary tests pass. No PR CI, merge or live execution of
+this probe is claimed; it is a reviewable checkpoint pending operator output.
+See [host preflight](../oce-v1-host-preflight.md) and the latest [#58 record](https://github.com/Khaey/Dao/issues/58).
+The earlier installer blocker is resolved. Do not reinstall it, recursively
+change checkout ownership, restart OCE or repeat #45/#54. No production
+integration or READY DEV handoff; backup/restore, pin and gateway remain open.
 
 ## Active OPT — OCE V1 #58 (2026-10-07 Europe/Paris)
 

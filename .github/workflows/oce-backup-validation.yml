@@ -1,0 +1,41 @@
+name: OCE backup isolated validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ops/dao-oce-backup.py
+      - ops/dao-oce-backup.service
+      - ops/install-oce-backup.sh
+      - scripts/tests/test_oce_backup.py
+      - scripts/tests/oce-backup-container-check.py
+      - .github/workflows/oce-backup-validation.yml
+  push:
+    branches: [main]
+    paths:
+      - ops/dao-oce-backup.py
+      - ops/dao-oce-backup.service
+      - ops/install-oce-backup.sh
+      - scripts/tests/test_oce_backup.py
+      - scripts/tests/oce-backup-container-check.py
+      - .github/workflows/oce-backup-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oce-backup-check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  isolated-backup-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate archive and recovery boundaries
+        run: python3 -m unittest discover -s scripts/tests -p 'test_oce_backup.py' -v
+      - name: Validate installer and recovery unit on the disposable runner
+        run: sudo bash ops/install-oce-backup.sh
+      - name: Exercise real PostgreSQL backup, isolated restore, and failure recovery
+        run: sudo env GITHUB_ACTIONS=true python3 scripts/tests/oce-backup-container-check.py
