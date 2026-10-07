@@ -1,27 +1,50 @@
 # D.A.O — Current State
 
-## OPT OCE audit continuation — issue #45 (2026-10-07 Europe/Paris)
+## OCE architecture audit — issue #45 complete (2026-10-07 Europe/Paris)
 
-Base: `23a5c12266fa8469b5c8fb9af7f141a34ecce4e6` (PR #48).
-OCE audit run #1 (`37554348424`) completed on the real VPS: 2 vCPU,
-3819 MiB RAM, 17.4 GiB root disk free, OCE 17.7.0 healthy, 192/192 modules.
-Docker access is denied/unavailable for the existing `dao` SSH account.
+Final implementation/audit base: main `c7c6ef72a253196bf58abeaed9c9228ecd37cb6a`
+after PR #52. OCE audit #5 (`37560361477`) ran successfully on the real VPS.
 
-Branch `chore/oce-audit-auth-reads` continues that audit only: bounded local
-OpenAPI redirects, documented non-admin demo login and allowlisted GETs for
-projects/WBS/planning/BOQ/BIM/5D/QA/CDE. Tokens remain in memory; no credential
-file/environment extraction or password guessing. Demo roles are not read-only
-principals; only this audit's requests are constrained. Unknown/admin roles
-stop module reads. Cross-tenant isolation, actual IFC/4D/5D calculations,
-SSO, image/digest, converters and backup restoration remain unproven.
+Confirmed instance facts:
+- OCE 17.7.0 healthy, database ok, 192/192 modules loaded;
+- live OpenAPI: 2,938 paths / 3,956 HTTP operations;
+- host: 2 vCPU, ~3.8 GiB RAM, ~37.7 GiB root disk;
+- real container `openconstructionerp-app-1`, image
+  `ghcr.io/datadrivenconstruction/openconstructionerp:latest`, pinned observed
+  digest `sha256:7621593064354a1df414f6598ae7f844bf8d12dc5977537f2297642fc4b523d3`;
+- application data uses a named Docker volume mounted at `/data`;
+- non-admin project isolation was observed on an existing fixture:
+  manager access 200 and editor access 404 for the same manager-owned project;
+- authenticated read endpoints for WBS, planning, BOQ, BIM, 5D, QA/QC and CDE
+  return 200 on the accessible project;
+- OCE's own converter verification reports DWG 1.0.0 installed/healthy; RVT,
+  IFC and DGN converter packages are not installed. IFC still has an upstream
+  built-in fallback path; its real import quality was not exercised because
+  imports remained outside the read-only audit;
+- the only timer previously matching the broad backup scan is
+  `dpkg-db-backup.timer`, i.e. an OS package database backup, not an OCE
+  application backup. No OCE backup artifact or restoration proof was found.
 
-Eight targeted local tests pass for redirect boundaries, method/identity
-allowlists, response caps, safe output and admin-role refusal; shell syntax
-passes. PR/main CI and the next live audit are pending at this source checkpoint.
-Final SHA/run/evidence are recorded in [issue #45](https://github.com/Khaey/Dao/issues/45),
-without repeatedly committing a moving main SHA. No OCE integration decision,
-product/Auth/RLS/migration or host privilege change.
+Architecture recommendation: **HYBRID, conditional GO for an isolated PoC;
+NO-GO for replacing D.A.O with OCE.** D.A.O remains authoritative for
+identity/roles/pro verification, projects and commercial lots, publication,
+offers/awards and future contract/legal/financial/reception/warranty state.
+OCE may become the optional technical engine for WBS/activities/planning,
+BOQ/technical quantities, BIM/4D/5D and selected execution/QA/CDE functions
+through a server-side adapter.
 
+Production integration is not approved by this audit. Before production:
+validate AGPL/commercial licensing, create coherent OCE database+file backup
+with an actual restore test, pin deployment by digest rather than `latest`,
+qualify required converters/files, finalize non-admin technical identity
+mapping/revocation, and benchmark/resize OCE for real BIM/planning workloads.
+The current VPS remains suitable for bounded qualification/small PoC, not a
+proven production BIM workload.
+
+Canonical detailed evidence and matrix remain in
+[issue #45](https://github.com/Khaey/Dao/issues/45). No D.A.O↔OCE integration
+was implemented and `workspace.dsl` was intentionally unchanged because no
+integration architecture has yet been approved for implementation.
 
 > **Last verified:** 2026-10-06 Europe/Paris (GitHub PR #47 validation; final deployment evidence in issue #44)
 > **Repository:** `Khaey/Dao`
