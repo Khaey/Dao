@@ -1,0 +1,93 @@
+name: DAO OCE synthetic PoC
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/oce-poc.yml'
+      - 'scripts/oce-poc-sync.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/oce-poc.yml'
+      - 'scripts/oce-poc-sync.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dao-oce-synthetic-poc-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate PoC runner
+        run: |
+          python3 -m py_compile scripts/oce-poc-sync.py
+          python3 - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("oce_poc", "scripts/oce-poc-sync.py")
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          assert mod._rows([{"id": 1}]) == [{"id": 1}]
+          assert mod._rows({"items": [{"id": 2}]}) == [{"id": 2}]
+          assert mod._assert_exactly_one([], label="x") is None
+          try:
+              mod._assert_exactly_one([{}, {}], label="x")
+          except RuntimeError:
+              pass
+          else:
+              raise AssertionError("duplicate guard missing")
+          try:
+              mod.Client("https://example.com")
+          except ValueError:
+              pass
+          else:
+              raise AssertionError("external origin accepted")
+          print("OCE_POC_STATIC_TESTS=PASS")
+          PY
+
+  poc:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage PoC runner on VPS
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          source: "scripts/oce-poc-sync.py"
+          target: /opt/dao/ops-incoming/oce-poc-${{ github.run_id }}-${{ github.run_attempt }}
+          timeout: 30s
+          command_timeout: 2m
+
+      - name: Run bounded synthetic PoC
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          timeout: 30s
+          command_timeout: 7m
+          script: |
+            set -euo pipefail
+            poc_dir='/opt/dao/ops-incoming/oce-poc-${{ github.run_id }}-${{ github.run_attempt }}'
+            trap 'rm -rf "$poc_dir"' EXIT
+            poc_script="$poc_dir/scripts/oce-poc-sync.py"
+            test -f "$poc_script"
+            chmod 0700 "$poc_script"
+            "$poc_script"
+
+      - name: Runner cleanup
+        if: always()
+        run: rm -f scripts/oce-poc-sync.py
