@@ -13,6 +13,7 @@ import uuid
 
 BASES = ("http://127.0.0.1:8080", "http://127.0.0.1:8000")
 LOGIN = "/api/v1/users/auth/demo-login/"
+CONVERTERS = "/api/v1/takeoff/converters/"
 FIXED_GETS = {
     "/api/health",
     "/openapi.json",
@@ -20,6 +21,7 @@ FIXED_GETS = {
     "/api/openapi.json",
     "/api/v1/users/me/",
     "/api/v1/projects/",
+    CONVERTERS,
 }
 PROJECT_DETAIL_TEMPLATES = (
     "/api/v1/projects/{project_id}",
@@ -148,7 +150,7 @@ def rows(body):
     if isinstance(body, list):
         return body
     if isinstance(body, dict):
-        for key in ("items", "results", "data", "projects"):
+        for key in ("items", "results", "data", "projects", "converters"):
             if isinstance(body.get(key), list):
                 return body[key]
     return None
@@ -249,6 +251,36 @@ def probe_isolation(client, paths, principals):
         )
 
 
+
+def audit_converters(client, paths, token):
+    """Use OCE's own read-only converter status API; never emit host paths/messages."""
+    if "get" not in paths.get(CONVERTERS, {}):
+        emit("OCE_CONVERTERS_API", outcome="route_absent")
+        return
+    status, body, outcome = client.request(CONVERTERS + "?verify=true", token=token)
+    converter_rows = rows(body) or []
+    safe_rows = []
+    for row in converter_rows[:16]:
+        if not isinstance(row, dict):
+            continue
+        converter_id = row.get("id")
+        version = row.get("version")
+        health = row.get("health")
+        safe_rows.append({
+            "id": converter_id if isinstance(converter_id, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", converter_id) else "unknown",
+            "version": version if isinstance(version, str) and len(version) <= 40 else None,
+            "installed": row.get("installed") if isinstance(row.get("installed"), bool) else None,
+            "health": health if isinstance(health, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", health) else None,
+        })
+    emit(
+        "OCE_CONVERTERS_API",
+        status=status,
+        outcome=outcome,
+        verify_requested=True,
+        count=len(safe_rows),
+        converters=safe_rows,
+    )
+
 def run():
     client = None
     for base in BASES:
@@ -338,6 +370,8 @@ def run():
             audit_requests_read_only=True,
         )
         _, projects = read(client, "projects", "/api/v1/projects/?limit=100", token, account)
+        if account == "manager":
+            audit_converters(client, paths, token)
         ids = project_ids(projects)
         principals[account] = {"token": token, "project_ids": ids}
 
