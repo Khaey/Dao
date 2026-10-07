@@ -1,5 +1,23 @@
 # D.A.O — Next Steps
 
+## Active OPT — continue issue #45 from audit evidence
+
+Read the latest [issue #45 record](https://github.com/Khaey/Dao/issues/45)
+and actual main before any further execution. Audit #1 (`37554348424`) already
+confirmed host resources and public OCE health; do not recreate that channel.
+Branch `chore/oce-audit-auth-reads` adds a fixed loopback-only API reader and
+removes local credential discovery. After exact-head green CI and merge,
+observe the automatically triggered `DAO OCE read-only audit` once and report
+its sanitized evidence in #45. A successful workflow means the audit ran;
+individual denied/unavailable checks must remain explicit blockers.
+
+If demo login is disabled, do not enable it or try other credentials. If
+Docker remains denied, do not add Docker-group membership or generic sudo.
+Record the missing bounded host inventory capability and need for controlled
+non-admin tenant fixtures; do not claim isolation from one accessible list.
+No imports, calculations, upgrades, reset, business writes or D.A.O–OCE wiring.
+
+
 > Verify path, branch, HEAD, remote SHA and working tree before every resumed
 > phase. Resume from the last published checkpoint, never from an older checkout.
 

@@ -1,5 +1,28 @@
 # D.A.O — Current State
 
+## OPT OCE audit continuation — issue #45 (2026-10-07 Europe/Paris)
+
+Base: `23a5c12266fa8469b5c8fb9af7f141a34ecce4e6` (PR #48).
+OCE audit run #1 (`37554348424`) completed on the real VPS: 2 vCPU,
+3819 MiB RAM, 17.4 GiB root disk free, OCE 17.7.0 healthy, 192/192 modules.
+Docker access is denied/unavailable for the existing `dao` SSH account.
+
+Branch `chore/oce-audit-auth-reads` continues that audit only: bounded local
+OpenAPI redirects, documented non-admin demo login and allowlisted GETs for
+projects/WBS/planning/BOQ/BIM/5D/QA/CDE. Tokens remain in memory; no credential
+file/environment extraction or password guessing. Demo roles are not read-only
+principals; only this audit's requests are constrained. Unknown/admin roles
+stop module reads. Cross-tenant isolation, actual IFC/4D/5D calculations,
+SSO, image/digest, converters and backup restoration remain unproven.
+
+Eight targeted local tests pass for redirect boundaries, method/identity
+allowlists, response caps, safe output and admin-role refusal; shell syntax
+passes. PR/main CI and the next live audit are pending at this source checkpoint.
+Final SHA/run/evidence are recorded in [issue #45](https://github.com/Khaey/Dao/issues/45),
+without repeatedly committing a moving main SHA. No OCE integration decision,
+product/Auth/RLS/migration or host privilege change.
+
+
 > **Last verified:** 2026-10-06 Europe/Paris (GitHub PR #47 validation; final deployment evidence in issue #44)
 > **Repository:** `Khaey/Dao`
 
