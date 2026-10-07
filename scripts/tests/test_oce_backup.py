@@ -153,6 +153,23 @@ class ArchiveTests(unittest.TestCase):
                 b.restore_archive(root / 'ok.tar', target, manifest)
 
 
+class SystemdTriggerTests(unittest.TestCase):
+    def test_reset_failed_is_skipped_for_clean_inactive_unit(self):
+        probe = subprocess.CompletedProcess([], 3, stdout='inactive\n', stderr='')
+        with patch.object(b.subprocess, 'run', return_value=probe) as systemctl, patch.object(b, 'run') as reset:
+            b.reset_failed_if_needed()
+        systemctl.assert_called_once_with(['/usr/bin/systemctl', 'is-failed', b.UNIT], capture_output=True,
+                                          text=True, timeout=5)
+        reset.assert_not_called()
+
+    def test_reset_failed_runs_only_for_failed_unit(self):
+        probe = subprocess.CompletedProcess([], 0, stdout='failed\n', stderr='')
+        with patch.object(b.subprocess, 'run', return_value=probe), patch.object(b, 'run') as reset:
+            b.reset_failed_if_needed()
+        reset.assert_called_once_with(['/usr/bin/systemctl', 'reset-failed', b.UNIT])
+
+
+
 class RecoveryTests(unittest.TestCase):
     def test_database_readiness_failure_still_attempts_app_start(self):
         found = b.topology(fixture())
