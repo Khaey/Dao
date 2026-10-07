@@ -54,6 +54,7 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | env-sync | Manual recovery operation; normal main deploys now run the same three-key sync automatically before release activation | One-time admin helper installation plus Resend secrets |
 | log-summary | Last hour priority counts, at most 200 journal entries; no message bodies | One-time admin helper installation |
 | oce-audit | Fixed read-only OCE container/image/converter/backup metadata; no env values, file contents or arbitrary Docker command | Reinstall reviewed admin helper once as root after this operation is added |
+| oce-integration-inventory | Fixed OCE DB/Compose/storage/network metadata for #58; anonymous peers and no credential/path values | Reinstall reviewed admin helper once as root; available in DAO DEV operations on main |
 
 Example with a credential authorized for Actions dispatch:
 
@@ -76,6 +77,12 @@ leave the private payload under `/opt/dao/ops-incoming/<run>-<attempt>`; remove
 that exact private file during recovery before repeating a sync.
 
 ### Environment administration setup
+
+The OCE V1 inventory and the approved gateway qualification gates are documented
+in [OCE integration operations](oce-integration-operations.md). The inventory
+does not provision the gateway or perform a backup/pin/restore. The older
+`oce-audit` operation is invoked by the separate OCE audit workflow, not the
+DEV operations dropdown; completed audit #45 must not be repeated.
 
 The initial root bootstrap is complete. When a reviewed helper release adds a new fixed operation (for example `oce-audit`), rerun
 `bash ops/install-dev-admin.sh` once as root from that exact reviewed main release; the installer only replaces the root-owned helper and its fixed sudoers allowlist, without changing environment values or service state. The operator originally ran the same installer and confirmed:
