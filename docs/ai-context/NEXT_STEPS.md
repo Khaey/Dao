@@ -2,7 +2,7 @@
 
 ## Active DEV — finish #64 delivery
 
-Complete exact-head PR CI including real independent-session races and all 48 desktop/mobile E2E; merge only green. Apply only the single missing atomic DEV migration once, verify main/deploy and controlled DEV smoke, then record SHA/runs/migrations and close #64. No OCE call, contract implementation or separate #65/#66/#67 execution. See [back-office V2](../backoffice-v2.md).
+Read live #64 and PR #68 first. CI #318 already passed real independent-session races, schema/reset, backend and builds; its remaining failure was FULL E2E (38/48). Confirm the targeted accessibility/interaction correction on the automatic candidate CI, including all 48 desktop/mobile E2E; merge only green. Apply only the single missing atomic DEV migration once, verify main/deploy and controlled DEV smoke, then record SHA/runs/migrations and close #64. No OCE call, contract implementation or separate #65/#66/#67 execution. See [back-office V2](../backoffice-v2.md).
 
 ## Active OPT — continue #58 through its host prerequisite
 
