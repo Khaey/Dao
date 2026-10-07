@@ -86,7 +86,9 @@ serverless nécessiterait un scheduler dédié. Il ne démarre pas pendant le bu
 et n’utilise aucune nouvelle clé d’environnement.
 
 Les invitations staff utilisent Supabase Auth, son email standard et une activation
-par le client Supabase. Le retour au site root déjà autorisé route le fragment
+par le client Supabase. Le fragment implicit de l’invitation est consommé par
+`auth.setSession`, puis supprimé de l’URL avant de vérifier `auth.getUser` et
+les rôles ; le client SSR partagé reste en PKCE. Le retour au site root déjà autorisé route le fragment
 invite vers l’écran de choix du mot de passe. La préparation/finalisation est une
 saga durable : une identité Auth créée après un échec temporaire est retrouvée
 par email authoritative lors du retry. Aucun mot de passe n’est stocké par DAO.
