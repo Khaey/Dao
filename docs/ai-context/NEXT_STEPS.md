@@ -1,5 +1,27 @@
 # D.A.O — Next Steps
 
+## OPT #58 — finish backup validation, then operator maintenance window
+
+The root inventory helper is installed and the host preflight is complete.
+Do not request either again or rerun audit #45 / PoC #54. The owned branch
+`chore/oce-v1-host-preflight` contains the coherent backup/restore operation.
+
+1. Observe normal PR CI and the new disposable Docker backup/restore job.
+   Reconcile actual main and open DEV ownership, then merge the validated OPT
+   change within existing authorization and verify its main CI/deploy.
+2. Give the operator the exact reviewed deployed release installer and
+   `dao-oce-backup plan`. The separate `start` command explicitly starts a
+   temporary OCE outage; [the runbook](../oce-backup-restore.md) defines recovery,
+   scope and safe status evidence. No production restore is exposed.
+3. After successful real backup/isolated restore, continue root-controlled
+   runtime configuration and immutable pin, followed by the approved private
+   gateway. Complete writer census, application recovery, identity rotation,
+   denied operations/mapping isolation and direct-call bypass qualification.
+
+Current exact publication/CI/operator evidence is in [#58](https://github.com/Khaey/Dao/issues/58).
+Preserve D.A.O product/Auth/RLS and DEV PR #68. There is no READY DEV handoff.
+The older installation/diagnostic requests below are superseded.
+
 ## OPT #58 — active operator diagnostic checkpoint
 
 The helper installation requested below has now succeeded. The two Compose

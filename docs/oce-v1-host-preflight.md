@@ -1,9 +1,10 @@
 # OCE V1 host preflight — operator checkpoint
 
 This is a read-only diagnostic, not a backup, installer or deployment. It is
-prepared on `chore/oce-v1-host-preflight` for issue #58; it has not been merged
-or qualified against the VPS. Six local boundary/redaction tests pass. No
-extra CI is dispatched for this pending operator diagnostic.
+prepared on `chore/oce-v1-host-preflight` for issue #58. The operator executed
+commit `8a3a7857fbcd649ad1fb34cf29a7450b29e57842` successfully on the VPS on
+2026-10-07 at 21:57 Europe/Paris. Six local boundary/redaction tests pass.
+Do not repeat this completed diagnostic without a relevant topology change.
 
 ## Confirmed by the operator, 2026-10-07 Europe/Paris
 
@@ -22,6 +23,14 @@ failure. Do not recursively chown/chmod this existing checkout or restart OCE
 to clear a diagnostic flag.
 
 ## Run the reviewed diagnostic
+
+Completed result: exactly `app` and `postgres`, PostgreSQL 16, local named
+volumes at `/data` and `/var/lib/postgresql/data`, no extra Compose service,
+no database published port, no entrypoint/command override. Live volume
+allocation was 312020992 + 280879104 bytes; free space 18611904512 bytes.
+The `.env` exists; its values were not printed. Both services were running.
+`compose_version: other` is a redaction category, not a Compose failure.
+The next step is the [cold backup and isolated restore](oce-backup-restore.md).
 
 Download `ops/oce-v1-preflight.py` from the immutable commit linked in #58 and
 run it with `python3` as **ubuntu**, not through `sudo python3`. Root invocation
@@ -46,11 +55,9 @@ unavailable, never assumed to be empty. Compose errors are reported without
 their bodies. Named-volume sizes are live estimates, not a consistent snapshot
 or a sufficient capacity guarantee for a backup/restore operation.
 
-Return the emitted JSON in the current Work conversation. Do not send full
-Compose, environment or Docker inspect output. Then continue the topology-
-specific backup/restore and runtime custody/pin implementation on this owned
-branch, reconciling current main first. Finish a coherent PR with all ordinary
-CI gates before merging/deploying any new host operations.
+The emitted JSON has been received. Do not send full Compose, environment or
+Docker inspect output. Runtime custody/pin still follows a qualified backup;
+the new host operation must pass its PR/CI/merge cycle before root installation.
 
 Gateway implementation, native editor credential isolation, revocation/rotation,
 mapping checks and direct-call bypass tests remain incomplete. The approved
