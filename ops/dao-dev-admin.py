@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,159 @@ import tempfile
 ENV = Path('/etc/dao/dao-dev.env')
 BACKUP = Path('/etc/dao/dao-dev.env.previous')
 ALLOWED = {'RESEND_API_KEY', 'DAO_EMAIL_FROM', 'DAO_PUBLIC_URL'}
+
+
+def _run_safe(argv, timeout=15):
+    return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=True).stdout
+
+
+def _select_oce_container(rows):
+    """Pick the OCE API container from already-sanitized docker ps rows."""
+    for row in rows:
+        haystack = ' '.join(str(row.get(key, '')) for key in ('Image', 'Names')).lower()
+        if 'openconstruction' in haystack or 'openestimate' in haystack:
+            return row
+    for row in rows:
+        if '8080' in str(row.get('Ports', '')):
+            return row
+    return None
+
+
+def _safe_container_meta(inspected):
+    config = inspected.get('Config') or {}
+    mounts = inspected.get('Mounts') or []
+    env_keys = []
+    for value in config.get('Env') or []:
+        key = value.split('=', 1)[0] if '=' in value else ''
+        if any(token in key for token in ('DEMO_', 'JWT_', 'DATABASE_', 'S3_', 'REDIS_', 'APP_ENV', 'SEED_DEMO')):
+            env_keys.append(key)
+    return {
+        'name': str(inspected.get('Name') or '').lstrip('/')[:128],
+        'image_ref': str(config.get('Image') or '')[:300],
+        'image_id': str(inspected.get('Image') or '')[:160],
+        'env_keys': sorted(set(env_keys)),
+        'mounts': [
+            {
+                'type': str(item.get('Type') or '')[:32],
+                'destination': str(item.get('Destination') or '')[:256],
+                'named_volume': bool(item.get('Name')),
+            }
+            for item in mounts[:32]
+        ],
+    }
+
+
+def oce_audit():
+    docker = shutil.which('docker')
+    if not docker:
+        print(json.dumps({'oce_root_audit': 'docker_missing'}))
+        return
+
+    rows = []
+    for line in _run_safe([docker, 'ps', '--format', '{{json .}}']).splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(row, dict):
+            rows.append(row)
+    candidate = _select_oce_container(rows)
+    if not candidate:
+        print(json.dumps({'oce_root_audit': 'container_not_found', 'running_containers': len(rows)}))
+        return
+
+    container_id = str(candidate.get('ID') or '')
+    if not re.fullmatch(r'[A-Fa-f0-9]{8,64}', container_id):
+        raise ValueError('invalid container id')
+    inspected_rows = json.loads(_run_safe([docker, 'inspect', container_id]))
+    if not isinstance(inspected_rows, list) or len(inspected_rows) != 1 or not isinstance(inspected_rows[0], dict):
+        raise ValueError('unexpected docker inspect shape')
+    inspected = inspected_rows[0]
+    meta = _safe_container_meta(inspected)
+
+    image_id = meta['image_id']
+    digests = []
+    if image_id:
+        image_rows = json.loads(_run_safe([docker, 'image', 'inspect', image_id]))
+        if isinstance(image_rows, list) and len(image_rows) == 1 and isinstance(image_rows[0], dict):
+            for digest in image_rows[0].get('RepoDigests') or []:
+                if isinstance(digest, str) and len(digest) <= 500:
+                    digests.append(digest)
+    meta['repo_digests'] = sorted(set(digests))
+
+    probe = (
+        "import importlib,json,shutil;"
+        "r={};"
+        "[r.__setitem__(x,bool(shutil.which(x))) for x in ('IfcConvert','ifcconvert','ffmpeg','libreoffice')];"
+        "mods={};"
+        "exec(\"\\nfor x in ('ifcopenshell','pymupdf','fitz','lancedb','sentence_transformers'):\\n"
+        " try:\\n  m=importlib.import_module(x); mods[x]=str(getattr(m,'__version__',True))[:80]\\n"
+        " except Exception:\\n  mods[x]=False\");"
+        "r['python_modules']=mods;print(json.dumps(r,sort_keys=True))"
+    )
+    try:
+        converter_raw = _run_safe([docker, 'exec', container_id, 'python3', '-c', probe], timeout=20)
+        converters = json.loads(converter_raw)
+        if not isinstance(converters, dict):
+            converters = {'status': 'unexpected_shape'}
+    except Exception:
+        converters = {'status': 'unavailable'}
+
+    timer_output = _run_safe(['/usr/bin/systemctl', 'list-timers', '--all', '--no-legend', '--plain'])
+    timer_count = sum(
+        1 for line in timer_output.splitlines()
+        if re.search(r'backup|openconstruction|openestimate|oce', line, re.I)
+    )
+
+    backup_times = []
+    backup_sizes = []
+    needles = ('openconstruction', 'openestimate', 'oce')
+    for root in (Path('/var/backups'), Path('/opt'), Path('/srv'), Path('/root')):
+        if not root.exists():
+            continue
+        for current, dirs, files in os.walk(root):
+            try:
+                depth = len(Path(current).relative_to(root).parts)
+            except ValueError:
+                continue
+            if depth >= 5:
+                dirs[:] = []
+            lowered_dir = str(current).lower()
+            for name in files:
+                lowered = name.lower()
+                if not (('backup' in lowered or 'dump' in lowered or 'snapshot' in lowered)
+                        and any(n in lowered or n in lowered_dir for n in needles)):
+                    continue
+                try:
+                    stat = (Path(current) / name).stat()
+                except OSError:
+                    continue
+                backup_times.append(stat.st_mtime)
+                backup_sizes.append(stat.st_size)
+                if len(backup_times) >= 200:
+                    break
+            if len(backup_times) >= 200:
+                break
+        if len(backup_times) >= 200:
+            break
+
+    latest_age_hours = None
+    if backup_times:
+        import time
+        latest_age_hours = round(max(0.0, time.time() - max(backup_times)) / 3600.0, 1)
+
+    print(json.dumps({
+        'oce_root_audit': 'ok',
+        'container': meta,
+        'converters': converters,
+        'backup': {
+            'timer_matches': timer_count,
+            'file_matches': len(backup_times),
+            'latest_age_hours': latest_age_hours,
+            'matched_total_bytes': sum(backup_sizes),
+            'restore_tested': False,
+        },
+    }, sort_keys=True))
 
 
 def rewrite_env(original, values):
@@ -94,6 +248,8 @@ def main():
             raise ValueError('unsafe environment backup path')
         atomic_write(ENV, BACKUP.read_text())
         print('ENV_RESTORE complete')
+    elif operation == 'oce-audit':
+        oce_audit()
     elif operation == 'log-summary':
         p = subprocess.run(['/usr/bin/journalctl', '-u', 'dao-dev.service', '--since', '1 hour ago', '-n', '200', '-o', 'json', '--no-pager'], capture_output=True, text=True, timeout=15, check=True)
         counts = {}

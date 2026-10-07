@@ -51,6 +51,16 @@ else
 fi
 echo "DOCKER_SERVICE state=$docker_state"
 
+if test -x /usr/local/sbin/dao-dev-admin; then
+  if sudo -n /usr/local/sbin/dao-dev-admin oce-audit 2>/dev/null; then
+    echo 'OCE_ROOT_AUDIT status=ok'
+  else
+    echo 'OCE_ROOT_AUDIT status=helper_unavailable_or_not_authorized'
+  fi
+else
+  echo 'OCE_ROOT_AUDIT status=helper_not_installed'
+fi
+
 python3 - <<'PY'
 import json, os, pathlib, re
 
