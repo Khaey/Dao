@@ -148,6 +148,7 @@ jobs:
     name: Fresh schema, real Supabase integration, and FULL E2E
     runs-on: ubuntu-latest
     env:
+      DAO_PUBLIC_URL: http://127.0.0.1:3000
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
       DAO_E2E_STATE_DIR: /tmp/dao-e2e-${{ github.run_id }}-${{ github.run_attempt }}
@@ -283,14 +284,14 @@ jobs:
           wait "$build_pid" || status=1
           wait "$browser_pid" || status=1
           exit "$status"
-      - name: Discover the expected 40 Playwright tests
+      - name: Discover the expected 48 Playwright tests
         working-directory: dao-frontend
         shell: bash
         run: |
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright test discovery" bash -euo pipefail -c '
             npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
           '
-          grep -Eq 'Total: 40 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
+          grep -Eq 'Total: 48 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with configurable workers
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, configured workers)" npm run test:e2e -- --reporter=line

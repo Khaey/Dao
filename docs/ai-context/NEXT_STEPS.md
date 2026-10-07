@@ -1,5 +1,9 @@
 # D.A.O — Next Steps
 
+## Active DEV — finish #64 delivery
+
+Read live #64 and PR #68 first. CI #318 already passed real independent-session races, schema/reset, backend and builds; its remaining failure was FULL E2E (38/48). Confirm the targeted accessibility/interaction correction on the automatic candidate CI, including all 48 desktop/mobile E2E; merge only green. Apply only the single missing atomic DEV migration once, verify main/deploy and controlled DEV smoke, then record SHA/runs/migrations and close #64. No OCE call, contract implementation or separate #65/#66/#67 execution. See [back-office V2](../backoffice-v2.md).
+
 ## OPT #58 — finish backup validation, then operator maintenance window
 
 The root inventory helper is installed and the host preflight is complete.
@@ -36,7 +40,6 @@ runtime configuration/pin work on this owned branch. Finish a coherent PR and
 normal CI/merge cycle for the implementation. The standalone operator diagnostic
 is locally tested but has not yet been run on the VPS or merged. Preserve
 D.A.O product/Auth/RLS and the existing OCE checkout; no READY DEV handoff.
-
 
 ## Active OPT — continue #58 through its host prerequisite
 

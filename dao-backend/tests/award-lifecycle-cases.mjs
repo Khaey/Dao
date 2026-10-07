@@ -14,6 +14,7 @@ export async function awardLifecycleCases(db, check) {
   const denied=async(role,name,args,code)=>assert.rejects(rpc(role,name,args),e=>e.code===code);
   async function fixture(){
     const p=await insert('projects',{client_id:actors.client.id});
+    await insert('review_assignments',{project_id:p.id,reviewer_id:actors.staff.id,assigned_at:new Date().toISOString()});
     const v=await insert('project_versions',{project_id:p.id,version_no:1,title:'fixture',description:'safe',governorate_id:gov,status:'approved'});
     const pub=await insert('publications',{project_id:p.id,project_version_id:v.id,visibility:'public',safe_title:'safe',safe_description:'safe',governorate_id:gov,project_type:'renovation',published_at:new Date().toISOString()});const lots=[];
     for(let n=0;n<2;n++){const lot=await insert('project_requests',{project_id:p.id});const rv=await insert('project_request_versions',{project_id:p.id,request_id:lot.id,version_no:1,title:'Lot '+n,scope:'safe',trade_id:trade});const pr=await insert('publication_requests',{publication_id:pub.id,request_version_id:rv.id,safe_title:'Lot '+n,safe_scope:'safe',trade_id:trade});lots.push({id:lot.id,pr:pr.id});}

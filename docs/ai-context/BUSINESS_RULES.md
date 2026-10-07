@@ -1,5 +1,9 @@
 # D.A.O — Business Rules
 
+## Back-office V2 (#64)
+
+The current assigned-review/version/sublot/withdrawal/assisted-award and notification boundaries are documented in [backoffice-v2.md](../backoffice-v2.md). Older V1 read-only descriptions below are historical. No OCE or contractual runtime is introduced.
+
 > Stable business constraints and invariants. Changes here require explicit product/architecture review.
 
 ## 1. Project and request model

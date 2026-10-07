@@ -1,5 +1,9 @@
 # D.A.O — Decisions
 
+## D-042 — Back-office V2 authority and durable notifications
+
+Issue #64 approves Option A: assigned staff prepares immutable new versions and approves directly. Technical sub-lots remain inside the commercial lot, with stable IDs and published scope snapshots; future OCE mapping is documentation only. Review claim is atomic, Admin reassigns with reason, suspension applies to existing JWTs, and the last ACTIVE Admin is protected. Published-lot withdrawal preserves offers, serializes project-first against submission/award and republication creates a new identity. Transactional outbox delivery cannot rollback a business mutation. See [contract](../backoffice-v2.md).
+
 > Decisions already made. Agents should not reopen them without new evidence or an explicit product request.
 
 ## D-041 — OCE V1 uses an approved bounded private gateway

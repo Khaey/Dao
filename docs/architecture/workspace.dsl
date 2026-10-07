@@ -30,17 +30,20 @@ model {
       compare = component "Comparaison offres P2" "Comparaison client par lot de la version soumise actuelle de chaque offre." "Next.js / RLS"
       awards = component "Attribution" "Attribution par lot ou package indivisible, fermeture aux offres, résultats confidentiels, annulation motivée et réattribution auditées." "Supabase RPC"
 
-      manager = component "Back-office Gestionnaire V1" "Landing interne, files de revue, publications et supervision professionnelle." "Next.js"
-      managerReview = component "File Revues" "Dossiers client_review/dao_review et décisions staff." "Next.js"
+      manager = component "Back-office Gestionnaire V2" "Pilotage, affectation de revue, annuaires, historique et actions staff." "Next.js"
+      notificationWorker = component "Emails de suivi après commit" "Outbox durable, leases, idempotence et retries bornés." "Next.js instrumentation / Resend"
+      technicalSubLots = component "Sous-lots techniques" "Identités stables, versions et snapshot publié ; aucun award autonome." "PostgreSQL / RPC"
+      managerClients = component "Clients et historique" "Contacts, collaborations, états et audit append-only autorisé." "Next.js / RPC / RLS"
+      managerReview = component "File Revues" "Claim atomique, versions internes et décisions du gestionnaire affecté." "Next.js"
       managerPublications = component "File Publications" "Projets approuvés prêts à publier et registre des publications." "Next.js"
-      managerProfessionals = component "Supervision professionnels" "Lecture des profils artisans/entreprises." "Next.js / RLS"
+      managerProfessionals = component "Supervision professionnels" "Vérification, refus et administration des profils professionnels." "Next.js / RLS"
 
       api = component "API serveur" "Endpoints projects, publications, bids, awards, documents, profile, invitations et DAO." "Next.js Route Handlers"
       services = component "Services métier" "Project/Document/Invitation/Email services et validation serveur." "TypeScript"
       rpc = component "Façades RPC métier" "Commandes publiques contrôlées déléguant aux fonctions privées." "PostgreSQL RPC"
       email = component "Email invitation" "Authorization preflight, hash check, idempotence, HTML/text." "Resend transport"
 
-      staffAdmin = component "Équipe D.A.O & permissions" "Utilisateurs internes, droits fins, activation/révocation et audit." "Futur" "Planned"
+      staffAdmin = component "Équipe D.A.O & permissions" "Invitation Auth standard, rôles cumulables, suspension et dernier Admin actif." "Next.js / RPC / Auth"
       settings = component "Paramétrage avancé" "Configuration clients/artisans/workflows/pays; hors V1." "Futur" "Planned"
       contracts = component "Contrats & exécution" "Contrat, jalons, versements, réception, réserves, avenants, résiliation, garantie." "P2/P3 futur" "Planned"
       subcontract = component "Sous-traitance entreprise" "Entreprise titulaire pouvant publier certains lots aux sous-traitants." "P3 futur" "Planned"
@@ -96,7 +99,7 @@ model {
   reviewer -> dao.web.publications "Supervise les publications"
   reviewer -> dao.web.managerProfessionals "Consulte les professionnels"
   admin -> dao.web.manager "Pilote avec droits admin"
-  admin -> dao.web.staffAdmin "Gère l'équipe" "Futur"
+  admin -> dao.web.staffAdmin "Gère comptes et rôles"
   admin -> dao.web.settings "Configure la plateforme" "Futur"
 
   dao.web.projects -> dao.web.lots "Structure en lots réels"
@@ -137,6 +140,14 @@ model {
   dao.web.services -> supabaseStorage "Émet signed URL après contrôle"
   dao.web.services -> dao.web.email "Envoie une invitation"
   dao.web.email -> resend "POST transactionnel"
+  dao.web.rpc -> dao.web.notificationWorker "Enregistre un événement avec la mutation"
+  dao.web.notificationWorker -> supabaseDb "Claim et complète les leases"
+  dao.web.notificationWorker -> resend "Livre après commit avec clé stable"
+  dao.web.staffAdmin -> supabaseAuth "Invite après préflight Admin"
+  dao.web.staffAdmin -> dao.web.api "Commande comptes et rôles"
+  dao.web.lots -> dao.web.technicalSubLots "Décompose le périmètre versionné"
+  dao.web.technicalSubLots -> dao.web.publications "Fige la décomposition dans le snapshot"
+  dao.web.manager -> dao.web.managerClients "Expose clients et historique"
 
   github -> githubDevEnv "Lit les variables/secrets protégés du déploiement DEV"
   githubDevEnv -> vps "Alimente env-sync via un payload éphémère hors artifact"
@@ -169,7 +180,7 @@ views {
     include dao.web.teamCreation dao.web.invitations dao.web.collaboration
     include dao.web.review dao.web.publications dao.web.marketplace
     include dao.web.bids dao.web.compare dao.web.awards
-    include dao.web.manager dao.web.managerReview dao.web.managerPublications dao.web.managerProfessionals
+    include dao.web.manager dao.web.managerReview dao.web.managerPublications dao.web.managerProfessionals dao.web.managerClients dao.web.notificationWorker dao.web.technicalSubLots
     include dao.web.api dao.web.services dao.web.rpc dao.web.email
     include supabaseAuth supabaseDb supabaseStorage supabaseRls resend
     autoLayout lr
@@ -281,14 +292,14 @@ views {
     autoLayout lr
   }
 
-  dynamic dao.web "ManagerFlow" "Back-office Gestionnaire V1." {
+  dynamic dao.web "ManagerFlow" "Back-office Gestionnaire V2." {
     reviewer -> dao.web.manager "Ouvre le pilotage"
     dao.web.manager -> dao.web.managerReview "Accède aux revues"
     reviewer -> dao.web.review "Traite les dossiers"
     dao.web.review -> dao.web.api "Soumet la décision"
     dao.web.api -> dao.web.services "Valide et orchestre"
-    dao.web.services -> dao.web.rpc "Charge/exécute via staff()"
-    dao.web.rpc -> supabaseRls "Autorise le périmètre staff"
+    dao.web.services -> dao.web.rpc "Claim/versionne la revue affectée"
+    dao.web.rpc -> supabaseRls "Autorise Admin ou gestionnaire affecté"
     reviewer -> dao.web.managerPublications "Supervise les publications"
     reviewer -> dao.web.managerProfessionals "Consulte les professionnels"
     autoLayout lr

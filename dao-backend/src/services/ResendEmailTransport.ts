@@ -26,11 +26,16 @@ export function emailConfiguration(env: Record<string, string | undefined> = pro
   const match = configuredFrom.match(/^(?:D\.A\.O\s*<([^<>\s]+)>|([^<>\s]+))$/);
   const address = match?.[1] || match?.[2];
   if (!address || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) configurationError();
+  return { apiKey, from: `D.A.O <${address}>`, publicUrl: publicSiteUrl(env) };
+}
+
+export function publicSiteUrl(env: Record<string,string|undefined> = process.env) {
+  if (!env.DAO_PUBLIC_URL) configurationError();
   let url: URL;
   try { url = new URL(env.DAO_PUBLIC_URL); } catch { configurationError(); }
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) || url.username || url.password || url.search || url.hash || url.pathname !== '/') configurationError();
-  return { apiKey, from: `D.A.O <${address}>`, publicUrl: url.origin };
+  return url.origin;
 }
 
 function cleanText(value: string) {

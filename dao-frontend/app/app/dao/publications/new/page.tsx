@@ -1,4 +1,5 @@
 'use client';
+import { readBackoffice } from '../../../../../lib/backoffice';
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -21,9 +22,11 @@ function NewPublication() {
   useEffect(() => {
     if (!projectId) return;
     void (async () => {
+      const scope=await readBackoffice('project',{project_id:projectId}).catch(()=>null);
+      if(!scope?.rows.can_manage||scope.rows.version?.status!=='approved'){setError('La dernière version doit être approuvée et affectée à votre revue.');return;}
       const supabase = supabaseBrowser();
       const [projectVersionResult, requestResult, contractorResult] = await Promise.all([
-        supabase.from('project_versions').select('id').eq('project_id', projectId).eq('status', 'approved').order('version_no', { ascending: false }).limit(1),
+        supabase.from('project_versions').select('id,status').eq('project_id', projectId).order('version_no', { ascending: false }).limit(1),
         supabase.from('project_requests').select('id,contractor_member_id').eq('project_id', projectId).eq('status', 'open'),
         supabase.from('contractor_profiles').select('id,business_name,public_trade_name,contractor_type,verification_status').eq('verification_status', 'verified').order('business_name'),
       ]);
@@ -42,7 +45,15 @@ function NewPublication() {
         return;
       }
       const activeRequestIds = new Set((requestResult.data ?? []).map(request => request.id));
-      const lots = (snapshots ?? []).filter(snapshot => activeRequestIds.has(snapshot.request_id)).map(snapshot => ({ ...snapshot, id: snapshot.request_id }));
+      const live=await supabase.from('publications').select('id').eq('project_id',projectId).in('status',['published','suspended']);
+      const liveLots=live.data?.length?await supabase.from('publication_requests').select('id,request_version_id').in('publication_id',live.data.map(p=>p.id)):{data:[],error:null};
+      const withdrawn=liveLots.data?.length?await supabase.from('publication_lot_withdrawals').select('publication_request_id').in('publication_request_id',liveLots.data.map(p=>p.id)):{data:[],error:null};
+      const removed=new Set(withdrawn.data?.map(w=>w.publication_request_id));
+      const liveSnapshots=liveLots.data?.filter(p=>!removed.has(p.id)).map(p=>p.request_version_id)||[];
+      const liveRequests=liveSnapshots.length?await supabase.from('project_request_versions').select('request_id').in('id',liveSnapshots):{data:[],error:null};
+      if(live.error||liveLots.error||withdrawn.error||liveRequests.error){setError('Publications actives indisponibles.');return;}
+      const alreadyPublished=new Set(liveRequests.data?.map(r=>r.request_id));
+      const lots = (snapshots ?? []).filter(snapshot => activeRequestIds.has(snapshot.request_id)&&!alreadyPublished.has(snapshot.request_id)).map(snapshot => ({ ...snapshot, id: snapshot.request_id }));
       setRows(lots); setSelected(lots.filter(item => !(requestResult.data ?? []).find(request => request.id === item.id)?.contractor_member_id).map(item => item.id)); setContractors(contractorResult.data ?? []);
     })();
   }, [projectId]);

@@ -1,5 +1,13 @@
 # D.A.O — Current State
 
+## Active DEV — Back-office V2 #64 (2026-10-07 UTC)
+
+Reprise E2E : CI #318 sur `fe39ce141047552f22ad311fa5a6c279971c94c9` valide backend, frontend, schéma/replay et intégration Supabase réelle ; Architecture #27 passe. FULL E2E : 38/48, cinq scénarios en échec sur les deux viewports. Correctif ciblé : noms accessibles stables des champs staff, navigation Revues exacte et clic de rôle suivi de confirmation (état persisté vérifié). Aucun changement SQL/backend ni nouvelle migration. La preuve de livraison courante (HEAD validé, 48/48, SHA fusionné, ledger DEV et smoke) est tenue dans [#64](https://github.com/Khaey/Dao/issues/64) ; lire son état réel avant de reprendre. Ne pas rejouer les validations réussies pour des entrées inchangées.
+
+CI #320 reached 46/48. Remaining fixes invalidate stale directory rows after confirmed mutation and scope the business alert outside the Next.js route announcer. The branch is reconciled with main `8343756b73723c6143cf5a8f9a48d92cb76811f6`, preserving all OPT additions.
+
+Owned branch `feat/backoffice-v2`, initial base main `6741f60f0401cf0846db58739c953883eb5d0de5` (main CI/deploy #316 green). Implements assigned review/Option A versions, technical sub-lots, professional/client/admin directories, motivated lot withdrawal, assisted P2.1, append-only history and transactional outbox. See [operational contract](../backoffice-v2.md). Checkpoint is not yet a merged/deployed claim. Existing OPT #58 and PRs #34/#46 untouched; #65/#66/#67 stay absorbed. Exact-head CI, migration and final smoke evidence belong to #64.
+
 ## OPT #58 — host preflight received; bounded backup/restore prepared (2026-10-07)
 
 Verified base remains main `6741f60f0401cf0846db58739c953883eb5d0de5`,

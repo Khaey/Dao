@@ -1,3 +1,4 @@
+import { createBackofficeHandler, authAdministration } from './backofficeHandler.js';
 import { createClient } from '@supabase/supabase-js';
 import { ProjectService, PublicationService, BidService, AwardService, DocumentService, ProfileService, AIService } from '../services/index.js';
 import { createDaoApi } from './nextHandlers.js';
@@ -54,4 +55,9 @@ export function createInvitationEmailApi(request: Request) {
     () => emailConfiguration(),
   );
   return createInvitationEmailHandler(service, resolveActor);
+}
+
+export function createBackofficeApi(request: Request) {
+  const { url, db, resolveActor } = requestScope(request);
+  return createBackofficeHandler(db, resolveActor, () => authAdministration(url, env('DAO_SUPABASE_SECRET_KEY')));
 }

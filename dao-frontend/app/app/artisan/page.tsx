@@ -75,7 +75,7 @@ export default function ArtisanDashboard() {
     const projectIds = publications.map((row) => row.project_id);
     const [lotResult, bidsResult] = await Promise.all([
       ids.length ? supabase.from('publication_requests').select('publication_id,trade_id,safe_title').in('publication_id', ids) : Promise.resolve({ data: [], error: null } as any),
-      projectIds.length ? supabase.from('bids').select('id,project_id').in('project_id', projectIds) : Promise.resolve({ data: [], error: null } as any),
+      projectIds.length ? supabase.from('bids').select('id,project_id,publication_id').in('project_id', projectIds) : Promise.resolve({ data: [], error: null } as any),
     ]);
     const bidIds = (bidsResult.data ?? []).map((row: any) => row.id);
     const versionsResult = bidIds.length ? await supabase.from('bid_versions').select('bid_id,status,version_no').in('bid_id', bidIds).order('version_no', { ascending: false }) : { data: [], error: null } as any;
@@ -84,14 +84,14 @@ export default function ArtisanDashboard() {
     const projectBidMap = new Map<string, string>();
     for (const bid of (bidsResult.data ?? [])) {
       const version = (versionsResult.data ?? []).find((item: any) => item.bid_id === bid.id);
-      if (version) projectBidMap.set(bid.project_id, version.status);
+      if (version) projectBidMap.set(bid.publication_id||bid.project_id, version.status);
     }
     const lotMap = new Map<string, Lot[]>();
     for (const lot of (lotResult.data ?? []) as Lot[]) lotMap.set(lot.publication_id, [...(lotMap.get(lot.publication_id) ?? []), lot]);
     setTrades(tradeResult.data ?? []); setGovernorates(governorateResult.data ?? []);
     setRows(publications.map((row) => {
       const lots = lotMap.get(row.id) ?? [];
-      return { ...row, lots, tradeNames: [...new Set(lots.map((lot) => tradeMap.get(lot.trade_id)).filter(Boolean) as string[])], governorateName: governorateMap.get(row.governorate_id), bidStatus: projectBidMap.get(row.project_id) };
+      return { ...row, lots, tradeNames: [...new Set(lots.map((lot) => tradeMap.get(lot.trade_id)).filter(Boolean) as string[])], governorateName: governorateMap.get(row.governorate_id), bidStatus: projectBidMap.get(row.id)||projectBidMap.get(row.project_id) };
     }));
     setLoading(false);
   }
