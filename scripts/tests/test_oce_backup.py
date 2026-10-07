@@ -170,6 +170,51 @@ class SystemdTriggerTests(unittest.TestCase):
 
 
 
+class RestoreOnlyTests(unittest.TestCase):
+    def test_verify_existing_restore_reuses_backup_without_stopping_live_runtime(self):
+        found = b.topology(fixture())
+        for role in ('app', 'pg'):
+            found[role].update(uid=os.getuid(), gid=os.getgid())
+        state = {'id': 'a' * 32, 'phase': 'failed', 'backup_complete': True, 'restore_verified': False,
+                 'live_resumed': True, 'cleanup_complete': True, 'need_resume': False,
+                 'targets': copy.deepcopy(found), 'archive_hashes': {'app': 'ha', 'pg': 'hp'}}
+        manifests = {'app': {}, 'pg': {}}
+        def save(s, **updates): s.update(updates)
+        def restore(s, m, proof): s.update(restore_verified=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / state['id']
+            folder.mkdir()
+            for role in ('app', 'pg'):
+                path = folder / (role + '.tar')
+                path.write_bytes(role.encode())
+                os.chmod(path, 0o600)
+            with patch.object(b, 'ROOT', root), patch.object(b, 'load_state', return_value=state), \
+                    patch.object(b, 'read_private_json', return_value=manifests), \
+                    patch.object(b, 'file_hash', side_effect=['ha', 'hp']), \
+                    patch.object(b, 'discover', return_value=(found, fixture())), \
+                    patch.object(b, 'db_proof', return_value='16|42|123'), \
+                    patch.object(b, 'isolated_restore', side_effect=restore) as isolated, \
+                    patch.object(b, 'cleanup', side_effect=lambda s: (s.update(cleanup_complete=True) or True)), \
+                    patch.object(b, 'save', side_effect=save), patch('builtins.print'):
+                b.verify_existing_restore()
+        isolated.assert_called_once()
+        self.assertEqual(state['phase'], 'complete')
+        self.assertTrue(state['restore_verified'])
+        self.assertTrue(state['live_resumed'])
+
+    def test_restore_exit_reason_maps_logs_to_fixed_safe_category(self):
+        result = subprocess.CompletedProcess([], 1, stdout=b'', stderr=b'FATAL: could not create lock file: Permission denied')
+        with patch.object(b.subprocess, 'run', return_value=result):
+            self.assertEqual(b.restore_exit_reason('clone'), 'restore database permission')
+
+    def test_restore_only_rejects_unqualified_backup(self):
+        state = {'backup_complete': False, 'live_resumed': True, 'cleanup_complete': True, 'need_resume': False}
+        with patch.object(b, 'load_state', return_value=state):
+            with self.assertRaisesRegex(ValueError, 'backup not eligible'):
+                b.verify_existing_restore()
+
+
 class RecoveryTests(unittest.TestCase):
     def test_database_readiness_failure_still_attempts_app_start(self):
         found = b.topology(fixture())

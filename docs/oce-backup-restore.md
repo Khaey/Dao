@@ -82,6 +82,26 @@ require shutdown and the complete cluster; live tar of a running database is
 not used. Docker's [stop command](https://docs.docker.com/reference/cli/docker/container/stop/)
 can force termination after its grace period, which is explicitly rejected.
 
+## Restore-only re-verification after a qualified backup
+
+If `backup_complete: true`, `live_resumed: true` and `cleanup_complete: true` but
+the isolated restore failed, do not take another outage just to diagnose the
+clone. After the worker is inactive, the reviewed helper can replay only the
+retained archives into fresh disposable clone volumes:
+
+```bash
+sudo -n /usr/local/sbin/dao-oce-backup verify-restore
+```
+
+This mode never stops the live app or PostgreSQL. It revalidates retained
+archive hashes, requires the original runtime identity to be unchanged, checks
+current OCE/database health, recreates only UUID-labelled disposable restore
+volumes, boots the isolated PostgreSQL clone, compares its fixed database proof,
+and removes the clone again. Failure messages are mapped to fixed safe
+categories; raw PostgreSQL logs, credentials and private metadata are not
+printed. A successful replay upgrades the retained job to `phase: complete`
+with all four success flags true.
+
 ## Failure recovery and retained data
 
 `ExecStopPost` runs the same recovery hook after success, failure, service stop
