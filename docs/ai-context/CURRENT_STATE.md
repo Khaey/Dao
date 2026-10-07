@@ -1,5 +1,9 @@
 # D.A.O — Current State
 
+## Active DEV — Back-office V2 #64 (2026-10-07 UTC)
+
+Owned branch `feat/backoffice-v2`, exact base main `6741f60f0401cf0846db58739c953883eb5d0de5` (main CI/deploy #316 green). Implements assigned review/Option A versions, technical sub-lots, professional/client/admin directories, motivated lot withdrawal, assisted P2.1, append-only history and transactional outbox. See [operational contract](../backoffice-v2.md). Checkpoint is not yet a merged/deployed claim. Existing OPT #58 and PRs #34/#46 untouched; #65/#66/#67 stay absorbed. Exact-head CI, migration and final smoke evidence belong to #64.
+
 ## Active OPT — OCE V1 #58 (2026-10-07 Europe/Paris)
 
 Verified implementation base: `b531382495f5e508ba5d37064e5e4970571d450f`;

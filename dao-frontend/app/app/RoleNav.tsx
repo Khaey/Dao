@@ -40,11 +40,16 @@ export default function RoleNav() {
   const active = (href: string) => pathname === href || (!['/app', '/app/dao'].includes(href) && pathname.startsWith(href));
   const links = [
     { href: '/app', label: 'Tableau de bord', icon: LayoutDashboard, show: !staff && (has('client') || has('contractor')) },
-    { href: '/app/dao', label: 'Vue gestionnaire', icon: LayoutDashboard, show: staff },
+    { href: '/app/dao', label: 'Tableau de bord', icon: LayoutDashboard, show: staff },
     { href: '/app/projects', label: 'Mes chantiers', icon: FolderKanban, show: has('client') || has('contractor') },
     { href: '/app/artisan', label: 'DAO disponibles', icon: HardHat, show: has('contractor') },
     { href: '/app/dao/review', label: 'Revues', icon: ShieldCheck, show: staff },
     { href: '/app/dao/publications', label: 'Publications', icon: Megaphone, show: staff },
+    { href: '/app/dao/projects', label: 'Chantiers', icon: FolderKanban, show: staff },
+    { href: '/app/dao/professionals', label: 'Professionnels', icon: HardHat, show: staff },
+    { href: '/app/dao/clients', label: 'Clients', icon: ShieldCheck, show: staff },
+    { href: '/app/dao/history', label: 'Historique', icon: ShieldCheck, show: staff },
+    { href: '/app/dao/users', label: 'Utilisateurs & rôles', icon: ShieldCheck, show: has('dao_admin') },
   ];
 
   if (!ready) return <div className="h-10 w-10 animate-pulse rounded-xl bg-sand" aria-label="Chargement de la navigation" />;

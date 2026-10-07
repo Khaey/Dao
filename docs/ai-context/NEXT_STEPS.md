@@ -1,5 +1,9 @@
 # D.A.O — Next Steps
 
+## Active DEV — finish #64 delivery
+
+Complete exact-head PR CI including real independent-session races and all 48 desktop/mobile E2E; merge only green. Apply only the single missing atomic DEV migration once, verify main/deploy and controlled DEV smoke, then record SHA/runs/migrations and close #64. No OCE call, contract implementation or separate #65/#66/#67 execution. See [back-office V2](../backoffice-v2.md).
+
 ## Active OPT — continue #58 through its host prerequisite
 
 The private bounded gateway is approved in #58. Audit #45 and PoC #54 are

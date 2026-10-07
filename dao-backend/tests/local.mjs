@@ -1,3 +1,4 @@
+import { backofficeCases } from './backoffice-cases.mjs';
 import { awardLifecycleCases } from './award-lifecycle-cases.mjs';
 import {PGlite} from '@electric-sql/pglite';
 import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
@@ -49,10 +50,12 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,47);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,54);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
- await db.exec(readFileSync(new URL('../supabase/migrations/20260926092748_enforce_draft_withdrawal_and_approved_publication.sql',import.meta.url),'utf8'));
+ // Replay the canonical seed, preserving newer command definitions.
+ const migration=readFileSync(new URL('../supabase/migrations/20260926092748_enforce_draft_withdrawal_and_approved_publication.sql',import.meta.url),'utf8');
+ await db.exec(migration.slice(migration.indexOf('insert into public.trades'),migration.indexOf('create or replace function')));
  const rows=(await db.query("select code,name_fr,active,count(*) over(partition by code)::int as copies from public.trades where code in ('general_contractor','plumbing','electrical') order by code")).rows;
  eq(rows.length,3);for(const row of rows){eq(row.active,true);eq(row.copies,1);}
  eq(rows.find(row=>row.code==='general_contractor')?.name_fr,'Entreprise générale');
@@ -216,5 +219,6 @@ await test('quarantined portfolio asset hidden',()=>as('clientB',async()=>eq(awa
 await db.exec(`update public.portfolio_assets set status='approved' where id='${asset}'`);
 await test('approved portfolio asset visible',()=>as('clientB',async()=>eq(await rows('portfolio_assets',asset),1)));
 await awardLifecycleCases(db,test);
+await backofficeCases(db,test);
 writeFileSync(new URL('./local-results.json',import.meta.url),JSON.stringify({engine:'PGlite PostgreSQL WASM',auth:'Simulated SQL sub claims; NO real JWT, NO Supabase Auth or HTTP gateway',concurrency:'NOT tested with independent sessions',fixtures:'Synthetic local only, not verified geographic seed',results,passed:results.filter(x=>x.result==='PASS').length,failed:fails},null,2));
 console.log(JSON.stringify({passed:results.length-fails,failed:fails,failures:results.filter(x=>x.result==='FAIL')}));await db.close();process.exitCode=fails?1:0;

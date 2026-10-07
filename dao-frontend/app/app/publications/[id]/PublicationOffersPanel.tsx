@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card } from '../../../../components/ui';
+import { commandBackoffice } from '../../../../lib/backoffice';
 import { projectApi } from '../../../../lib/collaboration';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 
@@ -32,7 +33,7 @@ function formatTnd(value: number) {
   }).format(value / 1000);
 }
 
-export default function PublicationOffersPanel({ projectId, publicationId, lots }: { projectId: string; publicationId: string; lots: Lot[] }) {
+export default function PublicationOffersPanel({ projectId, publicationId, lots, canManage=true, assisted=false }: { projectId: string; publicationId: string; lots: Lot[]; canManage?:boolean; assisted?:boolean }) {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [awards, setAwards] = useState<Award[]>([]);
   const [availability, setAvailability] = useState<Record<string, string>>({});
@@ -42,6 +43,7 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots 
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [assistanceReason,setAssistanceReason]=useState('');
   const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -74,7 +76,8 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots 
 
     const versionsResult = await supabase
       .from('bid_versions')
-      .select('id,bid_id,version_no,submitted_at,status,validity')
+      .select('id,bid_id,version_no,submitted_at,status,validity,publication_id')
+      .or(`publication_id.eq.${publicationId},publication_id.is.null`)
       .in('bid_id', bidIds)
       .not('submitted_at', 'is', null);
     if (versionsResult.error) throw new Error('Les offres ne sont pas disponibles.');
@@ -154,7 +157,9 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
     setError('');
     setMessage('');
     try {
-      await projectApi('/api/awards', { ...(offer.groupId ? { group_id: offer.groupId } : { bid_item_id: offer.itemId }), idempotency_key: crypto.randomUUID() });
+      const selection=offer.groupId?{group_id:offer.groupId}:{bid_item_id:offer.itemId};
+      if(assisted)await commandBackoffice('assisted_award',{...selection,reason:assistanceReason});
+      else await projectApi('/api/awards',{...selection,idempotency_key:crypto.randomUUID()});
       setConfirming(null);
       setMessage(offer.groupId ? 'Le package a été attribué pour tous ses lots. Aucun contrat n’a été créé automatiquement.' : 'L’offre a été attribuée pour ce lot. Aucun contrat n’a été créé automatiquement.');
       await load();
@@ -169,7 +174,8 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
     if (!cancelling) return;
     setSaving(true); setError(''); setMessage('');
     try {
-      await projectApi('/api/awards/cancel', { award_item_id: cancelling.id, reason, comment, idempotency_key: crypto.randomUUID() });
+      if(assisted)await commandBackoffice('assisted_cancel',{award_item_id:cancelling.id,cancellation_reason:reason,comment,reason:assistanceReason});
+      else await projectApi('/api/awards/cancel', { award_item_id: cancelling.id, reason, comment, idempotency_key: crypto.randomUUID() });
       setCancelling(null); setReason(''); setComment('');
       setMessage('Attribution annulée. Les lots concernés sont de nouveau ouverts ; l’historique est conservé.');
       await load();
@@ -179,7 +185,10 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
 
   return <Card>
     <h2 className="font-semibold">Comparer et attribuer les offres</h2>
+    {assisted&&<p className="mt-2 text-sm text-teal">Actions pour le compte du client · Votre identité staff est conservée dans l’historique.</p>}
+    {!canManage&&<p className="mt-2 text-sm">Lecture seule : seul le gestionnaire affecté ou l’Admin peut attribuer ou annuler.</p>}
     <p className="mt-1 text-sm text-black/55">Seule la version soumise actuelle de chaque offre est comparée. L’attribution porte sur un lot et ne crée ni contrat ni démarrage de travaux.</p>
+    {assisted&&canManage&&<label className="mt-4 block text-sm">Contexte de la demande du client<textarea className="mt-2 w-full rounded-xl border p-3" value={assistanceReason} onChange={e=>setAssistanceReason(e.target.value)} placeholder="Demande du client, échange ou référence utile" /></label>}
     {loading && <p className="mt-4 text-sm text-black/60">Chargement des offres…</p>}
     {error && <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>}
     {message && <p role="status" className="mt-4 text-sm text-teal">{message}</p>}
@@ -190,7 +199,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 id={`lot-${lot.id}`} className="font-semibold">{lot.safe_title}</h3>
           {awarded && <Badge tone="teal">Lot attribué</Badge>}
-          {awarded && <Button disabled={saving} className="bg-white text-ink ring-1 ring-black/10" onClick={() => { setCancelling(awarded); setReason(''); setComment(''); }}>Annuler l’attribution</Button>}
+          {awarded && <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className="bg-white text-ink ring-1 ring-black/10" onClick={() => { setCancelling(awarded); setReason(''); setComment(''); }}>Annuler l’attribution</Button>}
         </div>
         {lotOffers.length === 0 ? <p className="mt-2 text-sm text-black/60">Aucune offre soumise pour ce lot.</p> : <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {lotOffers.map((offer, index) => {
@@ -208,10 +217,10 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
               {isWinner ? <p className="mt-4 text-sm font-semibold text-teal">Offre retenue · {formatTnd(Number(awarded.agreed_millimes))}</p> : offer.result === 'not_selected' ? <p className="mt-4 text-sm font-semibold text-black/55">Non retenue</p> : !awarded && confirming === offer.itemId ? <div className="mt-4 rounded-xl border border-clay/20 bg-white p-3">
                 <p className="text-sm font-medium">{offer.groupId ? 'Confirmer l’attribution de tous les lots de ce package indivisible ?' : 'Confirmer l’attribution de ce lot à cette offre ?'}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button disabled={saving} onClick={() => void award(offer)}>{saving ? 'Attribution…' : 'Confirmer l’attribution'}</Button>
-                  <Button disabled={saving} className="bg-white text-ink ring-1 ring-black/10 hover:bg-sand" onClick={() => setConfirming(null)}>Annuler</Button>
+                  <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} onClick={() => void award(offer)}>{saving ? 'Attribution…' : 'Confirmer l’attribution'}</Button>
+                  <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className="bg-white text-ink ring-1 ring-black/10 hover:bg-sand" onClick={() => setConfirming(null)}>Annuler</Button>
                 </div>
-              </div> : !awarded && <Button disabled={saving || (offer.groupId != null && offers.some(member => member.groupId === offer.groupId && (member.result === 'not_selected' || activeAward.has(member.requestId))))} className="mt-4" onClick={() => setConfirming(offer.itemId)}>{offer.groupId ? 'Attribuer tout le package' : 'Attribuer cette offre'}</Button>}
+              </div> : !awarded && <Button disabled={!canManage || saving || (offer.groupId != null && offers.some(member => member.groupId === offer.groupId && (member.result === 'not_selected' || activeAward.has(member.requestId))))} className="mt-4" onClick={() => setConfirming(offer.itemId)}>{offer.groupId ? 'Attribuer tout le package' : 'Attribuer cette offre'}</Button>}
             </article>;
           })}
         </div>}
@@ -222,7 +231,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
       <p className="mt-2 text-sm">Pour un package indivisible, tous ses lots seront rouverts ensemble.</p>
       <label className="mt-3 block text-sm">Motif d’annulation<select className="mt-1 w-full rounded-xl border p-3" value={reason} onChange={event => setReason(event.target.value)}><option value="">Choisir un motif</option>{Object.entries(cancellationReasons).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label className="mt-3 block text-sm">Commentaire<textarea className="mt-1 w-full rounded-xl border p-3" value={comment} onChange={event => setComment(event.target.value)} required={reason === 'other'} /></label>
-      <div className="mt-3 flex flex-wrap gap-2"><Button disabled={saving || !reason || (reason === 'other' && !comment.trim())} onClick={() => void cancelAward()}>Confirmer l’annulation</Button><Button disabled={saving} className="bg-white text-ink ring-1 ring-black/10" onClick={() => setCancelling(null)}>Fermer</Button></div>
+      <div className="mt-3 flex flex-wrap gap-2"><Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim()) || !reason || (reason === 'other' && !comment.trim())} onClick={() => void cancelAward()}>Confirmer l’annulation</Button><Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className="bg-white text-ink ring-1 ring-black/10" onClick={() => setCancelling(null)}>Fermer</Button></div>
     </div>}
     {cancellations.length > 0 && <section className="mt-5 border-t pt-4"><h3 className="font-semibold">Historique des annulations</h3>{cancellations.map(event => <p key={event.id} className="mt-2 break-words text-sm">{cancellationReasons[event.reason]} · {new Date(event.created_at).toLocaleString('fr-TN')} · Auteur : {event.actor_id}{event.comment && ` · ${event.comment}`}</p>)}</section>}
   </Card>;
