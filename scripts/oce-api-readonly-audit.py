@@ -13,7 +13,7 @@ import uuid
 
 BASES = ("http://127.0.0.1:8080", "http://127.0.0.1:8000")
 LOGIN = "/api/v1/users/auth/demo-login/"
-FIXED_GETS = {"/api/health", "/openapi.json", "/openapi.json/",
+FIXED_GETS = {"/api/health", "/openapi.json", "/openapi.json/", "/api/openapi.json",
               "/api/v1/users/me/", "/api/v1/projects/"}
 PROJECT_GETS = {
     "wbs": "/api/v1/projects/{project_id}/wbs/",
@@ -84,7 +84,7 @@ class LocalClient:
             try:
                 with self.opener.open(req, timeout=6) as response:
                     # Public OpenAPI is large; private responses are limited separately.
-                    cap = 16 * 1024 * 1024 if path.startswith("/openapi.json") else 256 * 1024
+                    cap = 16 * 1024 * 1024 if path in ("/openapi.json", "/api/openapi.json") else 256 * 1024
                     raw = response.read(cap + 1)
                     if len(raw) > cap:
                         return response.status, None, "oversize"
@@ -159,7 +159,9 @@ def run():
     if client is None:
         emit("OCE_LOCAL", health="unreachable")
         return
-    status, schema, outcome = client.request("/openapi.json")
+    # v17.7.0 configures this canonical URL in backend/app/main.py.
+    # The historical /openapi.json alias may redirect to it with HTTP 308.
+    status, schema, outcome = client.request("/api/openapi.json")
     paths = schema.get("paths", {}) if isinstance(schema, dict) else {}
     if not isinstance(paths, dict):
         paths = {}

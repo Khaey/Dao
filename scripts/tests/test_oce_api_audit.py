@@ -94,7 +94,7 @@ class AuditTests(unittest.TestCase):
             calls.append((path, token, demo_email))
             if path == "/api/health":
                 return 200, {"version": "17.7.0"}, "ok"
-            if path == "/openapi.json":
+            if path == "/api/openapi.json":
                 return 200, {"paths": {audit.LOGIN: {"post": {}}}}, "ok"
             if demo_email:
                 return 200, {"access_token": "sentinel-token"}, "ok"
