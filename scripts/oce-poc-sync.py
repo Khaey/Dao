@@ -315,9 +315,14 @@ def ensure_activities(client: Client, token: str, schedule_id: str) -> tuple[dic
             if not isinstance(row, dict):
                 raise RuntimeError("unexpected activity create response")
             created_count += 1
+        # On the deployed OCE 17.7.0 image, activity metadata is not
+        # reliably round-tripped by this endpoint. The stable synthetic
+        # activity_code is therefore the PoC identity key. If OCE does return
+        # a mapping marker, still fail closed on a conflicting value.
         metadata = _metadata(row)
-        if metadata.get("dao_activity_code") != code:
-            raise RuntimeError(f"activity mapping mismatch {code}")
+        mapped_code = metadata.get("dao_activity_code")
+        if mapped_code not in (None, code):
+            raise RuntimeError(f"activity mapping conflict {code}")
         _uuid(row.get("id"))
         results[code] = row
 
