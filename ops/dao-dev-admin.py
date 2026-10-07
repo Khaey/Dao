@@ -118,7 +118,7 @@ def _oce_topology(app, containers, image):
     hints = []
     for item in config.get('Env') or []:
         key, sep, value = item.partition('=')
-        if sep and key in {'DATABASE_URL', 'SQLALCHEMY_DATABASE_URL', 'SQLALCHEMY_DATABASE_URI'}:
+        if sep and key in {'DATABASE_URL', 'DATABASE_SYNC_URL', 'SQLALCHEMY_DATABASE_URL', 'SQLALCHEMY_DATABASE_URI'}:
             hints.append({'key': key, **_db_hint(value, names)})
     paths = labels.get('com.docker.compose.project.config_files', '').split(',')
     paths = [p for p in paths if p]

@@ -25,6 +25,7 @@ def fixtures():
         'State': {'Running': True},
         'Config': {'Image': 'ghcr.io/datadrivenconstruction/openconstructionerp:latest',
                    'Env': ['DATABASE_URL=postgresql+asyncpg://secret-user:secret-pass@private-db/private-name?token=secret-query',
+                           'DATABASE_SYNC_URL=sqlite:////data/secret-sync.db',
                            'JWT_SECRET=secret-jwt', 'OTHER=secret-other'],
                    'Labels': {'com.docker.compose.project': 'private-project',
                               'com.docker.compose.project.config_files': '/private-directory/docker-compose.yml',
@@ -56,7 +57,10 @@ class TopologyTests(unittest.TestCase):
         serialized = json.dumps(result)
         for secret in ('secret-', 'private-', '172.20', APP_ID, PEER_ID, IMAGE_ID):
             self.assertNotIn(secret, serialized)
-        self.assertEqual(result['database_hints'], [{'key': 'DATABASE_URL', 'engine': 'postgresql', 'location': 'peer_1'}])
+        self.assertEqual(result['database_hints'], [
+            {'key': 'DATABASE_URL', 'engine': 'postgresql', 'location': 'peer_1'},
+            {'key': 'DATABASE_SYNC_URL', 'engine': 'sqlite', 'location': 'data_mount'},
+        ])
         self.assertEqual(result['image_digests'], [DIGEST])
         self.assertFalse(result['runtime_reference_is_digest'])
         self.assertEqual(result['published_ports'], [{'container_port': '8080/tcp', 'scope': 'wildcard'}])
