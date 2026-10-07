@@ -245,6 +245,16 @@ def capacity(found):
     return logical
 
 
+def reset_failed_if_needed():
+    result = subprocess.run(['/usr/bin/systemctl', 'is-failed', UNIT], capture_output=True,
+                            text=True, timeout=5)
+    state = result.stdout.strip()
+    if state == 'failed':
+        run(['/usr/bin/systemctl', 'reset-failed', UNIT])
+    elif state != 'inactive':
+        raise Halt('unexpected service failure state')
+
+
 class Reader:
     def __init__(self, stream, deadline):
         self.stream, self.deadline, self.digest = stream, deadline, hashlib.sha256()
@@ -594,7 +604,7 @@ def main():
                  'restore_verified': False, 'live_resumed': True, 'cleanup_complete': False,
                  'logical_bytes': logical, 'targets': found}
         save(state)
-        run(['/usr/bin/systemctl', 'reset-failed', UNIT])
+        reset_failed_if_needed()
         run(['/usr/bin/systemctl', 'start', '--no-block', UNIT])
         print(json.dumps(public_status(state)))
     elif operation == 'worker':
