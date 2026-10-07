@@ -93,6 +93,18 @@ the sanitized report and publishes no artifact. A GitHub connector without
 Actions dispatch cannot claim the workflow ran. The operator can instead
 return the JSON from the second command above; no full inspect/config output.
 
+## Backup operation checkpoint — 2026-10-07
+
+The operator installed the inventory helper and completed the read-only host
+preflight: app + PostgreSQL 16, two local named volumes, sufficient measured
+space. Do not repeat the installer or audit solely for these completed facts.
+The [cold backup / isolated restore runbook](oce-backup-restore.md) now defines
+the fixed operator-only operation and its disposable CI validation. It requires
+reviewed merge, root installation and an explicit maintenance window before
+live execution. It is not automatically installed or started by deployment.
+Global writer census, full application recovery, runtime pin and gateway
+qualification are not marked complete by this implementation.
+
 ## Remaining implementation and qualification
 
 1. Use the inventory to establish authoritative Compose configuration, exact
