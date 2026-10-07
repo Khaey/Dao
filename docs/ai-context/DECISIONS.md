@@ -2,6 +2,24 @@
 
 > Decisions already made. Agents should not reopen them without new evidence or an explicit product request.
 
+## D-041 — OCE V1 uses an approved bounded private gateway
+
+DAO Pilot approved this control in issue #58 on 2026-10-07. A dedicated
+non-admin OCE editor credential stays inside the VPS gateway, outside D.A.O,
+the browser, Git, CI, artifacts and logs. Its broader native editor rights are
+an accepted residual risk, not native least privilege. The gateway denies by
+default and exposes only the approved project/WBS/schedule/activity/dependency/
+planning primitives, checking authorized mappings and object ownership.
+No generic HTTP proxy, deletion, users, finance, config, contracts or BIM.
+
+Rotation/revocation, negative mapping/operation tests and direct-call bypass
+proof are required before DEV handoff. Native fine-grained OCE permissions
+must be reconsidered before broader production exposure or substantial scope
+growth. The current inventory checkpoint is preparation only; it does not
+implement or deploy this gateway. Root operations remain explicitly bounded,
+with one operator installation for new helper capabilities. Details and gates:
+[OCE integration operations](../oce-integration-operations.md).
+
 ## D-040 — P2.1 award closure, per-lot results and audited reassignment
 
 Authorized by issue #44. Confirmed lots close immediately to new offers,

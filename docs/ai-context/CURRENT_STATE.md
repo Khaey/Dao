@@ -1,5 +1,33 @@
 # D.A.O — Current State
 
+## Active OPT — OCE V1 #58 (2026-10-07 Europe/Paris)
+
+Verified implementation base: `b531382495f5e508ba5d37064e5e4970571d450f`;
+main CI/deploy #313 (`37638769300`) and synthetic PoC #6 (`37638769313`) green.
+Audit #45 and PoC #54 are complete. The older next-PoC instructions below
+are historical. DEV's product work and open docs PRs #34/#46 remain untouched.
+
+DAO Pilot approved the private bounded gateway in #58, accepting the residual
+native permissions of a dedicated OCE editor credential. See the
+[operational contract](../oce-integration-operations.md). The gateway itself
+is not yet implemented or installed; there is no READY handoff to DEV.
+
+Owned branch: `chore/oce-v1-inventory`. This checkpoint prepares the necessary
+DB/Compose/storage/network inventory as a fixed root-helper operation and adds
+it to the main-only DEV operations workflow. Four bounded read-only Docker
+calls; sanitized metadata only, no credentials, paths, service or OCE changes.
+Local validation: 14 helper/inventory tests pass, installer shell syntax passes.
+The automatic exact-head PR/main CI outcomes and merged SHA are recorded in
+[issue #58](https://github.com/Khaey/Dao/issues/58), not inferred here.
+
+Live inventory requires one root reinstallation of the reviewed helper. The
+current installed helper cannot install itself or grant new operations. After
+that inventory, prepare the concrete coherent backup/isolated restore, digest
+pin and gateway implementation against the real topology. Database identity,
+all writers and direct-call isolation are not proven by the previous audit.
+No backup/restore, pin, technical-account provisioning or bypass proof is
+claimed at this checkpoint. C4 remains unchanged under #58's explicit scope.
+
 ## OCE architecture audit — issue #45 complete (2026-10-07 Europe/Paris)
 
 Final implementation/audit base: main `c7c6ef72a253196bf58abeaed9c9228ecd37cb6a`

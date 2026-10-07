@@ -1,5 +1,26 @@
 # D.A.O — Next Steps
 
+## Active OPT — continue #58 through its host prerequisite
+
+The private bounded gateway is approved in #58. Audit #45 and PoC #54 are
+finished; do not rerun them or request the gateway decision again.
+
+1. Finish the normal PR/CI/merge cycle for `chore/oce-v1-inventory`, then verify
+   main CI/deploy. Read #58 for the resulting exact SHA and workflow evidence.
+2. An operator with existing root access installs the reviewed helper once and
+   runs `oce-integration-inventory`; see the exact commands and limits in
+   [OCE integration operations](../oce-integration-operations.md).
+3. Use the sanitized inventory to prepare the real topology-specific backup,
+   isolated restore, immutable pin and private gateway. Keep unresolved DB,
+   writer and caller-bypass checks explicit; no blind production writes.
+4. Qualify identity rotation/revocation, mapping isolation, denied operations,
+   direct OCE bypass and resilience before a READY handoff to DEV in #58.
+
+The gateway is a compensating control, not native OCE least privilege. D.A.O
+must never receive its underlying editor credential. Do not touch DEV's product
+branches or implement Phase 2 prematurely. The following PoC approval section
+is historical and superseded by #54/#58.
+
 ## OCE audit #45 complete — next action requires product approval
 
 Do **not** repeat the OCE discovery/audit runs. The final evidence is in

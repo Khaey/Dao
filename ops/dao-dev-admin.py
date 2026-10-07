@@ -11,10 +11,178 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 
 ENV = Path('/etc/dao/dao-dev.env')
 BACKUP = Path('/etc/dao/dao-dev.env.previous')
 ALLOWED = {'RESEND_API_KEY', 'DAO_EMAIL_FROM', 'DAO_PUBLIC_URL'}
+
+
+def _inventory_json(argv):
+    raw = _run_safe(argv, timeout=12)
+    if len(raw) > 8 * 1024 * 1024:
+        raise ValueError('inventory response too large')
+    return json.loads(raw)
+
+
+def _db_hint(value, peers):
+    """Classify a DSN in memory; never return any substring of it."""
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        scheme = parsed.scheme.split('+', 1)[0].lower()
+        engine = {'sqlite': 'sqlite', 'postgres': 'postgresql',
+                  'postgresql': 'postgresql', 'mysql': 'mysql',
+                  'mariadb': 'mysql'}.get(scheme, 'unknown')
+        if engine == 'sqlite':
+            # SQLAlchemy SQLite DSNs use four slashes for absolute paths;
+            # three slashes denote a path relative to the container workdir.
+            absolute = parsed.path.startswith('//') and not parsed.netloc
+            path = os.path.normpath(urllib.parse.unquote(parsed.path[1:])) if absolute else ''
+            return {'engine': engine, 'location': 'data_mount' if path.startswith('/data/')
+                    else 'other_or_memory'}
+        host = parsed.hostname
+        matches = [label for label, names in peers.items() if host and host in names]
+        location = (matches[0] if len(matches) == 1 else
+                    'container_loopback' if host in {'localhost', '127.0.0.1', '::1'} else
+                    'unresolved')
+        return {'engine': engine, 'location': location}
+    except (ValueError, TypeError):
+        return {'engine': 'unknown', 'location': 'unresolved'}
+
+
+def _root_controlled_config(value):
+    """Stat only: no Compose execution, env expansion, file read or path output."""
+    if not isinstance(value, str) or len(value) > 4096 or not value.startswith('/'):
+        return False
+    path = Path(value)
+    if '..' in path.parts or path.suffix not in {'.yml', '.yaml'}:
+        return False
+    try:
+        import stat
+        for entry in (path, *path.parents):
+            meta = entry.lstat()
+            if meta.st_uid != 0 or meta.st_mode & 0o022 or stat.S_ISLNK(meta.st_mode):
+                return False
+            if entry == path and not stat.S_ISREG(meta.st_mode):
+                return False
+        return True
+    except OSError:
+        return False
+
+
+def _oce_topology(app, containers, image):
+    """Allowlisted metadata only; Docker inspection payloads are secret-bearing."""
+    config = app.get('Config') or {}
+    labels = config.get('Labels') or {}
+    project = labels.get('com.docker.compose.project')
+    networks = set((app.get('NetworkSettings') or {}).get('Networks') or {})
+    mounts = app.get('Mounts') or []
+    data = [m for m in mounts if m.get('Destination') == '/data']
+    sources = {m.get('Source') for m in mounts if m.get('Source')}
+
+    def shares_storage(row):
+        # Include parent/child bind mounts as possible writers, not just equality.
+        for mount in row.get('Mounts') or []:
+            other = mount.get('Source')
+            for source in sources:
+                if (isinstance(other, str) and other.startswith('/') and source.startswith('/')
+                        and os.path.commonpath([other, source]) in {other, source}):
+                    return True
+        return False
+
+    related, names = [], {}
+    for row in sorted(containers, key=lambda r: r.get('Id', '')):
+        if row.get('Id') == app.get('Id'):
+            continue
+        cfg = row.get('Config') or {}
+        nets = (row.get('NetworkSettings') or {}).get('Networks') or {}
+        same_project = bool(project and (cfg.get('Labels') or {}).get('com.docker.compose.project') == project)
+        shared = shares_storage(row)
+        same_network = bool(networks.intersection(nets))
+        if not (same_project or shared or same_network):
+            continue
+        alias = 'peer_' + str(len(related) + 1)
+        aliases = {str(row.get('Name') or '').lstrip('/')}
+        for network in nets.values():
+            aliases.update(network.get('Aliases') or [])
+            aliases.update(network.get('DNSNames') or [])
+            aliases.add(network.get('IPAddress'))
+        names[alias] = aliases
+        image_name = str(cfg.get('Image') or '').rsplit('/', 1)[-1].split(':', 1)[0].split('@', 1)[0]
+        family = image_name if image_name in {'postgres', 'mysql', 'mariadb', 'redis', 'caddy', 'nginx'} else 'other'
+        related.append({'alias': alias, 'family': family,
+                        'running': bool((row.get('State') or {}).get('Running')),
+                        'same_compose_project': same_project, 'shared_storage': shared,
+                        'shared_network': same_network})
+
+    hints = []
+    for item in config.get('Env') or []:
+        key, sep, value = item.partition('=')
+        if sep and key in {'DATABASE_URL', 'SQLALCHEMY_DATABASE_URL', 'SQLALCHEMY_DATABASE_URI'}:
+            hints.append({'key': key, **_db_hint(value, names)})
+    paths = labels.get('com.docker.compose.project.config_files', '').split(',')
+    paths = [p for p in paths if p]
+    if len(paths) > 8:
+        raise ValueError('too many compose files')
+    digest_pattern = r'ghcr\.io/datadrivenconstruction/openconstructionerp@sha256:[0-9a-f]{64}'
+    digests = [d for d in image.get('RepoDigests') or []
+               if isinstance(d, str) and re.fullmatch(digest_pattern, d)]
+    published = []
+    for port, bindings in ((app.get('NetworkSettings') or {}).get('Ports') or {}).items():
+        if not re.fullmatch(r'[0-9]{1,5}/(?:tcp|udp)', port):
+            continue
+        for binding in bindings or []:
+            host = binding.get('HostIp')
+            scope = ('loopback' if host in {'127.0.0.1', '::1'} else
+                     'wildcard' if host in {'0.0.0.0', '::', ''} else 'specific_interface')
+            published.append({'container_port': port, 'scope': scope})
+    return {
+        'oce_integration_inventory': 'ok', 'schema_version': 1,
+        'app_running': bool((app.get('State') or {}).get('Running')),
+        'image_digests': sorted(set(digests)),
+        'runtime_reference_is_digest': bool(re.fullmatch(digest_pattern, str(config.get('Image') or ''))),
+        'compose': {'project_label_present': bool(project), 'config_file_count': len(paths),
+                    'config_files_root_controlled': bool(paths) and all(_root_controlled_config(p) for p in paths),
+                    'configuration_contents_read': False},
+        'data_mount': {'count': len(data),
+                       'named_volume': len(data) == 1 and data[0].get('Type') == 'volume' and bool(data[0].get('Name')),
+                       'writable': len(data) == 1 and data[0].get('RW') is True},
+        'database_hints': hints, 'related_containers': related, 'published_ports': published,
+        'app_host_network': (app.get('HostConfig') or {}).get('NetworkMode') == 'host',
+        'app_privileged': bool((app.get('HostConfig') or {}).get('Privileged')),
+        'all_writers_identified': False, 'database_verified': False,
+        'backup_restore_verified': False, 'gateway_bypass_tested': False,
+    }
+
+
+def oce_integration_inventory():
+    """Fixed inspect-only command; no Docker exec, stop, compose or credentials."""
+    docker = shutil.which('docker')
+    if not docker:
+        raise ValueError('docker missing')
+    app_rows = _inventory_json([docker, 'inspect', '--type', 'container', 'openconstructionerp-app-1'])
+    if not isinstance(app_rows, list) or len(app_rows) != 1:
+        raise ValueError('unexpected OCE container')
+    app = app_rows[0]
+    image_id = app.get('Image', '')
+    if not re.fullmatch(r'sha256:[0-9a-f]{64}', image_id):
+        raise ValueError('unexpected image id')
+    ids = _run_safe([docker, 'ps', '--all', '--no-trunc', '--quiet'], timeout=12).splitlines()
+    if not 1 <= len(ids) <= 64 or any(not re.fullmatch(r'[0-9a-f]{64}', i) for i in ids):
+        raise ValueError('unsupported container inventory')
+    containers = _inventory_json([docker, 'inspect', '--type', 'container', *ids])
+    if not isinstance(containers, list) or len(containers) != len(ids):
+        raise ValueError('container inventory changed')
+    current = [r for r in containers if r.get('Id') == app.get('Id')]
+    if len(current) != 1 or current[0].get('Image') != image_id:
+        raise ValueError('OCE changed during inventory')
+    app = current[0]
+    images = _inventory_json([docker, 'image', 'inspect', image_id])
+    if not isinstance(images, list) or len(images) != 1:
+        raise ValueError('unexpected image inventory')
+    report = _oce_topology(app, containers, images[0])
+    report['host_available_bytes'] = shutil.disk_usage('/').free
+    print(json.dumps(report, sort_keys=True))
 
 
 def _run_safe(argv, timeout=15):
@@ -250,6 +418,8 @@ def main():
         print('ENV_RESTORE complete')
     elif operation == 'oce-audit':
         oce_audit()
+    elif operation == 'oce-integration-inventory':
+        oce_integration_inventory()
     elif operation == 'log-summary':
         p = subprocess.run(['/usr/bin/journalctl', '-u', 'dao-dev.service', '--since', '1 hour ago', '-n', '200', '-o', 'json', '--no-pager'], capture_output=True, text=True, timeout=15, check=True)
         counts = {}
