@@ -560,10 +560,11 @@ def verify_existing_restore():
     hashes = state.get('archive_hashes')
     if not isinstance(hashes, dict) or set(hashes) != {'app', 'pg'}:
         raise Halt('archive hashes unavailable')
+    root_uid = ROOT.stat().st_uid
     for role in ('app', 'pg'):
         path = folder / (role + '.tar')
         meta = path.lstat()
-        if (not stat.S_ISREG(meta.st_mode) or meta.st_uid != 0 or meta.st_mode & 0o077
+        if (not stat.S_ISREG(meta.st_mode) or meta.st_uid != root_uid or meta.st_mode & 0o077
                 or file_hash(path) != hashes[role]):
             raise Halt('retained archive changed')
     found, _ = discover()
