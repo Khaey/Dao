@@ -1,26 +1,38 @@
 # D.A.O — Current State
 
-## OPT #58 — backup/restore complete; runtime digest pin active work (2026-10-08 UTC)
+## OPT #58 — backup/restore + runtime pin complete; gateway identity prepared (2026-10-08 UTC)
 
-Canonical live state is in [#58](https://github.com/Khaey/Dao/issues/58).
-Main before this work: `a040e505c33f986f23c2dada5ba07d2fb1a22ae8`,
-CI/deploy #330 and OCE isolated validation #7 SUCCESS, FULL E2E 48/48.
+Canonical live evidence is in [#58](https://github.com/Khaey/Dao/issues/58).
+Current main before this identity branch: `8f8b070fd369a2e3036ea9fd1cedb63f2398b299`.
+Main CI/deploy #338 and OCE runtime digest pin validation #8 are SUCCESS.
 
 Live backup job `b709caaf50a947a99d80536d3e8e76a2` is fully qualified:
 `phase=complete`, `backup_complete=true`, `restore_verified=true`,
-`live_resumed=true`, `cleanup_complete=true`. Do not rerun backup/restore
-solely for #58.
+`live_resumed=true`, `cleanup_complete=true`. Do not repeat it without a
+new cause.
 
-Owned branch `chore/oce-runtime-digest-pin` now prepares a root-only operation
-that derives real registry RepoDigests from the exact validated local image IDs,
-writes only a root-controlled final Compose override, recreates only the app
-without pull/build/dependencies, verifies health/runtime identity, and rolls back
-to the unchanged original two-file Compose configuration on failure. PostgreSQL
-is not restarted by the pin operation. No product/Auth/RLS change.
+The operator also activated the immutable OCE app digest
+`sha256:7621593064354a1df414f6598ae7f844bf8d12dc5977537f2297642fc4b523d3`.
+The app is running and post-recreate health is `healthy`, DB `ok`, OCE
+17.7.0, 192/192 modules loaded. PostgreSQL was not recreated. This runtime-pin
+gate is complete.
 
-After pin qualification, remaining OPT gates are the dedicated OCE technical
-identity/secret, bounded private gateway, denied-operation/cross-project/bypass
-tests, and real rotation/revocation. No READY DEV handoff yet.
+DAO Pilot explicitly chose to preserve OCE demo access. Demo login therefore
+remains an operator/qualification path and must not be silently disabled by
+#58. It is not the D.A.O integration credential and must later be isolated from
+the D.A.O runtime direct-call path.
+
+Owned branch `chore/oce-gateway-identity` prepares a root-only local helper
+for the dedicated non-demo OCE `editor` identity. It generates the password
+on-host, stores it only in `/etc/dao-oce/private/gateway-credential.json`
+(root-only), never prints the password/JWT, verifies the editor contract, and
+qualifies password rotation plus deactivate/reactivate rejection. Demo access
+is preserved throughout. No product/Auth/RLS/Supabase change.
+
+Remaining before TARGET: DEV: deploy/qualify this identity, implement the
+deny-by-default private gateway, prove unknown-operation/extra-field,
+forged/cross-project mapping and direct-OCE bypass rejection, then publish only
+the approved gateway primitives. No READY DEV handoff yet.
 
 ## Active DEV — Back-office V2 #64 (2026-10-07 UTC)
 
