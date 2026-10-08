@@ -208,20 +208,28 @@ class StateLock:
         self.stream.close()
 
 
+def credential_path() -> Path:
+    directory = os.environ.get("CREDENTIALS_DIRECTORY")
+    if directory and os.geteuid() != 0:
+        return Path(directory) / "oce-gateway"
+    return SECRET_FILE
+
+
 def read_credential() -> dict:
-    meta = SECRET_FILE.lstat()
-    gateway_uid, gateway_gid = user_ids(GATEWAY_USER)
-    if (
-        not stat.S_ISREG(meta.st_mode)
-        or meta.st_uid != 0
-        or meta.st_gid != gateway_gid
-        or meta.st_mode & 0o007
-        or meta.st_mode & 0o020
-        or meta.st_size > 8192
-    ):
+    path = credential_path()
+    meta = path.lstat()
+    if not stat.S_ISREG(meta.st_mode) or meta.st_size > 8192:
         raise SafeError(500, "gateway_credential_unsafe")
+    if path == SECRET_FILE:
+        if meta.st_uid != 0 or meta.st_mode & 0o077:
+            raise SafeError(500, "gateway_credential_unsafe")
+    else:
+        # systemd LoadCredential keeps the root-only source private and gives
+        # this service a private read-only projection under %d.
+        if meta.st_mode & 0o022:
+            raise SafeError(500, "gateway_credential_unsafe")
     try:
-        data = json.loads(SECRET_FILE.read_text())
+        data = json.loads(path.read_text())
     except Exception as exc:
         raise SafeError(500, "gateway_credential_invalid") from exc
     if (
@@ -237,9 +245,6 @@ def read_credential() -> dict:
         uuid.UUID(data["user_id"])
     except ValueError as exc:
         raise SafeError(500, "gateway_credential_invalid") from exc
-    # Silence linter-style concern: service uid itself must never own the secret.
-    if meta.st_uid == gateway_uid:
-        raise SafeError(500, "gateway_credential_unsafe")
     return data
 
 
