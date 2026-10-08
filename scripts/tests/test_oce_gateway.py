@@ -124,6 +124,14 @@ class GatewayContractTests(unittest.TestCase):
             self.assertEqual(g.credential_path(), g.SECRET_FILE)
 
 
+
+    def test_gateway_service_is_not_in_dao_secret_group(self):
+        service = (ROOT / "ops/dao-oce-gateway.service").read_text()
+        tmpfiles = (ROOT / "ops/dao-oce-gateway.tmpfiles").read_text()
+        self.assertNotIn("SupplementaryGroups=dao", service)
+        self.assertIn("LoadCredential=oce-gateway:", service)
+        self.assertIn("2750 dao-oce-gateway dao", tmpfiles)
+
 class GuardTests(unittest.TestCase):
     def test_guard_targets_only_dao_uid_and_tcp_8080(self):
         calls = []
