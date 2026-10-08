@@ -669,3 +669,18 @@ External setup before a real DEV email test: validated Resend sender/domain
 and server-only `RESEND_API_KEY`, `DAO_EMAIL_FROM`, `DAO_PUBLIC_URL` in the
 existing protected `/etc/dao/dao-dev.env`, then service restart/deployment.
 See `DEV_DEPLOYMENT.md` and decision D-031. No change to password recovery.
+
+## Checkpoint DEV 3 — OCE #58, 2026-10-08
+
+DEV 3 remplace temporairement OPT sur #58 sur sa branche indépendante
+`chore/dev3-oce-cloudflare-access`, base main
+`85616225ce4878f501edd639ea06f74c314bb045`. CI/deploy 37730506837 et
+plan OCE 37730535800 SUCCESS vérifiés. Aucun chantier Artisan engagé.
+Préparation Access OTP/Tunnel, audit API strict, probe UID dao, service
+root-credential séparé et opérations Actions protégées : voir
+`docs/oce-cloudflare-private-demo.md`. Cloudflare déclaré Active par
+propriétaire ; Access/Tunnel et recette authentifiée non exécutés.
+Port public conservé, egress guard/passerelle produit toujours non activés.
+Ne pas relancer les gates backup/digest/compte déjà qualifiées.
+Prochaine étape : CI PR puis configuration Cloudflare/bootstrap de confiance
+et recette propriétaire/invité ; accord explicite ultérieur avant apply.

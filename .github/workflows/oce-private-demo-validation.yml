@@ -1,0 +1,36 @@
+name: OCE private demo validation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ops/*cloudflare*'
+      - ops/dao-oce-private-admin.py
+      - ops/install-oce-private-demo.sh
+      - 'scripts/tests/test_oce_cloudflare.py'
+      - 'scripts/tests/test_oce_private_admin.py'
+      - '.github/workflows/oce-private-demo*.yml'
+      - docs/oce-cloudflare-private-demo.md
+  push:
+    branches: [main]
+    paths:
+      - 'ops/*cloudflare*'
+      - ops/dao-oce-private-admin.py
+      - ops/install-oce-private-demo.sh
+      - 'scripts/tests/test_oce_cloudflare.py'
+      - 'scripts/tests/test_oce_private_admin.py'
+      - '.github/workflows/oce-private-demo*.yml'
+      - docs/oce-cloudflare-private-demo.md
+permissions:
+  contents: read
+jobs:
+  private-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Access, connector and root custody boundaries
+        run: |
+          python3 -m unittest discover -s scripts/tests -p 'test_oce_cloudflare.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_oce_private_admin.py' -v
+          PYTHONPYCACHEPREFIX=/tmp/oce-private-pycache python3 -m py_compile ops/oce-cloudflare.py ops/dao-oce-private-admin.py
+          bash -n ops/install-oce-private-demo.sh

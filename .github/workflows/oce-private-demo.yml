@@ -1,0 +1,41 @@
+name: OCE private demo operations
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Fixed private demo operation (no secrets in inputs)
+        type: choice
+        required: true
+        default: audit
+        options: [audit, probe, status, start, stop]
+permissions:
+  contents: read
+jobs:
+  operate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 6
+    concurrency:
+      group: dao-dev-operations
+      cancel-in-progress: false
+    steps:
+      - name: Run bounded root operation
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          OCE_PRIVATE_OPERATION: ${{ inputs.operation }}
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          envs: OCE_PRIVATE_OPERATION
+          timeout: 30s
+          command_timeout: 4m
+          script: |
+            set -euo pipefail
+            case "$OCE_PRIVATE_OPERATION" in
+              audit|probe|status|start|stop)
+                sudo -n /usr/local/sbin/dao-oce-private-admin "$OCE_PRIVATE_OPERATION"
+                ;;
+              *) echo 'Unsupported private demo operation'; exit 2 ;;
+            esac
