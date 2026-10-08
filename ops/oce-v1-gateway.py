@@ -503,8 +503,12 @@ class Gateway:
         wbs[code] = node["id"]
         return {"ok": True, "created": created, "code": code}
 
-    def list_schedules(self, client: OCEClient, project_id: str) -> list[dict]:
-        query = urlencode({"project_id": project_id, "limit": 100, "archive_state": "current"})
+    def list_schedules(
+        self, client: OCEClient, project_id: str, archive_state: str = "current"
+    ) -> list[dict]:
+        if archive_state not in {"current", "all"}:
+            raise SafeError(500, "gateway_internal_state")
+        query = urlencode({"project_id": project_id, "limit": 100, "archive_state": archive_state})
         data = client.expect("GET", "/api/v1/schedule/schedules/?" + query, {200})
         if not isinstance(data, dict) or not isinstance(data.get("items"), list):
             raise SafeError(502, "oce_response_shape")
@@ -744,6 +748,62 @@ class Gateway:
             raise SafeError(502, "oce_response_shape")
         return [x for x in data if isinstance(x, dict)]
 
+    def verify_planning_scope(self, client: OCEClient, row: dict) -> dict:
+        """Fail closed if any OCE planning object escaped the private mapping.
+
+        Demo/operator access is intentionally preserved. That means a human
+        administrator could add an object directly in OCE. Such an object must
+        never silently influence a D.A.O calculation, so every schedule,
+        activity and CPM relationship in the mapped technical project is
+        compared with the gateway's private inventory before calculation or
+        summary readback.
+        """
+        project = self.oce_project(client, row)
+        schedule = self.schedule(client, row)
+        schedule_id = schedule["id"]
+
+        schedules = self.list_schedules(client, project["id"], "all")
+        schedule_ids = {item.get("id") for item in schedules}
+        if schedule_ids != {schedule_id}:
+            raise SafeError(409, "planning_scope_contains_unmapped_schedule")
+
+        activities = self.list_activities(client, schedule_id)
+        mapped_activities = row.get("activities")
+        if not isinstance(mapped_activities, dict):
+            raise SafeError(500, "gateway_state_invalid")
+        mapped_ids = set(mapped_activities.values())
+        if (
+            any(not isinstance(value, str) for value in mapped_ids)
+            or {item.get("id") for item in activities} != mapped_ids
+        ):
+            raise SafeError(409, "planning_scope_contains_unmapped_activity")
+        reverse = {value: key for key, value in mapped_activities.items()}
+        if len(reverse) != len(mapped_activities):
+            raise SafeError(500, "gateway_state_invalid")
+        for item in activities:
+            code = reverse.get(item.get("id"))
+            if code is None or item.get("activity_code") != code or item.get("schedule_id") != schedule_id:
+                raise SafeError(409, "activity_ownership_mismatch")
+
+        relationships = self.list_relationships(client, schedule_id)
+        mapped_relationships = row.get("relationships", {})
+        if not isinstance(mapped_relationships, dict):
+            raise SafeError(500, "gateway_state_invalid")
+        mapped_relationship_ids = set(mapped_relationships.values())
+        if (
+            any(not isinstance(value, str) for value in mapped_relationship_ids)
+            or {item.get("id") for item in relationships} != mapped_relationship_ids
+        ):
+            raise SafeError(409, "planning_scope_contains_unmapped_dependency")
+        for item in relationships:
+            if (
+                item.get("schedule_id") != schedule_id
+                or item.get("predecessor_id") not in mapped_ids
+                or item.get("successor_id") not in mapped_ids
+            ):
+                raise SafeError(409, "dependency_ownership_mismatch")
+        return schedule
+
     def ensure_dependency(self, state: dict, row: dict, body: dict) -> dict:
         exact_body(
             body,
@@ -835,6 +895,7 @@ class Gateway:
                 updated = True
         if (
             not isinstance(result, dict)
+            or not isinstance(result.get("id"), str)
             or result.get("schedule_id") != schedule_id
             or result.get("predecessor_id") != pred_id
             or result.get("successor_id") != succ_id
@@ -842,12 +903,18 @@ class Gateway:
             or result.get("lag_days") != lag
         ):
             raise SafeError(502, "oce_write_ambiguous")
+        relationship_key = pred_code + "->" + succ_code
+        relationships = row.setdefault("relationships", {})
+        mapped_relationship = relationships.get(relationship_key)
+        if mapped_relationship is not None and mapped_relationship != result["id"]:
+            raise SafeError(409, "dependency_ownership_mismatch")
+        relationships[relationship_key] = result["id"]
         return {"ok": True, "created": created, "updated": updated}
 
     def calculate(self, state: dict, row: dict, body: dict) -> dict:
         exact_body(body, {"dao_project_id", "dao_lot_id"}, {"dao_project_id", "dao_lot_id"})
         client = self.client()
-        schedule = self.schedule(client, row)
+        schedule = self.verify_planning_scope(client, row)
         try:
             result = client.expect(
                 "POST",
@@ -878,7 +945,7 @@ class Gateway:
         exact_body(body, {"dao_project_id", "dao_lot_id"}, {"dao_project_id", "dao_lot_id"})
         client = self.client()
         project = self.oce_project(client, row)
-        self.schedule(client, row)
+        self.verify_planning_scope(client, row)
         query = urlencode({"project_id": project["id"]})
         data = client.expect("GET", "/api/v1/schedule/stats/?" + query, {200})
         if not isinstance(data, dict):
@@ -1076,6 +1143,7 @@ def authorize(project: str, lot: str) -> None:
                 "wbs": {},
                 "schedule_id": None,
                 "activities": {},
+                "relationships": {},
             }
             created = True
         else:
