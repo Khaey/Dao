@@ -433,46 +433,55 @@ def apply():
     original_meta = env_meta()
     original, bind = read_env()
     changed = bind != "127.0.0.1"
-    if changed:
-        backup_env(original)
-        write_env_loopback(original)
+    gateway_was_active = service_active(GATEWAY_SERVICE)
+    guard_was_active = service_active(GUARD_SERVICE)
+
+    # No service/network change is attempted without the explicit caller-side
+    # acknowledgement checked by main(). Restore the original public binding
+    # and stop newly-started services if any activation step fails.
+    try:
+        if changed:
+            backup_env(original)
+            write_env_loopback(original)
+        if changed or not loopback_only():
+            compose_up_app()
+            wait_health()
+        if not loopback_only() or not pinned_app_active():
+            raise Halt("loopback or pinned runtime verification failed")
+
+        run([SYSTEMCTL, "enable", "--now", GUARD_SERVICE], timeout=30)
+        if not service_active(GUARD_SERVICE):
+            raise Halt("egress guard inactive")
+
+        run([SYSTEMCTL, "enable", "--now", GATEWAY_SERVICE], timeout=30)
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline and not (service_active(GATEWAY_SERVICE) and socket_ready()):
+            time.sleep(1)
+        if not service_active(GATEWAY_SERVICE) or not socket_ready() or not gateway_ready():
+            raise Halt("gateway service not ready")
+
+        ip = container_ip()
+        if not dao_direct_denied("http://127.0.0.1:8080/api/health"):
+            raise Halt("dao loopback bypass still reachable")
+        if not dao_direct_denied("http://" + ip + ":8080/api/health"):
+            raise Halt("dao container bypass still reachable")
+        if not health() or not demo_enabled() or not pinned_app_active():
+            raise Halt("operator OCE access or runtime pin unavailable")
+    except Exception:
         try:
-            compose_up_app()
-            wait_health()
-            if not loopback_only():
-                raise Halt("loopback bind ineffective")
-        except Exception:
-            restore_env(original, original_meta)
-            compose_up_app()
-            wait_health()
-            raise
-    elif not loopback_only():
-        compose_up_app()
-        wait_health()
-        if not loopback_only():
-            raise Halt("loopback bind ineffective")
-
-    if not pinned_app_active():
-        raise Halt("runtime pin lost during gateway preparation")
-
-    run([SYSTEMCTL, "enable", "--now", GUARD_SERVICE], timeout=30)
-    if not service_active(GUARD_SERVICE):
-        raise Halt("egress guard inactive")
-
-    run([SYSTEMCTL, "enable", "--now", GATEWAY_SERVICE], timeout=30)
-    deadline = time.monotonic() + 20
-    while time.monotonic() < deadline and not (service_active(GATEWAY_SERVICE) and socket_ready()):
-        time.sleep(1)
-    if not service_active(GATEWAY_SERVICE) or not socket_ready() or not gateway_ready():
-        raise Halt("gateway service not ready")
-
-    ip = container_ip()
-    if not dao_direct_denied("http://127.0.0.1:8080/api/health"):
-        raise Halt("dao loopback bypass still reachable")
-    if not dao_direct_denied("http://" + ip + ":8080/api/health"):
-        raise Halt("dao container bypass still reachable")
-    if not health() or not demo_enabled() or not pinned_app_active():
-        raise Halt("operator OCE access or runtime pin unavailable")
+            if not gateway_was_active:
+                run([SYSTEMCTL, "disable", "--now", GATEWAY_SERVICE], timeout=30)
+            if not guard_was_active:
+                run([SYSTEMCTL, "disable", "--now", GUARD_SERVICE], timeout=30)
+            if changed:
+                restore_env(original, original_meta)
+                compose_up_app()
+                wait_health()
+                if not pinned_app_active():
+                    raise Halt("pinned runtime not restored")
+        except Exception as recovery_error:
+            raise Halt("gateway activation failed and rollback incomplete") from recovery_error
+        raise
 
     print(
         json.dumps(
