@@ -7,7 +7,6 @@ Requires=dao-oce-egress-guard.service
 Type=simple
 User=dao-oce-gateway
 Group=dao-oce-gateway
-SupplementaryGroups=dao
 ExecStart=/usr/local/libexec/dao-oce-gateway serve
 LoadCredential=oce-gateway:/etc/dao-oce/private/gateway-credential.json
 Restart=on-failure
@@ -26,8 +25,6 @@ RestrictSUIDSGID=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
 RestrictAddressFamilies=AF_UNIX AF_INET
-RuntimeDirectory=dao-oce-gateway
-RuntimeDirectoryMode=0750
 ReadWritePaths=/var/lib/dao-oce-gateway /run/dao-oce-gateway
 ReadOnlyPaths=/etc/dao-oce/private/gateway-credential.json
 
