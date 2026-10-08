@@ -1,11 +1,14 @@
 # D.A.O — Next Steps
 
+## DEV #64 — livrer le correctif UX, puis intégrer les retours manuels
+
+Poursuivre la branche `fix/backoffice-v2-usability` depuis le main vérifié `c38e4ca…`. Observer sa CI exacte sans rejouer les contrôles pour des entrées inchangées, corriger uniquement les échecs prouvés, fusionner vert et vérifier main/deploy. Ce correctif est frontend uniquement : ne rejouer aucune migration et ne modifier ni Auth/RLS ni OCE/#58 ni contrats/#61. Garder #64 ouvert pour les corrections que le pilote annoncera après ses tests manuels ; tracer chaque observation, sa cause, sa correction et la preuve de validation. Les preuves finales de #68 restent valides pour son périmètre. Voir [audit de reprise](../backoffice-v2-followup.md).
+
 ## OPT #58 — finish private deny-by-default gateway
 
 Backup/restore, live runtime pin and technical identity rotation/revocation are
 complete. Do not repeat them without a new cause. Active branch:
-`chore/oce-private-gateway` from main
-`c38e4ca137bd5997cc2e0876108a5ce486f7453a`.
+`chore/oce-private-gateway`.
 
 1. Validate the gateway, host guard, installer and live-qualification helper on
    the exact branch head. Merge only with dedicated gateway validation and
