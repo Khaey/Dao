@@ -319,7 +319,7 @@ def socket_ready():
 
 
 def as_dao_curl(args, *, payload=None, timeout=10, check=True):
-    command = [RUNUSER, "-u", "dao", "--", CURL] + args
+    command = [RUNUSER, "-u", "dao", "--", CURL, "--noproxy", "*"] + args
     return run(
         command,
         timeout=timeout,
