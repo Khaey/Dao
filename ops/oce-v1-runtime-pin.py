@@ -24,7 +24,7 @@ BASE_FILES = (
     BASE / 'docker-compose.quickstart.yml',
     BASE / 'docker-compose.override.yml',
 )
-PIN_FILE = Path('/etc/dao/oce-runtime-pin.yml')
+PIN_FILE = Path('/etc/dao-oce/runtime-pin.yml')
 LOCK_FILE = Path('/run/lock/dao-oce-runtime-pin.lock')
 APP_CONTAINER = 'openconstructionerp-app-1'
 PG_CONTAINER = 'openconstructionerp-postgres-1'
