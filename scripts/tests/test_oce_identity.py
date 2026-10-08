@@ -121,7 +121,7 @@ class OceIdentityTests(unittest.TestCase):
             patch.object(m, "demo_admin_token", return_value="admin-token"),
             patch.object(m, "list_technical", return_value=row),
             patch.object(m, "read_secret", return_value=secret),
-            patch.object(m.PENDING_FILE, "exists", return_value=False),
+            patch.object(m, "PENDING_FILE", Path("/nonexistent/oce-pending-test")),
             patch.object(m, "login", return_value=("tech-token", row)),
             patch("sys.stdout", out),
         ):
