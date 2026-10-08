@@ -257,11 +257,25 @@ class HostEnvTests(unittest.TestCase):
             env.write_text("OE_BIND=127.0.0.1\n")
             env.chmod(0o640)
             meta = env.lstat()
-            fake = type("User", (), {"pw_uid": 4242, "pw_gid": meta.st_gid})()
-            with patch.object(host.pwd, "getpwnam", return_value=fake), patch.object(
-                host.os, "getgrouplist", return_value=[meta.st_gid]
-            ):
+            result = type("Result", (), {"returncode": 0, "stdout": b""})()
+            with patch.object(host, "ENV_FILE", env), patch.object(host, "run", return_value=result) as probe:
                 self.assertTrue(host.env_readable_by_dao(meta))
+            args = probe.call_args.args[0]
+            self.assertIn("dao", args)
+            self.assertIn("-r", args)
+            self.assertIn(str(env), args)
+
+    def test_docker_access_probe_uses_real_dao_write_check(self):
+        fake_meta = type("Meta", (), {"st_mode": 0o140660})()
+        result = type("Result", (), {"returncode": 0, "stdout": b""})()
+        with patch.object(Path, "lstat", return_value=fake_meta), patch.object(
+            host, "run", return_value=result
+        ) as probe:
+            self.assertTrue(host.dao_has_docker_socket_access())
+        args = probe.call_args.args[0]
+        self.assertIn("dao", args)
+        self.assertIn("-w", args)
+        self.assertIn("/var/run/docker.sock", args)
 
     def test_duplicate_bind_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
