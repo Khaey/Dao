@@ -15,7 +15,7 @@ import time
 
 BASE = Path('/home/ubuntu/dao/OpenConstructionERP')
 BASE_FILES = (BASE / 'docker-compose.quickstart.yml', BASE / 'docker-compose.override.yml')
-PIN_FILE = Path('/etc/dao/oce-runtime-pin.yml')
+PIN_FILE = Path('/etc/dao-oce/runtime-pin.yml')
 DOCKER = ['sudo', '-n', '/usr/bin/docker', '--host', 'unix:///var/run/docker.sock']
 DEADLINE = None
 
