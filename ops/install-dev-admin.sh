@@ -16,7 +16,7 @@ tmp="$(mktemp /etc/sudoers.d/.dao-admin-XXXXXX)"
 trap 'rm -f "$tmp"' EXIT
 cat > "$tmp" <<'EOF'
 # D.A.O environment and safe diagnostics; existing service sudoers remain intact.
-dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-dev-admin env-sync, /usr/local/sbin/dao-dev-admin env-restore, /usr/local/sbin/dao-dev-admin log-summary, /usr/local/sbin/dao-dev-admin oce-audit, /usr/local/sbin/dao-dev-admin oce-integration-inventory
+dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-dev-admin env-sync, /usr/local/sbin/dao-dev-admin env-restore, /usr/local/sbin/dao-dev-admin log-summary, /usr/local/sbin/dao-dev-admin oce-audit, /usr/local/sbin/dao-dev-admin oce-integration-inventory, /usr/local/sbin/dao-dev-admin oce-gateway-plan
 EOF
 chmod 0440 "$tmp"
 visudo -cf "$tmp"

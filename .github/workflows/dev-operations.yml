@@ -8,7 +8,7 @@ on:
         type: choice
         required: true
         default: status
-        options: [status, health, restart, env-sync, log-summary, oce-integration-inventory]
+        options: [status, health, restart, env-sync, log-summary, oce-integration-inventory, oce-gateway-plan]
 
 permissions:
   contents: read
@@ -97,6 +97,7 @@ jobs:
                 ;;
               log-summary) sudo -n /usr/local/sbin/dao-dev-admin log-summary ;;
               oce-integration-inventory) sudo -n /usr/local/sbin/dao-dev-admin oce-integration-inventory ;;
+              oce-gateway-plan) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan ;;
               *) echo 'Unsupported operation'; exit 2 ;;
             esac
       - name: Remove runner payload

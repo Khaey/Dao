@@ -6,28 +6,26 @@ Poursuivre la branche `fix/backoffice-v2-usability` depuis le main vérifié `c3
 
 ## OPT #58 — finish private deny-by-default gateway
 
-Backup/restore, live runtime pin and technical identity rotation/revocation are
-complete. Do not repeat them without a new cause. Active branch:
-`chore/oce-private-gateway`.
+Backup/restore, live immutable digest, technical identity rotation/revocation,
+private gateway implementation and the direct-Compose digest correction are
+merged. Routine VPS execution is now **GitHub Actions only**.
 
-1. Validate the gateway, host guard, installer and live-qualification helper on
-   the exact branch head. Merge only with dedicated gateway validation and
-   normal DAO CI green.
-2. Verify main CI/deploy and use the exact deployed release. Install with
-   `install-oce-gateway.sh`; installation must start no service.
-3. Run root `dao-oce-gateway-host plan`, then `apply`. Apply must leave OCE
-   healthy and loopback-only, preserve demo access, start the separate gateway,
-   and prove uid `dao` cannot reach OCE directly through loopback or the
-   container address.
-4. Run `dao-oce-gateway-qualify` once. It must prove the fixed positive
-   planning flow, idempotency, unknown-operation/extra-field rejection,
-   forged/cross-project mapping rejection and mapping revocation.
-5. If every live gate passes, record evidence in #58 and publish TARGET: DEV
-   gateway primitives only. Durable product sync/journal orchestration remains
-   later DEV work.
+1. Merge the VPS-operations automation change only with normal CI and targeted
+   platform checks green.
+2. Perform one final root-only bootstrap of the reviewed `dao-dev-admin`
+   helper/sudoers if required. This is the last expected chat-driven root
+   command for #58; it only installs the bounded operation and changes no OCE
+   service/bind/demo state.
+3. After that bootstrap, use `DAO DEV operations -> oce-gateway-plan` or the
+   automatic post-main-deploy plan. Do not request repetitive SSH commands.
+4. Keep gateway host `apply` blocked until the operator separately approves
+   replacing the current public OCE:8080 browser path with a verified alternate
+   access path. Demo accounts/login remain preserved.
+5. Only after approved activation, run the fixed live gateway qualification and
+   record sanitized evidence in #58. Durable product sync/journal orchestration
+   remains later DEV work.
 
-Preserve the explicitly requested demo access. No #45/#54 replay, no new backup
-outage, and no product/Auth/RLS change.
+No #45/#54 replay, no new backup outage, and no product/Auth/RLS change.
 
 ## Active DEV — finish #64 delivery
 

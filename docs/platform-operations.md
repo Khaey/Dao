@@ -44,6 +44,22 @@ deployment; this is not a claim of an atomic GitHub-to-VPS transaction.
 
 ## Stable control through GitHub Actions
 
+### VPS operations policy
+
+For D.A.O, **all routine VPS operations must transit through GitHub Actions**.
+Do not ask the operator to copy/paste SSH commands from chat for status,
+health, diagnostics, OCE checks, restart or other bounded platform operations.
+A direct root shell is reserved only for a genuinely unavoidable **one-time
+bootstrap** that installs or refreshes the reviewed root helper/sudoers. After
+that bootstrap, repeated execution must return to the protected GitHub Actions
+SSH identity and fixed allowlisted operations.
+
+Every successful main deployment performs the normal DEV health/status checks
+and, once the bounded root grant is installed, also runs the read-only
+`oce-gateway-plan`. If that one-time grant has not yet been installed, the
+deployment reports `{"oce_gateway_plan":"bootstrap_required"}` rather than
+requesting broader runner privileges.
+
 Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 
 | Operation | Behavior | Available prerequisite |
@@ -55,6 +71,7 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | log-summary | Last hour priority counts, at most 200 journal entries; no message bodies | One-time admin helper installation |
 | oce-audit | Fixed read-only OCE container/image/converter/backup metadata; no env values, file contents or arbitrary Docker command | Reinstall reviewed admin helper once as root after this operation is added |
 | oce-integration-inventory | Fixed OCE DB/Compose/storage/network metadata for #58; anonymous peers and no credential/path values | Reinstall reviewed admin helper once as root; available in DAO DEV operations on main |
+| oce-gateway-plan | Fixed read-only gateway host plan; no service start, bind change or demo-access change | One-time reviewed admin-helper refresh grants this exact operation; then GitHub Actions only |
 
 Example with a credential authorized for Actions dispatch:
 
