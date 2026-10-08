@@ -4,24 +4,30 @@
 
 Poursuivre la branche `fix/backoffice-v2-usability` depuis le main vérifié `c38e4ca…`. Observer sa CI exacte sans rejouer les contrôles pour des entrées inchangées, corriger uniquement les échecs prouvés, fusionner vert et vérifier main/deploy. Ce correctif est frontend uniquement : ne rejouer aucune migration et ne modifier ni Auth/RLS ni OCE/#58 ni contrats/#61. Garder #64 ouvert pour les corrections que le pilote annoncera après ses tests manuels ; tracer chaque observation, sa cause, sa correction et la preuve de validation. Les preuves finales de #68 restent valides pour son périmètre. Voir [audit de reprise](../backoffice-v2-followup.md).
 
-## OPT #58 — qualify gateway identity, then private gateway
+## OPT #58 — finish private deny-by-default gateway
 
-Backup/restore and the live immutable OCE runtime pin are complete. Do not
-repeat them without a new cause.
+Backup/restore, live runtime pin and technical identity rotation/revocation are
+complete. Do not repeat them without a new cause. Active branch:
+`chore/oce-private-gateway`.
 
-1. Finish PR #74 on branch `chore/oce-gateway-identity` with exact-head green
-   dedicated validation and normal DAO CI.
-2. Merge only green, then verify main CI/deploy and use the exact deployed
-   release.
-3. Run the fixed root-only identity helper in order: `plan`, `apply`,
-   `qualify`. Record sanitized JSON only.
-4. Preserve the explicitly requested OCE demo access; it remains separate from
-   the D.A.O integration identity.
-5. Next implement the deny-by-default private gateway and prove unknown
-   operation, extra-field, cross-project mapping and direct-OCE bypass rejection
-   before publishing TARGET: DEV primitives.
+1. Validate the gateway, host guard, installer and live-qualification helper on
+   the exact branch head. Merge only with dedicated gateway validation and
+   normal DAO CI green.
+2. Verify main CI/deploy and use the exact deployed release. Install with
+   `install-oce-gateway.sh`; installation must start no service.
+3. Run root `dao-oce-gateway-host plan`, then `apply`. Apply must leave OCE
+   healthy and loopback-only, preserve demo access, start the separate gateway,
+   and prove uid `dao` cannot reach OCE directly through loopback or the
+   container address.
+4. Run `dao-oce-gateway-qualify` once. It must prove the fixed positive
+   planning flow, idempotency, unknown-operation/extra-field rejection,
+   forged/cross-project mapping rejection and mapping revocation.
+5. If every live gate passes, record evidence in #58 and publish TARGET: DEV
+   gateway primitives only. Durable product sync/journal orchestration remains
+   later DEV work.
 
-No #45/#54 replay, no new backup outage, and no product/Auth/RLS change.
+Preserve the explicitly requested demo access. No #45/#54 replay, no new backup
+outage, and no product/Auth/RLS change.
 
 ## Active DEV — finish #64 delivery
 
