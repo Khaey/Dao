@@ -257,5 +257,16 @@ bash "$RELEASE/scripts/dev-status.sh"
 # Do not roll back a healthy activation because retention cleanup failed.
 CURRENT_SWITCHED=0
 trap - ERR HUP INT TERM
+
+# VPS checks are GitHub-transported only. Once the root helper has received its
+# one-time bounded sudo grant, every successful main deployment also executes
+# the read-only OCE gateway host plan. Before that bootstrap, report the exact
+# prerequisite without asking the deployment runner for broader privileges.
+if sudo -n -l /usr/local/sbin/dao-dev-admin oce-gateway-plan >/dev/null 2>&1; then
+  sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan
+else
+  printf '%s\n' '{"oce_gateway_plan":"bootstrap_required"}'
+fi
+
 echo "DEPLOY_RELEASE sha=$REVISION path=$RELEASE"
 ls -1dt "$APP_ROOT"/releases/* 2>/dev/null | tail -n +6 | xargs -r rm -rf
