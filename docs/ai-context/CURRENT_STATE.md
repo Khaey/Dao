@@ -1,5 +1,9 @@
 # D.A.O — Current State
 
+## DEV #64 — réouvert pour corrections UX et retours manuels (2026-10-08)
+
+Base vérifiée `c38e4ca137bd5997cc2e0876108a5ce486f7453a`, CI/deploy #343 SUCCESS. La livraison #68 (48/48, migration V2 appliquée une fois) reste acquise ; #64 est rouvert à la demande du pilote pour les défauts d’utilisation. Branche DEV `fix/backoffice-v2-usability` : filtres/dashboard, noms/affectation, annulation de saisie, garde-fous visuels lot publié, accès au chantier complet, filtres historiques par noms et libellés français. Frontend uniquement : aucune migration, permission, RPC ou opération OCE. TypeScript local PASS ; les scénarios E2E existants sont renforcés, leur nombre reste 48. CI exacte/livraison et retours manuels sont suivis dans [#64](https://github.com/Khaey/Dao/issues/64). Ne pas clôturer cette issue sur la seule base des tests automatiques alors que le pilote annonce de nouveaux retours manuels. Voir [audit de reprise](../backoffice-v2-followup.md).
+
 ## OPT #58 — identity qualified; private gateway implementation active (2026-10-08 UTC)
 
 Canonical live evidence is in [#58](https://github.com/Khaey/Dao/issues/58).
