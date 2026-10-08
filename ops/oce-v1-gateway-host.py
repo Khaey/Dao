@@ -159,7 +159,8 @@ def write_env_loopback(original: bytes):
     try:
         with os.fdopen(fd, "wb") as stream:
             os.fchmod(stream.fileno(), stat.S_IMODE(meta.st_mode))
-            os.fchown(stream.fileno(), meta.st_uid, meta.st_gid)
+            if os.geteuid() == 0:
+                os.fchown(stream.fileno(), meta.st_uid, meta.st_gid)
             stream.write(value)
             stream.flush()
             os.fsync(stream.fileno())
@@ -174,7 +175,8 @@ def restore_env(original: bytes, original_meta):
     try:
         with os.fdopen(fd, "wb") as stream:
             os.fchmod(stream.fileno(), stat.S_IMODE(original_meta.st_mode))
-            os.fchown(stream.fileno(), original_meta.st_uid, original_meta.st_gid)
+            if os.geteuid() == 0:
+                os.fchown(stream.fileno(), original_meta.st_uid, original_meta.st_gid)
             stream.write(original)
             stream.flush()
             os.fsync(stream.fileno())
