@@ -194,9 +194,11 @@ rather than blindly replayed.
 
 Host activation is separate and fail-closed. It changes the existing OCE
 `OE_BIND` to `127.0.0.1`, keeps a root-only backup of the previous Compose
-environment, recreates only the OCE app with `--pull never` **and the existing
-root-owned `/etc/dao-oce/runtime-pin.yml` final override**, and re-verifies
-the immutable digest and authoritative Compose labels. It installs a
+environment, recreates only the OCE app with `--pull never` and re-verifies
+the immutable digest plus authoritative Compose labels. The immutable image
+may come either from the root-owned `/etc/dao-oce/runtime-pin.yml` final override
+or directly from the active reviewed Compose files; in both cases the rendered
+image must exactly equal the currently running digest before recreation. It installs a
 dedicated nftables output guard denying uid `dao` any direct TCP/8080 path.
 The gateway service uses a different uid.
 

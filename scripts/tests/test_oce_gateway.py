@@ -279,10 +279,9 @@ class HostEnvTests(unittest.TestCase):
 
     def test_compose_recreate_keeps_runtime_pin_override(self):
         calls = []
-        fake_stat = type("S", (), {"st_mode": 0o100600, "st_uid": 0, "st_size": 200})()
-        with patch.object(Path, "lstat", return_value=fake_stat), patch.object(
-            host, "run", side_effect=lambda args, **kwargs: calls.append(args)
-        ):
+        with patch.object(
+            host, "require_active_digest_pin", return_value=(*host.BASE_FILES, host.PIN_FILE)
+        ), patch.object(host, "run", side_effect=lambda args, **kwargs: calls.append(args)):
             host.compose_up_app()
         self.assertEqual(len(calls), 1)
         args = calls[0]
@@ -290,6 +289,39 @@ class HostEnvTests(unittest.TestCase):
         self.assertEqual(args.count("-f"), 3)
         self.assertIn("--pull", args)
         self.assertIn("never", args)
+
+    def test_direct_compose_digest_is_valid_active_pin(self):
+        digest = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
+        row = {
+            "Config": {
+                "Image": digest,
+                "Labels": {
+                    "com.docker.compose.project.config_files": ",".join(str(p) for p in host.BASE_FILES)
+                },
+            }
+        }
+        with patch.object(Path, "exists", return_value=False), patch.object(
+            host, "app_inspect", return_value=row
+        ), patch.object(host, "configured_app_image", return_value=digest):
+            files = host.require_active_digest_pin()
+        self.assertEqual(files, host.BASE_FILES)
+
+    def test_direct_compose_pin_rejects_live_config_mismatch(self):
+        digest = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
+        other = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "b" * 64
+        row = {
+            "Config": {
+                "Image": digest,
+                "Labels": {
+                    "com.docker.compose.project.config_files": ",".join(str(p) for p in host.BASE_FILES)
+                },
+            }
+        }
+        with patch.object(Path, "exists", return_value=False), patch.object(
+            host, "app_inspect", return_value=row
+        ), patch.object(host, "configured_app_image", return_value=other):
+            with self.assertRaisesRegex(host.Halt, "runtime digest pin not active"):
+                host.require_active_digest_pin()
 
     def test_host_apply_requires_explicit_public_demo_access_ack(self):
         with patch.object(host.sys, "argv", ["dao-oce-gateway-host", "apply"]), patch.object(
