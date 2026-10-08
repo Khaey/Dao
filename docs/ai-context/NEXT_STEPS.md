@@ -1,25 +1,23 @@
 # D.A.O — Next Steps
 
-## OPT #58 — qualify immutable runtime pin, then gateway identity
+## OPT #58 — qualify gateway identity, then private gateway
 
-Backup/restore is complete and must not be repeated for this step. Continue from
-main `a040e505c33f986f23c2dada5ba07d2fb1a22ae8` and branch
-`chore/oce-runtime-digest-pin`.
+Backup/restore and the live immutable OCE runtime pin are complete. Do not
+repeat them without a new cause.
 
-1. Validate `ops/oce-v1-runtime-pin.py` and its dedicated CI on the exact branch
-   head; merge only green and verify main CI/deploy.
-2. From the exact deployed release, run the root-only `plan`; it must discover
-   one registry RepoDigest for each exact validated local image and prove the
-   original resolved references are locally rollback-safe.
-3. Run `apply` once. It may recreate only the app, never PostgreSQL, never pull
-   or build. Record sanitized output proving immutable digest reference and
-   healthy OCE/database. On failure, respect the built-in rollback result rather
-   than issuing ad-hoc Docker commands.
-4. Then proceed to the dedicated technical OCE editor identity, protected secret,
-   private deny-by-default gateway, negative mapping/operation/bypass tests and
-   real rotation/revocation. Only then publish TARGET: DEV primitives.
+1. Finish PR #74 on branch `chore/oce-gateway-identity` with exact-head green
+   dedicated validation and normal DAO CI.
+2. Merge only green, then verify main CI/deploy and use the exact deployed
+   release.
+3. Run the fixed root-only identity helper in order: `plan`, `apply`,
+   `qualify`. Record sanitized JSON only.
+4. Preserve the explicitly requested OCE demo access; it remains separate from
+   the D.A.O integration identity.
+5. Next implement the deny-by-default private gateway and prove unknown
+   operation, extra-field, cross-project mapping and direct-OCE bypass rejection
+   before publishing TARGET: DEV primitives.
 
-No #45/#54 replay, no new backup outage, and no product/Auth/RLS changes.
+No #45/#54 replay, no new backup outage, and no product/Auth/RLS change.
 
 ## Active DEV — finish #64 delivery
 
