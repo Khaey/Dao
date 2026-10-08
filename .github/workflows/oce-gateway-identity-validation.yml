@@ -1,0 +1,39 @@
+name: OCE gateway identity validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ops/oce-v1-identity.py
+      - scripts/tests/test_oce_identity.py
+      - docs/oce-integration-operations.md
+      - docs/ai-context/CURRENT_STATE.md
+      - docs/ai-context/NEXT_STEPS.md
+      - .github/workflows/oce-gateway-identity-validation.yml
+  push:
+    branches: [main]
+    paths:
+      - ops/oce-v1-identity.py
+      - scripts/tests/test_oce_identity.py
+      - docs/oce-integration-operations.md
+      - docs/ai-context/CURRENT_STATE.md
+      - docs/ai-context/NEXT_STEPS.md
+      - .github/workflows/oce-gateway-identity-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oce-gateway-identity-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate identity helper as root boundary
+        run: sudo env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/tests -p 'test_oce_identity.py' -v
+      - name: Validate helper compiles
+        run: PYTHONPYCACHEPREFIX=/tmp/oce-identity-pycache python3 -m py_compile ops/oce-v1-identity.py
