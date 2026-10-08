@@ -114,11 +114,15 @@ class RuntimePinTests(unittest.TestCase):
             path = Path(tmp) / 'active.json'
             path.write_text(json.dumps(good))
             os.chmod(path, 0o600)
-            with patch.object(p, 'BACKUP_STATE', path):
+            root_meta = type('Meta', (), {
+                'st_mode': stat.S_IFREG | 0o600,
+                'st_uid': 0,
+            })()
+            with patch.object(p, 'BACKUP_STATE', path), patch.object(Path, 'lstat', return_value=root_meta):
                 self.assertEqual(p.qualified_backup(), 'job')
             bad = dict(good, restore_verified=False)
             path.write_text(json.dumps(bad))
-            with patch.object(p, 'BACKUP_STATE', path):
+            with patch.object(p, 'BACKUP_STATE', path), patch.object(Path, 'lstat', return_value=root_meta):
                 with self.assertRaisesRegex(ValueError, 'qualified backup required'):
                     p.qualified_backup()
 
