@@ -300,7 +300,7 @@ class HostEnvTests(unittest.TestCase):
                 },
             }
         }
-        with patch.object(host.PIN_FILE, "exists", return_value=False), patch.object(
+        with patch.object(Path, "exists", return_value=False), patch.object(
             host, "app_inspect", return_value=row
         ), patch.object(host, "configured_app_image", return_value=digest):
             files = host.require_active_digest_pin()
@@ -317,7 +317,7 @@ class HostEnvTests(unittest.TestCase):
                 },
             }
         }
-        with patch.object(host.PIN_FILE, "exists", return_value=False), patch.object(
+        with patch.object(Path, "exists", return_value=False), patch.object(
             host, "app_inspect", return_value=row
         ), patch.object(host, "configured_app_image", return_value=other):
             with self.assertRaisesRegex(host.Halt, "runtime digest pin not active"):
