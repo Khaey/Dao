@@ -1,6 +1,6 @@
 [Unit]
 Description=D.A.O private OCE gateway
-After=network-online.target dao-oce-egress-guard.service
+After=network-online.target systemd-tmpfiles-setup.service dao-oce-egress-guard.service
 Requires=dao-oce-egress-guard.service
 
 [Service]
