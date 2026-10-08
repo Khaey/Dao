@@ -956,7 +956,9 @@ class GatewayServer(socketserver.UnixStreamServer):
         super().server_bind()
         _, dao_gid = user_ids(DAO_USER)
         os.chmod(SOCKET_PATH, 0o660)
-        os.chown(SOCKET_PATH, -1, dao_gid)
+        meta = SOCKET_PATH.lstat()
+        if meta.st_gid != dao_gid:
+            raise SafeError(500, "gateway_socket_group_unsafe")
 
 
 class Handler(BaseHTTPRequestHandler):
