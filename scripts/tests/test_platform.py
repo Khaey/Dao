@@ -95,7 +95,7 @@ esac
 
 
 class DeploymentTests(unittest.TestCase):
-    def deploy(self, smoke_failure=False, stale=False, env_sync=False, env_sync_failure=False):
+    def deploy(self, smoke_failure=False, stale=False, env_sync=False, env_sync_failure=False, gateway_plan_grant=True, gateway_plan_failure=False):
         with tempfile.TemporaryDirectory() as directory:
             tmp = Path(directory)
             app = tmp / 'app'
@@ -127,7 +127,7 @@ elif a[:1]==['-C']:
                 'git': git,
                 'node': '#!/bin/sh\ncase "$1" in --version) echo v22.1.0;; -p) echo linux-x64;; *) exit 0;; esac\n',
                 'npm': '#!/bin/sh\nif [ "$1" = --version ]; then echo 10.0.0; else mkdir -p node_modules; fi\n',
-                'sudo': '#!/bin/sh\nprintf "sudo-call %s\\n" "$*" >> "$MOCK_CALLS"\ncase "$*" in *env-sync*) if [ "${MOCK_ENV_SYNC_FAILURE:-0}" = 1 ]; then exit 1; fi; printf "ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY\\n";; esac\nexit 0\n',
+                'sudo': '#!/bin/sh\nprintf "sudo-call %s\\n" "$*" >> "$MOCK_CALLS"\nif [ "${2:-}" = -l ] && [ "${MOCK_PLAN_GRANT:-1}" = 0 ]; then exit 1; fi\nif [ "${3:-}" = oce-gateway-plan ]; then if [ "${MOCK_PLAN_FAILURE:-0}" = 1 ]; then exit 1; fi; printf \'{"oce_gateway_host_plan_ready":true}\\n\'; fi\ncase "$*" in *env-sync*) if [ "${MOCK_ENV_SYNC_FAILURE:-0}" = 1 ]; then exit 1; fi; printf "ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY\\n";; esac\nexit 0\n',
             }
             for name, value in commands.items():
                 (binary / name).write_text(value)
@@ -150,16 +150,34 @@ elif a[:1]==['-C']:
             args = ['bash', str(path), revision, '1', '1', str(artifact)]
             if env_sync:
                 args.append(str(payload))
-            result = subprocess.run(args, env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': '1' if smoke_failure else '0', 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
+            result = subprocess.run(args, env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': '1' if smoke_failure else '0', 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_PLAN_GRANT': '1' if gateway_plan_grant else '0', 'MOCK_PLAN_FAILURE': '1' if gateway_plan_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
             call_log = calls.read_text() if calls.exists() else ''
             return result, (app / 'current').resolve().name, call_log.count('sudo-call'), call_log
 
     def test_success_activates_exact_revision(self):
-        result, active, calls, _ = self.deploy()
+        result, active, calls, log = self.deploy()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(active, 'a' * 40 + '-1-1')
         self.assertIn('DEPLOY_BUILD source=verified_ci_artifact', result.stdout)
-        self.assertEqual(calls, 2)
+        self.assertIn('oce_gateway_host_plan_ready', result.stdout)
+        self.assertIn('oce-gateway-plan', log)
+        self.assertEqual(calls, 4)
+
+    def test_post_deploy_plan_needs_no_repetitive_root_command(self):
+        result, active, calls, log = self.deploy(gateway_plan_grant=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(active, 'a' * 40 + '-1-1')
+        self.assertIn('bootstrap_required', result.stdout)
+        self.assertNotIn('sudo-call -n "', log)
+        self.assertEqual(calls, 3)
+
+    def test_post_deploy_monitor_failure_does_not_break_healthy_release(self):
+        result, active, calls, log = self.deploy(gateway_plan_failure=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(active, 'a' * 40 + '-1-1')
+        self.assertIn('"check_failed"', result.stdout)
+        self.assertIn('"non_blocking":true', result.stdout)
+        self.assertEqual(calls, 4)
 
     def test_http_failure_rolls_back(self):
         result, active, calls, _ = self.deploy(smoke_failure=True)
