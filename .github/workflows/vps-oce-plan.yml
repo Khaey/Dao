@@ -1,0 +1,38 @@
+name: DAO VPS OCE read-only plan
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  oce-plan:
+    # The fixed comment from the repo owner is only a signal, never a shell
+    # argument. No untrusted PR, issue body, actor name or input enters SSH.
+    if: >-
+      ${{
+        github.event.issue.number == 58 &&
+        github.event.issue.pull_request == null &&
+        github.actor == 'Khaey' &&
+        github.event.comment.body == '/dao-ops oce-gateway-plan'
+      }}
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 4
+    concurrency:
+      group: dao-dev-operations
+      cancel-in-progress: false
+    steps:
+      - name: Run fixed, read-only gateway host plan via existing protected SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          timeout: 30s
+          command_timeout: 90s
+          script: |
+            set -euo pipefail
+            sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan

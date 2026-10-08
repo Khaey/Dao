@@ -207,5 +207,25 @@ elif a[:1]==['-C']:
         self.assertEqual(calls, 1)
 
 
+
+class VpsOwnerPlanWorkflowTests(unittest.TestCase):
+    def test_read_only_plan_requires_exact_owner_and_issue_comment(self):
+        workflow = (ROOT / '.github/workflows/vps-oce-plan.yml').read_text()
+        self.assertIn('issue_comment:', workflow)
+        self.assertIn('types: [created]', workflow)
+        self.assertIn('github.event.issue.number == 58', workflow)
+        self.assertIn('github.event.issue.pull_request == null', workflow)
+        self.assertIn("github.actor == 'Khaey'", workflow)
+        self.assertIn("github.event.comment.body == '/dao-ops oce-gateway-plan'", workflow)
+        self.assertIn('environment: dev', workflow)
+        self.assertIn('group: dao-dev-operations', workflow)
+        self.assertIn('secrets.DEV_SSH_KEY', workflow)
+        self.assertIn('sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan', workflow)
+        self.assertNotIn('gateway-host apply', workflow)
+        self.assertNotIn('sudo -n bash', workflow)
+        self.assertNotIn('github.event.comment.body }', workflow)
+
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -60,6 +60,19 @@ and, once the bounded root grant is installed, also runs the read-only
 deployment reports `{"oce_gateway_plan":"bootstrap_required"}` rather than
 requesting broader runner privileges.
 
+For an immediate on-demand gateway plan without a VPS terminal or an external
+workflow-dispatch tool, the repo owner can post the **entire exact comment**
+`/dao-ops oce-gateway-plan` on **issue #58**. The dedicated
+`DAO VPS OCE read-only plan` workflow accepts only newly created comments
+from GitHub actor `Khaey` on that numbered issue; it uses the existing
+protected `dev` SSH identity and fixed root allowlist to run only
+`dao-dev-admin oce-gateway-plan`. Comment content is a strict signal and
+is never passed as a shell argument. All other actors, issue numbers,
+pull requests and comment texts are skipped. The resulting sanitized plan
+is visible in GitHub Actions; it never starts a service or closes the OCE
+public demo URL. This trigger is **not** an approval to execute
+`dao-oce-gateway-host apply`.
+
 Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 
 | Operation | Behavior | Available prerequisite |
