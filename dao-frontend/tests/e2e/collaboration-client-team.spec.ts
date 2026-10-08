@@ -53,7 +53,7 @@ test('Client avec équipe existante : invitation, chantier commun et publication
     await reviewer.goto('/app/dao/review');
     const card = reviewer.getByRole('heading', { name: project.title, exact: true }).locator('xpath=../../..');
     await card.getByRole('button', { name: 'Passer en revue DAO' }).click();
-    await expect(card.getByText('dao_review', { exact: true })).toBeVisible();
+    await expect(card.getByText('Revue DAO', { exact: true })).toBeVisible();
     await card.getByRole('button', { name: 'Approuver' }).click();
     await expect(reviewer.getByRole('heading', { name: project.title, exact: true })).toHaveCount(0);
     await reviewer.goto(`/app/dao/publications/new?project_id=${project.projectId}`);
