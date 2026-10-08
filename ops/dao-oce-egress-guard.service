@@ -1,0 +1,17 @@
+[Unit]
+Description=Block D.A.O runtime direct OCE TCP access
+Before=dao-dev.service dao-oce-gateway.service
+After=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/dao-oce-egress-guard start
+ExecStop=/usr/local/libexec/dao-oce-egress-guard stop
+RemainAfterExit=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
