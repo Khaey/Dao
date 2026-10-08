@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Validate runtime pin boundaries
-        run: python3 -m unittest discover -s scripts/tests -p 'test_oce_runtime_pin.py' -v
+      - name: Validate runtime pin boundaries as the root-only operator
+        run: sudo python3 -m unittest discover -s scripts/tests -p 'test_oce_runtime_pin.py' -v
       - name: Validate operator scripts compile
         run: python3 -m py_compile ops/oce-v1-runtime-pin.py ops/oce-v1-preflight.py
