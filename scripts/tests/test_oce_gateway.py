@@ -113,6 +113,82 @@ class GatewayContractTests(unittest.TestCase):
         self.assertNotIn("dependencies", payload)
         self.assertNotIn("resources", payload)
 
+    def test_planning_scope_rejects_unmapped_objects(self):
+        gateway = object.__new__(g.Gateway)
+        gateway.credential = {"user_id": "tech-user"}
+        row = {
+            "oce_project_id": "project-id",
+            "schedule_id": "schedule-id",
+            "activities": {"A1": "activity-1"},
+            "relationships": {"A1->A2": "relationship-1"},
+        }
+        project = {"id": "project-id"}
+        schedule = {"id": "schedule-id", "project_id": "project-id"}
+
+        common = (
+            patch.object(gateway, "oce_project", return_value=project),
+            patch.object(gateway, "schedule", return_value=schedule),
+            patch.object(
+                gateway,
+                "list_activities",
+                return_value=[
+                    {"id": "activity-1", "activity_code": "A1", "schedule_id": "schedule-id"}
+                ],
+            ),
+            patch.object(
+                gateway,
+                "list_relationships",
+                return_value=[
+                    {
+                        "id": "relationship-1",
+                        "schedule_id": "schedule-id",
+                        "predecessor_id": "activity-1",
+                        "successor_id": "activity-1",
+                    }
+                ],
+            ),
+        )
+
+        with common[0], common[1], common[2], common[3], patch.object(
+            gateway,
+            "list_schedules",
+            return_value=[schedule, {"id": "foreign-schedule"}],
+        ):
+            with self.assertRaises(g.SafeError) as cm:
+                gateway.verify_planning_scope(object(), row)
+        self.assertEqual(cm.exception.code, "planning_scope_contains_unmapped_schedule")
+
+        with patch.object(gateway, "oce_project", return_value=project), patch.object(
+            gateway, "schedule", return_value=schedule
+        ), patch.object(gateway, "list_schedules", return_value=[schedule]), patch.object(
+            gateway,
+            "list_activities",
+            return_value=[
+                {"id": "activity-1", "activity_code": "A1", "schedule_id": "schedule-id"},
+                {"id": "foreign-activity", "activity_code": "X", "schedule_id": "schedule-id"},
+            ],
+        ):
+            with self.assertRaises(g.SafeError) as cm:
+                gateway.verify_planning_scope(object(), row)
+        self.assertEqual(cm.exception.code, "planning_scope_contains_unmapped_activity")
+
+        with patch.object(gateway, "oce_project", return_value=project), patch.object(
+            gateway, "schedule", return_value=schedule
+        ), patch.object(gateway, "list_schedules", return_value=[schedule]), patch.object(
+            gateway,
+            "list_activities",
+            return_value=[
+                {"id": "activity-1", "activity_code": "A1", "schedule_id": "schedule-id"}
+            ],
+        ), patch.object(
+            gateway,
+            "list_relationships",
+            return_value=[],
+        ):
+            with self.assertRaises(g.SafeError) as cm:
+                gateway.verify_planning_scope(object(), row)
+        self.assertEqual(cm.exception.code, "planning_scope_contains_unmapped_dependency")
+
     def test_credential_projection_uses_systemd_directory_only_for_service(self):
         with patch.dict("os.environ", {"CREDENTIALS_DIRECTORY": "/run/cred"}, clear=False), patch.object(
             g.os, "geteuid", return_value=1234
@@ -174,6 +250,18 @@ class HostEnvTests(unittest.TestCase):
             self.assertIn("JWT_SECRET=secret2", text)
             self.assertIn("OE_BIND=127.0.0.1", text)
             self.assertNotIn("OE_BIND=0.0.0.0", text)
+
+    def test_dao_readable_compose_env_is_detected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = Path(tmp) / ".env"
+            env.write_text("OE_BIND=127.0.0.1\n")
+            env.chmod(0o640)
+            meta = env.lstat()
+            fake = type("User", (), {"pw_uid": 4242, "pw_gid": meta.st_gid})()
+            with patch.object(host.pwd, "getpwnam", return_value=fake), patch.object(
+                host.os, "getgrouplist", return_value=[meta.st_gid]
+            ):
+                self.assertTrue(host.env_readable_by_dao(meta))
 
     def test_duplicate_bind_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
