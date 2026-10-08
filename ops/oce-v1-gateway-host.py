@@ -28,6 +28,7 @@ BASE_FILES = (
 )
 PRIVATE_DIR = Path("/etc/dao-oce/private")
 ENV_BACKUP = PRIVATE_DIR / "compose.env.pre-gateway"
+PIN_FILE = Path("/etc/dao-oce/runtime-pin.yml")
 APP_CONTAINER = "openconstructionerp-app-1"
 SOCKET_PATH = Path("/run/dao-oce-gateway/gateway.sock")
 GATEWAY_SERVICE = "dao-oce-gateway.service"
@@ -240,9 +241,22 @@ def backup_env(original: bytes):
         raise Halt("compose env backup unsafe")
 
 
+def require_active_digest_pin():
+    """Never recreate OCE without its already-qualified immutable pin."""
+    meta = PIN_FILE.lstat()
+    if (
+        not stat.S_ISREG(meta.st_mode)
+        or meta.st_uid != 0
+        or meta.st_mode & 0o022
+        or meta.st_size > 8192
+    ):
+        raise Halt("runtime pin missing or unsafe")
+
+
 def compose_up_app():
+    require_active_digest_pin()
     args = [DOCKER, "compose", "--project-directory", str(BASE)]
-    for path in BASE_FILES:
+    for path in (*BASE_FILES, PIN_FILE):
         args.extend(["-f", str(path)])
     args.extend(["up", "-d", "--no-deps", "--no-build", "--pull", "never", "app"])
     run(args, timeout=120)
@@ -254,6 +268,21 @@ def app_inspect():
     if not isinstance(rows, list) or len(rows) != 1:
         raise Halt("app inspect shape")
     return rows[0]
+
+
+def pinned_app_active():
+    row = app_inspect()
+    image = ((row.get("Config") or {}).get("Image") or "")
+    labels = ((row.get("Config") or {}).get("Labels") or {})
+    sources = labels.get("com.docker.compose.project.config_files", "")
+    paths = [part.strip() for part in sources.split(",") if part.strip()]
+    if not (
+        image.startswith("ghcr.io/datadrivenconstruction/openconstructionerp@sha256:")
+        and len(image.rsplit("@sha256:", 1)[-1]) == 64
+        and set(paths) == {str(p) for p in (*BASE_FILES, PIN_FILE)}
+    ):
+        return False
+    return True
 
 
 def loopback_only():
@@ -359,8 +388,11 @@ def validate_installed_files():
 def plan():
     require_root()
     validate_installed_files()
+    require_active_digest_pin()
     if not health():
         raise Halt("oce health")
+    if not pinned_app_active():
+        raise Halt("runtime digest pin not active")
     original, bind = read_env()
     _ = original
     meta = env_meta()
@@ -387,8 +419,9 @@ def plan():
 def apply():
     require_root()
     validate_installed_files()
-    if not health():
-        raise Halt("oce health")
+    require_active_digest_pin()
+    if not health() or not pinned_app_active():
+        raise Halt("oce health or runtime digest pin unavailable")
     if not demo_enabled():
         raise Halt("demo access unavailable")
     if dao_has_docker_socket_access():
@@ -417,6 +450,9 @@ def apply():
         if not loopback_only():
             raise Halt("loopback bind ineffective")
 
+    if not pinned_app_active():
+        raise Halt("runtime pin lost during gateway preparation")
+
     run([SYSTEMCTL, "enable", "--now", GUARD_SERVICE], timeout=30)
     if not service_active(GUARD_SERVICE):
         raise Halt("egress guard inactive")
@@ -433,14 +469,15 @@ def apply():
         raise Halt("dao loopback bypass still reachable")
     if not dao_direct_denied("http://" + ip + ":8080/api/health"):
         raise Halt("dao container bypass still reachable")
-    if not health() or not demo_enabled():
-        raise Halt("operator OCE access unavailable")
+    if not health() or not demo_enabled() or not pinned_app_active():
+        raise Halt("operator OCE access or runtime pin unavailable")
 
     print(
         json.dumps(
             {
                 "gateway_host": "complete",
                 "oce_loopback_only": True,
+                "immutable_runtime_pin_preserved": True,
                 "dao_loopback_bypass_denied": True,
                 "dao_container_bypass_denied": True,
                 "gateway_socket_ready": True,
