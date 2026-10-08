@@ -1,0 +1,54 @@
+name: OCE private gateway validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ops/oce-v1-gateway.py
+      - ops/oce-v1-gateway-host.py
+      - ops/oce-v1-gateway-qualify.py
+      - ops/oce-v1-egress-guard.py
+      - ops/install-oce-gateway.sh
+      - ops/dao-oce-gateway.service
+      - ops/dao-oce-egress-guard.service
+      - scripts/tests/test_oce_gateway.py
+      - docs/oce-integration-operations.md
+      - docs/ai-context/CURRENT_STATE.md
+      - docs/ai-context/NEXT_STEPS.md
+      - .github/workflows/oce-private-gateway-validation.yml
+  push:
+    branches: [main]
+    paths:
+      - ops/oce-v1-gateway.py
+      - ops/oce-v1-gateway-host.py
+      - ops/oce-v1-gateway-qualify.py
+      - ops/oce-v1-egress-guard.py
+      - ops/install-oce-gateway.sh
+      - ops/dao-oce-gateway.service
+      - ops/dao-oce-egress-guard.service
+      - scripts/tests/test_oce_gateway.py
+      - docs/oce-integration-operations.md
+      - docs/ai-context/CURRENT_STATE.md
+      - docs/ai-context/NEXT_STEPS.md
+      - .github/workflows/oce-private-gateway-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oce-private-gateway-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate bounded gateway contracts
+        run: python3 -m unittest discover -s scripts/tests -p 'test_oce_gateway.py' -v
+      - name: Validate operator scripts compile
+        run: |
+          PYTHONPYCACHEPREFIX=/tmp/oce-gateway-pycache python3 -m py_compile             ops/oce-v1-gateway.py             ops/oce-v1-gateway-host.py             ops/oce-v1-gateway-qualify.py             ops/oce-v1-egress-guard.py
+      - name: Validate installer shell
+        run: bash -n ops/install-oce-gateway.sh
