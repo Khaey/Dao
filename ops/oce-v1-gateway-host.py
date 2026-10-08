@@ -241,22 +241,69 @@ def backup_env(original: bytes):
         raise Halt("compose env backup unsafe")
 
 
-def require_active_digest_pin():
-    """Never recreate OCE without its already-qualified immutable pin."""
-    meta = PIN_FILE.lstat()
-    if (
-        not stat.S_ISREG(meta.st_mode)
-        or meta.st_uid != 0
-        or meta.st_mode & 0o022
-        or meta.st_size > 8192
+def selected_compose_files():
+    """Return the exact authoritative Compose sources for the running pin.
+
+    A root-owned runtime-pin override is preferred when present. If it is
+    absent, the two repository Compose files are acceptable only when their
+    rendered app image is already an immutable digest that exactly matches the
+    currently-running container.
+    """
+    if PIN_FILE.exists():
+        meta = PIN_FILE.lstat()
+        if (
+            not stat.S_ISREG(meta.st_mode)
+            or meta.st_uid != 0
+            or meta.st_mode & 0o022
+            or meta.st_size > 8192
+        ):
+            raise Halt("runtime pin unsafe")
+        return (*BASE_FILES, PIN_FILE)
+    return BASE_FILES
+
+
+def configured_app_image(files):
+    args = [DOCKER, "compose", "--project-directory", str(BASE)]
+    for path in files:
+        args.extend(["-f", str(path)])
+    args.extend(["config", "--format", "json"])
+    result = run(args, timeout=30)
+    try:
+        data = json.loads(result.stdout)
+        image = ((data.get("services") or {}).get("app") or {}).get("image")
+    except Exception as exc:
+        raise Halt("compose config invalid") from exc
+    if not isinstance(image, str):
+        raise Halt("compose app image missing")
+    if not (
+        image.startswith("ghcr.io/datadrivenconstruction/openconstructionerp@sha256:")
+        and len(image.rsplit("@sha256:", 1)[-1]) == 64
     ):
-        raise Halt("runtime pin missing or unsafe")
+        raise Halt("compose app image not immutable")
+    return image
+
+
+def require_active_digest_pin():
+    files = selected_compose_files()
+    row = app_inspect()
+    live_image = ((row.get("Config") or {}).get("Image") or "")
+    labels = ((row.get("Config") or {}).get("Labels") or {})
+    sources = labels.get("com.docker.compose.project.config_files", "")
+    active_sources = {part.strip() for part in sources.split(",") if part.strip()}
+    expected_sources = {str(path) for path in files}
+    configured = configured_app_image(files)
+    if (
+        live_image != configured
+        or active_sources != expected_sources
+    ):
+        raise Halt("runtime digest pin not active")
+    return files
 
 
 def compose_up_app():
-    require_active_digest_pin()
+    files = require_active_digest_pin()
     args = [DOCKER, "compose", "--project-directory", str(BASE)]
-    for path in (*BASE_FILES, PIN_FILE):
+    for path in files:
         args.extend(["-f", str(path)])
     args.extend(["up", "-d", "--no-deps", "--no-build", "--pull", "never", "app"])
     run(args, timeout=120)
@@ -271,16 +318,9 @@ def app_inspect():
 
 
 def pinned_app_active():
-    row = app_inspect()
-    image = ((row.get("Config") or {}).get("Image") or "")
-    labels = ((row.get("Config") or {}).get("Labels") or {})
-    sources = labels.get("com.docker.compose.project.config_files", "")
-    paths = [part.strip() for part in sources.split(",") if part.strip()]
-    if not (
-        image.startswith("ghcr.io/datadrivenconstruction/openconstructionerp@sha256:")
-        and len(image.rsplit("@sha256:", 1)[-1]) == 64
-        and set(paths) == {str(p) for p in (*BASE_FILES, PIN_FILE)}
-    ):
+    try:
+        require_active_digest_pin()
+    except Halt:
         return False
     return True
 
