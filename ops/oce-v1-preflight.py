@@ -14,7 +14,8 @@ import sys
 import time
 
 BASE = Path('/home/ubuntu/dao/OpenConstructionERP')
-FILES = ('docker-compose.quickstart.yml', 'docker-compose.override.yml')
+BASE_FILES = (BASE / 'docker-compose.quickstart.yml', BASE / 'docker-compose.override.yml')
+PIN_FILE = Path('/etc/dao/oce-runtime-pin.yml')
 DOCKER = ['sudo', '-n', '/usr/bin/docker', '--host', 'unix:///var/run/docker.sock']
 DEADLINE = None
 
@@ -120,9 +121,10 @@ def main():
     DEADLINE = time.monotonic() + 55
     if os.geteuid() == 0 or len(sys.argv) != 1:
         raise ValueError('run as the normal ubuntu login without arguments')
+    files = BASE_FILES + ((PIN_FILE,) if PIN_FILE.exists() else ())
     command = ['/usr/bin/docker', 'compose', '--project-directory', str(BASE)]
-    for name in FILES:
-        command.extend(['-f', str(BASE / name)])
+    for path in files:
+        command.extend(['-f', str(path)])
     command.extend(['config', '--format', 'json', '--no-interpolate', '--no-env-resolution'])
     report = {'schema_version': 1, 'read_only': True}
     try:
@@ -138,7 +140,7 @@ def main():
     app = json.loads(capture(DOCKER + ['inspect', '--type', 'container', 'openconstructionerp-app-1']))[0]
     labels = (app.get('Config') or {}).get('Labels') or {}
     # Confirm these are still the same authoritative sources before using the report.
-    if set(labels.get('com.docker.compose.project.config_files', '').split(',')) != {str(BASE / n) for n in FILES}:
+    if set(labels.get('com.docker.compose.project.config_files', '').split(',')) != {str(path) for path in files}:
         raise ValueError('compose sources changed')
     project = labels.get('com.docker.compose.project', '')
     if not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', project):
