@@ -27,8 +27,8 @@ export function createBackofficeHandler(db: any, resolveActor: (header: string |
         const identity = await rpc('backoffice_read', { p_view: 'users', p_filters: { q: prepared.email } });
         let target = identity.rows.find((row: any) => row.email?.toLowerCase() === prepared.email)?.id;
         if (!target) {
-          const publicUrl = publicSiteUrl();
-          const { data, error } = await authAdmin().auth.admin.inviteUserByEmail(prepared.email, { data: { display_name: prepared.display_name }, redirectTo: publicUrl });
+          const activationUrl = `${publicSiteUrl()}/auth/activate-staff`;
+          const { data, error } = await authAdmin().auth.admin.inviteUserByEmail(prepared.email, { data: { display_name: prepared.display_name }, redirectTo: activationUrl });
           if (error || !data?.user?.id) throw { code: 'AUTH_INVITATION_FAILED', message: 'Invitation indisponible. La demande est conservée ; réessayez avec la même demande.' };
           target = data.user.id;
         }
