@@ -155,6 +155,35 @@ def _oce_topology(app, containers, image):
     }
 
 
+def oce_gateway_plan():
+    """Run only the installed gateway host read-only plan operation."""
+    helper = Path('/usr/local/sbin/dao-oce-gateway-host')
+    if not helper.is_file() or not os.access(helper, os.X_OK):
+        print(json.dumps({'oce_gateway_plan': 'bootstrap_required'}, sort_keys=True))
+        return
+    result = subprocess.run(
+        [str(helper), 'plan'],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    stdout = result.stdout.strip()
+    if result.returncode == 0:
+        # The gateway helper emits one bounded JSON object with no credentials.
+        try:
+            data = json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            raise ValueError('gateway plan output invalid') from exc
+        if not isinstance(data, dict):
+            raise ValueError('gateway plan output invalid')
+        print(json.dumps(data, sort_keys=True))
+        return
+    # Keep failure sanitized; never forward stderr from a root helper.
+    print(json.dumps({'oce_gateway_plan': 'failed'}, sort_keys=True))
+    raise ValueError('gateway plan failed')
+
+
 def oce_integration_inventory():
     """Fixed inspect-only command; no Docker exec, stop, compose or credentials."""
     docker = shutil.which('docker')
@@ -420,6 +449,8 @@ def main():
         oce_audit()
     elif operation == 'oce-integration-inventory':
         oce_integration_inventory()
+    elif operation == 'oce-gateway-plan':
+        oce_gateway_plan()
     elif operation == 'log-summary':
         p = subprocess.run(['/usr/bin/journalctl', '-u', 'dao-dev.service', '--since', '1 hour ago', '-n', '200', '-o', 'json', '--no-pager'], capture_output=True, text=True, timeout=15, check=True)
         counts = {}
