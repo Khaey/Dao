@@ -121,14 +121,20 @@ def env_meta():
     return meta
 
 
+def dao_path_access(path: Path, flag: str) -> bool:
+    if flag not in {"-r", "-w"}:
+        raise Halt("invalid access probe")
+    result = run(
+        [RUNUSER, "-u", "dao", "--", "/usr/bin/test", flag, str(path)],
+        timeout=5,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def env_readable_by_dao(meta):
-    dao = pwd.getpwnam("dao")
-    if meta.st_uid == dao.pw_uid and meta.st_mode & 0o400:
-        return True
-    groups = set(os.getgrouplist("dao", dao.pw_gid))
-    if meta.st_gid in groups and meta.st_mode & 0o040:
-        return True
-    return bool(meta.st_mode & 0o004)
+    _ = meta
+    return dao_path_access(ENV_FILE, "-r")
 
 
 def harden_env_permissions():
@@ -146,13 +152,7 @@ def dao_has_docker_socket_access():
     meta = path.lstat()
     if not stat.S_ISSOCK(meta.st_mode):
         raise Halt("docker socket unavailable")
-    dao = pwd.getpwnam("dao")
-    if meta.st_uid == dao.pw_uid and meta.st_mode & 0o600:
-        return True
-    groups = set(os.getgrouplist("dao", dao.pw_gid))
-    if meta.st_gid in groups and meta.st_mode & 0o060:
-        return True
-    return bool(meta.st_mode & 0o006)
+    return dao_path_access(path, "-w")
 
 
 def read_env():
