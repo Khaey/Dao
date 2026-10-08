@@ -144,6 +144,29 @@ Only sanitized JSON is returned. Do not run ad-hoc `docker compose pull`,
 `build` or a compose command omitting the root-controlled pin after a successful
 apply.
 
+## Dedicated OCE gateway identity
+
+The dedicated D.A.O integration identity is a non-demo OCE `editor`.
+Demo access is preserved by explicit DAO Pilot decision and remains a separate
+operator/qualification path; it is never used by the D.A.O adapter.
+
+`ops/oce-v1-identity.py` is a root-only local helper. It talks only to
+`127.0.0.1:8080`, obtains the local demo-admin bootstrap session in memory,
+creates or reconciles the fixed technical identity, and stores its generated
+credential only in the root-owned `/etc/dao-oce/private` directory. Passwords
+and JWTs are never emitted.
+
+The helper exposes three fixed operations:
+
+- `plan`: health and identity-state check, no write;
+- `apply`: idempotent creation/reconciliation of the technical `editor`;
+- `qualify`: one-time credential rotation, rejection of the old token,
+  deactivate/reject/reactivate proof, and final login verification.
+
+The qualification deliberately keeps demo login enabled. Before TARGET: DEV,
+network and gateway tests must still prove that the actual D.A.O runtime cannot
+bypass the private gateway and call OCE directly.
+
 ## Remaining implementation and qualification
 
 1. Inventory/topology and the coherent local DB + `/data` backup with isolated
