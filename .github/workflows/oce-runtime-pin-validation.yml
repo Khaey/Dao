@@ -1,0 +1,37 @@
+name: OCE runtime digest pin validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ops/oce-v1-runtime-pin.py
+      - ops/oce-v1-preflight.py
+      - scripts/tests/test_oce_runtime_pin.py
+      - docs/oce-integration-operations.md
+      - .github/workflows/oce-runtime-pin-validation.yml
+  push:
+    branches: [main]
+    paths:
+      - ops/oce-v1-runtime-pin.py
+      - ops/oce-v1-preflight.py
+      - scripts/tests/test_oce_runtime_pin.py
+      - docs/oce-integration-operations.md
+      - .github/workflows/oce-runtime-pin-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oce-runtime-pin-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  runtime-pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate runtime pin boundaries as the root-only operator
+        run: sudo env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/tests -p 'test_oce_runtime_pin.py' -v
+      - name: Validate operator scripts compile
+        run: PYTHONPYCACHEPREFIX=/tmp/oce-runtime-pin-pycache python3 -m py_compile ops/oce-v1-runtime-pin.py ops/oce-v1-preflight.py

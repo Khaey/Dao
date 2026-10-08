@@ -1,5 +1,26 @@
 # D.A.O — Next Steps
 
+## OPT #58 — qualify immutable runtime pin, then gateway identity
+
+Backup/restore is complete and must not be repeated for this step. Continue from
+main `a040e505c33f986f23c2dada5ba07d2fb1a22ae8` and branch
+`chore/oce-runtime-digest-pin`.
+
+1. Validate `ops/oce-v1-runtime-pin.py` and its dedicated CI on the exact branch
+   head; merge only green and verify main CI/deploy.
+2. From the exact deployed release, run the root-only `plan`; it must discover
+   one registry RepoDigest for each exact validated local image and prove the
+   original resolved references are locally rollback-safe.
+3. Run `apply` once. It may recreate only the app, never PostgreSQL, never pull
+   or build. Record sanitized output proving immutable digest reference and
+   healthy OCE/database. On failure, respect the built-in rollback result rather
+   than issuing ad-hoc Docker commands.
+4. Then proceed to the dedicated technical OCE editor identity, protected secret,
+   private deny-by-default gateway, negative mapping/operation/bypass tests and
+   real rotation/revocation. Only then publish TARGET: DEV primitives.
+
+No #45/#54 replay, no new backup outage, and no product/Auth/RLS changes.
+
 ## Active DEV — finish #64 delivery
 
 Read live #64 and PR #68 first. CI #318 already passed real independent-session races, schema/reset, backend and builds; its remaining failure was FULL E2E (38/48). Confirm the targeted accessibility/interaction correction on the automatic candidate CI, including all 48 desktop/mobile E2E; merge only green. Apply only the single missing atomic DEV migration once, verify main/deploy and controlled DEV smoke, then record SHA/runs/migrations and close #64. No OCE call, contract implementation or separate #65/#66/#67 execution. See [back-office V2](../backoffice-v2.md).

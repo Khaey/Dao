@@ -105,23 +105,57 @@ live execution. It is not automatically installed or started by deployment.
 Global writer census, full application recovery, runtime pin and gateway
 qualification are not marked complete by this implementation.
 
+## Runtime digest pin — prepared after qualified restore
+
+The live backup/restore gate is complete for job
+`b709caaf50a947a99d80536d3e8e76a2`: backup, isolated PostgreSQL restore,
+live resume and cleanup are all verified. Do not take another backup outage
+solely for the runtime pin.
+
+`ops/oce-v1-runtime-pin.py` is the fixed root-only pin operation. It discovers
+the registry `RepoDigest` attached to the exact already-running validated image
+IDs; it does not treat Docker's local image ID as a registry manifest digest.
+It refuses missing or ambiguous digests and never pulls `latest`.
+
+The two existing Compose files remain byte-for-byte unchanged and form the
+rollback configuration. The pin is a root-controlled final override at
+`/etc/dao-oce/runtime-pin.yml` containing only immutable image references for
+the OCE app and PostgreSQL. Before apply, the helper proves that rendering the
+extra override changes only the two image fields. It also proves the original
+resolved image references still map locally to the exact validated image IDs,
+so rollback can run with `--pull never`.
+
+`apply` recreates only the OCE app with `--no-deps --no-build --pull never`;
+PostgreSQL is not restarted. It verifies the exact app image ID, the effective
+digest reference, authoritative Compose source labels and OCE/database health.
+Any failure removes the pin override and recreates the app from the original
+two-file configuration with `--pull never`; a failed rollback is reported as
+a distinct safe error.
+
+After reviewed merge and green main CI/deploy, run from the exact deployed
+release:
+
+```bash
+sudo -n python3 <release>/ops/oce-v1-runtime-pin.py plan
+sudo -n python3 <release>/ops/oce-v1-runtime-pin.py apply
+```
+
+Only sanitized JSON is returned. Do not run ad-hoc `docker compose pull`,
+`build` or a compose command omitting the root-controlled pin after a successful
+apply.
+
 ## Remaining implementation and qualification
 
-1. Use the inventory to establish authoritative Compose configuration, exact
-   DB topology/storage, all writers and safe capacity. Unknowns fail closed.
-2. Prepare reviewed, fixed-purpose host operations for coherent DB + `/data`
-   backup and isolated restore, with bounded quiescence, guaranteed resume on
-   errors, private checksummed manifests, capacity checks and cleanup. Restore
-   must have separate DB/volumes/network, no public ports, no outbound messages
-   and no writable production mounts. Local backups alone do not cover VPS
-   loss; retention/off-host copying must be settled before production.
-3. Pin the verified running digest in the authoritative startup configuration;
-   preserve ports/mounts/environment and a rollback configuration. Do not pull
-   `latest`. Do not recreate OCE before a qualified backup and maintenance window.
-4. Provision the isolated technical identity and gateway, then run negative
+1. Inventory/topology and the coherent local DB + `/data` backup with isolated
+   PostgreSQL restore are complete; do not repeat them without a new cause.
+   Off-host retention/full application disaster recovery remain separate
+   production-hardening work and do not invalidate the completed local restore gate.
+2. Complete the reviewed immutable runtime pin described above and record the
+   exact registry digests plus live health proof in #58.
+3. Provision the isolated technical identity and gateway, then run negative
    permissions/bypass tests and real rotation/revocation checks. Secrets stay
    on VPS under root/service ownership, outside the `dao` group, CI and logs.
-5. Publish exact implemented primitives to DEV only after these gates pass.
+4. Publish exact implemented primitives to DEV only after these gates pass.
    D.A.O retains business authority and its durable sync journal/mapping work
    remains Phase 2. No automatic contract/payment/award/legal state changes.
 

@@ -1,5 +1,27 @@
 # D.A.O — Current State
 
+## OPT #58 — backup/restore complete; runtime digest pin active work (2026-10-08 UTC)
+
+Canonical live state is in [#58](https://github.com/Khaey/Dao/issues/58).
+Main before this work: `a040e505c33f986f23c2dada5ba07d2fb1a22ae8`,
+CI/deploy #330 and OCE isolated validation #7 SUCCESS, FULL E2E 48/48.
+
+Live backup job `b709caaf50a947a99d80536d3e8e76a2` is fully qualified:
+`phase=complete`, `backup_complete=true`, `restore_verified=true`,
+`live_resumed=true`, `cleanup_complete=true`. Do not rerun backup/restore
+solely for #58.
+
+Owned branch `chore/oce-runtime-digest-pin` now prepares a root-only operation
+that derives real registry RepoDigests from the exact validated local image IDs,
+writes only a root-controlled final Compose override, recreates only the app
+without pull/build/dependencies, verifies health/runtime identity, and rolls back
+to the unchanged original two-file Compose configuration on failure. PostgreSQL
+is not restarted by the pin operation. No product/Auth/RLS change.
+
+After pin qualification, remaining OPT gates are the dedicated OCE technical
+identity/secret, bounded private gateway, denied-operation/cross-project/bypass
+tests, and real rotation/revocation. No READY DEV handoff yet.
+
 ## Active DEV — Back-office V2 #64 (2026-10-07 UTC)
 
 Reprise E2E : CI #318 sur `fe39ce141047552f22ad311fa5a6c279971c94c9` valide backend, frontend, schéma/replay et intégration Supabase réelle ; Architecture #27 passe. FULL E2E : 38/48, cinq scénarios en échec sur les deux viewports. Correctif ciblé : noms accessibles stables des champs staff, navigation Revues exacte et clic de rôle suivi de confirmation (état persisté vérifié). Aucun changement SQL/backend ni nouvelle migration. La preuve de livraison courante (HEAD validé, 48/48, SHA fusionné, ledger DEV et smoke) est tenue dans [#64](https://github.com/Khaey/Dao/issues/64) ; lire son état réel avant de reprendre. Ne pas rejouer les validations réussies pour des entrées inchangées.
