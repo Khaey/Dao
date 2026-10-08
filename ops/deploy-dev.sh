@@ -263,7 +263,10 @@ trap - ERR HUP INT TERM
 # the read-only OCE gateway host plan. Before that bootstrap, report the exact
 # prerequisite without asking the deployment runner for broader privileges.
 if sudo -n -l /usr/local/sbin/dao-dev-admin oce-gateway-plan >/dev/null 2>&1; then
-  sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan
+  if ! sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan; then
+    # Monitoring must not mark an already-healthy deployed release as failed.
+    printf '%s\n' '{"oce_gateway_plan":"check_failed","non_blocking":true}'
+  fi
 else
   printf '%s\n' '{"oce_gateway_plan":"bootstrap_required"}'
 fi
