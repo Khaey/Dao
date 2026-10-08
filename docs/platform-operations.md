@@ -194,3 +194,12 @@ local stack and never shared DEV.
 References: [GitHub concurrency](https://docs.github.com/en/actions/concepts/workflows-and-actions/concurrency),
 [manual workflow dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow),
 [Playwright sharding](https://playwright.dev/docs/test-sharding).
+
+## Préparation démo privée Cloudflare — DEV 3, #58
+
+Voir [le runbook dédié](oce-cloudflare-private-demo.md) : Access OTP sur
+`oce-demo.logiclab.fr`, liste exacte d'e-mails, Tunnel avec validation JWT,
+helper root borné et workflow protégé. Préparation seulement ; aucune
+activation constatée, aucun changement de `:8080` ni `gateway-host apply`.
+La configuration Cloudflare, le bootstrap root et la recette authentifiée
+restent les prochains prérequis ; ils ne sont pas réputés exécutés.

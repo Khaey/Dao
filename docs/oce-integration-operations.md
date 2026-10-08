@@ -252,3 +252,12 @@ Logs may contain only allowlisted operation/result/status/duration/attempt and
 opaque correlation fields, never bodies, URLs, names, documents or credentials.
 Update C4/Structurizr when the actual adapter is implemented, as explicitly
 scoped by #58; do not depict this preparation as an operational integration.
+
+## Préparation démo privée Cloudflare — DEV 3, #58
+
+Voir [le runbook dédié](oce-cloudflare-private-demo.md) : Access OTP sur
+`oce-demo.logiclab.fr`, liste exacte d'e-mails, Tunnel avec validation JWT,
+helper root borné et workflow protégé. Préparation seulement ; aucune
+activation constatée, aucun changement de `:8080` ni `gateway-host apply`.
+La configuration Cloudflare, le bootstrap root et la recette authentifiée
+restent les prochains prérequis ; ils ne sont pas réputés exécutés.

@@ -57,6 +57,12 @@ model {
   supabaseRls = softwareSystem "Supabase RLS / dao_private" "Frontière d'autorisation et helpers privés." "External"
   supabaseStorage = softwareSystem "Supabase Storage privé" "Documents et objets privés." "External"
 
+  demoOwner = person "Propriétaire / invité OCE" "Identité Access nommément approuvée, indépendante des rôles D.A.O."
+  oceDemo = softwareSystem "Démo OCE indépendante" "Runtime OCE existant ; comptes démo conservés ; aucune dépendance produit D.A.O." "External"
+  ocePrivateAccess = softwareSystem "Accès privé démo OCE" "Préparé #58, non activé : Access OTP, e-mails exacts et Tunnel avec validation JWT Access." "External,Planned"
+  demoOwner -> ocePrivateAccess "Cible de recette propriétaire/invités ; non activée"
+  ocePrivateAccess -> oceDemo "Cible : Tunnel vers loopback:8080 ; sans bascule du port public" "Planned"
+
   resend = softwareSystem "Resend" "Transport des emails transactionnels." "External"
 
   supabase -> supabaseAuth "Fournit le service Auth"
