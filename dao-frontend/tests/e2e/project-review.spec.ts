@@ -39,7 +39,7 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await expect(reviewHeading).toHaveCount(1);
   await reviewCard.getByLabel('Commentaire de revue').fill('Commentaire E2E DAO');
   await reviewCard.getByRole('button', { name: 'Passer en revue DAO' }).click();
-  await expect(reviewCard.getByText('dao_review', { exact: true })).toBeVisible();
+  await expect(reviewCard.getByText('Revue DAO', { exact: true })).toBeVisible();
   await reviewCard.getByLabel('Commentaire de revue').fill('À corriger : précisez le périmètre du lot.');
   await reviewCard.getByRole('button', { name: 'Refuser' }).click();
   await expect(reviewHeading).toHaveCount(0);
@@ -64,7 +64,7 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await expect(finalReviewCard.getByText(project.lotTitle, { exact: true })).toBeVisible();
   await finalReviewCard.getByLabel('Commentaire de revue').fill('Version corrigée conforme.');
   await finalReviewCard.getByRole('button', { name: 'Passer en revue DAO' }).click();
-  await expect(finalReviewCard.getByText('dao_review', { exact: true })).toBeVisible();
+  await expect(finalReviewCard.getByText('Revue DAO', { exact: true })).toBeVisible();
   await finalReviewCard.getByLabel('Commentaire de revue').fill('Validation finale E2E');
   await finalReviewCard.getByRole('button', { name: 'Approuver' }).click();
   await expect(finalHeading).toHaveCount(0);

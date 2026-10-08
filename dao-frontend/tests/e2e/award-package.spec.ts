@@ -17,7 +17,7 @@ test('Package indivisible : proposition, attribution compl√®te, annulation et r√
   const heading = reviewer.getByRole('heading', { name: project.title, exact: true });
   const card = heading.locator('xpath=../../..');
   await card.getByRole('button', { name: 'Passer en revue DAO' }).click();
-  await expect(card.getByText('dao_review', { exact: true })).toBeVisible();
+  await expect(card.getByText('Revue DAO', { exact: true })).toBeVisible();
   await card.getByRole('button', { name: 'Approuver' }).click();
   await expect(heading).toHaveCount(0);
   await reviewer.goto(`/app/dao/publications/new?project_id=${project.projectId}`);

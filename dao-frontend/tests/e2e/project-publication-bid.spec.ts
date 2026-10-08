@@ -36,7 +36,7 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(reviewCard.getByText(project.lotTitle, { exact: true })).toBeVisible();
   await expect(reviewCard.getByText(project.lotScope, { exact: true })).toBeVisible();
   await reviewCard.getByRole('button', { name: 'Passer en revue DAO' }).click();
-  await expect(reviewCard.getByText('dao_review', { exact: true })).toBeVisible();
+  await expect(reviewCard.getByText('Revue DAO', { exact: true })).toBeVisible();
   await reviewCard.getByRole('button', { name: 'Approuver' }).click();
   await expect(reviewHeading).toHaveCount(0);
 

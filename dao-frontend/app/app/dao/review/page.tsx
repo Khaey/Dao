@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
+import { statusLabel } from '../../../../lib/utils';
 import { isDaoStaff, type AppRole } from '../../../../lib/roles';
 import { Badge, Button, Card } from '../../../../components/ui';
 
@@ -90,7 +91,7 @@ export default function DaoReview() {
     {message && <p role="status" className="text-sm text-teal">{message}</p>}
     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mine} onChange={e=>setMine(e.target.checked)} />Mes revues</label>
     {rows.length === 0 ? <Card>Aucune revue en attente.</Card> : rows.filter(row=>!mine||row.can_manage).map(row => <Card key={row.id}>
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-semibold"><Link href={`/app/dao/projects/${row.project_id}`}>{row.title}</Link></h2><p className="mt-2 text-sm">Pris en charge par : {row.reviewer_name||'À prendre en charge'}</p><p className="mt-1 whitespace-pre-wrap text-sm text-black/55">{row.description}</p><p className="mt-2 text-xs text-black/40">Version du dossier {row.version_no} · {row.lots.length} lot{row.lots.length > 1 ? 's' : ''}</p></div><Badge>{row.status}</Badge></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-semibold"><Link href={`/app/dao/projects/${row.project_id}`}>{row.title}</Link></h2><p className="mt-2 text-sm">Pris en charge par : {row.reviewer_name||'À prendre en charge'}</p><p className="mt-1 whitespace-pre-wrap text-sm text-black/55">{row.description}</p><p className="mt-2 text-xs text-black/40">Version du dossier {row.version_no} · {row.lots.length} lot{row.lots.length > 1 ? 's' : ''}</p></div><Badge>{statusLabel[row.status]||row.status}</Badge></div>
       <div className="mt-5 rounded-xl bg-sand/70 p-4" aria-label="Lots examinés">
         <h3 className="font-semibold">Lots de cette version</h3>
         {row.lots.length === 0 ? <p className="mt-2 text-sm text-black/55">Aucun lot n’est lié à cette version du projet.</p> : <div className="mt-3 space-y-3">{row.lots.map(lot => <article key={lot.id} className="border-t border-black/5 pt-3"><div className="flex flex-wrap justify-between gap-3"><div><p className="text-xs font-semibold text-teal">{lot.trade_name}</p><h4 className="mt-1 font-semibold">{lot.title}</h4></div><span className="text-sm">{formatTnd(lot.budget_millimes)}</span></div><p className="mt-2 whitespace-pre-wrap text-sm text-black/60">{lot.scope}</p><p className="mt-2 text-xs text-black/40">Version du lot {lot.version_no}</p></article>)}</div>}
