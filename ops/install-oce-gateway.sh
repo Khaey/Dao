@@ -41,8 +41,11 @@ install -m 0755 -o root -g root "${ROOT}/ops/oce-v1-gateway-host.py" /usr/local/
 install -m 0755 -o root -g root "${ROOT}/ops/oce-v1-gateway-qualify.py" /usr/local/sbin/dao-oce-gateway-qualify
 install -m 0644 -o root -g root "${ROOT}/ops/dao-oce-gateway.service" /etc/systemd/system/dao-oce-gateway.service
 install -m 0644 -o root -g root "${ROOT}/ops/dao-oce-egress-guard.service" /etc/systemd/system/dao-oce-egress-guard.service
+install -d -m 0755 -o root -g root /etc/tmpfiles.d
+install -m 0644 -o root -g root "${ROOT}/ops/dao-oce-gateway.tmpfiles" /etc/tmpfiles.d/dao-oce-gateway.conf
 
 install -d -m 0700 -o "${SERVICE_USER}" -g "${SERVICE_USER}" /var/lib/dao-oce-gateway
+/usr/bin/systemd-tmpfiles --create /etc/tmpfiles.d/dao-oce-gateway.conf
 
 /usr/bin/systemctl daemon-reload
 
