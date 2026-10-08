@@ -277,6 +277,28 @@ class HostEnvTests(unittest.TestCase):
         self.assertIn("-w", args)
         self.assertIn("/var/run/docker.sock", args)
 
+    def test_compose_recreate_keeps_runtime_pin_override(self):
+        calls = []
+        fake_stat = type("S", (), {"st_mode": 0o100600, "st_uid": 0, "st_size": 200})()
+        with patch.object(host.PIN_FILE, "lstat", return_value=fake_stat), patch.object(
+            host, "run", side_effect=lambda args, **kwargs: calls.append(args)
+        ):
+            host.compose_up_app()
+        self.assertEqual(len(calls), 1)
+        args = calls[0]
+        self.assertIn(str(host.PIN_FILE), args)
+        self.assertEqual(args.count("-f"), 3)
+        self.assertIn("--pull", args)
+        self.assertIn("never", args)
+
+    def test_host_apply_requires_explicit_public_demo_access_ack(self):
+        with patch.object(host.sys, "argv", ["dao-oce-gateway-host", "apply"]), patch.object(
+            host, "apply"
+        ) as activate:
+            with self.assertRaisesRegex(host.Halt, "acknowledge-public-demo-link-closes"):
+                host.main()
+            activate.assert_not_called()
+
     def test_duplicate_bind_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = Path(tmp) / ".env"
