@@ -194,11 +194,23 @@ rather than blindly replayed.
 
 Host activation is separate and fail-closed. It changes the existing OCE
 `OE_BIND` to `127.0.0.1`, keeps a root-only backup of the previous Compose
-environment, recreates only the OCE app with `--pull never`, and installs a
+environment, recreates only the OCE app with `--pull never` **and the existing
+root-owned `/etc/dao-oce/runtime-pin.yml` final override**, and re-verifies
+the immutable digest and authoritative Compose labels. It installs a
 dedicated nftables output guard denying uid `dao` any direct TCP/8080 path.
-The gateway service uses a different uid. Operator/root access to loopback OCE
-and the explicitly retained demo login remain available, including through an
-SSH tunnel when remote UI access is needed.
+The gateway service uses a different uid.
+
+**Operator access safety gate:** the currently functional public link
+`http://137.74.168.122:8080/dashboard` will **stop being accessible** from
+a normal remote browser after this loopback bind. The OCE demo login/accounts
+are retained; the operator can still reach them through a separately prepared
+SSH tunnel to the VPS. `plan` is read-only and reports this access impact.
+`apply` refuses to run without the explicit
+`--acknowledge-public-demo-link-closes` argument. Never invoke `apply` merely
+because code/CI is green, or imply the original public URL stays reachable.
+**Obtain the operator's separate approval of the access change and verify an
+alternative access path before activation.** Installation itself starts no service
+and changes neither Compose nor demo access.
 
 `ops/oce-v1-gateway-qualify.py` uses fixed synthetic mappings and the real
 `dao` uid to prove the positive project -> WBS -> schedule -> activities ->
@@ -214,8 +226,12 @@ reads the credential.
    new cause.
 2. Validate and merge the private-gateway implementation, then install it from
    the exact green deployed release without starting services implicitly.
-3. Run gateway-host `plan`, then `apply`, then the fixed live
-   `gateway-qualify` suite. Record only sanitized output in #58.
+3. Run gateway-host `plan`; **stop there** unless the operator has
+   separately approved closing the public OCE:8080 link and has verified an SSH
+   tunnel/alternative to the same demo. The explicit activation command is
+   `dao-oce-gateway-host apply --acknowledge-public-demo-link-closes`.
+   After a successful activation, run the fixed live `gateway-qualify` suite.
+   Record only sanitized output in #58.
 4. Only after all bypass/mapping/operation gates pass, publish the exact gateway
    primitives to DEV. D.A.O retains business authority; durable product
    sync/journal/mapping orchestration remains Phase 2. No automatic
