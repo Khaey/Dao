@@ -9,6 +9,7 @@ User=dao-oce-gateway
 Group=dao-oce-gateway
 SupplementaryGroups=dao
 ExecStart=/usr/local/libexec/dao-oce-gateway serve
+LoadCredential=oce-gateway:/etc/dao-oce/private/gateway-credential.json
 Restart=on-failure
 RestartSec=2
 UMask=0077
