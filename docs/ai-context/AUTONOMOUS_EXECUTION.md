@@ -143,6 +143,16 @@ confirmation for reversible preparation already authorized.
 A GitHub merge, successful deploy job, active service and successful HTTP
 response are distinct observations; report only those actually verified.
 
+**VPS execution rule:** routine D.A.O VPS work must run through the protected
+GitHub Actions SSH path and fixed allowlisted operations. Do not ask the user
+for repetitive terminal/SSH copy-paste commands. A direct root command is only
+acceptable for an unavoidable one-time bootstrap/refresh of a reviewed
+root-owned helper or sudoers entry when the existing GitHub identity cannot
+perform that installation. Once bootstrapped, status, health, diagnostics,
+OCE gateway plan and similar repeated operations return to GitHub Actions.
+Never use this rule to widen sudo into an arbitrary shell or caller-controlled
+command/path.
+
 Preserve main-only deployment after all required validation succeeds, exact
 revision and artifact-manifest checks, separate environment configuration,
 versioned releases, atomic current-link switch and rollback. Never redeploy an
