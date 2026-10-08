@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import stat
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -33,7 +34,11 @@ class OceIdentityTests(unittest.TestCase):
                 "user_id": "11111111-1111-1111-1111-111111111111",
                 "qualified": False,
             }
-            with patch.object(m, "SECRET_DIR", secret_dir):
+            real_lstat = Path.lstat
+            def root_lstat(path):
+                meta = real_lstat(path)
+                return SimpleNamespace(st_mode=meta.st_mode, st_uid=0)
+            with patch.object(m, "SECRET_DIR", secret_dir), patch.object(Path, "lstat", root_lstat):
                 m.write_secret(secret_file, payload)
                 loaded = m.read_secret(secret_file)
             self.assertEqual(loaded, payload)
@@ -49,8 +54,13 @@ class OceIdentityTests(unittest.TestCase):
                 "user_id": "11111111-1111-1111-1111-111111111111",
             }))
             os.chmod(path, 0o600)
-            with self.assertRaisesRegex(ValueError, "credential file shape invalid"):
-                m.read_secret(path)
+            real_lstat = Path.lstat
+            def root_lstat(value):
+                meta = real_lstat(value)
+                return SimpleNamespace(st_mode=meta.st_mode, st_uid=0)
+            with patch.object(Path, "lstat", root_lstat):
+                with self.assertRaisesRegex(ValueError, "credential file shape invalid"):
+                    m.read_secret(path)
 
     def test_verify_record_requires_editor_active_and_name(self):
         row = {
