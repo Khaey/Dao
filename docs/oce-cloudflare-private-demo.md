@@ -51,7 +51,8 @@ l'interface propriétaire, sans communiquer de secret dans GitHub/chat.
 1. Dans le compte Zero Trust retenu, activer le fournisseur **One-time PIN**.
 2. Créer une application **Self-hosted**, domaine exact
    `oce-demo.logiclab.fr`, sans chemin ni wildcard, et sélectionner uniquement
-   ce fournisseur. Une seule policy **Allow**, dont les Include sont les
+   ce fournisseur. Si l’interface utilise `destinations`, une seule destination
+   publique au hostname exact, sans override de chemin public. Une seule policy **Allow**, dont les Include sont les
    adresses e-mail individuelles approuvées du propriétaire et des invités.
    Aucun Everyone, domaine e-mail, groupe, Bypass ou Service Auth. Pas d'autre
    application chevauchant ce hostname, ses chemins ou un wildcard de zone.

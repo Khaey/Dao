@@ -123,6 +123,19 @@ class PrivateDemoTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     cf.probe('dao-test')
 
+    def test_modern_destinations_accept_exact_host_but_reject_public_path_override(self):
+        self.app['destinations'] = [{'type': 'public', 'uri': cf.HOST}]
+        self.assertTrue(self.audit()['configuration_verified'])
+        self.app['destinations'][0]['overrides'] = [{'behavior': 'public', 'path_pattern': '/api/*'}]
+        with self.assertRaises(ValueError):
+            self.audit()
+        self.app['destinations'][0].pop('overrides')
+        self.data[self.base + '/access/apps?per_page=100'].append({
+            'id': 'other', 'domain': 'unrelated.test',
+            'destinations': [{'type': 'public', 'uri': cf.HOST + '/api'}]})
+        with self.assertRaises(ValueError):
+            self.audit()
+
     def test_no_redirect_following(self):
         self.assertIsNone(cf.RefuseRedirect().redirect_request(None, None, 302, '', {}, 'https://evil.test'))
 

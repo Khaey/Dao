@@ -68,13 +68,25 @@ def audit(m, get):
     require(len(selected) == 1)
     app = selected[0]
     require(app.get('type') == 'self_hosted' and app.get('domain') == HOST)
-    # Fail closed for competing path/wildcard apps in this DNS zone.
+    # Modern Access destinations can override legacy domain fields and expose
+    # public path overrides. Audit both representations, not only domain.
+    require(not app.get('self_hosted_domains') or app['self_hosted_domains'] == [HOST])
+    destinations = app.get('destinations') or []
+    if destinations:
+        require(len(destinations) == 1)
+        dest = destinations[0]
+        require(set(dest) <= {'type', 'uri', 'overrides'} and
+                dest.get('type', 'public') == 'public' and dest.get('uri') == HOST and
+                not dest.get('overrides'))
+    # Fail closed for competing path/wildcard apps in either representation.
     for other in apps:
-        if other['id'] != app['id']:
-            domain = other.get('domain', '')
+        if other['id'] == app['id']:
+            continue
+        domains = [other.get('domain', '')] + (other.get('self_hosted_domains') or [])
+        domains += [d.get('uri', '') for d in (other.get('destinations') or [])]
+        for domain in domains:
             require(not (domain.startswith(HOST + '/') or domain == HOST or
                          '*' in domain and fnmatch.fnmatchcase(HOST, domain.split('/')[0])))
-    require(not app.get('destinations'))
     require(not app.get('service_auth_401_redirect'))
     require(not app.get('allow_authenticate_via_warp'))
     require(not app.get('options_preflight_bypass'))
