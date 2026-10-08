@@ -1,38 +1,40 @@
 # D.A.O — Current State
 
-## OPT #58 — backup/restore + runtime pin complete; gateway identity prepared (2026-10-08 UTC)
+## OPT #58 — identity qualified; private gateway implementation active (2026-10-08 UTC)
 
 Canonical live evidence is in [#58](https://github.com/Khaey/Dao/issues/58).
-Current main before this identity branch: `8f8b070fd369a2e3036ea9fd1cedb63f2398b299`.
-Main CI/deploy #338 and OCE runtime digest pin validation #8 are SUCCESS.
+Current main before this branch: `c38e4ca137bd5997cc2e0876108a5ce486f7453a`.
+PR #74, main CI/deploy #343, OCE identity validation #5 and runtime-pin
+validation #13 are green; FULL E2E remains 48/48.
 
-Live backup job `b709caaf50a947a99d80536d3e8e76a2` is fully qualified:
-`phase=complete`, `backup_complete=true`, `restore_verified=true`,
-`live_resumed=true`, `cleanup_complete=true`. Do not repeat it without a
-new cause.
+Completed live gates, not to be repeated without a new cause:
+- coherent OCE DB + `/data` backup and isolated PostgreSQL restore;
+- immutable OCE app runtime digest with healthy DB/runtime after recreate;
+- dedicated non-demo OCE `editor` identity with protected secret;
+- password rotation rejects the old token;
+- account deactivation rejects token/login and reactivation restores login.
 
-The operator also activated the immutable OCE app digest
-`sha256:7621593064354a1df414f6598ae7f844bf8d12dc5977537f2297642fc4b523d3`.
-The app is running and post-recreate health is `healthy`, DB `ok`, OCE
-17.7.0, 192/192 modules loaded. PostgreSQL was not recreated. This runtime-pin
-gate is complete.
+DAO Pilot explicitly keeps OCE demo access. It remains a separate
+operator/qualification path and is never the D.A.O integration credential.
 
-DAO Pilot explicitly chose to preserve OCE demo access. Demo login therefore
-remains an operator/qualification path and must not be silently disabled by
-#58. It is not the D.A.O integration credential and must later be isolated from
-the D.A.O runtime direct-call path.
+Owned branch `chore/oce-private-gateway` now implements the remaining OPT
+boundary. The gateway is a dedicated service on a Unix socket, accepts only the
+real `dao` peer uid, obtains the root-only OCE credential through systemd
+`LoadCredential`, and exposes only the closed V1 operations already approved
+in #58. Project/lot mappings require a separate root authorization and can be
+revoked; callers never supply OCE ids. Strict request schemas reject extra
+fields and every mapped OCE object is checked against its parent/owner.
 
-Owned branch `chore/oce-gateway-identity` prepares a root-only local helper
-for the dedicated non-demo OCE `editor` identity. It generates the password
-on-host, stores it only in `/etc/dao-oce/private/gateway-credential.json`
-(root-only), never prints the password/JWT, verifies the editor contract, and
-qualifies password rotation plus deactivate/reactivate rejection. Demo access
-is preserved throughout. No product/Auth/RLS/Supabase change.
+Host activation will bind OCE to loopback only and install an nftables output
+guard denying uid `dao` direct TCP/8080 access while the gateway runs under a
+different uid. Operator/root loopback access and demo login remain available.
+A fixed live qualification uses synthetic resources to prove the positive
+project→WBS→schedule→activities→dependency→CPM path plus unknown-operation,
+extra-field, forged/cross-project mapping, revocation and direct-bypass denial.
 
-Remaining before TARGET: DEV: deploy/qualify this identity, implement the
-deny-by-default private gateway, prove unknown-operation/extra-field,
-forged/cross-project mapping and direct-OCE bypass rejection, then publish only
-the approved gateway primitives. No READY DEV handoff yet.
+No product/Auth/RLS/Supabase change and no READY DEV handoff until the exact
+branch is green, merged, deployed, installed and the live gateway qualification
+passes.
 
 ## Active DEV — Back-office V2 #64 (2026-10-07 UTC)
 
