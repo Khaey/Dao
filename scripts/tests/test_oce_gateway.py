@@ -280,7 +280,7 @@ class HostEnvTests(unittest.TestCase):
     def test_compose_recreate_keeps_runtime_pin_override(self):
         calls = []
         fake_stat = type("S", (), {"st_mode": 0o100600, "st_uid": 0, "st_size": 200})()
-        with patch.object(host.PIN_FILE, "lstat", return_value=fake_stat), patch.object(
+        with patch.object(Path, "lstat", return_value=fake_stat), patch.object(
             host, "run", side_effect=lambda args, **kwargs: calls.append(args)
         ):
             host.compose_up_app()
