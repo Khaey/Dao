@@ -407,6 +407,8 @@ def plan():
                 "compose_env_hardening_required": env_readable_by_dao(meta) or stat.S_IMODE(meta.st_mode) != 0o600,
                 "dao_docker_socket_access": False,
                 "loopback_bind_required": bind != "127.0.0.1" or not loopback_only(),
+                "public_8080_url_will_be_closed_on_apply": not loopback_only(),
+                "demo_login_preserved_but_remote_access_requires_tunnel": True,
                 "gateway_service_active": service_active(GATEWAY_SERVICE),
                 "egress_guard_active": service_active(GUARD_SERVICE),
                 "gateway_socket_ready": socket_ready(),
@@ -493,9 +495,16 @@ def apply():
 
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in {"plan", "apply"}:
-        raise Halt("usage")
-    {"plan": plan, "apply": apply}[sys.argv[1]]()
+    if len(sys.argv) == 2 and sys.argv[1] == "plan":
+        plan()
+    elif (
+        len(sys.argv) == 3
+        and sys.argv[1] == "apply"
+        and sys.argv[2] == "--acknowledge-public-demo-link-closes"
+    ):
+        apply()
+    else:
+        raise Halt("usage: plan or apply --acknowledge-public-demo-link-closes")
 
 
 if __name__ == "__main__":
