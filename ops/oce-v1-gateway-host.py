@@ -113,12 +113,46 @@ def env_meta():
     if not stat.S_ISREG(meta.st_mode) or meta.st_size > 128 * 1024:
         raise Halt("compose env unsafe")
     if meta.st_uid == dao.pw_uid:
-        raise Halt("compose env writable by dao")
+        raise Halt("compose env owned by dao")
     if meta.st_mode & 0o002:
         raise Halt("compose env world writable")
     if meta.st_gid == dao.pw_gid and meta.st_mode & 0o020:
         raise Halt("compose env writable by dao")
     return meta
+
+
+def env_readable_by_dao(meta):
+    dao = pwd.getpwnam("dao")
+    if meta.st_uid == dao.pw_uid and meta.st_mode & 0o400:
+        return True
+    groups = set(os.getgrouplist("dao", dao.pw_gid))
+    if meta.st_gid in groups and meta.st_mode & 0o040:
+        return True
+    return bool(meta.st_mode & 0o004)
+
+
+def harden_env_permissions():
+    meta = env_meta()
+    if env_readable_by_dao(meta) or stat.S_IMODE(meta.st_mode) != 0o600:
+        os.chmod(ENV_FILE, 0o600)
+    meta = env_meta()
+    if env_readable_by_dao(meta):
+        raise Halt("compose env readable by dao")
+    return meta
+
+
+def dao_has_docker_socket_access():
+    path = Path("/var/run/docker.sock")
+    meta = path.lstat()
+    if not stat.S_ISSOCK(meta.st_mode):
+        raise Halt("docker socket unavailable")
+    dao = pwd.getpwnam("dao")
+    if meta.st_uid == dao.pw_uid and meta.st_mode & 0o600:
+        return True
+    groups = set(os.getgrouplist("dao", dao.pw_gid))
+    if meta.st_gid in groups and meta.st_mode & 0o060:
+        return True
+    return bool(meta.st_mode & 0o006)
 
 
 def read_env():
@@ -329,12 +363,17 @@ def plan():
         raise Halt("oce health")
     original, bind = read_env()
     _ = original
+    meta = env_meta()
+    if dao_has_docker_socket_access():
+        raise Halt("dao has docker socket access")
     print(
         json.dumps(
             {
                 "gateway_host_plan_ready": True,
                 "oce_healthy": True,
                 "demo_access_preserved": demo_enabled(),
+                "compose_env_hardening_required": env_readable_by_dao(meta) or stat.S_IMODE(meta.st_mode) != 0o600,
+                "dao_docker_socket_access": False,
                 "loopback_bind_required": bind != "127.0.0.1" or not loopback_only(),
                 "gateway_service_active": service_active(GATEWAY_SERVICE),
                 "egress_guard_active": service_active(GUARD_SERVICE),
@@ -352,7 +391,10 @@ def apply():
         raise Halt("oce health")
     if not demo_enabled():
         raise Halt("demo access unavailable")
+    if dao_has_docker_socket_access():
+        raise Halt("dao has docker socket access")
 
+    harden_env_permissions()
     original_meta = env_meta()
     original, bind = read_env()
     changed = bind != "127.0.0.1"
@@ -405,6 +447,8 @@ def apply():
                 "gateway_ready": True,
                 "demo_access_preserved": True,
                 "egress_guard_active": True,
+                "compose_env_not_readable_by_dao": True,
+                "dao_docker_socket_access": False,
             },
             sort_keys=True,
         )
