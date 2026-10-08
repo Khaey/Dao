@@ -329,6 +329,8 @@ def parse_json_request(handler: BaseHTTPRequestHandler) -> dict:
     if length < 0 or length > MAX_REQUEST:
         raise SafeError(413, "request_too_large")
     raw = handler.rfile.read(length)
+    if len(raw) != length:
+        raise SafeError(400, "incomplete_body")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -1029,7 +1031,8 @@ class GatewayServer(socketserver.UnixStreamServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    protocol_version = "HTTP/1.1"
+    # Never keep a client connection holding the single-threaded Unix server.
+    protocol_version = "HTTP/1.0"
     server_version = "dao-oce-gateway"
     sys_version = ""
 
@@ -1059,6 +1062,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def dispatch(self):
+        # Bound a partial request body so a local caller cannot stall the
+        # gateway indefinitely by sending a declared Content-Length and no data.
+        self.connection.settimeout(5)
         started = time.monotonic()
         correlation = secrets_token()
         operation = self.path.split("?", 1)[0]
@@ -1078,6 +1084,9 @@ class Handler(BaseHTTPRequestHandler):
         except SafeError as exc:
             self.send_json(exc.status, {"ok": False, "error": exc.code})
             status_name = exc.code
+        except socket.timeout:
+            self.close_connection = True
+            status_name = "request_timeout"
         except Exception:
             self.send_json(500, {"ok": False, "error": "gateway_internal_error"})
             status_name = "gateway_internal_error"
