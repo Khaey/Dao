@@ -105,7 +105,7 @@ live execution. It is not automatically installed or started by deployment.
 Global writer census, full application recovery, runtime pin and gateway
 qualification are not marked complete by this implementation.
 
-## Runtime digest pin — prepared after qualified restore
+## Runtime digest pin — live qualified
 
 The live backup/restore gate is complete for job
 `b709caaf50a947a99d80536d3e8e76a2`: backup, isolated PostgreSQL restore,
@@ -163,24 +163,63 @@ The helper exposes three fixed operations:
 - `qualify`: one-time credential rotation, rejection of the old token,
   deactivate/reject/reactivate proof, and final login verification.
 
-The qualification deliberately keeps demo login enabled. Before TARGET: DEV,
-network and gateway tests must still prove that the actual D.A.O runtime cannot
-bypass the private gateway and call OCE directly.
+The live qualification completed on 2026-10-08: the technical identity is an
+active `editor`, its secret remains protected on the VPS, password rotation
+invalidated the previous token, account deactivation rejected both token and
+login, reactivation restored login, and demo access remained enabled.
+
+## Private deny-by-default gateway — implementation checkpoint
+
+`ops/oce-v1-gateway.py` exposes only a Unix-domain HTTP socket to the exact
+Linux uid running `dao-dev.service`. It also verifies the peer uid with
+`SO_PEERCRED`; socket group membership alone is not authorization. The OCE
+credential stays root-only. systemd `LoadCredential=` projects a private
+read-only copy into the dedicated `dao-oce-gateway` service, so the `dao`
+runtime never receives the password or bearer token.
+
+The gateway has no generic proxy primitive. Its only operations are health,
+readiness, ensure-project, ensure-WBS, ensure-schedule, upsert-activity by
+stable `activity_code`, ensure-dependency, calculate-planning and
+planning-summary. Request objects reject unknown fields. No caller-supplied
+method, URL, OCE id, delete, user, finance, contract, legal, BIM or IFC call
+can pass through.
+
+A root-only `authorize <dao_project_id> <dao_lot_id>` operation creates the
+explicit admission record before ensure-project is accepted; `revoke`
+immediately makes that pair unusable. OCE ids live only in the private gateway
+state. Every mapped project/WBS/schedule/activity/dependency is rechecked
+against its parent and technical owner before use. Ambiguous writes are
+reconciled through stable project codes, schedule names and activity codes
+rather than blindly replayed.
+
+Host activation is separate and fail-closed. It changes the existing OCE
+`OE_BIND` to `127.0.0.1`, keeps a root-only backup of the previous Compose
+environment, recreates only the OCE app with `--pull never`, and installs a
+dedicated nftables output guard denying uid `dao` any direct TCP/8080 path.
+The gateway service uses a different uid. Operator/root access to loopback OCE
+and the explicitly retained demo login remain available, including through an
+SSH tunnel when remote UI access is needed.
+
+`ops/oce-v1-gateway-qualify.py` uses fixed synthetic mappings and the real
+`dao` uid to prove the positive project -> WBS -> schedule -> activities ->
+dependency -> CPM/summary flow, idempotency, denied unknown operation, denied
+extra fields, forged mapping, cross-project pair, mapping revocation, and both
+loopback and direct-container bypass denial. It emits booleans only and never
+reads the credential.
 
 ## Remaining implementation and qualification
 
-1. Inventory/topology and the coherent local DB + `/data` backup with isolated
-   PostgreSQL restore are complete; do not repeat them without a new cause.
-   Off-host retention/full application disaster recovery remain separate
-   production-hardening work and do not invalidate the completed local restore gate.
-2. Complete the reviewed immutable runtime pin described above and record the
-   exact registry digests plus live health proof in #58.
-3. Provision the isolated technical identity and gateway, then run negative
-   permissions/bypass tests and real rotation/revocation checks. Secrets stay
-   on VPS under root/service ownership, outside the `dao` group, CI and logs.
-4. Publish exact implemented primitives to DEV only after these gates pass.
-   D.A.O retains business authority and its durable sync journal/mapping work
-   remains Phase 2. No automatic contract/payment/award/legal state changes.
+1. Backup/restore, immutable OCE runtime pin and the dedicated technical
+   identity/secret rotation gate are complete; do not repeat them without a
+   new cause.
+2. Validate and merge the private-gateway implementation, then install it from
+   the exact green deployed release without starting services implicitly.
+3. Run gateway-host `plan`, then `apply`, then the fixed live
+   `gateway-qualify` suite. Record only sanitized output in #58.
+4. Only after all bypass/mapping/operation gates pass, publish the exact gateway
+   primitives to DEV. D.A.O retains business authority; durable product
+   sync/journal/mapping orchestration remains Phase 2. No automatic
+   contract/payment/award/legal state changes.
 
 Proposed transport bounds for implementation: connect 2 s, read 10 s, CPM 30 s,
 global operation 40 s, bounded body sizes. At most two retries for reads on
