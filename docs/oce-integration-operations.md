@@ -119,7 +119,7 @@ It refuses missing or ambiguous digests and never pulls `latest`.
 
 The two existing Compose files remain byte-for-byte unchanged and form the
 rollback configuration. The pin is a root-controlled final override at
-`/etc/dao/oce-runtime-pin.yml` containing only immutable image references for
+`/etc/dao-oce/runtime-pin.yml` containing only immutable image references for
 the OCE app and PostgreSQL. Before apply, the helper proves that rendering the
 extra override changes only the two image fields. It also proves the original
 resolved image references still map locally to the exact validated image IDs,
