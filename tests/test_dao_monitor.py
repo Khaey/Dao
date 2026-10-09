@@ -64,6 +64,54 @@ class MonitorTests(unittest.TestCase):
         event["pull_request"]["merged"] = False
         self.assertIsNone(dm.classify("pull_request", event, self.config))
 
+    def test_pr_owner_title_disambiguates_incidental_references(self):
+        pr = {"title": "OPS #91 — opérations", "body": "Ne touche pas #58 ou #83"}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO OPT 20", 91))
+
+    def test_pr_owner_explicit_refs(self):
+        pr = {"title": "fix(artisan): profil", "body": "Hors #58. Refs #83."}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO DEV 2", 83))
+
+    def test_pr_owner_unique_body_reference(self):
+        pr = {"title": "fix(monitor): secrets", "body": "Correction ciblée de #93"}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 3", 93))
+
+    def test_pr_owner_ambiguous_falls_back(self):
+        pr = {"title": "maintenance", "body": "Impacte #83 et #58"}
+        self.assertEqual(dm.pr_owner(pr, self.config), (None, None))
+        self.assertEqual(dm.owner_line(pr, self.config), "👤 Agent : non identifié")
+
+    def test_pr_merged_shows_agent(self):
+        event = {"action": "closed", "pull_request": {
+            "merged": True, "number": 96, "base": {"ref": "main"},
+            "title": "OPS #91 — opérations", "body": "Ne touche pas #58",
+            "html_url": "https://github.com/Khaey/Dao/pull/96"}}
+        self.assertIn("Agent : DAO OPT 20 — mission #91",
+                      dm.classify("pull_request", event, self.config))
+
+    def test_ci_exact_merge_sha_shows_owner(self):
+        sha = "a" * 40
+        pr = {"merged_at": "2026-10-09T05:00:00Z",
+              "merge_commit_sha": sha, "base": {"ref": "main"},
+              "title": "fix(artisan): profil", "body": "Refs #83"}
+        self.assertEqual(dm.associated_merged_pr([pr], sha), pr)
+        self.assertIsNone(dm.associated_merged_pr([pr], "b" * 40))
+        event = {"action": "completed", "workflow_run": {
+            "name": "DAO CI and DEV deploy", "head_branch": "main",
+            "event": "push", "conclusion": "success", "run_number": 408,
+            "html_url": "https://github.com/Khaey/Dao/actions/runs/123"}}
+        self.assertIn("Agent : DAO DEV 2 — mission #83",
+                      dm.classify("workflow_run", event, self.config, pr))
+        self.assertIn("Agent : non identifié",
+                      dm.classify("workflow_run", event, self.config))
+
+    def test_ci_ambiguous_merge_is_not_attributed(self):
+        sha = "b" * 40
+        pr = {"merge_commit_sha": sha, "merged_at": "now",
+              "base": {"ref": "main"}, "title": "OPS #91"}
+        self.assertIsNone(dm.associated_merged_pr([pr, pr], sha))
+        self.assertIsNone(dm.associated_merged_pr([pr], "invalid"))
+
     def test_ci_only_main_push(self):
         event = {"action": "completed", "workflow_run": {
             "name": "DAO CI and DEV deploy", "head_branch": "main", "event": "push",
