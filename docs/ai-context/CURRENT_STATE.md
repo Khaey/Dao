@@ -2,17 +2,41 @@
 
 ## DEV 20 — OCE #58, bootstrap installé, correctif du jeton préparé (2026-10-09)
 
-Main observé `c1d443a1c37d2b76399a25a3fed72d13061bc254`, nouvelles consignes
-#87 conservées. Branche propre `fix/dev20-oce-bootstrap-diagnostic`, PR #90.
+Main observé `aa63b37ab75efdceae1d63cb1d72af2c20545737`, consignes #87
+et livraison SCP #92 conservées. Branche propre `fix/dev20-oce-bootstrap-diagnostic`, PR #90.
 Le propriétaire a installé le helper/sudoers, sans démarrage du tunnel ; le
 provisionnement échoue avant audit complet. Diagnostic privé expurgé confirme
 le refus local exactement-32-octets, alors que le secret respecte le minimum
 Cloudflare. Correction : au moins 32 octets, contrôles compte/tunnel/endpoint
 et limites de jeton conservés. Code publié/CI/état de livraison et prochaine
 action sont suivis dans #58 ; publication ne vaut pas installation VPS.
-Mise à jour root ciblée du seul module/provisionnement reste à autoriser
-spécifiquement. Pas de nouveau bootstrap cloudflared/sudoers ni de rotation
+Le propriétaire a autorisé la fusion #90, le déploiement normal Actions et
+la mise à jour root ciblée du seul module suivie du provisionnement privé.
+Réconciliation main nécessaire avant nouvelle CI du candidat et fusion. Pas de nouveau bootstrap cloudflared/sudoers ni de rotation
 inutile, pas de :8080/gateway apply, pas de changement Auth/RLS/données démo.
+
+## OPT 20 — SCP DEV #85, préparation du 2026-10-09
+
+Relais temporaire explicite du Pilot dans [#85](https://github.com/Khaey/Dao/issues/85#issuecomment-6073031291) :
+OPT 20 est seul actif sur ce chantier ; WORK OPT attend un handback explicite.
+Base réelle `c1d443a1c37d2b76399a25a3fed72d13061bc254`, CI/deploy main #391
+(`37875029150`, tentative 1 SUCCESS). #88 a entre-temps été fusionnée par
+décision distincte du propriétaire ; ne pas recommencer #87.
+
+Branche préparée `chore/ci-dev-single-transfer`, avancée sans réécriture au
+main réel. Le candidat regroupe les deux uploads dans l'action SCP déjà épinglée,
+avec package inchangé sous `/opt/dao` et JSON privé sous
+`/opt/dao/ops-incoming/<run>-<attempt>/dao-env.json`. Secrets hors artefact,
+modes, manifeste, verrou, stale-main, rollback et nettoyages conservés.
+Tests locaux ciblés : 5/5 PASS sur données fictives, sans SSH ni secret DEV.
+CI exacte et mesure réelle après fusion restent à vérifier à ce snapshot.
+
+Baselines déjà acquises, non rejouées : #383 = SCP 10 + 9 s, deploy 35 s ;
+#391 = SCP 10 + 8 s, deploy 41 s (construction du conteneur 8 s contre 3 s).
+L'essai six workers #86 est rejeté : navigateur +8,25 %, job +4,17 % ;
+conserver quatre workers et les 29 intégrations / 48 E2E desktop/mobile.
+Les preuves finales, SHA/PR/runs et limites de comparaison sont dans #85.
+OCE #58, Artisan #83, Back-office #64 et leurs branches restent hors périmètre.
 
 ## OPT 20 — Work continuity #87 (2026-10-09 Europe/Paris)
 
