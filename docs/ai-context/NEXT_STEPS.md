@@ -4,8 +4,8 @@
 
 Branche `chore/opt20-deploy-recovery-91`, base initiale
 269b7018dc18f55a5c6f725246e1d4b4f5c7e580 (CI/deploy #424 vert), réconciliée
-avec main 5bebd1f1e66ec575620ca3e0ded7ed4fe53be4bb en conservant #104 Monitor
-et #105 DEV 20. Lire le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91)
+avec main efe86f584343e06553157c4a121f3c270cac8cbb en conservant #104/#107/#108
+Monitor, #105 DEV 20 et #84 Artisan. Lire le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91)
 pour HEAD/PR/CI/deploy réels ; si la livraison est marquée achevée, ne pas
 réexécuter les tests ou opérations. Les 16 tests ciblés couvrent les nouvelles
 fautes sur fichiers temporaires ; aucun test ne justifie une panne DEV réelle.
@@ -23,6 +23,35 @@ checkpoint final vert est acquis. Pas de nouvel ops-upgrade/bootstrap/rollback
 root pour ce script non catalogué ; pas de DB/backup/migration ou code OCE,
 produit/Auth/RLS. #58/#83/#64/#93 restent à leurs owners. Reprise uniquement
 depuis le HEAD publié, sans hook crash/Stop/quota Work.
+
+## WORK OPT — Monitor #93, complément sur le corps réel de #104
+
+PR #107 corrige le titre et les marqueurs de silence. La reprise avec le
+corps GitHub **complet** de #104 prouve aussi des exemples `Réfs #91` en code
+Markdown, à distinguer de la vraie déclaration `Refs #93`. Branche propre
+`chore/monitor-owner-code-examples-93` : références dans les exemples de code
+ignorées, vrais conflits toujours refusés. 39 tests locaux et rejeu hors ligne
+du corps réel + SHA de #104 PASS, sans nouvel envoi historique. Résultats exacts
+et limite téléphone dans [#93](https://github.com/Khaey/Dao/issues/93).
+
+
+## WORK OPT — qualification Monitor #93 (2026-10-09)
+
+Branche propre `chore/monitor-watchdog-marker-93`, depuis main vérifié
+`e24cb6074b5236a25a17bc74d5d683091595479a`. Le propriétaire confirme la
+réception Telegram : #105/#429 et #84/#432 sont nominatifs, mais #104/#426
+restent « non identifié ». Le titre de #104 cite des PR non enregistrées et
+interrompt la lecture de `Refs #93` ; ce défaut résiduel est corrigé. Le
+watchdog accepte désormais seulement le marqueur exact du bot Actions :
+ni commentaire non autorisé ni collision d'identifiant ne masque le silence.
+35 tests Monitor locaux PASS. Résultats CI/fusion et preuve finale :
+[#93](https://github.com/Khaey/Dao/issues/93). Registre #93 = DAO Pilot 3,
+WORK OPT exécutant ; #85 suspendue, #91/#58/#83 intacts.
+
+
+## DEV 2 #83 — valider les correctifs Artisan, puis arbitrer les règles nouvelles
+
+Publier `feat/artisan-space-completion`, exécuter la CI exacte et ne fusionner que verte. Le lot est frontend et tests uniquement : aucune migration, aucun changement Auth/RLS et aucune intervention sur #64 ou #58. Après livraison, le DAO Pilot doit arbitrer séparément la règle de re-vérification des profils édités, l'espace par défaut des doubles rôles, l'intérêt d'une boîte globale d'invitations/offres et un éventuel retrait d'offre soumise. Ne pas transformer ces questions en comportement implicite. Preuves et décisions : [#83](https://github.com/Khaey/Dao/issues/83), avec le détail dans [l'audit](../artisan-space-audit.md).
 
 ## DEV 20 — OCE #58, vérifier les secrets sans terminal
 
@@ -162,7 +191,6 @@ For new sessions use [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md), including its
 short startup message and owner-issue template. OPT #85, DEV 20 #58, DEV 2 #83
 and Back-office #64 stay with their owners; the older next steps below do not
 authorize OPT 20 to take them over.
-
 ## DEV #64 — livrer le correctif UX, puis intégrer les retours manuels
 
 Poursuivre la branche `fix/backoffice-v2-usability` depuis le main vérifié `c38e4ca…`. Observer sa CI exacte sans rejouer les contrôles pour des entrées inchangées, corriger uniquement les échecs prouvés, fusionner vert et vérifier main/deploy. Ce correctif est frontend uniquement : ne rejouer aucune migration et ne modifier ni Auth/RLS ni OCE/#58 ni contrats/#61. Garder #64 ouvert pour les corrections que le pilote annoncera après ses tests manuels ; tracer chaque observation, sa cause, sa correction et la preuve de validation. Les preuves finales de #68 restent valides pour son périmètre. Voir [audit de reprise](../backoffice-v2-followup.md).

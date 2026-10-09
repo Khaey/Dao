@@ -4,8 +4,8 @@
 
 Base initiale réelle `269b7018dc18f55a5c6f725246e1d4b4f5c7e580`, CI/deploy
 #424 / 37906979914 SUCCESS ; lots maintenance/transport acquis, non rejoués.
-Réconciliation main `5bebd1f1e66ec575620ca3e0ded7ed4fe53be4bb` (#104 Monitor
-et #105 DEV 20 conservées). Branche dédiée `chore/opt20-deploy-recovery-91` ; périmètre et livraison exacte
+Réconciliation main `efe86f584343e06553157c4a121f3c270cac8cbb` : #104/#107/#108
+Monitor, #105 DEV 20 et #84 Artisan conservées. Branche dédiée `chore/opt20-deploy-recovery-91` ; périmètre et livraison exacte
 suivis dans [#91 OPS 29 et suivants](https://github.com/Khaey/Dao/issues/91#issuecomment-6078006258).
 
 Le handler de déploiement conserve l'erreur initiale et continue les étapes
@@ -22,6 +22,37 @@ pas un rollback de déploiement live ou une panne forcée. Lire #91 pour les CI,
 le déploiement normal du source exact et les limites, sans reprendre une étape
 qu'un checkpoint de livraison marque déjà achevée. Les contextes et travaux
 #58/#83/#64/#93 sont préservés ; bootstrap et rollback root non rejoués.
+
+## WORK OPT — Monitor #93, complément sur le corps réel de #104
+
+PR #107 corrige le titre et les marqueurs de silence. La reprise avec le
+corps GitHub **complet** de #104 prouve aussi des exemples `Réfs #91` en code
+Markdown, à distinguer de la vraie déclaration `Refs #93`. Branche propre
+`chore/monitor-owner-code-examples-93` : références dans les exemples de code
+ignorées, vrais conflits toujours refusés. 39 tests locaux et rejeu hors ligne
+du corps réel + SHA de #104 PASS, sans nouvel envoi historique. Résultats exacts
+et limite téléphone dans [#93](https://github.com/Khaey/Dao/issues/93).
+
+
+## WORK OPT — qualification Monitor #93 (2026-10-09)
+
+Branche propre `chore/monitor-watchdog-marker-93`, depuis main vérifié
+`e24cb6074b5236a25a17bc74d5d683091595479a`. Le propriétaire confirme la
+réception Telegram : #105/#429 et #84/#432 sont nominatifs, mais #104/#426
+restent « non identifié ». Le titre de #104 cite des PR non enregistrées et
+interrompt la lecture de `Refs #93` ; ce défaut résiduel est corrigé. Le
+watchdog accepte désormais seulement le marqueur exact du bot Actions :
+ni commentaire non autorisé ni collision d'identifiant ne masque le silence.
+35 tests Monitor locaux PASS. Résultats CI/fusion et preuve finale :
+[#93](https://github.com/Khaey/Dao/issues/93). Registre #93 = DAO Pilot 3,
+WORK OPT exécutant ; #85 suspendue, #91/#58/#83 intacts.
+
+
+## DEV 2 #83 — espace Artisan / Entreprise (2026-10-09)
+
+Reprise depuis le `main` réel `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`, les PR ouvertes et l'ensemble de `docs/ai-context/*`. L'audit confirme que l'inscription contractor, Mes chantiers partagé, les invitations, la visibilité RLS des DAO et le cycle brouillon/soumission/version/attribution des offres sont déjà livrés. La branche `feat/artisan-space-completion` corrige sans migration les écarts prouvés : profil professionnel visible en lecture seule, blocage explicite des offres tant que le profil n'est pas vérifié, statut Brouillon exact, restauration des lots d'un brouillon multi-lots et état vide de Mes chantiers adapté au contractor. Voir [audit Artisan / Entreprise](../artisan-space-audit.md) et [#83](https://github.com/Khaey/Dao/issues/83).
+
+Aucune nouvelle règle métier n'est introduite. La re-vérification après édition du profil, l'espace par défaut d'un double rôle, une boîte globale d'invitations/offres et le retrait d'une offre soumise attendent une décision DAO Pilot. Les périmètres Back-office #64 et OCE #58 restent intacts.
 
 ## DEV 20 — OCE #58, contrôle Cloudflare via GitHub Secrets préparé (2026-10-09)
 
@@ -196,7 +227,6 @@ This is documentation only: no CI/E2E/deployment/VPS change or added automation.
 PR #34/#46 sections remain preserved. OPT keeps #85; DEV 20 keeps #58;
 DEV 2 keeps #83; Back-office #64 is excluded. Older snapshots below keep
 their original evidence and do not transfer task ownership.
-
 ## DEV #64 — réouvert pour corrections UX et retours manuels (2026-10-08)
 
 Base vérifiée `c38e4ca137bd5997cc2e0876108a5ce486f7453a`, CI/deploy #343 SUCCESS. La livraison #68 (48/48, migration V2 appliquée une fois) reste acquise ; #64 est rouvert à la demande du pilote pour les défauts d’utilisation. Branche DEV `fix/backoffice-v2-usability` : filtres/dashboard, noms/affectation, annulation de saisie, garde-fous visuels lot publié, accès au chantier complet, filtres historiques par noms et libellés français. Frontend uniquement : aucune migration, permission, RPC ou opération OCE. TypeScript local PASS ; les scénarios E2E existants sont renforcés, leur nombre reste 48. CI exacte/livraison et retours manuels sont suivis dans [#64](https://github.com/Khaey/Dao/issues/64). Ne pas clôturer cette issue sur la seule base des tests automatiques alors que le pilote annonce de nouveaux retours manuels. Voir [audit de reprise](../backoffice-v2-followup.md).

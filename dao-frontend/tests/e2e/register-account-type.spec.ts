@@ -77,4 +77,12 @@ test('inscription artisan/entreprise : activité requise, statut pending et redi
   expect(profiles[0].contractor_type).toBeNull();
   expect(await adminRows('contractor_trades', 'contractor_id', profiles[0].id)).toHaveLength(0);
   recordE2EValue(testInfo, 'contractorProfiles', profiles[0].id);
+
+  await expect(page.getByText('Mon profil professionnel', { exact: true })).toBeVisible();
+  await expect(page.getByText('En attente de vérification', { exact: true })).toBeVisible();
+  await expect(page.getByText(/soumission d’offres sera possible après vérification/)).toBeVisible();
+  await page.getByRole('link', { name: 'Voir mon profil' }).click();
+  await expect(page.getByRole('heading', { name: 'Profil professionnel', exact: true })).toBeVisible();
+  await expect(page.getByText(`Atelier E2E ${suffix}`, { exact: true })).toBeVisible();
+  await expect(page.getByText('La modification de la fiche professionnelle sera activée après validation de la règle de re-vérification par D.A.O.')).toBeVisible();
 });

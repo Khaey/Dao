@@ -52,6 +52,12 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
 - L'attribution reconnaît aussi la mention française `Réfs #N` et le lien
   canonique vers l'issue propriétaire (`github.com/Khaey/Dao/issues/N`).
   Ainsi, une description qui cite d'autres PR/CI n'efface pas son propriétaire.
+- Les numéros PR/CI du titre qui ne correspondent à aucune mission enregistrée
+  n'empêchent pas la lecture de la référence propriétaire du corps. Des missions
+  enregistrées contradictoires dans le titre restent ambiguës.
+- Les références citées dans du code Markdown (en ligne ou bloc à trois
+  backticks) sont des exemples, pas des déclarations de propriétaire. Écrire
+  la référence canonique `Refs #N` en texte normal hors de ces exemples.
 - Quand la référence est absente ou ambiguë, le message porte explicitement
   « Agent : non identifié », sans inventer de responsable. Ajouter "Refs #N"
   sur les PR, avec N = issue propriétaire, et maintenir le registre d'agents
@@ -62,6 +68,12 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
   toutes les 15 minutes, seuil 90 minutes depuis le dernier checkpoint.
   Une seule alerte prudente par checkpoint ACTIVE, dédoublonnée par commentaire
   machine sur l'issue. On n'affirme **jamais** avoir détecté un crash/quota.
+
+  Seul un commentaire de `github-actions[bot]` (type Bot), dont la première
+  ligne correspond exactement au marqueur du checkpoint ACTIVE concerné,
+  acquitte l'alerte. Une citation, un auteur différent ou un autre identifiant
+  ne peut pas supprimer une alerte. Un nouveau checkpoint ACTIVE ouvre une
+  nouvelle période de surveillance ; son ancien acquittement ne la masque pas.
 
 Les missions passives (dont Pilot 3 #89 et ancien OPT #85) ne déclenchent
 pas d'alerte d'inactivité. #91 est inscrite mais ne devient ACTIVE
@@ -88,3 +100,4 @@ Tests locaux (sans token ni appels réseau) :
 
 La configuration des deux secrets GitHub et la réception du test réel restent
 l'unique étape propriétaire requise. Pas de connexion SSH.
+

@@ -620,3 +620,15 @@ authorized main deployment. One action/upload does not mean one underlying
 TCP/SSH session. Record measured results and comparison limits in
 [#85](https://github.com/Khaey/Dao/issues/85); do not present estimated savings
 as live measurements or reuse old green CI for a new candidate.
+
+
+## Monitor #93 — références du titre et acquittement de silence (2026-10-09)
+
+Un numéro PR/CI du titre sans mission enregistrée ne bloque plus la référence
+propriétaire explicite du corps ; les missions enregistrées contradictoires
+restent non attribuées. Cas réel #104/#426 signalé sur Telegram après #104.
+Le silence est dédoublonné seulement par la première ligne exacte du commentaire
+de `github-actions[bot]` de type Bot. Cela corrige l'usurpation de marqueur et
+les collisions d'identifiants sans changer seuil, fréquence, registre ni états.
+Aucun nouvel envoi de recette, faux BLOCKED/DONE, rattrapage historique, ou
+privilège n'est nécessaire. CI/fusion/preuves dans l'issue canonique #93.
