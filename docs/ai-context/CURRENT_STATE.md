@@ -4,8 +4,8 @@
 
 Base initiale réelle `269b7018dc18f55a5c6f725246e1d4b4f5c7e580`, CI/deploy
 #424 / 37906979914 SUCCESS ; lots maintenance/transport acquis, non rejoués.
-Réconciliation main `e0b2dbe7be35ad4b40720f9761caa97336b64f6e` (#104 Monitor
-conservée). Branche dédiée `chore/opt20-deploy-recovery-91` ; périmètre et livraison exacte
+Réconciliation main `5bebd1f1e66ec575620ca3e0ded7ed4fe53be4bb` (#104 Monitor
+et #105 DEV 20 conservées). Branche dédiée `chore/opt20-deploy-recovery-91` ; périmètre et livraison exacte
 suivis dans [#91 OPS 29 et suivants](https://github.com/Khaey/Dao/issues/91#issuecomment-6078006258).
 
 Le handler de déploiement conserve l'erreur initiale et continue les étapes
@@ -22,6 +22,29 @@ pas un rollback de déploiement live ou une panne forcée. Lire #91 pour les CI,
 le déploiement normal du source exact et les limites, sans reprendre une étape
 qu'un checkpoint de livraison marque déjà achevée. Les contextes et travaux
 #58/#83/#64/#93 sont préservés ; bootstrap et rollback root non rejoués.
+
+## DEV 20 — OCE #58, contrôle Cloudflare via GitHub Secrets préparé (2026-10-09)
+
+Base main vérifiée `269b7018dc18f55a5c6f725246e1d4b4f5c7e580`, CI/deploy #424
+SUCCESS, puis réconciliation avec main `e0b2dbe7be35ad4b40720f9761caa97336b64f6e`
+en conservant PR #104. Branche propre `fix/dev20-oce-actions-check`. Le propriétaire confirme
+l'ajout des deux jetons OCE ; leur présence n'est pas encore prouvée par un run.
+Le refus réel précédent est `ZONE_LOOKUP / HTTP_403`, module installé corrigé
+SHA-256 2aa45c24ca1ffc1b880e8830997bfb641fc8cb59cedbb086194211786ea1dce4,
+aucune configuration écrite ni tunnel démarré. #90/#95 et bootstrap OPS acquis.
+
+Nouveau chemin préparé : commentaires owner exacts #58 `/dao-oce check|audit`,
+main-only/dev ; GET Cloudflare sur runner, jetons uniquement dans l'étape privée,
+codes/stages/booleans expurgés, aucun fichier de credential/artifact/SSH.
+`check` utilise les deux jetons pour zone/tunnel/binding structurel ; `audit`
+exige aussi `OCE_CLOUDFLARE_APPROVED_EMAILS`, indépendant de la politique live.
+Modèle C4 mis à jour sans représenter la démo comme activée. CI/merge/run réels
+à suivre dans [#58](https://github.com/Khaey/Dao/issues/58).
+
+Préférence propriétaire : aucun nouveau CMD/TTY. Provisionnement root depuis
+GitHub encore bloqué faute de verbe/grant distinct installé ; ne pas détourner
+les opérations communes ni rejouer leur bootstrap. Aucun catalogue/root/VPS,
+service, :8080 ou gateway apply modifié par ce lot. #91/#83/#64 restent séparées.
 
 ## OPT 20 — OPS #91, transport de récupération qualifié live (2026-10-09)
 

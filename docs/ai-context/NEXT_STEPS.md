@@ -4,7 +4,8 @@
 
 Branche `chore/opt20-deploy-recovery-91`, base initiale
 269b7018dc18f55a5c6f725246e1d4b4f5c7e580 (CI/deploy #424 vert), réconciliée
-avec main e0b2dbe7be35ad4b40720f9761caa97336b64f6e en conservant #104 Monitor. Lire le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91)
+avec main 5bebd1f1e66ec575620ca3e0ded7ed4fe53be4bb en conservant #104 Monitor
+et #105 DEV 20. Lire le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91)
 pour HEAD/PR/CI/deploy réels ; si la livraison est marquée achevée, ne pas
 réexécuter les tests ou opérations. Les 16 tests ciblés couvrent les nouvelles
 fautes sur fichiers temporaires ; aucun test ne justifie une panne DEV réelle.
@@ -22,6 +23,24 @@ checkpoint final vert est acquis. Pas de nouvel ops-upgrade/bootstrap/rollback
 root pour ce script non catalogué ; pas de DB/backup/migration ou code OCE,
 produit/Auth/RLS. #58/#83/#64/#93 restent à leurs owners. Reprise uniquement
 depuis le HEAD publié, sans hook crash/Stop/quota Work.
+
+## DEV 20 — OCE #58, vérifier les secrets sans terminal
+
+Reprendre `fix/dev20-oce-actions-check` et le dernier checkpoint #58. Observer
+les CI du candidat courant, réconcilier main puis livrer dans le mandat #58.
+Déclencher une fois `/dao-oce check` : cela constate présence/utilisabilité des
+deux jetons déclarés et le refus fournisseur éventuel, sans VPS. Conserver run,
+SHA, tentative et diagnostic ; un PASS ne constitue pas l'audit Access complet.
+Pour `/dao-oce audit`, ajouter la liste owner indépendante dans le secret privé
+`OCE_CLOUDFLARE_APPROVED_EMAILS` via l'interface GitHub, sans la republier.
+
+Si le 403 demeure, corriger uniquement le contrôle Cloudflare constaté puis
+recontrôler après changement réel. Si les gates passent, préparer le verbe root
+de provisionnement distinct et son grant précis, avec admission/installations
+revues ; le contrôle runner ne les installe pas. Aucun nouveau CMD/TTY, ancien
+bloc de saisie ou bootstrap OPS : instruction propriétaire courante. Aucun start,
+gateway-host apply ou fermeture :8080 sans mandat distinct. Les anciennes étapes
+terminal ci-dessous sont historiques et ne s'appliquent plus à cette reprise.
 
 ## OPT 20 — transport de récupération #91 livré, reprendre ses preuves
 

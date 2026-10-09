@@ -229,12 +229,16 @@ suppression runner/hôte et restauration protégée. Les logs publics contiennen
 des compteurs et des codes fixes, jamais les messages du journal ou les erreurs
 brutes des fournisseurs.
 
-Les credentials OCE/Cloudflare demeurent dans leurs magasins root avec saisie
-masquée prévue par #58. Un secret déjà provisionné n'est pas redemandé à chaque
-Work. L'autorisation Access/Tunnel chez Cloudflare, la saisie initiale/rotation
-de secrets et une reprise root majeure peuvent demander le propriétaire ;
-aucun agent ne les déduit d'une CI verte. Coordonner l'unique bloc de bootstrap
-avec l'état réel #58 avant toute demande afin d'éviter des commandes successives.
+Pour #58, le propriétaire a choisi GitHub Secrets et exclut désormais CMD/TTY.
+Le [workflow Cloudflare sur runner](oce-cloudflare-actions.md) reçoit deux jetons
+et, pour l'audit complet, la liste privée indépendante d'e-mails approuvés.
+GET uniquement, aucun contact VPS ni écriture root. Ce chemin reste distinct
+des 18 opérations communes et de la maintenance code-only : aucun nouveau
+grant root, provisioning implicite ou détournement de env-sync/audit/status.
+Le provisionnement initial depuis GitHub nécessite encore une capacité root
+distincte revue/installée ; ne pas redemander les anciens blocs terminal ou
+le bootstrap OPS terminé. Un secret déjà provisionné n'est pas redemandé à
+chaque Work ; une CI verte ne prouve ni sa présence ni Access/Tunnel READY.
 
 ## Qualification et reprise
 
