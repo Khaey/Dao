@@ -1,0 +1,51 @@
+name: DAO OCE Cloudflare check
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Runner GET only: check tokens or audit the approved private configuration'
+        required: true
+        default: check
+        type: choice
+        options: [check, audit]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dao-oce-cloudflare-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: >-
+      github.repository == 'Khaey/Dao' && github.ref == 'refs/heads/main' &&
+      github.actor == 'Khaey' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        contains(fromJSON('["check","audit"]'), github.event.inputs.operation)) ||
+       (github.event_name == 'issue_comment' && github.event.action == 'created' &&
+        github.event.issue.number == 58 && !github.event.issue.pull_request &&
+        github.event.comment.user.login == 'Khaey' &&
+        github.event.comment.author_association == 'OWNER' &&
+        contains(fromJSON('["/dao-oce check","/dao-oce audit"]'), github.event.comment.body)))
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate fixed owner request
+        id: request
+        run: python3 -I scripts/oce-cloudflare-check.py request
+      - name: Check Cloudflare with protected inputs
+        env:
+          OCE_CLOUDFLARE_API_TOKEN: ${{ secrets.OCE_CLOUDFLARE_API_TOKEN }}
+          OCE_CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.OCE_CLOUDFLARE_TUNNEL_TOKEN }}
+          OCE_CLOUDFLARE_APPROVED_EMAILS: ${{ secrets.OCE_CLOUDFLARE_APPROVED_EMAILS }}
+          OCE_OPERATION: ${{ steps.request.outputs.operation }}
+        run: python3 -I scripts/oce-cloudflare-check.py "$OCE_OPERATION"
