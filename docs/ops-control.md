@@ -86,6 +86,47 @@ La livraison et le déploiement normal du source exact sont suivis dans
 Un SIGKILL, une panne hôte ou un arrêt brutal Work n'est pas intercepté par ce
 handler ; la reprise Work reste celle du dernier HEAD réellement publié.
 
+## Lire la récupération d'un env-sync manuel échoué
+
+Le routeur nonroot émet un unique JSON `env_sync_recovery` à la sortie en
+échec d'`env-sync`. Il conserve le code de la première erreur ; une récupération
+réussie ne rend pas le run vert. Les sorties brutes du helper, du restart de
+récupération et des commandes cleanup sont retenues, sans publier de valeurs.
+Seuls les résultats exacts du helper (`unchanged` ou `updated keys=` avec un
+sous-ensemble trié des trois clés autorisées) sont reconnus et affichés.
+
+| Champ | Valeurs fermées et portée |
+| --- | --- |
+| `env_sync_recovery` | `complete`, `incomplete`, `not_needed` ; `complete` exige env restaurée ou inchangée, restart/HTTP de récupération et cleanup réussis |
+| `original_status` | Première erreur nonzero ; une erreur ultérieure de recovery/cleanup ne la remplace pas. Un cleanup seul échoué devient lui-même l'erreur |
+| `phase` | `prepare`, `lock`, `payload`, `sync`, `payload_cleanup`, `restart`, `readiness`, `status`, `cleanup` ; étape de l'erreur initiale, pas une cause racine |
+| `environment` | `not_attempted`, `unverified`, `unchanged`, `updated`, `restored`, `failed` ; aucun fichier/secret publié |
+| `restart` | `not_needed`, `complete`, `failed` ; résultat du seul restart de récupération, distinct du premier restart |
+| `readiness` | `not_checked`, `passed`, `failed` ; passe locale unique de récupération, distincte de la readiness normale |
+| `cleanup` | `complete`, `failed` ; suppression du seul JSON privé, pas garantie du cleanup transport `always()` du workflow |
+
+Après résultat changé reconnu, un échec avant readiness favorable tente la
+restauration de l'env précédente. Un échec de restauration n'empêche pas le
+restart de récupération ni le cleanup, mais interdit de qualifier la readiness
+comme restaurée. Après résultat inchangé et échec restart/HTTP, un restart
+de récupération est tenté sans env-restore. La passe `--once` utilise le script
+revu transporté depuis main ; les attentes normales restent inchangées.
+
+Un helper échoué ou un résultat inconnu signifie `unverified` : aucun restart
+ni restore aveugle, car la sauvegarde existante ne prouve pas la transaction
+courante. Après readiness normale favorable, un échec de la lecture `status`
+ou du cleanup ne restaure pas une configuration saine. `not_needed` ne signifie
+donc pas que l'opération a réussi. Le workflow retire séparément son transport
+exact run/attempt, y compris après échec ; lire aussi cette étape.
+
+Lire le run exact, puis les lectures fixes pour un constat nouveau ; coordonner
+toute mutation partagée. La qualification des refus helper/restore/restart/
+HTTP/cleanup se fait sur fichiers fictifs. La lecture live du nouveau routeur
+et sa CI sont suivies dans [#91](https://github.com/Khaey/Dao/issues/91).
+Aucune sync live, panne DEV, restauration de secrets ou garantie d'interception
+des signaux/arrêts brutaux n'est déduite de ces tests. Aucun helper root,
+catalogue, grant, verbe, workflow, DB ou topologie C4 n'est changé par ce lot.
+
 ## Maintenance des copies root
 
 ### Récupération sans lien de release active
