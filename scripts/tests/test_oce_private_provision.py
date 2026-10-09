@@ -31,6 +31,12 @@ class ProvisionTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.addCleanup(self.tmp.cleanup)
 
+    def trusted_root_metadata(self, path):
+        # The test runner owns its disposable directory; model root custody only
+        # for main()'s reviewed destination. Do not weaken the production check.
+        meta = os.lstat(path)
+        return SimpleNamespace(st_uid=0, st_mode=meta.st_mode) if path == self.root else meta
+
     def run_provision(self, emails=None, get=None):
         p.provision(cf, get or self.data.__getitem__, self.m['tunnel_id'],
                     emails or self.m['emails'], self.token, 'fake-read-only-api-value', root=self.root)
@@ -216,6 +222,7 @@ class ProvisionTests(unittest.TestCase):
                 raise urllib.error.HTTPError('https://private.example', 403, 'secret', {}, None)
             return self.data[path]
         with patch.object(p, 'ROOT', self.root), patch.object(p, 'load_installed', return_value=(cf, 'a' * 64)), \
+                patch.object(Path, 'lstat', autospec=True, side_effect=self.trusted_root_metadata), \
                 patch.object(p.os, 'geteuid', return_value=0), patch.object(p.sys.stdin, 'isatty', return_value=True), \
                 patch.object(p.sys, 'argv', ['provision']), patch.object(p.signal, 'alarm') as alarm, \
                 patch.object(p.signal, 'signal'), patch.object(cf, 'api_get', side_effect=get), \
@@ -232,6 +239,7 @@ class ProvisionTests(unittest.TestCase):
     def test_existing_configuration_prevents_secret_prompts_or_overwrite(self):
         (self.root / 'api-token').write_text('existing-private-value')
         with patch.object(p, 'ROOT', self.root), patch.object(p, 'load_installed', return_value=(cf, 'a' * 64)), \
+                patch.object(Path, 'lstat', autospec=True, side_effect=self.trusted_root_metadata), \
                 patch.object(p.os, 'geteuid', return_value=0), patch.object(p.sys.stdin, 'isatty', return_value=True), \
                 patch.object(p.sys, 'argv', ['provision']), patch.object(p.signal, 'alarm'), \
                 patch.object(p.signal, 'signal'), \
@@ -240,6 +248,17 @@ class ProvisionTests(unittest.TestCase):
             self.assertEqual(p.main(), 1)
             self.assertEqual(json.loads(output.getvalue())['stage'], 'CONFIGURATION_DESTINATION')
         self.assertEqual((self.root / 'api-token').read_text(), 'existing-private-value')
+
+    def test_main_refuses_non_root_private_directory_even_with_root_caller(self):
+        with patch.object(p, 'ROOT', self.root), \
+                patch.object(Path, 'lstat', return_value=SimpleNamespace(st_uid=1001, st_mode=stat.S_IFDIR | 0o700)), \
+                patch.object(p.os, 'geteuid', return_value=0), patch.object(p.sys.stdin, 'isatty', return_value=True), \
+                patch.object(p.sys, 'argv', ['provision']), patch.object(p.signal, 'alarm'), \
+                patch.object(p.signal, 'signal'), \
+                patch.object(p.getpass, 'getpass', side_effect=AssertionError('No prompt')), \
+                patch('sys.stdout', new_callable=io.StringIO) as output, patch('sys.stderr', new_callable=io.StringIO):
+            self.assertEqual(p.main(), 1)
+            self.assertEqual(json.loads(output.getvalue())['stage'], 'ROOT_DIRECTORY')
 
 
 if __name__ == '__main__':
