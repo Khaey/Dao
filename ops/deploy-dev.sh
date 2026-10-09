@@ -127,39 +127,76 @@ fi
 CURRENT_SWITCHED=0
 RELEASE_PREPARED=0
 ENV_SYNC_CHANGED=0
+ENV_SYNC_UNVERIFIED=0
 handle_error() {
   local status=${1:-$?}
   trap - ERR HUP INT TERM
   local rollback_release=0
+  local release_state=unchanged env_state=unchanged restart_state=not_needed
+  local readiness_state=not_checked cleanup_state=complete outcome=not_needed
+  if [ "$ENV_SYNC_UNVERIFIED" -eq 1 ]; then env_state=unverified; fi
   if [ "$CURRENT_SWITCHED" -eq 1 ]; then
     if [ -n "$PREVIOUS_RELEASE" ]; then
       local rollback_link="$APP_ROOT/.current-rollback-${RUN_ID}-${RUN_ATTEMPT}"
-      ln -s "$PREVIOUS_RELEASE" "$rollback_link"
-      mv -Tf "$rollback_link" "$CURRENT"
-      rollback_release=1
+      release_state=failed
+      if ln -s "$PREVIOUS_RELEASE" "$rollback_link" >/dev/null 2>&1; then
+        if mv -Tf "$rollback_link" "$CURRENT" >/dev/null 2>&1; then
+          rollback_release=1
+          release_state=restored
+        elif ! rm -f -- "$rollback_link" >/dev/null 2>&1; then
+          cleanup_state=failed
+        fi
+      fi
     else
-      rm -f "$CURRENT"
-      echo "No previous release was available for rollback; the failed current link was removed" >&2
+      release_state=failed
+      if rm -f -- "$CURRENT" >/dev/null 2>&1; then
+        release_state=no_previous
+      fi
     fi
   fi
   if [ "$ENV_SYNC_CHANGED" -eq 1 ]; then
-    if ! sudo -n /usr/local/sbin/dao-dev-admin env-restore; then
-      echo "Environment rollback failed; manual DEV recovery is required" >&2
+    env_state=failed
+    if sudo -n /usr/local/sbin/dao-dev-admin env-restore >/dev/null 2>&1; then
+      env_state=restored
     fi
-    if ! sudo -n /usr/bin/systemctl restart dao-dev.service; then
-      echo "Environment rollback completed, but its service restart failed" >&2
+  fi
+  if [ "$ENV_SYNC_CHANGED" -eq 1 ] || [ "$rollback_release" -eq 1 ]; then
+    restart_state=failed
+    if sudo -n /usr/bin/systemctl restart dao-dev.service >/dev/null 2>&1; then
+      restart_state=complete
     fi
-  elif [ "$rollback_release" -eq 1 ]; then
-    if ! sudo -n /usr/bin/systemctl restart dao-dev.service; then
-      echo "Rollback selected the previous release, but its restart failed" >&2
+  fi
+  # A successful restart is not readiness evidence. Verify only when the
+  # selected release/env were restored. Use the reviewed candidate verifier,
+  # since an older restored release need not support its one-pass option.
+  if [ "$restart_state" = complete ] \
+    && { [ "$env_state" = restored ] || [ "$env_state" = unchanged ]; } \
+    && { [ "$release_state" = restored ] || [ "$release_state" = unchanged ]; } \
+    && [ -f "$RELEASE/scripts/validate-dev.sh" ]; then
+    readiness_state=failed
+    if bash "$RELEASE/scripts/validate-dev.sh" http://127.0.0.1:3000 --once >/dev/null 2>&1; then
+      readiness_state=passed
     fi
   fi
   if [ "$CURRENT_SWITCHED" -eq 0 ] && [ "$RELEASE_PREPARED" -eq 1 ] && [ -d "$RELEASE" ]; then
-    rm -rf "$RELEASE"
+    if ! rm -rf -- "$RELEASE" >/dev/null 2>&1; then cleanup_state=failed; fi
   fi
   if [ -d "$STAGING" ]; then
-    rm -rf "$STAGING"
+    if ! rm -rf -- "$STAGING" >/dev/null 2>&1; then cleanup_state=failed; fi
   fi
+  if [ "$CURRENT_SWITCHED" -eq 1 ] || [ "$ENV_SYNC_CHANGED" -eq 1 ] || [ "$ENV_SYNC_UNVERIFIED" -eq 1 ]; then
+    outcome=incomplete
+    if { [ "$release_state" = restored ] || [ "$release_state" = unchanged ]; } \
+      && { [ "$env_state" = restored ] || [ "$env_state" = unchanged ]; } \
+      && [ "$restart_state" = complete ] \
+      && [ "$readiness_state" = passed ] && [ "$cleanup_state" = complete ]; then
+      outcome=complete
+    fi
+  elif [ "$cleanup_state" = failed ]; then
+    outcome=incomplete
+  fi
+  printf '{"deploy_recovery":"%s","original_status":%s,"release":"%s","environment":"%s","restart":"%s","readiness":"%s","cleanup":"%s"}\n' \
+    "$outcome" "$status" "$release_state" "$env_state" "$restart_state" "$readiness_state" "$cleanup_state"
   echo "Deployment failed with status $status" >&2
   exit "$status"
 }
@@ -222,12 +259,15 @@ RELEASE_PREPARED=1
 sync_environment() {
   local result
   chmod 0600 "$ENV_PAYLOAD"
+  ENV_SYNC_UNVERIFIED=1
   result="$(sudo -n /usr/local/sbin/dao-dev-admin env-sync < "$ENV_PAYLOAD")"
   case "$result" in
     'ENV_SYNC unchanged')
+      ENV_SYNC_UNVERIFIED=0
       echo "DEPLOY_ENV_SYNC result=unchanged"
       ;;
     'ENV_SYNC updated keys='*)
+      ENV_SYNC_UNVERIFIED=0
       ENV_SYNC_CHANGED=1
       echo "DEPLOY_ENV_SYNC result=updated keys=${result#ENV_SYNC updated keys=}"
       ;;

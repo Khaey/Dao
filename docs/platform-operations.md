@@ -34,6 +34,25 @@ advanced, and runs local HTTP smoke while automatic rollback is still armed.
 Failure after switching restores the previous release; initial deployment
 without a previous release retains the existing failure behavior.
 
+For a caught deployment error, `ops/deploy-dev.sh` preserves the original
+nonzero exit code and emits one bounded `deploy_recovery` JSON record. Release
+link, environment restore, restart, HTTP readiness and cleanup have separate
+closed outcomes. A failure of one recovery command does not abort the remaining
+applicable steps. No exception text or response body enters this record.
+
+After a successful restore/restart, the reviewed candidate's readiness script
+checks the restored service with `--once`: one attempt on each of the same three
+local routes, no polling. The older release need not support that option. Normal
+deployment and the common `health` operation retain the existing 15-attempt
+readiness behavior. A failed one-pass check means readiness was not established
+at that time; it does not prove a root cause. See [OPS control](ops-control.md)
+for reading incomplete recovery and using fixed GitHub operations.
+
+This handles caught errors/signals only, not SIGKILL, host failure or an abrupt
+Work stop. Fault qualification uses temporary fictional files; live normal
+main deployment evidence is recorded in [#91](https://github.com/Khaey/Dao/issues/91).
+No live outage or DB/configuration restore is inferred from those tests.
+
 PR runs cancel obsolete runs of the same PR. Main runs are not interrupted;
 the deploy job and DEV operations share `dao-dev-operations` concurrency with
 cancel-in-progress false. GitHub concurrency is not a FIFO queue: a newer

@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -55,11 +56,12 @@ class ImpactTests(unittest.TestCase):
 
 
 class SmokeTests(unittest.TestCase):
-    def run_smoke(self, mode, target='http://127.0.0.1:3000'):
+    def run_smoke(self, mode, target='http://127.0.0.1:3000', *options):
         with tempfile.TemporaryDirectory() as directory:
             tmp = Path(directory)
             curl = tmp / 'curl'
             curl.write_text('''#!/usr/bin/env bash
+echo curl-call >> "$SMOKE_CALLS"
 while [ "$#" -gt 0 ]; do
   if [ "$1" = --output ]; then shift; body="$1"; fi
   shift
@@ -73,7 +75,9 @@ esac
             curl.chmod(0o755)
             (tmp / 'sleep').write_text('#!/bin/sh\nexit 0\n')
             (tmp / 'sleep').chmod(0o755)
-            return subprocess.run(['bash', str(ROOT / 'scripts/validate-dev.sh'), target], env={**os.environ, 'PATH': directory + ':' + os.environ['PATH'], 'SMOKE_MOCK': mode}, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(['bash', str(ROOT / 'scripts/validate-dev.sh'), target, *options], env={**os.environ, 'PATH': directory + ':' + os.environ['PATH'], 'SMOKE_MOCK': mode, 'SMOKE_CALLS': str(tmp / 'calls')}, capture_output=True, text=True, timeout=10)
+            result.http_calls = len((tmp / 'calls').read_text().splitlines()) if (tmp / 'calls').exists() else 0
+            return result
 
     def test_all_routes_pass(self):
         result = self.run_smoke('good')
@@ -93,15 +97,33 @@ esac
     def test_arbitrary_target_rejected(self):
         self.assertEqual(self.run_smoke('good', 'https://production.invalid').returncode, 2)
 
+    def test_one_pass_does_not_poll_or_print_failure_body(self):
+        failed = self.run_smoke('failed', 'http://127.0.0.1:3000', '--once')
+        self.assertEqual(failed.returncode, 1)
+        self.assertEqual(failed.http_calls, 1)
+        self.assertNotIn('private error', failed.stdout + failed.stderr)
+        ready = self.run_smoke('good', 'http://127.0.0.1:3000', '--once')
+        self.assertEqual(ready.returncode, 0)
+        self.assertEqual(ready.http_calls, 3)
+        self.assertEqual(self.run_smoke('failed').http_calls, 15)
+
+    def test_unknown_smoke_mode_or_extra_arguments_are_rejected_before_http(self):
+        for options in [('--unknown',), ('--once', 'extra')]:
+            result = self.run_smoke('good', 'http://127.0.0.1:3000', *options)
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(result.http_calls, 0)
+
 
 class DeploymentTests(unittest.TestCase):
-    def deploy(self, smoke_failure=False, stale=False, env_sync=False, env_sync_failure=False, gateway_plan_grant=True, gateway_plan_failure=False):
+    def deploy(self, smoke_failure=False, stale=False, env_sync=False, env_sync_failure=False, gateway_plan_grant=True, gateway_plan_failure=False, recovery_failure=None, previous=True, primary_status=1):
         with tempfile.TemporaryDirectory() as directory:
             tmp = Path(directory)
             app = tmp / 'app'
             app.mkdir()
-            (app / 'releases/previous').mkdir(parents=True)
-            (app / 'current').symlink_to(app / 'releases/previous')
+            if previous:
+                (app / 'releases/previous/scripts').mkdir(parents=True)
+                (app / 'releases/previous/scripts/validate-dev.sh').write_text('echo old-verifier-used >> "$MOCK_CALLS"\nexit 88\n')
+                (app / 'current').symlink_to(app / 'releases/previous')
             env_file = tmp / 'dev.env'
             env_file.write_text('NEXT_PUBLIC_SUPABASE_URL=https://test.invalid\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=dummy\nDAO_SUPABASE_SECRET_KEY=dummy\n')
             binary = tmp / 'bin'
@@ -120,15 +142,43 @@ elif a[:1]==['-C']:
    (p/package).mkdir(exist_ok=True)
    for name in ['package.json','package-lock.json']: (p/package/name).write_text('{}')
   (p/'scripts').mkdir()
-  (p/'scripts/validate-dev.sh').write_text('exit '+os.environ['MOCK_SMOKE']+'\\n')
+  (p/'scripts/validate-dev.sh').write_text('if [ "${2:-}" = --once ]; then echo "recovery-check $*" >> "$MOCK_CALLS"; echo fictional-secret >&2; exit '+os.environ['MOCK_RECOVERY_SMOKE']+'; fi\\nexit '+os.environ['MOCK_SMOKE']+'\\n')
   (p/'scripts/dev-status.sh').write_text('echo status-mock\\n')
 '''
             commands = {
                 'git': git,
                 'node': '#!/bin/sh\ncase "$1" in --version) echo v22.1.0;; -p) echo linux-x64;; *) exit 0;; esac\n',
                 'npm': '#!/bin/sh\nif [ "$1" = --version ]; then echo 10.0.0; else mkdir -p node_modules; fi\n',
-                'sudo': '#!/bin/sh\nprintf "sudo-call %s\\n" "$*" >> "$MOCK_CALLS"\nif [ "${2:-}" = -l ] && [ "${MOCK_PLAN_GRANT:-1}" = 0 ]; then exit 1; fi\nif [ "${3:-}" = oce-gateway-plan ]; then if [ "${MOCK_PLAN_FAILURE:-0}" = 1 ]; then exit 1; fi; printf \'{"oce_gateway_host_plan_ready":true}\\n\'; fi\ncase "$*" in *env-sync*) if [ "${MOCK_ENV_SYNC_FAILURE:-0}" = 1 ]; then exit 1; fi; printf "ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY\\n";; esac\nexit 0\n',
+                'sudo': '''#!/usr/bin/env python3
+import os, pathlib, sys
+a=sys.argv[1:]
+with open(os.environ['MOCK_CALLS'],'a') as log: log.write('sudo-call '+' '.join(a)+'\\n')
+fault=os.environ['MOCK_RECOVERY_FAILURE']
+if a[-1]=='env-restore' and fault=='env':
+ print('fictional-secret',file=sys.stderr); sys.exit(6)
+if a[-2:]==['restart','dao-dev.service']:
+ counter=pathlib.Path(os.environ['MOCK_RESTARTS'])
+ count=int(counter.read_text())+1 if counter.exists() else 1
+ counter.write_text(str(count))
+ if count>1 and fault=='restart':
+  print('fictional-secret',file=sys.stderr); sys.exit(8)
+if len(a)>1 and a[1]=='-l': sys.exit(0 if os.environ['MOCK_PLAN_GRANT']=='1' else 1)
+if a[-1]=='oce-gateway-plan':
+ if os.environ['MOCK_PLAN_FAILURE']=='1': sys.exit(1)
+ print('{"oce_gateway_host_plan_ready":true}')
+if a[-1]=='env-sync':
+ if os.environ['MOCK_ENV_SYNC_FAILURE']=='1': sys.exit(5)
+ print('ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY')
+''',
             }
+            for name, fault in [('ln','link_create'), ('mv','link'), ('rm','cleanup')]:
+                commands[name] = '''#!/usr/bin/env python3
+import os, pathlib, sys
+a=sys.argv[1:]
+target=any('.current-rollback-' in p for p in a) if sys.argv[0].endswith(('ln','mv')) else any(pathlib.Path(p).name==os.environ['MOCK_REV']+'-1-1' for p in a)
+if os.environ['MOCK_RECOVERY_FAILURE']==''' + repr(fault) + ''' and target:
+ print('fictional-secret',file=sys.stderr); sys.exit(9)
+os.execv('/usr/bin/''' + name + "', ['" + name + "', *a])\n"
             for name, value in commands.items():
                 (binary / name).write_text(value)
                 (binary / name).chmod(0o755)
@@ -150,7 +200,10 @@ elif a[:1]==['-C']:
             args = ['bash', str(path), revision, '1', '1', str(artifact)]
             if env_sync:
                 args.append(str(payload))
-            result = subprocess.run(args, env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': '1' if smoke_failure else '0', 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_PLAN_GRANT': '1' if gateway_plan_grant else '0', 'MOCK_PLAN_FAILURE': '1' if gateway_plan_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
+            result = subprocess.run(args, env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': str(primary_status) if smoke_failure else '0', 'MOCK_RECOVERY_SMOKE': '7' if recovery_failure=='http' else '0', 'MOCK_RECOVERY_FAILURE': recovery_failure or '', 'MOCK_RESTARTS': str(tmp / 'restarts'), 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_PLAN_GRANT': '1' if gateway_plan_grant else '0', 'MOCK_PLAN_FAILURE': '1' if gateway_plan_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
+            result.resource_state = {'current_exists': (app / 'current').exists(),
+                                     'candidate_exists': (app / 'releases' / (revision+'-1-1')).exists(),
+                                     'rollback_link_exists': (app / '.current-rollback-1-1').is_symlink()}
             call_log = calls.read_text() if calls.exists() else ''
             return result, (app / 'current').resolve().name, call_log.count('sudo-call'), call_log
 
@@ -184,6 +237,9 @@ elif a[:1]==['-C']:
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(active, 'previous')
         self.assertEqual(calls, 3)
+        self.assertEqual(self.recovery(result), {'deploy_recovery': 'complete', 'original_status': 1,
+                         'release': 'restored', 'environment': 'unchanged', 'restart': 'complete',
+                         'readiness': 'passed', 'cleanup': 'complete'})
 
     def test_new_main_prevents_stale_activation(self):
         result, active, calls, _ = self.deploy(stale=True)
@@ -205,6 +261,57 @@ elif a[:1]==['-C']:
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(active, 'previous')
         self.assertEqual(calls, 1)
+        self.assertEqual(self.recovery(result)['environment'], 'unverified')
+        self.assertEqual(self.recovery(result)['deploy_recovery'], 'incomplete')
+
+    def recovery(self, result):
+        rows = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{"deploy_recovery":')]
+        self.assertEqual(len(rows), 1, result.stdout + result.stderr)
+        self.assertNotIn('fictional-secret', result.stdout + result.stderr)
+        return rows[0]
+
+    def test_recovery_faults_preserve_original_failure_and_report_incomplete(self):
+        for fault, failed_field in [('link_create','release'), ('link','release'), ('env','environment'),
+                                    ('restart','restart'), ('http','readiness')]:
+            with self.subTest(fault=fault):
+                result, active, calls, log = self.deploy(smoke_failure=True, env_sync=True,
+                                                        recovery_failure=fault, primary_status=17)
+                row = self.recovery(result)
+                self.assertEqual(result.returncode, 17)
+                self.assertEqual(row['original_status'], 17)
+                self.assertEqual(row['deploy_recovery'], 'incomplete')
+                self.assertEqual(row[failed_field], 'failed')
+                self.assertIn('env-restore', log)  # Even a failed link step cannot abort the later steps.
+                self.assertEqual(log.count('restart dao-dev.service'), 2)
+                self.assertEqual(active, 'a'*40+'-1-1' if fault.startswith('link') else 'previous')
+                self.assertTrue(result.resource_state['candidate_exists'])
+                self.assertFalse(result.resource_state['rollback_link_exists'])
+                self.assertNotIn('old-verifier-used', log)
+                if fault in ('link_create','link','env','restart'):
+                    self.assertEqual(row['readiness'], 'not_checked')
+
+    def test_no_previous_release_is_not_reported_as_recovered(self):
+        result, active, calls, log = self.deploy(smoke_failure=True, previous=False)
+        row = self.recovery(result)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(row['release'], 'no_previous')
+        self.assertEqual(row['deploy_recovery'], 'incomplete')
+        self.assertEqual(row['readiness'], 'not_checked')
+        self.assertFalse(result.resource_state['current_exists'])
+        self.assertTrue(result.resource_state['candidate_exists'])
+        self.assertEqual(log.count('restart dao-dev.service'), 1)
+
+    def test_failed_cleanup_is_reported_without_replacing_original_error(self):
+        result, active, calls, log = self.deploy(env_sync=True, env_sync_failure=True, recovery_failure='cleanup')
+        row = self.recovery(result)
+        self.assertEqual(result.returncode, 5)
+        self.assertEqual(row['original_status'], 5)
+        self.assertEqual(row['cleanup'], 'failed')
+        self.assertEqual(row['environment'], 'unverified')
+        self.assertEqual(row['deploy_recovery'], 'incomplete')
+        self.assertEqual(active, 'previous')
+        self.assertTrue(result.resource_state['candidate_exists'])
+        self.assertNotIn('env-restore', log)
 
 
 

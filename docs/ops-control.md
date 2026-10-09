@@ -44,6 +44,48 @@ live du VPS. Ils ne deviennent pas des tâches à rejouer. Aucune migration,
 restauration de DB partagée, bascule
 gateway ou fermeture de `:8080` n'est ajoutée au contrôle commun.
 
+## Lire la récupération d'un déploiement échoué
+
+Le gestionnaire d'erreur du déploiement émet un JSON `deploy_recovery` sans
+chemin, valeur d'environnement, corps HTTP ou exception brute. Il conserve le
+statut d'échec initial : une récupération réussie ne rend pas la CI verte.
+
+| Champ | Valeurs fermées et portée |
+| --- | --- |
+| `deploy_recovery` | `complete`, `incomplete`, `not_needed` ; `complete` exige restauration applicable, restart, readiness et cleanup réussis |
+| `original_status` | Code numérique de l'erreur ou du signal capturé ; les erreurs de récupération ne le remplacent pas |
+| `release` | `unchanged`, `restored`, `no_previous`, `failed` ; aucun précédent disponible n'est présenté comme restauré |
+| `environment` | `unchanged`, `restored`, `failed`, `unverified` ; aucune valeur ou sauvegarde n'est publiée |
+| `restart` | `not_needed`, `complete`, `failed` ; une seule tentative de récupération, sans nouvelle permission |
+| `readiness` | `not_checked`, `passed`, `failed` ; passe HTTP locale unique après restore/restart favorables |
+| `cleanup` | `complete`, `failed` ; fichiers temporaires du déploiement seulement |
+
+L'échec d'une étape ne coupe plus les étapes suivantes applicables. La release
+candidate après activation échouée est conservée ; le lien précédent est remis
+atomiquement si possible. Le contrôle HTTP utilise le vérificateur revu de la
+candidate avec `--once`, car une ancienne release peut ignorer cette option.
+Le déploiement normal et `health` conservent leurs attentes de démarrage.
+Le test unique vérifie les trois mêmes routes locales sans donnée ni identité.
+Une tentative env-sync qui échoue avant un résultat reconnu donne `unverified`,
+jamais une garantie d'environnement inchangé. Elle ne déclenche pas une
+restauration aveugle d'une ancienne sauvegarde.
+
+Lire le JSON et la première erreur dans le run exact. En cas de récupération
+incomplète, utiliser `status`, `health` ou `log-summary` par le contrôle commun
+pour un constat nouveau ; le seul champ `failed` ne prouve pas une cause de
+permission/réseau. `restart`/`env-sync` exigent toujours une coordination sur DEV
+et le mandat existant. Ne pas enchaîner des mutations spéculatives, rejouer une
+migration/backup ni demander une série de commandes VPS au propriétaire.
+`ops-rollback` restaure le code des helpers ; ce n'est pas une restauration de
+release applicative, de données ou de secrets.
+
+Les nouveaux cas sont qualifiés sur fichiers fictifs : lien/env/restart/HTTP/
+cleanup refusés, absence de précédente release, code initial et redaction.
+La livraison et le déploiement normal du source exact sont suivis dans
+[#91](https://github.com/Khaey/Dao/issues/91). Aucune panne live n'est provoquée.
+Un SIGKILL, une panne hôte ou un arrêt brutal Work n'est pas intercepté par ce
+handler ; la reprise Work reste celle du dernier HEAD réellement publié.
+
 ## Maintenance des copies root
 
 ### Récupération sans lien de release active
