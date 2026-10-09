@@ -86,13 +86,16 @@ def pr_owner(pr, config):
     # GitHub's canonical issue links distinguish owner issues from PR/CI links.
     linked_issues = " ".join("#" + issue for issue in re.findall(
         r"https://github\.com/Khaey/Dao/issues/(\d+)(?!\d)", body))
-    for scope in (title, explicit, linked_issues, title + "\n" + body):
+    for index, scope in enumerate((title, explicit, linked_issues, title + "\n" + body)):
         refs = re.findall(r"(?<!\w)#(\d+)\b", scope)
         mission, issue = _unique_mission(refs, config)
         if mission:
             return mission["agent"], issue
-        if refs and scope != title + "\n" + body:
+        if refs and index < 3 and (index != 0 or any(
+                mission_for(int(raw), config) for raw in refs)):
             # Do not guess when explicit references or owner links conflict.
+            # Unregistered PR/CI numbers in the title are not owner issues;
+            # let a reliable body reference identify the mission instead.
             return None, None
     return None, None
 
@@ -230,7 +233,12 @@ def silence_candidate(comments, mission, allowed, now, threshold_minutes=90):
     if now - last < dt.timedelta(minutes=threshold_minutes):
         return None
     marker = f"{SILENCE}:{item['id']}"
-    if any(marker in (c.get("body") or "") for c in comments):
+    # Only our Actions bot can acknowledge delivery. Match the complete first
+    # line so a quoted marker or a different checkpoint ID cannot hide silence.
+    if any(c.get("user", {}).get("login") == "github-actions[bot]"
+           and c.get("user", {}).get("type") == "Bot"
+           and (c.get("body") or "").splitlines()[:1] == [marker]
+           for c in comments):
         return None
     return marker, last
 
@@ -309,3 +317,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
