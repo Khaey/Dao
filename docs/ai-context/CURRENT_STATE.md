@@ -9,7 +9,9 @@ Ce seul message ne prouve pas un défaut de permissions ni le contrôle en éche
 Il autorise maintenant les permissions nécessaires à OCE ; aucun droit nouveau
 n'est installé par cette déclaration et aucun secret n'est communiqué.
 
-Branche dédiée `fix/dev20-oce-provisioning-session` depuis ce main : étapes et
+PR [#95](https://github.com/Khaey/Dao/pull/95), branche dédiée
+`fix/dev20-oce-provisioning-session`, réconciliée avec main
+`155caf1704b8f81673020087b818043072caf333` (#94/#97/#96 conservées) : étapes et
 codes d'erreur expurgés dans le provisionnement existant, une seule saisie privée,
 recontrôle après action explicite du propriétaire dans Cloudflare avec jetons
 en mémoire seulement, maximum trois essais / 15 minutes. Audit/binding et
@@ -17,7 +19,23 @@ en mémoire seulement, maximum trois essais / 15 minutes. Audit/binding et
 installation, permission, service ou topologie ajoutés. Preuves/livraison dans
 [#58](https://github.com/Khaey/Dao/issues/58). Le refus réel reste à identifier.
 OPS transverse #91 reste à OPT 20, #93 distinct et non commencé ici ; le signal
-propriétaire reprend #58 sans rouvrir #90. :8080 et gateway apply inchangés.
+propriétaire reprend #58 sans rouvrir #90. Le catalogue OPS #91 ne gère pas
+le lanceur éphémère de provisioning ; son module root reste inchangé. Aucun
+refresh root à rejouer avant/après adoption OPS. :8080 et gateway apply inchangés.
+## OPT 20 — contrôle OPS commun #91, préparé (2026-10-09)
+
+Handoff Pilot #6073726736 et GO propriétaire ; #85/#92 livrés, non rejoués.
+Base réelle `6a21b4bd5b9361f5e18ab6c05322dabb971a1149`, CI/deploy #397
+SUCCESS. Branche dédiée `chore/opt20-ops-control-91`, [PR #96](https://github.com/Khaey/Dao/pull/96).
+Interface commune DAO DEV operations : signaux owner stricts #91, verbes fixes,
+diagnostics expurgés et maintenance des copies root installées par SHA main/CI
+et admission explicite, manifeste, verrous, snapshots/journal et rollback.
+Code et tests fictifs publiés ; CI/qualification réelle dans #91 font foi.
+Le bootstrap OPS/sudoers n'est pas réputé installé. Aucun nouveau secret,
+service, réseau, backup ou migration modifié. #58 reste à DEV 20, #83/#64/#93
+exclus. Voir [OPS control](../ops-control.md) pour la matrice et les limites.
+Les anciennes sections ci-dessous conservent leurs snapshots historiques ;
+elles ne réactivent pas #85/#87 et ne confèrent pas la propriété #58.
 
 ## DEV 20 — OCE #58, bootstrap installé, correctif du jeton préparé (2026-10-09)
 

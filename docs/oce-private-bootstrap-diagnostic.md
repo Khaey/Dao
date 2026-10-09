@@ -24,6 +24,10 @@ La session ne modifie pas Cloudflare, ne démarre pas le tunnel et n'installe
 aucun helper/sudoers. Elle importe uniquement le module root fixe après
 contrôles du fichier et de ses parents. Après READY, les opérations usuelles
 restent dans Actions ; OPS #91 reste à OPT 20. :8080/gateway apply inchangés.
+Le catalogue de maintenance OPS ne contient pas ce lanceur éphémère ; #95 ne
+modifie pas son module Cloudflare installé. Le bootstrap OPS, encore absent au
+checkpoint #91, peut être mené séquentiellement dans la même session root via
+son bloc approuvé ; ne pas le mélanger aux contrôles ni aux secrets #58.
 
 ### Si le code indique HTTP_403
 

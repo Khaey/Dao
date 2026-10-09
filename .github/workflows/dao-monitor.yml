@@ -1,0 +1,72 @@
+name: DAO Monitor
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+  workflow_run:
+    workflows: ["DAO CI and DEV deploy"]
+    types: [completed]
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  test:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test DAO Monitor without secrets
+        run: python3 -m unittest discover -s tests -p test_dao_monitor.py -v
+
+  notify:
+    if: >-
+      github.event_name == 'issue_comment' ||
+      github.event_name == 'workflow_run' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed')
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+    timeout-minutes: 3
+    concurrency:
+      group: dao-monitor-event-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.id || github.run_id }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Send filtered Telegram alert
+        env:
+          DAO_MONITOR_TELEGRAM_BOT_TOKEN: ${{ secrets.DAO_MONITOR_TELEGRAM_BOT_TOKEN }}
+          DAO_MONITOR_TELEGRAM_CHAT_ID: ${{ secrets.DAO_MONITOR_TELEGRAM_CHAT_ID }}
+        run: python3 scripts/dao_monitor.py
+
+  watchdog:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 5
+    concurrency:
+      group: dao-monitor-watchdog
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Check explicitly ACTIVE agent missions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DAO_MONITOR_TELEGRAM_BOT_TOKEN: ${{ secrets.DAO_MONITOR_TELEGRAM_BOT_TOKEN }}
+          DAO_MONITOR_TELEGRAM_CHAT_ID: ${{ secrets.DAO_MONITOR_TELEGRAM_CHAT_ID }}
+        run: python3 scripts/dao_monitor.py
