@@ -1,5 +1,24 @@
 # D.A.O — Next Steps
 
+## OPT 20 — reprise SCP #85, 2026-10-09
+
+Lire les derniers checkpoints de [#85](https://github.com/Khaey/Dao/issues/85)
+avant d'agir : ils font foi pour la PR, le HEAD, la CI et la mesure finale.
+Relais explicite sur `chore/ci-dev-single-transfer` ; WORK OPT ne travaille pas
+en parallèle jusqu'au handback. #87/#88 terminés séparément, aucun travail à refaire.
+
+À ce snapshot de préparation, observer une fois la CI automatique du candidat
+SCP avec les mêmes gates et quatre workers. Le déploiement reste exclusivement
+sur main : aucun secret DEV sur une PR, aucune nouvelle voie de déploiement.
+Après validation et fusion autorisée, comparer l'upload groupé aux deux SCP
+#383 (19 s) et #391 (18 s), puis deploy total (35 s / 41 s). Distinguer la
+construction du conteneur, les autres étapes, les runners et l'arrondi des
+horodatages GitHub ; ne pas attribuer toute variation de CI au SCP.
+Vérifier release au SHA exact, artefact vérifié, service actif, HTTP smoke,
+env-sync et nettoyages. En cas d'échec, diagnostiquer sans rejouer les contrôles
+déjà verts à entrées identiques. Conserver les décisions rejetées et toutes
+les sections DEV ; aucun #58/#83/#64, Auth/RLS ou privilège VPS dans ce chantier.
+
 ## OPT 20 — finish only Work continuity #87
 
 Read [#87](https://github.com/Khaey/Dao/issues/87) and

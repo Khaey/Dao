@@ -580,3 +580,26 @@ is promised. The existing read-only preflight and GitHub evidence are sufficient
 no new scheduler, CI job or privilege is introduced. See
 [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md). This issue-based heading avoids
 reusing decision numbers already present in the open product-documentation PR #34.
+
+## SCP DEV — issue #85 (2026-10-09)
+
+The six-worker experiment in PR #86 was rejected despite green coverage:
+browser 175.12 s versus 161.77 s (+8.25%), FULL E2E job 350 s versus 336 s
+(+4.17%). Keep four workers; do not repeat that experiment without new evidence.
+
+The independent SCP candidate uses the existing pinned action once, listing
+the immutable package and the private run/attempt-scoped JSON as two relative
+sources under a common `/opt/dao` target. Preserve both existing VPS paths,
+the brief runner mode-0644 container boundary, mode-0600 helper consumption,
+main-only protected deployment, manifest/freshness checks, lock and rollback.
+The private JSON never enters the GitHub build artifact. No new helper,
+workflow, SSH identity, privilege, cache or deployment path is needed.
+
+Baseline #383: SCP 10 + 9 s, deploy 35 s. Latest unchanged main #391:
+SCP 10 + 8 s, deploy 41 s, including 8 s container build versus 3 s on #383.
+The PR validates private staging/tar paths/cleanup with fictional data and all
+existing CI coverage; actual transfer timing is observable only after the
+authorized main deployment. One action/upload does not mean one underlying
+TCP/SSH session. Record measured results and comparison limits in
+[#85](https://github.com/Khaey/Dao/issues/85); do not present estimated savings
+as live measurements or reuse old green CI for a new candidate.
