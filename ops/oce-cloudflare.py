@@ -59,7 +59,9 @@ def validate_tunnel_token(token, manifest):
     require(isinstance(payload, dict) and {'a', 't', 's'} <= set(payload) <= {'a', 't', 's', 'e'})
     require(payload['a'] == manifest['account_id'] and payload['t'] == manifest['tunnel_id'])
     require(not payload.get('e'))  # No caller-controlled alternate edge endpoint.
-    require(isinstance(payload['s'], str) and len(base64.b64decode(payload['s'], validate=True)) == 32)
+    # Cloudflare requires at least 32 bytes; dashboard-issued secrets may be longer.
+    # Token size remains bounded above, and CF authenticates the actual secret.
+    require(isinstance(payload['s'], str) and len(base64.b64decode(payload['s'], validate=True)) >= 32)
 
 
 def api_get(path, token):

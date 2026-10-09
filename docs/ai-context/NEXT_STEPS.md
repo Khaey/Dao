@@ -1,5 +1,19 @@
 # D.A.O — Next Steps
 
+## DEV 20 — débloquer uniquement le bootstrap OCE #58
+
+Reprendre PR #90 / `fix/dev20-oce-bootstrap-diagnostic` et les résultats réels
+de #58. Le helper est déjà installé : ne pas le réinstaller ou élargir les
+permissions. Cause du refus confirmée par le diagnostic propriétaire : secret
+plus long que 32 octets, respectant le minimum Cloudflare, rejeté par notre
+contrainte exacte. Accord propriétaire reçu pour fusion #90, déploiement
+normal Actions et mise à jour root ciblée/provisionnement. Réconcilier le
+main #92 en conservant toutes ses modifications, observer la CI du nouveau
+HEAD, puis fusionner vert et vérifier le déploiement main exact. Fournir
+un seul bloc administrateur groupé pour le module et la saisie privée avec
+l'audit complet ; ne jamais lancer start après un audit en échec. :8080 et
+gateway apply restent bloqués sans accord distinct. #83/#85/#87 intacts.
+
 ## OPT 20 — reprise SCP #85, 2026-10-09
 
 Lire les derniers checkpoints de [#85](https://github.com/Khaey/Dao/issues/85)

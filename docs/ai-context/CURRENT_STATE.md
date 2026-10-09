@@ -1,5 +1,20 @@
 # D.A.O — Current State
 
+## DEV 20 — OCE #58, bootstrap installé, correctif du jeton préparé (2026-10-09)
+
+Main observé `aa63b37ab75efdceae1d63cb1d72af2c20545737`, consignes #87
+et livraison SCP #92 conservées. Branche propre `fix/dev20-oce-bootstrap-diagnostic`, PR #90.
+Le propriétaire a installé le helper/sudoers, sans démarrage du tunnel ; le
+provisionnement échoue avant audit complet. Diagnostic privé expurgé confirme
+le refus local exactement-32-octets, alors que le secret respecte le minimum
+Cloudflare. Correction : au moins 32 octets, contrôles compte/tunnel/endpoint
+et limites de jeton conservés. Code publié/CI/état de livraison et prochaine
+action sont suivis dans #58 ; publication ne vaut pas installation VPS.
+Le propriétaire a autorisé la fusion #90, le déploiement normal Actions et
+la mise à jour root ciblée du seul module suivie du provisionnement privé.
+Réconciliation main nécessaire avant nouvelle CI du candidat et fusion. Pas de nouveau bootstrap cloudflared/sudoers ni de rotation
+inutile, pas de :8080/gateway apply, pas de changement Auth/RLS/données démo.
+
 ## OPT 20 — SCP DEV #85, préparation du 2026-10-09
 
 Relais temporaire explicite du Pilot dans [#85](https://github.com/Khaey/Dao/issues/85#issuecomment-6073031291) :

@@ -10,6 +10,8 @@ on:
       - 'scripts/tests/test_oce_cloudflare.py'
       - 'scripts/tests/test_oce_private_admin.py'
       - 'scripts/tests/test_oce_private_provision.py'
+      - 'scripts/tests/test_oce_private_bootstrap_diagnose.py'
+      - scripts/oce-private-bootstrap-diagnose.py
       - '.github/workflows/oce-private-demo*.yml'
       - docs/oce-cloudflare-private-demo.md
   push:
@@ -22,6 +24,8 @@ on:
       - 'scripts/tests/test_oce_cloudflare.py'
       - 'scripts/tests/test_oce_private_admin.py'
       - 'scripts/tests/test_oce_private_provision.py'
+      - 'scripts/tests/test_oce_private_bootstrap_diagnose.py'
+      - scripts/oce-private-bootstrap-diagnose.py
       - '.github/workflows/oce-private-demo*.yml'
       - docs/oce-cloudflare-private-demo.md
 permissions:
@@ -37,5 +41,6 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p 'test_oce_cloudflare.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_oce_private_admin.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_oce_private_provision.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_oce_private_bootstrap_diagnose.py' -v
           PYTHONPYCACHEPREFIX=/tmp/oce-private-pycache python3 -m py_compile ops/oce-cloudflare.py ops/dao-oce-private-admin.py ops/provision-oce-private-demo.py
           bash -n ops/install-oce-private-demo.sh
