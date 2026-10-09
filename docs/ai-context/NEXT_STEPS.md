@@ -1,5 +1,24 @@
 # D.A.O — Next Steps
 
+## OPT 20 — poursuivre #91 depuis le bootstrap confirmé
+
+PR #96 est fusionnée ; reprendre les derniers checkpoints de
+[#91](https://github.com/Khaey/Dao/issues/91) et la branche de suivi
+`chore/opt20-ops-qualification-91`. Les Actions #16/#17 ont confirmé l'installation
+et les cinq grants sur le VPS : **ne pas rejouer ni redemander le bootstrap**,
+y compris si une section historique DEV ci-dessous le présente encore absent.
+Lire le main réel et sa CI verte avant une nouvelle admission du SHA exact.
+Qualifier le preflight et l'upgrade selon les différences installées réelles ;
+un no-op ne crée pas de version précédente et ne prouve aucun rollback live.
+Ne pas fabriquer de changement pour le tester. À la première évolution réelle
+du catalogue, qualifier la restauration sans service concerné actif et conserver
+sa preuve. Upgrade/rollback ne modifient que le code
+des helpers installés ; aucune bascule OCE, nouvelle provision privée, backup,
+restauration DB partagée ou commande arbitraire. La matrice/runbook est dans
+[OPS control](../ops-control.md). Les sections suivantes sont historiques et
+ne relancent pas #85/#87 ; DEV 20 conserve #58, DEV 2 #83, Back-office #64,
+Telegram #93 distinct. Les checkpoints GitHub actualisent livraison et limites.
+
 ## DEV 20 — reprise OCE #58 après le nouveau refus
 
 Reprendre `fix/dev20-oce-provisioning-session` et les checkpoints #58 : #90/#397
@@ -17,21 +36,6 @@ sudo générique, service, bascule :8080 ou gateway-host apply. #91 reste à OPT
 Le bootstrap OPS encore absent peut suivre dans la même session administrateur,
 séquentiellement, via son bloc approuvé #91 ; il est indépendant de READY OCE
 et ne nécessite aucun remplacement du module Cloudflare par #95.
-## OPT 20 — terminer uniquement le premier lot #91
-
-Reprendre [#91](https://github.com/Khaey/Dao/issues/91) / PR #96 et le HEAD
-réel de `chore/opt20-ops-control-91`. Observer les nouvelles CI automatiques
-sans rejouer les acquis #85/OCE. Réconcilier main et les contextes DEV avant
-fusion autorisée verte ; qualifier le signal commun et diagnostics par Actions
-après déploiement. Préparer le seul bloc root immuable/haché pour le droit OPS
-manquant, coordonné avec l'état #58. Ne pas annoncer la maintenance effective
-avant installation et preuves live. Upgrade/rollback ne modifient que le code
-des helpers installés ; aucune bascule OCE, nouvelle provision privée, backup,
-restauration DB partagée ou commande arbitraire. La matrice/runbook est dans
-[OPS control](../ops-control.md). Les sections suivantes sont historiques et
-ne relancent pas #85/#87 ; DEV 20 conserve #58, DEV 2 #83, Back-office #64,
-Telegram #93 distinct. Les checkpoints GitHub actualisent livraison et limites.
-
 ## DEV 20 — débloquer uniquement le bootstrap OCE #58
 
 Reprendre PR #90 / `fix/dev20-oce-bootstrap-diagnostic` et les résultats réels

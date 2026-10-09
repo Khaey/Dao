@@ -38,9 +38,10 @@ portent sur le mandat et les préconditions, pas sur des clés individuelles.
 `oce-audit` désigne ici **l'audit Access/Tunnel du helper privé**, comme le
 workflow OCE private demo operations. L'ancien audit runtime/backup OCE reste
 dans son workflow spécialisé et conserve ses preuves. Les workflows existants
-de backup/restauration, identité, pin runtime et qualification gateway restent
-les points d'entrée de leurs opérations déjà bornées. Ils ne deviennent pas
-des tâches à rejouer. Aucune migration, restauration de DB partagée, bascule
+de backup/restauration, identité, pin runtime et qualification gateway conservent
+leur portée réelle : une validation sur runner ne constitue pas un contrôle
+live du VPS. Ils ne deviennent pas des tâches à rejouer. Aucune migration,
+restauration de DB partagée, bascule
 gateway ou fermeture de `:8080` n'est ajoutée au contrôle commun.
 
 ## Maintenance des copies root
@@ -87,15 +88,19 @@ les octets réellement installés. Après bootstrap, utiliser la maintenance
 commune pour les changements approuvés ; un changement manuel ultérieur est
 signalé comme dérive et nécessite un arbitrage, jamais un écrasement silencieux.
 
-## Bootstrap unique, préparé avant intervention
+## Bootstrap unique — terminé, ne pas rejouer
 
-État à la préparation de PR #96 : helper OPS/sudoers **non installés** ; les
-droits DEV/OCE existants ne suffisent pas à installer cette nouvelle permission.
-`diagnostics` peut mesurer ce manque sans root et sans lire de credentials.
-Une fusion/YAML ne donne pas ce droit. Ne pas annoncer l'autonomie maintenance
-comme effective avant une preuve live de `ops-status`, upgrade et rollback.
+Le propriétaire a exécuté le bloc immuable de PR #96 le 2026-10-09 : neuf
+copies adoptées et sudoers validé, sans service ni secret modifié. Les Actions
+[#16](https://github.com/Khaey/Dao/actions/runs/37893592552) et
+[#17](https://github.com/Khaey/Dao/actions/runs/37893942786), tentative 1 SUCCESS,
+confirment le contrôleur root, les cinq grants, `bootstrap_required:false`,
+`current:bootstrap`, `installed_match:true`, neuf fichiers gérés,
+`previous:null` et aucune transaction pendante. Cette installation ne dépend
+pas de READY Cloudflare #58 et ne doit plus être demandée à un nouveau Work.
+La qualification d'un rollback live reste distincte de ces preuves.
 
-La seule intervention administrateur proposée télécharge **deux fichiers**
+Le protocole initial, désormais historique, téléchargeait **deux fichiers**
 depuis un SHA main revu et vert dans un répertoire temporaire root 0700 :
 `ops/dao-ops-admin.py` et `ops/install-ops-admin.sh`. Le bloc exact, SHA et leurs
 deux SHA-256 sont publiés dans #91 après validation ; ne jamais substituer
@@ -103,15 +108,16 @@ deux SHA-256 sont publiés dans #91 après validation ; ne jamais substituer
 du contrôleur root et d'une règle sudoers validée par visudo pour seulement
 `status / preflight / upgrade / rollback / backup-status`.
 Le verbe bootstrap n'est pas accordé à `dao`. Aucune autre copie installée,
-configuration, credential, service ou permission n'est remplacée.
+configuration, credential, service ou permission n'était remplacée.
 
 Préconditions : propriétaire root présent, compte dao et helper DEV existants,
 absence du nouveau helper/état/sudoers, chemins root non modifiables par dao,
 coordination avec #58 et absence de mutation concurrente. Résultat attendu :
 `OPS_BOOTSTRAP_READY`, état `bootstrap` adopté depuis les copies effectives.
-Vérifier ensuite **par Actions** diagnostics et ops-status. Publier l'admission
-du SHA, lancer preflight, upgrade si nécessaire, puis confirmer la version et
-qualifier le rollback sur cette première évolution approuvée sans service actif.
+Ces préconditions concernent l'installation initiale, pas une nouvelle session
+Work. La suite passe **par Actions** : admission du SHA vert, preflight,
+upgrade si nécessaire, puis confirmation de la version. Qualifier le rollback
+sur une évolution approuvée réelle, sans service concerné actif.
 Si tous les octets sont déjà identiques, upgrade est un no-op : aucune preuve
 de rollback live ne doit être inventée.
 
@@ -143,7 +149,7 @@ réels. Les tests utilisent des fichiers fictifs et vérifient l'admission,
 les refus, intégrité, locks, upgrade/rollback et interruption. Ils ne prouvent
 pas les droits du VPS. La CI obligatoire conserve tous les gates existants.
 Après déploiement, le signal #91 et ses sorties live prouvent l'interface
-commune ; l'absence de bootstrap reste une limite explicite jusqu'à installation.
+commune ; les runs #16/#17 ci-dessus prouvent maintenant l'installation OPS.
 En cas de crash/quota Work, reprendre le dernier HEAD publié/checkpoint selon
 [WORK_CHECKPOINTS.md](ai-context/WORK_CHECKPOINTS.md), jamais des edits locaux
 non sauvegardés. Aucun arrêt brutal Work n'est intercepté automatiquement.
