@@ -1,5 +1,23 @@
 # D.A.O — Next Steps
 
+## OPT 20 — terminer le transport de récupération #91
+
+Reprendre la branche dédiée `chore/opt20-ops-recovery-91` et les derniers
+checkpoints [#91](https://github.com/Khaey/Dao/issues/91). La base de ce lot est
+main `4d3a0cdba0eff601c202c27c320cecfc962dfb35`, CI/deploy #420 et Pages #43
+verts. Les quatre scripts non-root sont transportés indépendamment du lien
+current ; tests fictifs de lien absent/cassé et transfert relatif validés.
+
+Observer la CI automatique du candidat exact, réconcilier uniquement cette
+branche si main avance puis fusionner vert dans le mandat #91. Après main/CI
+deploy verts, qualifier le nouveau transport par une seule opération helper
+en lecture et conserver run/attempt/sortie expurgée. Ne pas casser current,
+redéployer un ancien SHA, refaire un bootstrap, rejouer le rollback code déjà
+qualifié, ni restaurer données/configurations. Mettre les preuves live et la
+limite (pas de panne VPS provoquée) dans le checkpoint de livraison #91.
+Les helpers/catalogue/admissions ne changent pas : pas de nouvel ops-upgrade
+pour transporter seulement les scripts. #58/#83/#64/#93 restent exclus.
+
 ## OPT 20 — premier lot #91 livré, reprendre les acquis
 
 PR #96/#99/#100 fusionnées ; main source admis

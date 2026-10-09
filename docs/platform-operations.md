@@ -50,7 +50,14 @@ the role/operation/precondition/proof matrix and versioned root maintenance.
 Existing workflows and qualified backups/restores remain valid. Root OPS
 bootstrap from PR #96 is now installed and confirmed by live Actions #16/#17
 on 2026-10-09; do not repeat it. Read OPS control for the exact maintenance
-proofs and remaining rollback qualification. A merge alone is not installation.
+proofs of the qualified code rollback. A merge alone is not installation.
+
+The common workflow transports its four fixed non-root scripts from the main
+checkout into a run/attempt-scoped directory, independently of
+`/opt/dao/current`. Installed helper diagnostics/recovery stay reachable when
+that release link is missing or broken; this does not restore application
+releases or data. The existing root permissions, secrets and host lock remain
+unchanged. See OPS control for transport cleanup and qualification evidence.
 
 ### VPS operations policy
 
@@ -85,7 +92,7 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 
 | Operation | Behavior | Available prerequisite |
 | --- | --- | --- |
-| status | Service state, exact release name, helper presence, selected env key presence | Existing Actions SSH secret and deployed scripts |
+| status | Service state, exact release name, helper presence, selected env key presence | Existing Actions SSH secret and fixed main scripts |
 | health | Read-only local HTTP smoke | Existing Actions SSH secret |
 | restart | Restart only dao-dev.service, then smoke/status | Existing dao service sudoers |
 | env-sync | Manual recovery operation; normal main deploys now run the same three-key sync automatically before release activation | One-time admin helper installation plus Resend secrets |

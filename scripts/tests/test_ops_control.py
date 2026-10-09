@@ -4,6 +4,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import subprocess
 import tempfile
@@ -222,7 +223,7 @@ class RouterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             app, commands = root / 'dao', root / 'commands'
-            scripts = app / 'current/scripts'
+            scripts = app / 'transport/scripts'
             scripts.mkdir(parents=True)
             commands.mkdir()
             log = root / 'calls'
@@ -232,16 +233,19 @@ class RouterTests(unittest.TestCase):
             sudo.write_text('''#!/bin/bash
 printf '%s\\n' "$*" >> "$CALL_LOG"
 case "$*" in
-  *'env-sync') echo 'ENV_SYNC updated';;
+  *'env-sync')
+    stat -c 'payload-mode=%a' "$ENV_PAYLOAD" >> "$CALL_LOG"
+    echo 'ENV_SYNC updated';;
   *'systemctl restart dao-dev.service')
     if [[ ! -e "$RESTART_MARKER" ]]; then touch "$RESTART_MARKER"; exit 1; fi;;
 esac
 ''')
             sudo.chmod(0o755)
-            router = root / 'router.sh'
+            router = scripts / 'dao-operations.sh'
             router.write_text((ROOT / 'scripts/dao-operations.sh').read_text().replace('/opt/dao', str(app)))
             environment = {**os.environ, 'PATH': str(commands) + ':' + os.environ['PATH'],
-                           'CALL_LOG': str(log), 'RESTART_MARKER': str(root / 'restart')}
+                           'CALL_LOG': str(log), 'RESTART_MARKER': str(root / 'restart'),
+                           'ENV_PAYLOAD': str(app / 'ops-incoming/22-1/dao-env.json')}
             def run(operation):
                 return subprocess.run(['bash', str(router), operation, '22', '1'],
                                       env=environment, capture_output=True, text=True)
@@ -258,7 +262,116 @@ esac
             self.assertEqual(calls.count('systemctl restart dao-dev.service'), 2)
             self.assertIn('-n /usr/local/sbin/dao-dev-admin env-restore', calls)
             self.assertIn('validate-dev.sh', calls)
+            self.assertIn('payload-mode=600', calls)
             self.assertFalse(payload.exists())
+
+    def test_installed_helpers_remain_reachable_without_current_release(self):
+        for broken_link in (False, True):
+            with self.subTest(broken_link=broken_link), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                app, commands = root / 'dao', root / 'commands'
+                scripts = app / 'ops-incoming/22-1/scripts'
+                scripts.mkdir(parents=True)
+                commands.mkdir()
+                if broken_link:
+                    (app / 'current').symlink_to(app / 'releases/missing')
+                log = root / 'calls'
+                sudo = commands / 'sudo'
+                sudo.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALL_LOG"\n')
+                sudo.chmod(0o755)
+                router = scripts / 'dao-operations.sh'
+                router.write_text((ROOT / 'scripts/dao-operations.sh').read_text().replace('/opt/dao', str(app)))
+                environment = {**os.environ, 'PATH': str(commands) + ':' + os.environ['PATH'],
+                               'CALL_LOG': str(log)}
+                for operation in ('ops-status', 'ops-rollback'):
+                    result = subprocess.run(['bash', str(router), operation, '22', '1'],
+                                            cwd=root, env=environment, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(log.read_text().splitlines(), [
+                    '-n /usr/local/sbin/dao-ops-admin status',
+                    '-n /usr/local/sbin/dao-ops-admin rollback'])
+                self.assertFalse((app / 'current').exists())
+
+
+class TransportTests(unittest.TestCase):
+    def stage(self, root, *identifiers):
+        return subprocess.run(['bash', str(ROOT / 'scripts/prepare-ops-transport.sh'), *identifiers],
+                              cwd=root, capture_output=True, text=True)
+
+    def test_fixed_scripts_and_optional_payload_keep_relative_transfer_paths(self):
+        names = ('dao-operations.sh', 'dev-status.sh', 'validate-dev.sh', 'dao-ops-diagnostics.py')
+        for with_payload in (False, True):
+            with self.subTest(with_payload=with_payload), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / 'scripts').mkdir()
+                for name in names:
+                    (root / 'scripts' / name).write_bytes((ROOT / 'scripts' / name).read_bytes())
+                (root / 'scripts/private-unrelated.txt').write_text('fictional-private-content')
+                if with_payload:
+                    (root / 'dao-env.json').write_text('{"fictional":"fictional-secret"}')
+                result = self.stage(root, '22', '1')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn('fictional-secret', result.stdout + result.stderr)
+                destination = root / 'ops-incoming/22-1'
+                files = {p.relative_to(destination).as_posix() for p in destination.rglob('*') if p.is_file()}
+                expected = {'scripts/' + name for name in names}
+                if with_payload:
+                    expected.add('dao-env.json')
+                    self.assertEqual((destination / 'dao-env.json').stat().st_mode & 0o777, 0o644)
+                    self.assertFalse((root / 'dao-env.json').exists())
+                self.assertEqual(files, expected)
+                for name in names:
+                    self.assertEqual((destination / 'scripts' / name).read_bytes(), (ROOT / 'scripts' / name).read_bytes())
+                archive = root / 'transport.tar.gz'
+                subprocess.run(['tar', '-czf', str(archive), '-C', str(root), 'ops-incoming/22-1'], check=True)
+                extracted = root / 'host'
+                extracted.mkdir()
+                subprocess.run(['tar', '-xzf', str(archive), '-C', str(extracted)], check=True)
+                self.assertEqual({p.relative_to(extracted / 'ops-incoming/22-1').as_posix()
+                                  for p in (extracted / 'ops-incoming/22-1').rglob('*') if p.is_file()}, expected)
+
+    def test_invalid_ids_or_existing_destination_cannot_overwrite_transport(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for ids in [('22;id', '1'), ('22', '../1'), ('22', '1', 'extra')]:
+                self.assertEqual(self.stage(root, *ids).returncode, 2)
+            destination = root / 'ops-incoming/22-1'
+            destination.mkdir(parents=True)
+            marker = destination / 'keep'
+            marker.write_bytes(b'untouched')
+            self.assertEqual(self.stage(root, '22', '1').returncode, 2)
+            self.assertEqual(marker.read_bytes(), b'untouched')
+
+    def test_workflow_recovery_transport_and_always_cleanup_do_not_need_current(self):
+        workflow = (ROOT / '.github/workflows/dev-operations.yml').read_text()
+        self.assertNotIn('cd /opt/dao/current', workflow)
+        self.assertIn("/scripts/dao-operations.sh' \"$DAO_OPERATION\"", workflow)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            host = root / 'host'
+            for stage in ('Remove runner transport after transfer', 'Remove runner payload',
+                          'Remove host transport after operation or interruption'):
+                destination = (host if stage.startswith('Remove host') else root) / 'ops-incoming/22-1'
+                destination.mkdir(parents=True)
+                (destination / 'dao-env.json').write_text('fictional-secret')
+                (destination / 'scripts').mkdir()
+                (destination / 'scripts/dao-operations.sh').write_text('fictional-script')
+                sibling = destination.with_name('23-1')
+                sibling.mkdir(exist_ok=True)
+                (sibling / 'keep').write_text('untouched')
+                (root / 'dao-env.json').write_text('fictional-secret')
+                block = workflow.split('- name: ' + stage + '\n', 1)[1].split('      - name:', 1)[0]
+                self.assertIn('if: always()', block)
+                match = re.search(r'(?:run|script): \|\n((?: +[^\n]*\n)+)', block)
+                self.assertIsNotNone(match)
+                commands = match.group(1).replace('${{ github.run_id }}', '22').replace('${{ github.run_attempt }}', '1')
+                commands = commands.replace('/opt/dao', str(host))
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', commands],
+                                        cwd=root, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse(destination.exists())
+                self.assertEqual((sibling / 'keep').read_text(), 'untouched')
+                self.assertNotIn('fictional-secret', result.stdout + result.stderr)
 
 
 class RedactionTests(unittest.TestCase):

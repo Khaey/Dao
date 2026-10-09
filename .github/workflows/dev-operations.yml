@@ -52,23 +52,23 @@ jobs:
           with open('dao-env.json', 'w') as f:
               json.dump({k: os.environ[k] for k in ('RESEND_API_KEY', 'DAO_EMAIL_FROM', 'DAO_PUBLIC_URL')}, f)
           PY
-          # scp-action runs in a container and needs read access to the
-          # ephemeral source file. The file is removed immediately after copy.
-          chmod 0644 dao-env.json
-      - name: Transfer private payload
-        if: steps.request.outputs.operation == 'env-sync'
+      - name: Stage fixed non-root operations transport
+        run: bash scripts/prepare-ops-transport.sh '${{ github.run_id }}' '${{ github.run_attempt }}'
+      - name: Transfer fixed operations transport
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
           host: 137.74.168.122
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
-          source: dao-env.json
-          target: /opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}
+          source: ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}
+          target: /opt/dao
           timeout: 30s
           command_timeout: 2m
-      - name: Remove runner payload after transfer
-        if: always() && steps.request.outputs.operation == 'env-sync'
-        run: rm -f dao-env.json
+      - name: Remove runner transport after transfer
+        if: always()
+        run: |
+          rm -f dao-env.json
+          rm -rf -- 'ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}'
       - name: Execute fixed DEV operation
         uses: appleboy/ssh-action@v1.2.2
         env:
@@ -82,13 +82,14 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            cd /opt/dao/current
-            bash scripts/dao-operations.sh "$DAO_OPERATION" '${{ github.run_id }}' '${{ github.run_attempt }}'
+            bash '/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/scripts/dao-operations.sh' "$DAO_OPERATION" '${{ github.run_id }}' '${{ github.run_attempt }}'
       - name: Remove runner payload
         if: always()
-        run: rm -f dao-env.json
-      - name: Remove host private payload after an interrupted operation
-        if: always() && steps.request.outputs.operation == 'env-sync'
+        run: |
+          rm -f dao-env.json
+          rm -rf -- 'ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}'
+      - name: Remove host transport after operation or interruption
+        if: always()
         continue-on-error: true
         uses: appleboy/ssh-action@v1.2.2
         with:
