@@ -68,11 +68,19 @@ Les nettoyages `always()` retirent le répertoire exact run/attempt sur runner
 et hôte, y compris après échec ; une coupure empêchant le cleanup peut laisser
 un résidu limité à ce répertoire, sans promesse d'intercepter toute interruption.
 
-Qualification : tests sur liens fictifs absent/cassé et transfert tar relatif,
-puis une opération Actions en lecture sur DEV après CI/main verts. Les preuves
-live du nouveau chemin sont dans le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91).
-Ne pas provoquer de panne VPS ou rejouer le cycle de maintenance acquis pour
-prouver seulement le transport.
+Qualification livrée par PR #102 au main source
+`5e551b0dea87a49977f170f3466d71088defe27c`, après CI/deploy
+[#422](https://github.com/Khaey/Dao/actions/runs/37905181405) et Pages #45 verts.
+Les 23 tests ciblés couvrent les liens fictifs absent/cassé, le transfert tar
+relatif, les modes et nettoyages. L'unique lecture live `ops-status`
+[#58 / 37905759566](https://github.com/Khaey/Dao/actions/runs/37905759566), tentative 1
+SUCCESS, prouve staging quatre scripts/SCP/dispatch/helper installé et tous les
+nettoyages runner/hôte. État : rev-642376a…, previous=bootstrap, neuf copies
+intègres, aucune transaction pendante, secrets_read=false ; payload env-sync
+sauté. La preuve live concerne le transport sur DEV sain, pas une panne réelle.
+Ne pas rejouer ce run ou le cycle de maintenance acquis pour une nouvelle
+session ou des docs sans changement du transport. Preuves finales dans
+[#91](https://github.com/Khaey/Dao/issues/91).
 
 Le routeur `scripts/dao-operations.sh` est non privilégié. Il n'exécute en root
 que les chemins/arguments littéraux accordés. Les mutations DEV et OPS partagent

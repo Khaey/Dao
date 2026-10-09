@@ -1,26 +1,35 @@
 # D.A.O — Current State
 
-## OPT 20 — OPS #91, reprise indépendante de la release active (2026-10-09)
+## OPT 20 — OPS #91, transport de récupération qualifié live (2026-10-09)
 
-Base main réelle `4d3a0cdba0eff601c202c27c320cecfc962dfb35`, dernière CI/deploy
-#420 / 37901509702 SUCCESS ; PR #101 et Pages #43 livrées, acquis non rejoués.
-Branche dédiée `chore/opt20-ops-recovery-91`, issue/checkpoint
-[#91 OPS 22](https://github.com/Khaey/Dao/issues/91#issuecomment-6077137940).
+PR [#102](https://github.com/Khaey/Dao/pull/102) fusionnée ; HEAD code durable
+`7437039065ba0e1bf67d8a51be3a3231828ba755` sur
+`chore/opt20-ops-recovery-91`, main source
+`5e551b0dea87a49977f170f3466d71088defe27c`. CI PR #421 / 37904482721 et
+main [#422](https://github.com/Khaey/Dao/actions/runs/37905181405), tentative 1
+SUCCESS : 178 plateforme, 63 backend, 29 intégrations, 48/48 E2E desktop/mobile
+(main 1,9 min), fresh/reset/schema/build/deploy verts. Release exacte
+5e551b0…-37905181405-1, service active ; Pages #45 / 37905181322 publiée.
 
-Écart corrigé dans le candidat : le workflow et son routeur dépendaient du
-lien `/opt/dao/current`, bloquant même les helpers installés si le lien était
-absent/cassé. Quatre scripts publics fixes sont désormais transportés depuis
-main dans le répertoire non-root run/attempt ; mêmes 18 verbes, identité,
-root-owned helpers, sudoers, admission et verrous. Payload privé uniquement
-pour env-sync, mêmes modes/cleanup ; aucun changement du catalogue root.
-Tests ciblés : 23 PASS, dont nouveaux cas liens fictifs absent/cassé et
-transport relatif, sans panne VPS. CI finale et qualification live du transport
-restent à suivre dans le dernier checkpoint #91 avant de les déclarer acquises.
-Pas de restauration implicite de release applicative/DB/config/secrets.
+Le workflow transporte quatre scripts publics fixes du main sous le répertoire
+non-root run/attempt et atteint les helpers installés indépendamment de current.
+Unique qualification [DAO DEV operations #58](https://github.com/Khaey/Dao/actions/runs/37905759566),
+tentative 1 SUCCESS : ops-status, staging/SCP/dispatch et tous les nettoyages
+runner/hôte réussis ; payload env-sync sauté. Current root rev-642376a…,
+previous=bootstrap, installed_match=true, neuf copies, aucune transaction
+pendante, secrets_read=false. Aucun changement du catalogue ni droit root.
 
-Le bootstrap et le cycle upgrade/rollback déjà qualifiés ci-dessous restent
-acquis. #58/#83/#64/#93 et leurs contextes sont préservés ; aucune opération
-OCE, backup, migration ou nouvelle permission.
+Les 23 tests ciblés couvrent les liens current fictifs absent/cassé, transport
+relatif, modes et cleanup ; aucune panne live VPS n'a été provoquée. La preuve
+live porte sur le nouveau transport sur DEV sain, pas sur une restauration
+applicative/DB/config/secrets. Les mêmes 18 verbes, identité, admission et
+verrous sont conservés. **Ne pas rejouer** bootstrap, qualification des helpers
+ou ce transport uniquement après une nouvelle session/avance documentaire.
+
+Suivi final sur `chore/opt20-ops-recovery-proof-91` ; livraison exacte dans
+[#91 OPS 25 et suivants](https://github.com/Khaey/Dao/issues/91#issuecomment-6077429398).
+#91 reste ouverte pour le périmètre global ; #58/#83/#64/#93 et leurs contextes
+sont préservés. Aucune opération OCE, backup, migration ou nouvelle permission.
 
 ## OPT 20 — OPS #91, premier lot maintenance qualifié live (2026-10-09)
 
