@@ -71,6 +71,8 @@ export async function professionalCases(db, check) {
   });
   await check('PRO file access rechecks withdrawal; another pro cannot download; no raw path in public projection',async()=>{
     assert.equal((await rpc('client','professional_file_access',['portfolio',photo.id,false])).id,photo.id);
+    assert.equal('object_path' in await rpc('client','professional_file_access',['portfolio',photo.id,false]),false);
+    await as('client',async()=>assert.equal((await db.query('select * from public.portfolio_assets where id=$1',[photo.id])).rows.length,0));
     await deny(()=>rpc('other','professional_file_access',['portfolio',photo.id,false]),'42501');
     assert.equal(JSON.stringify(await publicProfile()).includes('object_path'),false);
     await cmd('pro','file_withdraw',{kind:'portfolio',id:photo.id});

@@ -91,8 +91,10 @@ language sql stable security definer set search_path='' as $$
 $$;
 drop policy read_allowed on public.portfolio_assets;
 create policy read_allowed on public.portfolio_assets for select to anon,authenticated using(
-  dao_private.account_active(auth.uid()) and (dao_private.staff() or dao_private.pro(contractor_id)
-    or (dao_private.portfolio(portfolio_project_id) and status='approved' and public_consent and content_sha256 is not null)));
+  dao_private.account_active(auth.uid()) and (dao_private.staff() or dao_private.pro(contractor_id)));
+drop policy read_allowed on public.portfolio_projects;
+create policy read_allowed on public.portfolio_projects for select to anon,authenticated using(
+  dao_private.account_active(auth.uid()) and (dao_private.staff() or dao_private.pro(contractor_id)));
 
 create function dao_private.professional_content_changed() returns trigger
 language plpgsql set search_path='' as $$
@@ -338,6 +340,10 @@ begin
       and ((p_kind='professional' and f->>'purpose'='logo') or (p_kind='portfolio' and dao_private.portfolio((f->>'portfolio_project_id')::uuid)));
   end if;
   if cp.id is null or not coalesce(allowed,false) or f->>'status'='withdrawn' then raise exception using errcode='42501',message='Fichier privé ou retiré'; end if;
+  if cp.user_id<>auth.uid() and not dao_private.staff() then
+    return jsonb_build_object('id',f->'id','mime_type',f->'mime_type','size_bytes',f->'size_bytes',
+      'original_name',f->'original_name','status',f->'status','revision',f->'revision','content_sha256',f->'content_sha256');
+  end if;
   return f;
 end; $$;
 create function public.professional_file_access(p_kind text,p_id uuid,p_owner_only boolean default false) returns jsonb

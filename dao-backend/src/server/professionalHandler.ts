@@ -23,9 +23,15 @@ export function createProfessionalHandler(db:any,resolveActor:(header:string|nul
   async function rpc(name:string,input:Record<string,unknown>) {
     const {data,error}=await db.rpc(name,input); if(error) throw error; return data;
   }
-  async function bytesFor(file:any) {
+  async function bytesFor(file:any,kind:string) {
     const client=admin();
-    const {data,error}=await client.storage.from('dao-private').createSignedUrl(file.object_path,20);
+    let path=file.object_path;
+    if(!path) {
+      const result=await client.from(kind==='portfolio'?'portfolio_assets':'contractor_files').select('object_path').eq('id',file.id).single();
+      if(result.error||!result.data) throw {code:'42501',message:'Fichier inaccessible'};
+      path=result.data.object_path;
+    }
+    const {data,error}=await client.storage.from('dao-private').createSignedUrl(path,20);
     if(error) throw error;
     const response=await readUrl(data.signedUrl,{cache:'no-store',redirect:'error'});
     if(!response.ok) throw {code:'FILE_UNAVAILABLE',message:'Fichier indisponible'};
@@ -64,7 +70,7 @@ export function createProfessionalHandler(db:any,resolveActor:(header:string|nul
         const file=await rpc('professional_file_access',{p_kind:input.kind,p_id:input.id,p_owner_only:body.action==='finalize_upload'});
         if(body.action==='finalize_upload' && file.status!=='quarantined') invalid('Fichier déjà finalisé ou retiré');
         if(body.action==='download' && (!file.content_sha256 || !['ready','approved','rejected'].includes(file.status))) throw {code:'42501',message:'Fichier non inspecté ou retiré'};
-        const {client,bytes,sha}=await bytesFor(file);
+        const {client,bytes,sha}=await bytesFor(file,input.kind);
         if(body.action==='finalize_upload') {
           const {error}=await client.rpc('professional_confirm_upload',{p_kind:input.kind,p_id:input.id,p_actor:actor.id,p_sha256:sha}); if(error) throw error;
           return Response.json({data:{id:file.id,status:'ready'}});

@@ -19,11 +19,13 @@ test('PRO unauthenticated/unauthorized downloads never instantiate privileged St
 test('PRO mediated download never exposes signed read URL and rechecks revoked access',async()=>{
   let revoked=false; const file={id:'photo',object_path:'portfolio/project/photo',mime_type:'image/png',original_name:'photo.png',size_bytes:png.length,status:'approved',revision:2,content_sha256:createHash('sha256').update(png).digest('hex')};
   const db={rpc:async()=>revoked?{error:{code:'42501',message:'Retiré'}}:{data:file}};
-  const admin=()=>({storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://storage.invalid/private-capability'}})})}});
+  delete (file as any).object_path;
+  let pathLookups=0;
+  const admin=()=>({from:()=>({select:()=>({eq:()=>({single:async()=>{pathLookups++;return {data:{object_path:'portfolio/project/photo'}};}})})}),storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://storage.invalid/private-capability'}})})}});
   const handler=createProfessionalHandler(db,async()=>({id:'client'}),admin,async()=>new Response(png));
   const response=await handler(request('download',{kind:'portfolio',id:'photo'}));
   assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.deepEqual(Buffer.from(await response.arrayBuffer()),png);
-  revoked=true; assert.equal((await handler(request('download',{kind:'portfolio',id:'photo'}))).status,403);
+  assert.equal(pathLookups,1);revoked=true; assert.equal((await handler(request('download',{kind:'portfolio',id:'photo'}))).status,403);assert.equal(pathLookups,1);
   revoked=false;const racing=createProfessionalHandler(db,async()=>({id:'client'}),admin,async()=>{revoked=true;return new Response(png);});
   assert.equal((await racing(request('download',{kind:'portfolio',id:'photo'}))).status,403);
 });

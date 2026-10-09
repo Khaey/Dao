@@ -226,11 +226,11 @@ const portfolio=await insert('portfolio_projects',{contractor_id:C.proA,title:'P
 await db.query("insert into public.contractor_profile_details(contractor_id,review_status) values($1,'approved') on conflict(contractor_id) do update set review_status='approved'",[C.proA]);
 await test('portfolio hidden until commercial identity approved',()=>as('clientB',async()=>eq(await rows('portfolio_projects',portfolio),0)));
 await db.exec(`update public.contractor_profiles set public_identity_status='approved' where id='${C.proA}'`);
-await test('approved public portfolio visible',()=>as('clientB',async()=>eq(await rows('portfolio_projects',portfolio),1)));
+await test('approved portfolio uses public projection; direct review metadata private',()=>as('clientB',async()=>{eq(await rows('portfolio_projects',portfolio),0);eq((await db.query('select public.professional_public_profile($1,false) as p',[C.proA])).rows[0].p.portfolio[0].id,portfolio)}));
 const asset=await insert('portfolio_assets',{portfolio_project_id:portfolio,contractor_id:C.proA,object_path:'portfolio/'+portfolio+'/asset.jpg',mime_type:'image/jpeg',size_bytes:100});
 await test('quarantined portfolio asset hidden',()=>as('clientB',async()=>eq(await rows('portfolio_assets',asset),0)));
 await db.query("update public.portfolio_assets set status='approved',public_consent=true,content_sha256=$1 where id=$2",['a'.repeat(64),asset]);
-await test('approved portfolio asset visible',()=>as('clientB',async()=>eq(await rows('portfolio_assets',asset),1)));
+await test('approved asset uses public projection; direct Storage metadata private',()=>as('clientB',async()=>{eq(await rows('portfolio_assets',asset),0);eq((await db.query('select public.professional_public_profile($1,false) as p',[C.proA])).rows[0].p.portfolio[0].assets[0].id,asset)}));
 await awardLifecycleCases(db,test);
 await backofficeCases(db,test);
 await professionalCases(db,test);

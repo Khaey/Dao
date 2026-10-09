@@ -62,6 +62,8 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     const race=await Promise.all(['reviewer','reviewer2'].map(name=>users[name].db.rpc('professional_command',{p_action:'review_portfolio',p_input:{id:project.id,approve:true,revision:2}})));
     assert.equal(race.filter(r=>!r.error).length,1);assert.equal(race.find(r=>r.error)!.error.code,'23514');
     assert.equal((await publicProfile()).portfolio[0].assets[0].asset_kind,'before');assert.equal(JSON.stringify(await publicProfile()).includes('object_path'),false);
+    const access=await rpc('client','professional_file_access',{p_kind:'portfolio',p_id:photo.id});assert.equal('object_path' in access,false);assert.equal('reviewed_by' in access,false);
+    assert.deepEqual((await users.client.db.from('portfolio_assets').select('*').eq('id',photo.id)).data,[]);
   });
   await t.test('spoofed MIME never becomes reviewable',async()=>{
     const fake=await upload({kind:'portfolio',portfolio_project_id:project.id,asset_kind:'photo',mime_type:'image/png',public_consent:true},Buffer.from('<html>not a PNG</html>'));
@@ -88,6 +90,7 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     assert.ifError((await users.admin.db.rpc('backoffice_command',{p_action:'professional',p_input:{contractor_id:cp.id,decision:'suspend',reason:'Test'},p_key:randomUUID()})).error);
     await cmd('pro','details',{tax_identifier:'NEW PRIVATE TAX'});assert.equal((await dossier()).profile.verification_status,'suspended');assert.ok((await users.client.db.rpc('professional_public_profile',{p_id:cp.id})).error);
     const audits=(await admin.from('audit_events').select('metadata').eq('entity_id',cp.id)).data!;assert.equal(JSON.stringify(audits).includes('PRIVATE TAX'),false);
-    await insert('account_states',{user_id:users.pro.id,status:'suspended'});assert.equal((await users.pro.db.rpc('professional_dossier',{p_id:cp.id})).error!.code,'42501');
+    await rpc('admin','backoffice_command',{p_action:'account',p_input:{user_id:users.pro.id,status:'suspended',reason:'Test de confidentialité'},p_key:randomUUID()});
+    assert.equal((await users.pro.db.rpc('professional_dossier',{p_id:cp.id})).error!.code,'42501');
   });
 });
