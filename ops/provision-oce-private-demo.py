@@ -57,7 +57,7 @@ def provision(cf, get, tunnel_id, emails, tunnel_token, token, root=ROOT, progre
         return value
 
     cf.require(bool(re.fullmatch(r'[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}', tunnel_id)))
-    zones = read('/zones?name=logiclab.fr&per_page=100')
+    zones = read('/zones?name=logiclab.fr&per_page=50')
     cf.require(len(zones) == 1 and zones[0]['name'] == 'logiclab.fr')
     account = zones[0]['account']['id']
     cf.require(bool(re.fullmatch(r'[a-f0-9]{32}', account)))

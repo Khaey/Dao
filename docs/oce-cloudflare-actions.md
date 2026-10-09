@@ -45,6 +45,9 @@ redirections et proxies hérités ; GET limité, réponses/pagination bornées,
 timeout par requête 15 secondes, échéance totale 240 secondes, aucun retry.
 
 Un `HTTP_403` à `ZONE_LOOKUP` constate uniquement le refus du GET des zones.
+La recherche utilise `per_page=50`, maximum documenté par GET `/zones`.
+Cette correction de paramètre ne prouve pas la cause du 403 précédent :
+le contrôle d'autorisation fournisseur demeure une gate indépendante.
 Examiner dans Cloudflare les permissions Read, le périmètre Zone/Account,
 l'expiration et les restrictions IP du jeton. Ne pas en déduire une cause unique
 ni élargir aveuglément les droits. Si un jeton est remplacé dans GitHub,
@@ -68,5 +71,6 @@ reprise des anciens blocs CMD/TTY. L'absence de ce nouveau chemin est un blocage
 explicite, jamais une invitation à transmettre les jetons dans la conversation.
 
 Sources : [secrets Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
+[GET zones](https://developers.cloudflare.com/api/resources/zones/methods/list/),
 [GET tunnel](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/methods/get/)
 et [création/périmètre du jeton](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).

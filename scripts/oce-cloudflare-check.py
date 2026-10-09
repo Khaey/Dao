@@ -75,7 +75,7 @@ def check(cf, operation, api_token, tunnel_token, approved_emails, get, progress
         progress['api_pending'] = False
         return result
 
-    zones = read('/zones?name=logiclab.fr&per_page=100')
+    zones = read('/zones?name=logiclab.fr&per_page=50')
     cf.require(isinstance(zones, list) and len(zones) == 1)
     zone = zones[0]
     cf.require(zone['name'] == 'logiclab.fr' and zone['status'] == 'active')

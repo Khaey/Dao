@@ -20,7 +20,7 @@ class DiagnosticTests(unittest.TestCase):
         fixture = fixtures.PrivateDemoTests()
         fixture.setUp()
         self.cf, self.m, self.data = fixtures.cf, fixture.m, copy.deepcopy(fixture.data)
-        self.data['/zones?name=logiclab.fr&per_page=100'] = [{
+        self.data['/zones?name=logiclab.fr&per_page=50'] = [{
             'name': 'logiclab.fr', 'id': self.m['zone_id'], 'account': {'id': self.m['account_id']}}]
         self.tunnel_token = base64.b64encode(json.dumps({
             'a': self.m['account_id'], 't': self.m['tunnel_id'],

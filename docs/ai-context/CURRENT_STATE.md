@@ -1,5 +1,31 @@
 # D.A.O — Current State
 
+## DEV 20 — OCE #58, secrets détectés, requête des zones corrigée (2026-10-09)
+
+PR #105 livrée au main `5bebd1f1e66ec575620ca3e0ded7ed4fe53be4bb` : CI/deploy
+[#429 / 37912425726](https://github.com/Khaey/Dao/actions/runs/37912425726),
+tentative 1 SUCCESS, 191 plateforme, 63 backend, 29 intégrations, 48/48 E2E
+(2,4 min), build/deploy ; release exacte et service active attestés à ce run.
+Pages #47 / 37912425658 SUCCESS. Ces acquis ne sont pas rejoués.
+
+Contrôle réel [Cloudflare #2 / 37912501786](https://github.com/Khaey/Dao/actions/runs/37912501786),
+tentative 1 FAILURE : deux jetons présents, liste approuvée privée absente,
+`ZONE_LOOKUP / HTTP_403`, aucun contact VPS ni credential écrit/tunnel démarré.
+Nouvelle base vérifiée `efe86f584343e06553157c4a121f3c270cac8cbb`, CI main #436
+SUCCESS ; changements des autres Work conservés. Branche dédiée
+`fix/dev20-oce-zone-page-size` : GET `/zones` utilise le maximum documenté 50,
+dans le contrôle runner et les deux outils de bootstrap/diagnostic historiques.
+Cela corrige le contrat HTTP, sans attribuer le 403 à ce paramètre ni modifier
+les permissions. Aucune copie root cataloguée, grant ou C4 modifiés.
+
+CI du nouveau candidat et nouveau contrôle du GET corrigé à suivre dans
+[#58](https://github.com/Khaey/Dao/issues/58). Provisionnement initial depuis
+GitHub encore bloqué par gates fournisseur/liste indépendante/capacité root
+distincte. Aucun CMD/TTY, ancien bootstrap OPS ou start/apply implicite.
+
+Réconcilié avec main `54bc4dc74404a76c3c3a0c7bc6c4edeae3801e39` (#106),
+avec ses scripts/tests/contexte de récupération intégralement conservés.
+
 ## OPT 20 — OPS #91, diagnostic du rollback de déploiement (2026-10-09)
 
 Base initiale réelle `269b7018dc18f55a5c6f725246e1d4b4f5c7e580`, CI/deploy
