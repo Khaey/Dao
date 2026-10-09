@@ -28,3 +28,6 @@ without checking their dated status and the actual remote repository.
 Operational entry points: root [AGENTS.md](../../AGENTS.md),
 [platform operations](../platform-operations.md), and
 `bash scripts/dao-task-check.sh` from a verified checkout.
+For the common fixed operations, agent matrix, root release admission and
+bootstrap limits, read [OPS control](../ops-control.md). The live #91 checkpoint
+distinguishes prepared code from installed permissions.

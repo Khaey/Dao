@@ -33,3 +33,10 @@ never reset the shared DEV database or delete immutable business history.
 For VPS operations, prefer the `DAO DEV operations` workflow on main. Read
 `docs/platform-operations.md` before using it. Never put secret values in
 workflow inputs, command arguments, commits, PRs or logs.
+
+For the common DEV/OPT/Pilot interface, read `docs/ops-control.md`: exact owner
+comments on #91 invoke fixed main-only operations. Root maintenance requires
+its one-time reviewed bootstrap and explicit SHA admission after green main CI.
+When changing a catalogued root helper, regenerate `ops/ops-release.json` using
+`python3 scripts/build-ops-release.py` in the same PR. Do not overwrite installed
+drift or treat a merged helper source as already updated on the VPS.
