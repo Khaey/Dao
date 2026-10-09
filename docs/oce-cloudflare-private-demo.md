@@ -29,11 +29,14 @@ Le service `dao-oce-cloudflared` utilise une identité Unix distincte. Son
 jeton passe exclusivement par `LoadCredential`, jamais les arguments, logs,
 variables D.A.O ou artefacts Actions. Le helper root installé ne prend qu'un
 verbe fixe ; `dao` ne peut fournir ni jeton, ni URL, ni configuration.
-Un jeton de tunnel substitué est refusé par comparaison avec le jeton du
-tunnel approuvé obtenu auprès de Cloudflare. La clé API doit être strictement
-limitée à la lecture des ressources de ce compte/zone, y compris la lecture
-du jeton du tunnel. Si les droits de lecture disponibles ne permettent pas
-cet endpoint, `start` échoue : ne pas élargir automatiquement les permissions.
+Le jeton fourni uniquement par l’opérateur root est décodé localement pour
+vérifier compte/tunnel approuvés, absence d’endpoint alternatif et structure
+du secret. Cette liaison structurelle n’est pas une preuve cryptographique :
+Cloudflare authentifie le secret lors de la connexion cloudflared. `start`
+exige aussi readiness locale, statut `healthy` du tunnel approuvé via API
+et challenge Access. La clé API reste strictement en lecture seule.
+**Correction :** GET du jeton de tunnel exige un droit Cloudflare Write ;
+cet endpoint n’est plus utilisé et aucun droit Write n’est demandé.
 
 **Limite actuelle explicite :** le port public `:8080` reste accessible et
 l'egress guard D.A.O reste inactif. Le nouveau hostname refuse les appels D.A.O
@@ -116,7 +119,7 @@ operations**, main uniquement, environnement protégé `dev`, clé existante
 | --- | --- |
 | `status` | État systemd, aucun jeton/configuration exposé. |
 | `audit` | API GET seulement : zone active, application/OTP/liste exacte, ingress/JWT, tunnel et CNAME. Refus des listes tronquées. |
-| `start` | Audit, correspondance du jeton, démarrage seul du tunnel, `/ready`, puis challenge Access sur trois routes. Arrêt du tunnel si prérequis ou recette échouent ; délai global 180 s. |
+| `start` | Audit, liaison compte/tunnel du jeton root, démarrage seul du tunnel, `/ready` et statut Cloudflare `healthy`, puis challenge Access sur trois routes. Arrêt du tunnel si prérequis ou recette échouent ; délai global 180 s. |
 | `probe` | Requêtes réelles sous UID `dao`, sans cookies et avec assertion JWT invalide ; exige redirection vers le login Access de l'équipe approuvée. |
 | `stop` | Arrêt du seul tunnel ; accès existant OCE conservé. |
 
@@ -150,3 +153,61 @@ Ne jamais exécuter `gateway-host apply` dans le workflow de démo.
 Références officielles : [paramètres cloudflared](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/),
 [configuration API du tunnel](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/subresources/configurations/methods/get/),
 [policies Access](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/subresources/policies/methods/list/).
+
+## Mise en service guidée — propriétaire non spécialiste Linux
+
+Checkpoint propriétaire #58 du 8 octobre : Access/OTP, policy e-mails,
+validation JWT, DNS Proxied et tunnel `dao-oce-demo` déclarés configurés, ID
+`0a42e8b3-1f74-4b3b-8440-e54efe20145a`. Cela n’est pas encore un audit API
+indépendant, une connexion du VPS ou une recette authentifiée.
+
+1. Dans Cloudflare, profil → **API Tokens** → **Create Token** →
+   **Create Custom Token**, nom `dao-oce-audit-readonly`. Ajouter uniquement :
+
+   | Catégorie | Permission | Niveau |
+   | --- | --- | --- |
+   | Account | Cloudflare Tunnel | Read |
+   | Account | Access: Apps and Policies | Read |
+   | Account | Access: Organizations, Identity Providers, and Groups | Read |
+   | Zone | Zone | Read |
+   | Zone | DNS | Read |
+
+   Limiter Account Resources au compte de `logiclab.fr`, Zone Resources à
+   `logiclab.fr`. Aucun Edit/Write ni Global API Key. Conserver ce jeton dans
+   votre gestionnaire de secrets privé ; ne pas exécuter l’exemple curl fourni.
+2. Dans le tunnel `dao-oce-demo`, ouvrir l’écran d’installation/
+   **Add a replica**, copier uniquement la valeur du jeton `eyJ...`.
+   **Ne pas exécuter la commande d’installation Cloudflare** : notre service
+   utilise le binaire vérifié et une credential root, sans secret en argument.
+3. Ouvrir votre terminal administrateur habituel du VPS. C’est la seule
+   intervention terminal indispensable. DEV 3 fournit le bloc exact à coller,
+   avec SHA main revu et immuable : téléchargement du code dans un répertoire
+   root privé, `bash ops/install-oce-private-demo.sh`, puis
+   `python3 ops/provision-oce-private-demo.py`. Ne pas utiliser une copie de
+   code modifiable par `dao` comme source du bootstrap root.
+4. Le programme pose quatre questions : ID de tunnel ci-dessus, liste exacte
+   d’e-mails autorisés (virgules), jeton API de lecture, jeton de tunnel.
+   Les deux derniers champs sont **masqués**, sans affichage des caractères.
+   Les IDs compte/zone/application et le nom d’équipe sont trouvés
+   automatiquement via API GET. Le programme vérifie l’allowlist indépendante
+   et toute la configuration avant d’écrire les trois fichiers root 0600.
+   Il refuse d’écraser des fichiers existants, annule les créations partielles
+   sur erreur et ne démarre aucun service. Attendre le message
+   `BOOTSTRAP_CONFIGURATION_READY`. Ne communiquer que ce résultat, pas
+   les secrets, leur capture, le contenu des fichiers ou un dump d’API.
+5. Ensuite utiliser [OCE private demo operations](https://github.com/Khaey/Dao/actions/workflows/oce-private-demo.yml),
+   **Run workflow**, branche **main** : `audit`, puis seulement s’il réussit
+   `start`, puis `probe`. Ce sont des opérations de mise en service, pas une
+   relance de CI. Aucun champ secret. DEV 3 examine les résultats et conserve
+   les preuves dans #58. Aucun basculement de :8080 ou gateway apply.
+
+Si `BOOTSTRAP_CONFIGURATION_FAILED` apparaît : arrêter, conserver les fichiers
+existants et communiquer uniquement le message générique. Ne pas élargir
+les permissions. La correction est instruite depuis les contrôles expurgés.
+Une fois start/probe réussis, faire les recettes navigateur propriétaire,
+invité autorisé et non-invité prévues plus haut.
+
+Source du format local du jeton :
+[cloudflared 2026.10.0 TunnelToken](https://github.com/cloudflare/cloudflared/blob/2026.10.0/connection/connection.go).
+Permissions GET token :
+[API officielle](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/subresources/token/methods/get/).

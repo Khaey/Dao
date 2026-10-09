@@ -3,6 +3,7 @@
 
 No API write, no redirects, no credential output. Host activation is separate.
 """
+import base64
 import fnmatch
 import json
 import re
@@ -41,6 +42,24 @@ def validate_manifest(m):
     require(all(isinstance(e, str) and re.fullmatch(r'[^\s@*]+@[^\s@*]+\.[^\s@*]+', e)
                 and e == e.lower() for e in m['emails']))
     return m
+
+
+def validate_tunnel_token(token, manifest):
+    """Bind root-provisioned credentials; CF authenticates the secret on connect.
+
+    This is structural binding, not offline signature/authentication verification.
+    Never retrieve credentials using an API key with tunnel write permissions.
+    """
+    require(isinstance(token, str) and 0 < len(token) <= 4096)
+    def unique_object(pairs):
+        value = dict(pairs)
+        require(len(value) == len(pairs))
+        return value
+    payload = json.loads(base64.b64decode(token, validate=True), object_pairs_hook=unique_object)
+    require(isinstance(payload, dict) and {'a', 't', 's'} <= set(payload) <= {'a', 't', 's', 'e'})
+    require(payload['a'] == manifest['account_id'] and payload['t'] == manifest['tunnel_id'])
+    require(not payload.get('e'))  # No caller-controlled alternate edge endpoint.
+    require(isinstance(payload['s'], str) and len(base64.b64decode(payload['s'], validate=True)) == 32)
 
 
 def api_get(path, token):

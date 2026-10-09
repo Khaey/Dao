@@ -6,8 +6,10 @@ on:
       - 'ops/*cloudflare*'
       - ops/dao-oce-private-admin.py
       - ops/install-oce-private-demo.sh
+      - ops/provision-oce-private-demo.py
       - 'scripts/tests/test_oce_cloudflare.py'
       - 'scripts/tests/test_oce_private_admin.py'
+      - 'scripts/tests/test_oce_private_provision.py'
       - '.github/workflows/oce-private-demo*.yml'
       - docs/oce-cloudflare-private-demo.md
   push:
@@ -16,8 +18,10 @@ on:
       - 'ops/*cloudflare*'
       - ops/dao-oce-private-admin.py
       - ops/install-oce-private-demo.sh
+      - ops/provision-oce-private-demo.py
       - 'scripts/tests/test_oce_cloudflare.py'
       - 'scripts/tests/test_oce_private_admin.py'
+      - 'scripts/tests/test_oce_private_provision.py'
       - '.github/workflows/oce-private-demo*.yml'
       - docs/oce-cloudflare-private-demo.md
 permissions:
@@ -32,5 +36,6 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_oce_cloudflare.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_oce_private_admin.py' -v
-          PYTHONPYCACHEPREFIX=/tmp/oce-private-pycache python3 -m py_compile ops/oce-cloudflare.py ops/dao-oce-private-admin.py
+          python3 -m unittest discover -s scripts/tests -p 'test_oce_private_provision.py' -v
+          PYTHONPYCACHEPREFIX=/tmp/oce-private-pycache python3 -m py_compile ops/oce-cloudflare.py ops/dao-oce-private-admin.py ops/provision-oce-private-demo.py
           bash -n ops/install-oce-private-demo.sh
