@@ -1,5 +1,29 @@
 # D.A.O — Next Steps
 
+## OPT 20 — reprendre le diagnostic de déploiement #91 depuis GitHub
+
+Branche `chore/opt20-deploy-recovery-91`, base initiale
+269b7018dc18f55a5c6f725246e1d4b4f5c7e580 (CI/deploy #424 vert), réconciliée
+avec main efe86f584343e06553157c4a121f3c270cac8cbb en conservant #104/#107/#108
+Monitor, #105 DEV 20 et #84 Artisan. Lire le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91)
+pour HEAD/PR/CI/deploy réels ; si la livraison est marquée achevée, ne pas
+réexécuter les tests ou opérations. Les 16 tests ciblés couvrent les nouvelles
+fautes sur fichiers temporaires ; aucun test ne justifie une panne DEV réelle.
+
+Pour une future erreur de déploiement, lire `deploy_recovery` dans son run :
+erreur initiale conservée, résultats distincts lien/env/restart/readiness/
+cleanup. Une readiness en passe unique échouée indique seulement l'absence de
+preuve HTTP à cet instant. Utiliser les lectures fixes du contrôle commun pour
+un constat nouveau, coordonner toute mutation ; garder la borne D-023 en cas
+de cause ambiguë. Les routes/attentes de déploiement normal sont préservées.
+
+La preuve post-fusion attendue est le déploiement normal au SHA exact, pas une
+injection de panne VPS. Une CI automatique pending se suit sans relance ; un
+checkpoint final vert est acquis. Pas de nouvel ops-upgrade/bootstrap/rollback
+root pour ce script non catalogué ; pas de DB/backup/migration ou code OCE,
+produit/Auth/RLS. #58/#83/#64/#93 restent à leurs owners. Reprise uniquement
+depuis le HEAD publié, sans hook crash/Stop/quota Work.
+
 ## WORK OPT — Monitor #93, complément sur le corps réel de #104
 
 PR #107 corrige le titre et les marqueurs de silence. La reprise avec le
