@@ -1,33 +1,30 @@
 # D.A.O — Next Steps
 
-## OPT 20 — diagnostic ciblé et qualification restante #91
+## OPT 20 — premier lot #91 livré, reprendre les acquis
 
-PR #96 et #99 sont fusionnées ; reprendre les derniers checkpoints de
-[#91](https://github.com/Khaey/Dao/issues/91) et la branche de suivi
-`chore/opt20-ops-errors-91` depuis dac60a4274ecbf15d0407bc282fabafcc76ce4af,
-CI/deploy #416 et Pages #41 SUCCESS. Les Actions #16/#17 ont confirmé l'installation
-et les cinq grants sur le VPS : **ne pas rejouer ni redemander le bootstrap**,
-y compris si une section historique DEV ci-dessous le présente encore absent.
-Preflight #29 est acquis ; upgrade #30/#34 reste en échec indéterminé et status
-#35 sain. Ne pas réessayer cette mutation à entrées identiques. Le diagnostic
-préparé distingue contention root et transport GitHub sans exposer les erreurs
-brutes ; ce n'est pas une correction présumée de la cause historique.
-Livrer ce candidat avec sa CI automatique, puis lire le main réel et sa dernière
-CI verte avant admission du nouveau SHA exact. Le nouveau preflight doit montrer
-le delta réel du contrôleur seulement ; vérifier l'état installé avant upgrade.
-Après mise à jour réelle réussie, qualifier la restauration puis remettre la
-version admise, sans changement de service/configuration. Si le refus persiste,
-garder la limite et les sorties fixes, sans bypass ni boucle de retries.
-Pour un catalogue sans différence,
-un no-op ne crée pas de version précédente et ne prouve aucun rollback live.
-Ne pas fabriquer de changement pour le tester. À la première évolution réelle
-du catalogue, qualifier la restauration sans service concerné actif et conserver
-sa preuve. Upgrade/rollback ne modifient que le code
-des helpers installés ; aucune bascule OCE, nouvelle provision privée, backup,
-restauration DB partagée ou commande arbitraire. La matrice/runbook est dans
-[OPS control](../ops-control.md). Les sections suivantes sont historiques et
-ne relancent pas #85/#87 ; DEV 20 conserve #58, DEV 2 #83, Back-office #64,
-Telegram #93 distinct. Les checkpoints GitHub actualisent livraison et limites.
+PR #96/#99/#100 fusionnées ; main source admis
+642376a21ac79558745e3c0b99d1c7ea2c7d154e, CI/deploy #418 SUCCESS.
+Le cycle live preflight #41, upgrade #42, rollback #45, remise admise #47,
+status #48 et hash/grants #49 est acquis. **Ne pas refaire le bootstrap ni cette
+qualification à inputs inchangés**, même après une nouvelle session Work ou
+la publication documentaire sur `chore/opt20-ops-live-proof-91`. Le contrôleur
+installé est rev-642376a…, previous=bootstrap ; neuf copies intègres, aucune
+transaction en attente. Lire les derniers checkpoints de [#91](https://github.com/Khaey/Dao/issues/91)
+pour la livraison exacte du suivi documentaire et le prochain mandat Pilot.
+
+Une évolution future réelle du catalogue exige une branche propre depuis le
+main vérifié, manifeste régénéré, contrôles/CI pertinents puis admission du SHA
+après sa **dernière** CI main verte. Preflight, absence de dérive et services
+concernés inactifs restent requis avant remplacement ; conserver les versions
+et preuves. Un no-op ne crée pas de version précédente. Un refus impose un
+diagnostic expurgé et un fait nouveau avant reprise, sans boucle ni bypass.
+La maintenance restaure le code, jamais les configurations, secrets ou données.
+Matrice et preuves dans [OPS control](../ops-control.md).
+
+#91 reste ouverte pour le périmètre global, pas pour rejouer le lot livré.
+Les sections DEV/historiques ci-dessous sont préservées ; leur ancienne mention
+d'un bootstrap OPS absent est dépassée. #85/#87 acquis, #58 à DEV 20, #83 à DEV 2,
+#64/#93 distincts. Fournisseur/READY/start OCE restent le mandat #58.
 
 ## DEV 20 — reprise OCE #58 après le nouveau refus
 

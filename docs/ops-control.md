@@ -113,7 +113,8 @@ confirment le contrôleur root, les cinq grants, `bootstrap_required:false`,
 `current:bootstrap`, `installed_match:true`, neuf fichiers gérés,
 `previous:null` et aucune transaction pendante. Cette installation ne dépend
 pas de READY Cloudflare #58 et ne doit plus être demandée à un nouveau Work.
-La qualification d'un rollback live reste distincte de ces preuves.
+Le cycle de maintenance a ensuite été qualifié sur une évolution réelle ;
+voir les runs de la section Qualification et reprise.
 
 Le protocole initial, désormais historique, téléchargeait **deux fichiers**
 depuis un SHA main revu et vert dans un répertoire temporaire root 0700 :
@@ -159,12 +160,28 @@ avec l'état réel #58 avant toute demande afin d'éviter des commandes successi
 
 ## Qualification et reprise
 
-PR #96 et [#91](https://github.com/Khaey/Dao/issues/91) portent les HEAD/runs
-réels. Les tests utilisent des fichiers fictifs et vérifient l'admission,
-les refus, intégrité, locks, upgrade/rollback et interruption. Ils ne prouvent
-pas les droits du VPS. La CI obligatoire conserve tous les gates existants.
-Après déploiement, le signal #91 et ses sorties live prouvent l'interface
-commune ; les runs #16/#17 ci-dessus prouvent maintenant l'installation OPS.
+Le premier lot est qualifié live au SHA source
+`642376a21ac79558745e3c0b99d1c7ea2c7d154e` de PR #100, après dernière CI main
+[#418](https://github.com/Khaey/Dao/actions/runs/37897760282) SUCCESS et admission
+owner 6076369263. Le contrôleur est la seule évolution de code du catalogue.
+
+| Preuve Actions, tentative 1 SUCCESS | Résultat |
+| --- | --- |
+| [Preflight #41](https://github.com/Khaey/Dao/actions/runs/37898487723) | Seul contrôleur différent ; aucun fichier absent |
+| [Upgrade #42](https://github.com/Khaey/Dao/actions/runs/37898617882) / [status #43](https://github.com/Khaey/Dao/actions/runs/37898784030) | Version admise installée ; snapshot précédent bootstrap, neuf copies intègres |
+| [Rollback #45](https://github.com/Khaey/Dao/actions/runs/37899006657) / [status #46](https://github.com/Khaey/Dao/actions/runs/37899153297) | Code bootstrap restauré et vérifié ; récupération ordinaire, aucune panne forcée |
+| [Remise admise #47](https://github.com/Khaey/Dao/actions/runs/37899331901) / [status #48](https://github.com/Khaey/Dao/actions/runs/37899568438) | current=rev-642376a…, previous=bootstrap, installed_match=true, aucune transaction pendante |
+| [Diagnostics #49](https://github.com/Khaey/Dao/actions/runs/37899837321) | Root-controlled, cinq grants vrais, bootstrap_required=false, secrets_read=false |
+
+Hash installé confirmé :
+`0998ca3e64ce1ba61512d9768333fed9528341155540d5bca661e39f077ad8d6`.
+Ces preuves portent sur le code installé, sans changement des configurations,
+secrets, services, réseau ou données. Les anciens refus #30/#34 gardent une
+cause inconnue ; la réussite ultérieure ne leur attribue pas une cause.
+Les 19 tests sur fichiers fictifs prouvent aussi la récupération du journal
+après interruption, pas un crash VPS réel. Ne pas rejouer ces acquis pour
+tester l'accès, une nouvelle session ou une publication de docs sans changement
+du catalogue. #91 reste ouverte pour le périmètre global/prochain mandat.
 En cas de crash/quota Work, reprendre le dernier HEAD publié/checkpoint selon
 [WORK_CHECKPOINTS.md](ai-context/WORK_CHECKPOINTS.md), jamais des edits locaux
 non sauvegardés. Aucun arrêt brutal Work n'est intercepté automatiquement.
