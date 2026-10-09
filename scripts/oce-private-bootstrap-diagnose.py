@@ -91,7 +91,7 @@ def diagnose(cf, get, tunnel_id, emails, tunnel_token):
     try:
         # Same discovery and strict validation as the reviewed provisioner.
         cf.require(isinstance(tunnel_id, str) and isinstance(emails, list))
-        zones = read('/zones?name=logiclab.fr&per_page=100')
+        zones = read('/zones?name=logiclab.fr&per_page=50')
         cf.require(len(zones) == 1 and zones[0]['name'] == 'logiclab.fr')
         account = zones[0]['account']['id']
         apps = read('/accounts/' + account + '/access/apps?per_page=100')

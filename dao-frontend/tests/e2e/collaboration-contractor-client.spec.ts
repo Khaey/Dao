@@ -8,7 +8,7 @@ test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et
   await page.goto('/app');
   await expect(page.getByRole('heading', { name: 'Mes chantiers clients', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'DAO disponibles', exact: true })).toBeVisible();
+  await expect(page.getByRole('main').locator('a[href="/app/artisan"]')).toBeVisible();
   await expect(page.getByText(/préparez des lots clairs/)).toHaveCount(0);
   const project = await createCollaborative(page, info, true, e2eClient!.email);
   await expect(page.getByRole('main').getByText('Client à confirmer', { exact: true })).toBeVisible();

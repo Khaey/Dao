@@ -60,7 +60,7 @@ class CheckTests(unittest.TestCase):
         old_tunnel = self.m['tunnel_id']
         self.m['tunnel_id'] = c.TUNNEL_ID
         self.data = {key.replace(old_tunnel, c.TUNNEL_ID): value for key, value in fixture.data.items()}
-        self.data['/zones?name=logiclab.fr&per_page=100'] = [{
+        self.data['/zones?name=logiclab.fr&per_page=50'] = [{
             'name': 'logiclab.fr', 'status': 'active', 'id': self.m['zone_id'],
             'account': {'id': self.m['account_id']}}]
         self.tunnel_path = fixture.base + '/cfd_tunnel/' + c.TUNNEL_ID
@@ -82,7 +82,7 @@ class CheckTests(unittest.TestCase):
             reads.append(path)
             return self.data[path]
         result = self.check(emails='', get=get)
-        self.assertEqual(reads, ['/zones?name=logiclab.fr&per_page=100', self.tunnel_path])
+        self.assertEqual(reads, ['/zones?name=logiclab.fr&per_page=50', self.tunnel_path])
         self.assertFalse(result['configuration_verified'])
         self.assertFalse(result['access_policy_verified'])
         self.assertTrue(self.progress['tunnel_token_binding_verified'])
@@ -109,7 +109,7 @@ class CheckTests(unittest.TestCase):
         for change in ('zone', 'deleted', 'local', 'id'):
             self.data = copy.deepcopy(pristine)
             if change == 'zone':
-                self.data['/zones?name=logiclab.fr&per_page=100'][0]['status'] = 'pending'
+                self.data['/zones?name=logiclab.fr&per_page=50'][0]['status'] = 'pending'
             else:
                 key, value = {'deleted': ('deleted_at', 'date'), 'local': ('config_src', 'local'),
                               'id': ('id', 'other')}[change]
