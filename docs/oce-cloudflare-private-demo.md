@@ -1,5 +1,13 @@
 # OCE #58 — démo privée Cloudflare (préparation DEV 3)
 
+Reprise DEV 20 du 2026-10-09 : le propriétaire ne souhaite plus de CMD/TTY et
+déclare avoir ajouté les deux jetons dans GitHub Secrets. Utiliser les
+[contrôles Actions sur runner](oce-cloudflare-actions.md) ; les anciennes
+procédures terminal ci-dessous sont historiques pour cette reprise.
+Le dernier refus observé est `HTTP_403 / ZONE_LOOKUP`, avec le validateur corrigé
+installé ; aucune configuration écrite ni démarrage. Un contrôle runner réussi
+ne provisionne pas les fichiers root et ne confirme pas la recette utilisateur.
+
 État vérifié le 8 octobre 2026 : main
 `85616225ce4878f501edd639ea06f74c314bb045`, CI/deploy DEV
 [37730506837](https://github.com/Khaey/Dao/actions/runs/37730506837)

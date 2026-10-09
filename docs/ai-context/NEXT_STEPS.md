@@ -1,5 +1,23 @@
 # D.A.O — Next Steps
 
+## DEV 20 — OCE #58, vérifier les secrets sans terminal
+
+Reprendre `fix/dev20-oce-actions-check` et le dernier checkpoint #58. Observer
+les CI du candidat courant, réconcilier main puis livrer dans le mandat #58.
+Déclencher une fois `/dao-oce check` : cela constate présence/utilisabilité des
+deux jetons déclarés et le refus fournisseur éventuel, sans VPS. Conserver run,
+SHA, tentative et diagnostic ; un PASS ne constitue pas l'audit Access complet.
+Pour `/dao-oce audit`, ajouter la liste owner indépendante dans le secret privé
+`OCE_CLOUDFLARE_APPROVED_EMAILS` via l'interface GitHub, sans la republier.
+
+Si le 403 demeure, corriger uniquement le contrôle Cloudflare constaté puis
+recontrôler après changement réel. Si les gates passent, préparer le verbe root
+de provisionnement distinct et son grant précis, avec admission/installations
+revues ; le contrôle runner ne les installe pas. Aucun nouveau CMD/TTY, ancien
+bloc de saisie ou bootstrap OPS : instruction propriétaire courante. Aucun start,
+gateway-host apply ou fermeture :8080 sans mandat distinct. Les anciennes étapes
+terminal ci-dessous sont historiques et ne s'appliquent plus à cette reprise.
+
 ## OPT 20 — transport de récupération #91 livré, reprendre ses preuves
 
 PR #102 fusionnée au main source 5e551b0dea87a49977f170f3466d71088defe27c ;

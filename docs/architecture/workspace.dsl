@@ -71,10 +71,14 @@ model {
   supabase -> supabaseStorage "Fournit Storage privé"
   github = softwareSystem "GitHub" "Source de vérité, PR, Actions, Releases et CI/CD." "External"
   githubDevEnv = softwareSystem "GitHub Environment dev" "Stockage protégé des variables/secrets DEV consommés uniquement par les workflows autorisés." "External"
+  cloudflareApi = softwareSystem "API Cloudflare OCE" "GET de zone/tunnel et audit Access/DNS/connecteur #58 ; distinct de l'accès démo non activé." "External"
   vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr, dao-dev.service et /etc/dao/dao-dev.env." "External"
   workAgents = person "Agents DEV / OPT / Pilot" "Consomment les opérations fixes depuis GitHub ; aucun compte root individuel."
   rootMaintenance = softwareSystem "Maintenance root OPS" "Catalogue installé #91, admission main/CI/SHA et snapshots root ; cycle upgrade/rollback du contrôleur qualifié live sur une évolution réelle." "External"
   workAgents -> github "Commentaires owner exacts #91 ou Actions main selon mandat"
+  workAgents -> github "Commentaires owner exacts #58 pour contrôle Cloudflare sur runner selon mandat"
+  githubDevEnv -> github "Fournit les deux jetons OCE et la liste approuvée privée à la seule étape de contrôle #58"
+  github -> cloudflareApi "GET main-only sous owner/dev ; aucun transfert VPS, credential écrit ou tunnel démarré"
   github -> rootMaintenance "Scripts de contrôle non-root main-only, indépendants du lien release ; maintenance exige CI verte et admission du SHA"
   rootMaintenance -> vps "Maintient et restaure le code des neuf copies root ; aucun secret/service/réseau modifié"
 
@@ -181,6 +185,11 @@ views {
 
   systemLandscape "OpsControl" "Premier lot OPS #91 : bootstrap, grants et cycle de maintenance du code qualifiés live." {
     include workAgents github githubDevEnv vps rootMaintenance
+    autoLayout tb
+  }
+
+  systemLandscape "OceCloudflareChecks" "Contrôles Cloudflare #58 sur runner ; provisionnement root et activation restent séparés." {
+    include workAgents github githubDevEnv cloudflareApi
     autoLayout tb
   }
 
