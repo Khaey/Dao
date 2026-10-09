@@ -7,6 +7,7 @@ and actual repository/CI evidence take precedence over historical checkpoints.
 | File | Purpose |
 | --- | --- |
 | [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) | WORK OPT / WORK DEV ownership, FAST execution, validation, concurrency and VPS rules |
+| [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md) | Common DEV/OPT WIP publication, owner-issue template, crash/quota recovery and short Work startup message (#87) |
 | [CURRENT_STATE.md](CURRENT_STATE.md) | Latest dated verified snapshot followed by historical evidence |
 | [NEXT_STEPS.md](NEXT_STEPS.md) | Current OPT next actions and clearly marked historical DEV checkpoint |
 | [OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md) | Measured baseline and ranked technical experiments; no implementation claim |
