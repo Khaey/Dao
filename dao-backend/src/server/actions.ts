@@ -75,6 +75,10 @@ export async function submitBid(s: BackendServices, actor: AuthenticatedActor, v
   requireActor(actor);
   return s.bids.submitForActor(versionId);
 }
+export async function withdrawBid(s: BackendServices, actor: AuthenticatedActor, versionId: string) {
+  requireActor(actor);
+  return s.bids.withdraw(versionId);
+}
 export async function awardRequest(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
   requireActor(actor);
   return s.awards.award(input);
