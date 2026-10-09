@@ -147,7 +147,7 @@ issue #44. Its validated business decisions are the active instruction.
 ## Product handoff — P2 comparison and per-lot attribution complete
 
 The current verified `main` is
-`c01eac228210b65108e6273a6393f2de82aae036`. Main CI #287 and DEV deployment
+`6e42eb279249bc3d8c9098b326f246a4072ae2f3`. Main CI #289 and DEV deployment
 are green. P2 offer comparison and explicit per-lot attribution are operational
 after PR #39; do not recreate or duplicate that work.
 
