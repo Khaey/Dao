@@ -72,6 +72,29 @@ class MonitorTests(unittest.TestCase):
         pr = {"title": "fix(artisan): profil", "body": "Hors #58. Refs #83."}
         self.assertEqual(dm.pr_owner(pr, self.config), ("DAO DEV 2", 83))
 
+    def test_real_pr104_title_pr_numbers_do_not_hide_owner(self):
+        pr = {"title": "fix(monitor): identifier OPT 20 sur les PR #102/#103 et CI",
+              "body": "Corrige les notifications PR #102/#103 et CI #422/#424. Refs #93"}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 3", 93))
+        sha = "e0b2dbe7be35ad4b40720f9761caa97336b64f6e"
+        merged = dict(pr, merge_commit_sha=sha, merged_at="2026-10-09T09:25:09Z",
+                      base={"ref": "main"})
+        self.assertEqual(dm.owner_line(dm.associated_merged_pr([merged], sha), self.config),
+                         "👤 Agent : DAO Pilot 3 — mission #93")
+
+    def test_unregistered_title_allows_canonical_owner_link(self):
+        pr = {"title": "docs: preuve PR #103 CI #424",
+              "body": "https://github.com/Khaey/Dao/issues/91"}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO OPT 20", 91))
+
+    def test_conflicting_registered_title_is_not_overridden(self):
+        pr = {"title": "Corrections #58 et #91", "body": "Refs #93"}
+        self.assertEqual(dm.pr_owner(pr, self.config), (None, None))
+
+    def test_unregistered_title_without_owner_stays_unknown(self):
+        pr = {"title": "Corriger PR #102 et CI #424", "body": "", "user": {"login": "Khaey"}}
+        self.assertEqual(dm.pr_owner(pr, self.config), (None, None))
+
     def test_real_pr102_accented_refs_and_unrelated_oce(self):
         pr = {"title": "fix(ops): garder les helpers accessibles sans release active",
               "body": ("Aucun changement d'OCE #58. "
@@ -179,8 +202,46 @@ class MonitorTests(unittest.TestCase):
 
     def test_no_duplicate_silence(self):
         now = dt.datetime(2026, 10, 9, 5, tzinfo=dt.timezone.utc)
-        already = {"body": "DAO_MONITOR_SILENCE_V1:123", "user": {"login": "github-actions[bot]"}}
+        already = {"body": "DAO_MONITOR_SILENCE_V1:123", "user": {"login": "github-actions[bot]", "type": "Bot"}}
         self.assertIsNone(dm.silence_candidate([self.active, already], self.mission, ["Khaey"], now))
+
+    def test_untrusted_marker_cannot_suppress_silence(self):
+        now = dt.datetime(2026, 10, 9, 5, tzinfo=dt.timezone.utc)
+        for user in ({"login": "outside", "type": "User"},
+                     {"login": "Khaey", "type": "User"},
+                     {"login": "other[bot]", "type": "Bot"},
+                     {"login": "github-actions[bot]", "type": "User"}):
+            with self.subTest(user=user):
+                forged = {"body": "DAO_MONITOR_SILENCE_V1:123", "user": user}
+                self.assertIsNotNone(dm.silence_candidate(
+                    [self.active, forged], self.mission, ["Khaey"], now))
+
+    def test_different_or_quoted_marker_cannot_suppress_silence(self):
+        now = dt.datetime(2026, 10, 9, 5, tzinfo=dt.timezone.utc)
+        for body in ("DAO_MONITOR_SILENCE_V1:1234", "DAO_MONITOR_SILENCE_V1:12",
+                     "Quoted marker\nDAO_MONITOR_SILENCE_V1:123",
+                     "DAO_MONITOR_SILENCE_V1:123 extra"):
+            with self.subTest(body=body):
+                other = {"body": body, "user": {"login": "github-actions[bot]", "type": "Bot"}}
+                self.assertIsNotNone(dm.silence_candidate(
+                    [self.active, other], self.mission, ["Khaey"], now))
+
+    def test_machine_acknowledgement_matches_written_format(self):
+        now = dt.datetime(2026, 10, 9, 5, tzinfo=dt.timezone.utc)
+        delivered = {"body": "DAO_MONITOR_SILENCE_V1:123\nAlerte de silence DAO Monitor émise. "
+                             "Ne constitue pas un diagnostic de crash.",
+                     "user": {"login": "github-actions[bot]", "type": "Bot"}}
+        self.assertIsNone(dm.silence_candidate(
+            [self.active, delivered], self.mission, ["Khaey"], now))
+
+    def test_new_active_checkpoint_is_not_hidden_by_previous_ack(self):
+        now = dt.datetime(2026, 10, 9, 5, tzinfo=dt.timezone.utc)
+        delivered = {"body": "DAO_MONITOR_SILENCE_V1:123",
+                     "user": {"login": "github-actions[bot]", "type": "Bot"}}
+        resumed = dict(self.active, id=1234, created_at="2026-10-09T03:00:00Z")
+        result = dm.silence_candidate(
+            [self.active, delivered, resumed], self.mission, ["Khaey"], now)
+        self.assertEqual(result[0], "DAO_MONITOR_SILENCE_V1:1234")
 
     def test_no_false_pilot_watchdog(self):
         pilot = dm.mission_for(89, self.config)
@@ -193,3 +254,4 @@ class MonitorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

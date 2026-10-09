@@ -1,5 +1,19 @@
 # D.A.O — Next Steps
 
+## WORK OPT — qualification Monitor #93 (2026-10-09)
+
+Branche propre `chore/monitor-watchdog-marker-93`, depuis main vérifié
+`e24cb6074b5236a25a17bc74d5d683091595479a`. Le propriétaire confirme la
+réception Telegram : #105/#429 et #84/#432 sont nominatifs, mais #104/#426
+restent « non identifié ». Le titre de #104 cite des PR non enregistrées et
+interrompt la lecture de `Refs #93` ; ce défaut résiduel est corrigé. Le
+watchdog accepte désormais seulement le marqueur exact du bot Actions :
+ni commentaire non autorisé ni collision d'identifiant ne masque le silence.
+35 tests Monitor locaux PASS. Résultats CI/fusion et preuve finale :
+[#93](https://github.com/Khaey/Dao/issues/93). Registre #93 = DAO Pilot 3,
+WORK OPT exécutant ; #85 suspendue, #91/#58/#83 intacts.
+
+
 ## DEV 2 #83 — valider les correctifs Artisan, puis arbitrer les règles nouvelles
 
 Publier `feat/artisan-space-completion`, exécuter la CI exacte et ne fusionner que verte. Le lot est frontend et tests uniquement : aucune migration, aucun changement Auth/RLS et aucune intervention sur #64 ou #58. Après livraison, le DAO Pilot doit arbitrer séparément la règle de re-vérification des profils édités, l'espace par défaut des doubles rôles, l'intérêt d'une boîte globale d'invitations/offres et un éventuel retrait d'offre soumise. Ne pas transformer ces questions en comportement implicite. Preuves et décisions : [#83](https://github.com/Khaey/Dao/issues/83), avec le détail dans [l'audit](../artisan-space-audit.md).
