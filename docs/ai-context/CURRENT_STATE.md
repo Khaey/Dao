@@ -1,13 +1,15 @@
 # D.A.O — Current State
 
-## OPT 20 — contrôle OPS commun #91, bootstrap confirmé (2026-10-09)
+## OPT 20 — OPS #91 installé, diagnostic de refus préparé (2026-10-09)
 
 Handoff Pilot #6073726736 et GO propriétaire ; #85/#92 livrés, non rejoués.
 PR [#96](https://github.com/Khaey/Dao/pull/96) fusionnée au main
 `155caf1704b8f81673020087b818043072caf333`, CI/deploy #408 SUCCESS ; Pages #39
 SUCCESS. Son HEAD sauvegardé est `60d50c88f1015cb36a3e9851f264919155908ff1`.
-Suivi sur `chore/opt20-ops-qualification-91`, base réelle
-`072842b8b8497b344b7b09faf9b48d22e03abf78`, #98/#95 conservées.
+Suivi documentaire #99 fusionné au main
+`dac60a4274ecbf15d0407bc282fabafcc76ce4af`, CI/deploy #416 et Pages #41 SUCCESS.
+Branche propre suivante `chore/opt20-ops-errors-91` depuis ce main ; #98/#95
+conservées.
 Interface commune DAO DEV operations : signaux owner stricts #91, verbes fixes,
 diagnostics expurgés et maintenance des copies root installées par SHA main/CI
 et admission explicite, manifeste, verrous, snapshots/journal et rollback.
@@ -16,6 +18,15 @@ live [#16](https://github.com/Khaey/Dao/actions/runs/37893592552) et ops-status
 [#17](https://github.com/Khaey/Dao/actions/runs/37893942786), tentative 1 SUCCESS :
 cinq grants maintenance vrais, bootstrap_required=false, current=bootstrap,
 previous=null, installed_match=true, neuf fichiers, aucune transaction pendante.
+Preflight #29 / 37895168260 SUCCESS au SHA 072842b8b8497b344b7b09faf9b48d22e03abf78
+après dernière CI #414 et admission : aucun fichier différent/absent.
+Upgrade #30/#34 refuse OPERATION_FAILED, cause inconnue ; status final #35 /
+37895795045 confirme snapshot/copies intègres, sans transaction pendante.
+Mutation arrêtée, aucun no-op upgrade réussi revendiqué. Correction ciblée
+préparée : codes fixes pour contention de verrou et erreurs transport/HTTP
+GitHub, sans corps/URL/message sensible ; manifeste régénéré et tests renforcés.
+Publication/CI/admission puis installation réelle restent distinctes et sont
+suivies dans #91 ; aucune correction de la cause historique n'est présumée.
 Le rollback live ne découle pas des 17 tests fictifs ; une évolution réelle
 approuvée est nécessaire pour le qualifier. Ne plus demander le bootstrap.
 Aucun nouveau secret, service, réseau, backup ou migration modifié.

@@ -19,6 +19,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 
 STATE = Path('/var/lib/dao-ops')
@@ -210,9 +211,15 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 def fetch(url, limit=2 * 1024 * 1024):
     require(url.startswith(API + '/') or url.startswith(RAW + '/'), 'UNTRUSTED_SOURCE')
     request = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'DAO-OPS/1'})
-    with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
-        require(response.status == 200, 'GITHUB_UNAVAILABLE')
-        data = response.read(limit + 1)
+    try:
+        with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
+            require(response.status == 200, 'GITHUB_UNAVAILABLE')
+            data = response.read(limit + 1)
+    except urllib.error.HTTPError as exc:
+        code = 'GITHUB_HTTP_' + str(exc.code) if exc.code in (400, 401, 403, 404, 408, 422, 429, 500, 502, 503, 504) else 'GITHUB_HTTP_ERROR'
+        raise Halt(code) from None
+    except (urllib.error.URLError, TimeoutError):
+        raise Halt('GITHUB_NETWORK_UNAVAILABLE') from None
     require(len(data) <= limit, 'RESPONSE_TOO_LARGE')
     return data
 
@@ -406,7 +413,10 @@ def locked(stack):
         safe(path, missing=True)
         fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
         stack.callback(os.close, fd)
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise Halt('OPS_LOCK_BUSY') from None
 
 
 def timeout(signum, frame):

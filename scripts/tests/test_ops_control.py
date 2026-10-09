@@ -1,5 +1,6 @@
 import contextlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -7,6 +8,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -150,8 +152,18 @@ class MaintenanceTests(unittest.TestCase):
     def test_root_lock_contention_refuses_second_mutation(self):
         with contextlib.ExitStack() as first:
             admin.locked(first)
-            with contextlib.ExitStack() as second, self.assertRaises(BlockingIOError):
+            with contextlib.ExitStack() as second, self.assertRaisesRegex(admin.Halt, 'OPS_LOCK_BUSY'):
                 admin.locked(second)
+            output = io.StringIO()
+            with patch.object(admin.os, 'geteuid', return_value=0), \
+                 patch.object(admin.sys, 'argv', ['dao-ops-admin', 'upgrade']), \
+                 patch.object(admin.signal, 'signal'), patch.object(admin.signal, 'alarm'), \
+                 contextlib.redirect_stderr(output):
+                self.assertEqual(admin.main(), 1)
+            self.assertEqual(json.loads(output.getvalue()), {'ops_error': 'OPS_LOCK_BUSY'})
+        self.assertEqual(admin.installed_files(), self.old)
+        self.assertEqual(admin.load_ledger(), self.ledger)
+        self.assertFalse((self.state / 'transaction.json').exists())
 
     def test_external_drift_refused_before_network_or_overwrite(self):
         Path(admin.CATALOG['ops/oce-cloudflare.py'][0]).write_bytes(b'changed by DEV 20\n')
@@ -250,6 +262,28 @@ esac
 
 
 class RedactionTests(unittest.TestCase):
+    def test_github_http_failure_exposes_only_a_bounded_status_code(self):
+        url = admin.API + '/git/ref/heads/main'
+        for code, expected in [(403, 'GITHUB_HTTP_403'), (429, 'GITHUB_HTTP_429'),
+                               (503, 'GITHUB_HTTP_503'), (599, 'GITHUB_HTTP_ERROR')]:
+            error = urllib.error.HTTPError(url + '?fictional-secret', code,
+                                           'fictional-secret', {'private': 'fictional-secret'}, None)
+            with self.subTest(code=code), patch.object(admin.urllib.request, 'build_opener') as opener:
+                opener.return_value.open.side_effect = error
+                with self.assertRaises(admin.Halt) as caught:
+                    admin.fetch(url)
+                self.assertEqual(str(caught.exception), expected)
+
+    def test_transport_failure_is_redacted_and_redirect_refusal_is_preserved(self):
+        for error, expected in [(urllib.error.URLError('fictional-secret'), 'GITHUB_NETWORK_UNAVAILABLE'),
+                                (TimeoutError('fictional-secret'), 'GITHUB_NETWORK_UNAVAILABLE'),
+                                (admin.Halt('GITHUB_REDIRECT_REJECTED'), 'GITHUB_REDIRECT_REJECTED')]:
+            with self.subTest(error=type(error).__name__), patch.object(admin.urllib.request, 'build_opener') as opener:
+                opener.return_value.open.side_effect = error
+                with self.assertRaises(admin.Halt) as caught:
+                    admin.fetch(admin.API + '/git/ref/heads/main')
+                self.assertEqual(str(caught.exception), expected)
+
     def test_backup_status_accepts_only_bounded_public_values(self):
         value = {'id': 'a' * 32, 'phase': 'complete', 'backup_complete': True,
                  'restore_verified': True, 'live_resumed': True, 'cleanup_complete': True,

@@ -1,14 +1,24 @@
 # D.A.O — Next Steps
 
-## OPT 20 — poursuivre #91 depuis le bootstrap confirmé
+## OPT 20 — diagnostic ciblé et qualification restante #91
 
-PR #96 est fusionnée ; reprendre les derniers checkpoints de
+PR #96 et #99 sont fusionnées ; reprendre les derniers checkpoints de
 [#91](https://github.com/Khaey/Dao/issues/91) et la branche de suivi
-`chore/opt20-ops-qualification-91`. Les Actions #16/#17 ont confirmé l'installation
+`chore/opt20-ops-errors-91` depuis dac60a4274ecbf15d0407bc282fabafcc76ce4af,
+CI/deploy #416 et Pages #41 SUCCESS. Les Actions #16/#17 ont confirmé l'installation
 et les cinq grants sur le VPS : **ne pas rejouer ni redemander le bootstrap**,
 y compris si une section historique DEV ci-dessous le présente encore absent.
-Lire le main réel et sa CI verte avant une nouvelle admission du SHA exact.
-Qualifier le preflight et l'upgrade selon les différences installées réelles ;
+Preflight #29 est acquis ; upgrade #30/#34 reste en échec indéterminé et status
+#35 sain. Ne pas réessayer cette mutation à entrées identiques. Le diagnostic
+préparé distingue contention root et transport GitHub sans exposer les erreurs
+brutes ; ce n'est pas une correction présumée de la cause historique.
+Livrer ce candidat avec sa CI automatique, puis lire le main réel et sa dernière
+CI verte avant admission du nouveau SHA exact. Le nouveau preflight doit montrer
+le delta réel du contrôleur seulement ; vérifier l'état installé avant upgrade.
+Après mise à jour réelle réussie, qualifier la restauration puis remettre la
+version admise, sans changement de service/configuration. Si le refus persiste,
+garder la limite et les sorties fixes, sans bypass ni boucle de retries.
+Pour un catalogue sans différence,
 un no-op ne crée pas de version précédente et ne prouve aucun rollback live.
 Ne pas fabriquer de changement pour le tester. À la première évolution réelle
 du catalogue, qualifier la restauration sans service concerné actif et conserver
