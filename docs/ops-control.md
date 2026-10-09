@@ -88,6 +88,21 @@ les octets réellement installés. Après bootstrap, utiliser la maintenance
 commune pour les changements approuvés ; un changement manuel ultérieur est
 signalé comme dérive et nécessite un arbitrage, jamais un écrasement silencieux.
 
+### Refus de maintenance expurgés
+
+Le contrôleur distingue un verrou root occupé (`OPS_LOCK_BUSY`), un statut HTTP
+GitHub de sa liste fermée (`GITHUB_HTTP_403`, `GITHUB_HTTP_429`, etc.) et une
+erreur réseau/timeout (`GITHUB_NETWORK_UNAVAILABLE`). Les autres statuts HTTP
+donnent `GITHUB_HTTP_ERROR`. Aucun corps, header, URL ou message d'exception
+n'est publié. Les redirections restent refusées, les durées et protections
+inchangées. Un HTTP 403 ne prouve pas à lui seul un défaut de permission.
+
+Un verrou occupé exige un fait nouveau sur la fin de l'opération concurrente,
+pas un contournement ou une boucle de retries. Une erreur encore indéterminée
+reste `OPERATION_FAILED/details withheld` ; conserver le statut et la limite.
+Ces codes améliorent un prochain diagnostic après mise à jour admise ; ils ne
+déterminent pas rétroactivement la cause des anciens refus #30/#34.
+
 ## Bootstrap unique — terminé, ne pas rejouer
 
 Le propriétaire a exécuté le bloc immuable de PR #96 le 2026-10-09 : neuf
