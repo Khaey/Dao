@@ -1,3 +1,4 @@
+import base64
 import importlib.util
 import json
 from pathlib import Path
@@ -21,7 +22,7 @@ class Lock:
 
 
 class AdminBoundaries(unittest.TestCase):
-    def invoke(self, operation, live='approved-token', probe_fails=False):
+    def invoke(self, operation, foreign=False, probe_fails=False, healthy=True):
         cf_spec = importlib.util.spec_from_file_location('test_cf', ROOT / 'ops/oce-cloudflare.py')
         cf = importlib.util.module_from_spec(cf_spec)
         cf_spec.loader.exec_module(cf)
@@ -29,8 +30,20 @@ class AdminBoundaries(unittest.TestCase):
                     'tunnel_id': '11111111-1111-1111-1111-111111111111',
                     'application_id': '22222222-2222-2222-2222-222222222222',
                     'team_name': 'dao-test', 'emails': ['owner@example.test']}
+        payload = {'a': manifest['account_id'], 't': manifest['tunnel_id'],
+                   's': base64.b64encode(bytes(32)).decode()}
+        if foreign:
+            payload['t'] = '33333333-3333-3333-3333-333333333333'
+        test_token = base64.b64encode(json.dumps(payload).encode()).decode()
         def read(path):
-            return json.dumps(manifest) if path.name == 'approved.json' else 'approved-token'
+            if path.name == 'approved.json':
+                return json.dumps(manifest)
+            return test_token if path.name == 'tunnel-token' else 'read-only-api-test-value'
+
+        def readonly_get(path, token):
+            if path == '/accounts/' + manifest['account_id'] + '/cfd_tunnel/' + manifest['tunnel_id']:
+                return {'status': 'healthy' if healthy else 'inactive'}
+            raise AssertionError('Unexpected credential API request')
         class Response:
             status = 200
             def __enter__(self):
@@ -47,7 +60,7 @@ class AdminBoundaries(unittest.TestCase):
              patch.object(a.importlib.util, 'spec_from_file_location',
                           return_value=types.SimpleNamespace(loader=types.SimpleNamespace(exec_module=lambda module: None))), \
              patch.object(cf, 'audit', return_value={'configuration_verified': True}), \
-             patch.object(cf, 'api_get', return_value=live), \
+             patch.object(cf, 'api_get', side_effect=readonly_get), \
              patch.object(cf.OPENER, 'open', return_value=Response()), \
              patch.object(cf, 'probe', side_effect=ValueError('private') if probe_fails else None), \
              patch.object(a, 'systemctl', return_value=types.SimpleNamespace(returncode=0)) as ctl, \
@@ -56,11 +69,17 @@ class AdminBoundaries(unittest.TestCase):
             return result, ctl.call_args_list, str(output.call_args_list)
 
     def test_wrong_tunnel_token_never_starts_service_and_is_redacted(self):
-        result, commands, output = self.invoke('start', live='foreign-secret-token')
+        result, commands, output = self.invoke('start', foreign=True)
         self.assertEqual(result, 1)
         self.assertTrue(all(c.args[0] == 'stop' for c in commands))
         self.assertNotIn('foreign-secret-token', output)
         self.assertNotIn('approved-token', output)
+
+    def test_start_never_requests_write_permission_credential_endpoint(self):
+        result, commands, output = self.invoke('start')
+        self.assertEqual(result, 0)
+        self.assertEqual(commands[0].args, ('start',))
+        self.assertNotIn('read-only-api-test-value', output)
 
     def test_failed_edge_probe_stops_only_private_tunnel(self):
         result, commands, output = self.invoke('start', probe_fails=True)
@@ -68,6 +87,11 @@ class AdminBoundaries(unittest.TestCase):
         self.assertEqual(commands[0].args, ('start',))
         self.assertEqual(commands[-1].args, ('stop', False))
         self.assertNotIn('approved-token', output)
+
+    def test_local_ready_without_authenticated_cf_tunnel_stops_service(self):
+        result, commands, _ = self.invoke('start', healthy=False)
+        self.assertEqual(result, 1)
+        self.assertEqual(commands[-1].args, ('stop', False))
 
     def test_audit_does_not_mutate_service(self):
         result, commands, _ = self.invoke('audit')

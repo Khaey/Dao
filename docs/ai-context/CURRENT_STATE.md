@@ -684,3 +684,18 @@ Port public conservé, egress guard/passerelle produit toujours non activés.
 Ne pas relancer les gates backup/digest/compte déjà qualifiées.
 Prochaine étape : CI PR puis configuration Cloudflare/bootstrap de confiance
 et recette propriétaire/invité ; accord explicite ultérieur avant apply.
+
+## DEV 3 — mise en service OCE, correction bootstrap, 2026-10-09
+
+Main de reprise c95f657, CI/deploy 37806093043 déjà verts, non relancés.
+Checkpoint propriétaire #58 6066177360 : Access/OTP, tunnel dao-oce-demo
+0a42e8b3-1f74-4b3b-8440-e54efe20145a, JWT et CNAME déclarés configurés.
+Aucune preuve de connecteur VPS démarré ni de recette authentifiée.
+Branche propre chore/dev3-oce-secure-bootstrap : correction du GET token qui
+exige Write, remplacé par liaison locale compte/tunnel et authentification
+réelle cloudflared + readiness/statut healthy. Clé API strictement Read.
+Saisie bootstrap root/TTY masquée, découverte des IDs, allowlist indépendante
+et audit avant écriture root 0600 ; aucune activation automatique.
+Prochaine étape : validation de cette correction, bootstrap unique guidé,
+puis Actions audit/start/probe. :8080 conservé, gateway apply toujours interdit
+sans accord explicite séparé. Voir docs/oce-cloudflare-private-demo.md.

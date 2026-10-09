@@ -1,3 +1,5 @@
+import base64
+import json
 import copy
 import importlib.util
 from pathlib import Path
@@ -135,6 +137,19 @@ class PrivateDemoTests(unittest.TestCase):
             'destinations': [{'type': 'public', 'uri': cf.HOST + '/api'}]})
         with self.assertRaises(ValueError):
             self.audit()
+
+    def test_tunnel_token_binding_rejects_other_account_tunnel_endpoint_and_duplicates(self):
+        payload = {'a': self.m['account_id'], 't': self.m['tunnel_id'],
+                   's': base64.b64encode(bytes(32)).decode()}
+        encode = lambda value: base64.b64encode(json.dumps(value).encode()).decode()
+        cf.validate_tunnel_token(encode(payload), self.m)
+        for field, value in [('a', 'd' * 32), ('t', '33333333-3333-3333-3333-333333333333'),
+                             ('e', 'evil.test'), ('s', 'invalid')]:
+            with self.subTest(field=field), self.assertRaises((ValueError, TypeError)):
+                cf.validate_tunnel_token(encode({**payload, field: value}), self.m)
+        duplicated = json.dumps(payload)[:-1] + ',"a":"' + self.m['account_id'] + '"}'
+        with self.assertRaises(ValueError):
+            cf.validate_tunnel_token(base64.b64encode(duplicated.encode()).decode(), self.m)
 
     def test_no_redirect_following(self):
         self.assertIsNone(cf.RefuseRedirect().redirect_request(None, None, 302, '', {}, 'https://evil.test'))

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Root-installed fixed operations; no user-supplied config, token or shell."""
 import fcntl
-import hmac
 import importlib.util
 import json
 import os
@@ -11,7 +10,6 @@ import stat
 import subprocess
 import sys
 import time
-import urllib.request
 
 ROOT = Path('/etc/dao-oce-cloudflare')
 SERVICE = 'dao-oce-cloudflared.service'
@@ -65,11 +63,8 @@ def main():
             token = private_file(ROOT / 'api-token')
             result = cf.audit(m, lambda p: cf.api_get(p, token))
             if op == 'start':
-                private_file(ROOT / 'tunnel-token')
-                # Bind token to the approved tunnel; mismatch can expose arbitrary origins.
-                live_token = cf.api_get('/accounts/' + m['account_id'] + '/cfd_tunnel/' + m['tunnel_id'] + '/token', token)
-                cf.require(isinstance(live_token, str) and hmac.compare_digest(
-                    live_token, private_file(ROOT / 'tunnel-token')))
+                # Local binding only; CF verifies the actual secret when connecting.
+                cf.validate_tunnel_token(private_file(ROOT / 'tunnel-token'), m)
                 systemctl('start')
                 try:
                     ready = False
@@ -82,6 +77,8 @@ def main():
                         except Exception:
                             time.sleep(1)
                     cf.require(ready and systemctl('is-active', False).returncode == 0)
+                    live = cf.api_get('/accounts/' + m['account_id'] + '/cfd_tunnel/' + m['tunnel_id'], token)
+                    cf.require(live.get('status') == 'healthy')
                     cf.probe(m['team_name'])
                 except Exception:
                     systemctl('stop', False)
