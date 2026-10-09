@@ -1,0 +1,46 @@
+{
+  "allowed_comment_authors": [
+    "Khaey"
+  ],
+  "missions": [
+    {
+      "issue": 89,
+      "agent": "DAO Pilot 3",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 91,
+      "agent": "DAO OPT 20",
+      "role": "OPT",
+      "watchdog": true,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 83,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": true,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 58,
+      "agent": "DAO DEV 20",
+      "role": "DEV",
+      "watchdog": true,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 93,
+      "agent": "DAO Pilot 3",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 85,
+      "agent": "WORK OPT",
+      "role": "OPT",
+      "watchdog": false
+    }
+  ]
+}
