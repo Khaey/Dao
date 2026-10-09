@@ -1,5 +1,64 @@
 # OCE #58 — diagnostic privé du bootstrap (DEV 20)
 
+## Reprise après le refus du provisionnement corrigé
+
+Le propriétaire signale encore BOOTSTRAP_CONFIGURATION_FAILED après le bloc
+lié à #90. Ce message générique ne permet pas de choisir des permissions ou
+de corriger la configuration. #90 et sa CI/deploy #397 restent acquis.
+L'accord propriétaire permet désormais les droits nécessaires à OCE ; il ne
+prouve pas leur installation ni que le refus vient des permissions.
+
+Le provisionnement root/TTY fournit maintenant une ligne JSON expurgée :
+étape, code fixe, ligne/hash du module installé, sans corps API, URL, IDs,
+e-mails, jetons ou traceback. Une seule saisie initiale, puis jusqu'à trois
+contrôles après appui explicite sur Entrée, dans une session de 15 minutes.
+Le propriétaire peut corriger la configuration/permission dans Cloudflare
+et reprendre avec les mêmes jetons, retenus uniquement en mémoire. `q`,
+Ctrl-C, fermeture ou délai terminent la session ; aucun cache de secrets.
+Les refus d'entrée locale, de destination ou d'écriture sont fatals : aucune
+boucle qui réécrit des credentials. Une interruption d'écriture nettoie les
+fichiers créés. Aucun fichier existant n'est remplacé.
+
+Le même audit complet s'exécute avant chaque tentative d'écriture root 0600.
+La session ne modifie pas Cloudflare, ne démarre pas le tunnel et n'installe
+aucun helper/sudoers. Elle importe uniquement le module root fixe après
+contrôles du fichier et de ses parents. Après READY, les opérations usuelles
+restent dans Actions ; OPS #91 reste à OPT 20. :8080/gateway apply inchangés.
+
+### Si le code indique HTTP_403
+
+Vérifier la permission de lecture ET le périmètre de ressources du jeton
+pour l'étape concernée. Les opérations du provisionnement sont uniquement
+GET : des droits d'écriture ne remplacent pas une configuration correcte.
+HTTP_401 peut aussi correspondre à un jeton invalide/expiré ;
+VALIDATION_FAILED indique un contrôle local de la réponse/configuration.
+Ne pas déduire une permission manquante d'un code de validation seul.
+
+| Étape | Permission Read correspondante | Périmètre |
+| --- | --- | --- |
+| ZONE_LOOKUP / ZONE_STATE | Zone / Zone / Read | Zone logiclab.fr |
+| ACCESS_APPLICATION / ACCESS_POLICY | Account / Access: Apps and Policies / Read | Compte de la zone |
+| ACCESS_ORGANIZATION / OTP_PROVIDERS | Account / Access: Organizations, Identity Providers, and Groups / Read | Même compte |
+| TUNNEL_STATE / TUNNEL_CONFIGURATION | Account / Cloudflare Tunnel / Read | Même compte |
+| DNS_RECORD | Zone / DNS / Read | Zone logiclab.fr |
+
+Références officielles vérifiées le 2026-10-09 :
+[zones](https://developers.cloudflare.com/api/resources/zones/methods/list/),
+[applications](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/list/),
+[organisation](https://developers.cloudflare.com/api/resources/zero_trust/subresources/organizations/methods/list/),
+[fournisseurs d'identité](https://developers.cloudflare.com/api/resources/zero_trust/subresources/identity_providers/methods/list/),
+[tunnel](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/methods/get/),
+[configuration du tunnel](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/subresources/configurations/methods/get/),
+[DNS](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/list/).
+Les libellés granulaires peuvent proposer des équivalents Read plus récents ;
+ne pas demander Global API Key, tous les comptes ou un sudo global.
+
+Un seul lancement court depuis le commit immuable validé sera fourni dans
+#58. Ne pas rejouer l'ancien bloc de remplacement du validateur. Renvoyer le
+JSON expurgé pendant que la session attend, ou READY ; jamais un jeton.
+
+## Historique du diagnostic de #90
+
 Le propriétaire a exécuté le bootstrap de main
 `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`. Le helper/sudoers est installé ;
 le provisionnement a retourné `BOOTSTRAP_CONFIGURATION_FAILED` après la saisie.

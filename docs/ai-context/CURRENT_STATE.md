@@ -1,5 +1,24 @@
 # D.A.O — Current State
 
+## DEV 20 — OCE #58, refus après reprise / session privée préparée (2026-10-09)
+
+#90 fusionnée et déployée au main `6a21b4bd5b9361f5e18ab6c05322dabb971a1149`,
+CI/deploy #397 SUCCESS, 48/48 E2E : acquis, pas de relance. Le propriétaire
+signale de nouveau BOOTSTRAP_CONFIGURATION_FAILED après le bloc de reprise.
+Ce seul message ne prouve pas un défaut de permissions ni le contrôle en échec.
+Il autorise maintenant les permissions nécessaires à OCE ; aucun droit nouveau
+n'est installé par cette déclaration et aucun secret n'est communiqué.
+
+Branche dédiée `fix/dev20-oce-provisioning-session` depuis ce main : étapes et
+codes d'erreur expurgés dans le provisionnement existant, une seule saisie privée,
+recontrôle après action explicite du propriétaire dans Cloudflare avec jetons
+en mémoire seulement, maximum trois essais / 15 minutes. Audit/binding et
+écriture root 0600 après validation complète restent exigés ; aucune API Write,
+installation, permission, service ou topologie ajoutés. Preuves/livraison dans
+[#58](https://github.com/Khaey/Dao/issues/58). Le refus réel reste à identifier.
+OPS transverse #91 reste à OPT 20, #93 distinct et non commencé ici ; le signal
+propriétaire reprend #58 sans rouvrir #90. :8080 et gateway apply inchangés.
+
 ## DEV 20 — OCE #58, bootstrap installé, correctif du jeton préparé (2026-10-09)
 
 Main observé `aa63b37ab75efdceae1d63cb1d72af2c20545737`, consignes #87
