@@ -59,5 +59,5 @@ test('Auth : une URL externe ne peut pas remplacer le retour d’invitation', as
   await page.getByPlaceholder('Votre email').fill(e2eClient!.email);
   await page.getByPlaceholder('Mot de passe').fill(e2eClient!.password);
   await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/projects$/);
+  await expect(page).toHaveURL(/\/app$/);
 });
