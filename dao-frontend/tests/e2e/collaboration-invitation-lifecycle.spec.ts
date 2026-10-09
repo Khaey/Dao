@@ -44,10 +44,13 @@ test('Invitation révoquée : lien inutilisable, puis nouvelle invitation refus�
   const newLink = await page.getByLabel('Lien d’invitation').inputValue();
   await signOut(page);
   await login(page, e2eArtisan!);
+  await page.goto('/app/invitations');
+  const inboxCard=page.getByRole('heading',{name:project.title,exact:true}).locator('xpath=../..');
+  await expect(inboxCard.getByText('À traiter',{exact:true})).toBeVisible();
+  await inboxCard.getByRole('button',{name:'Refuser',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('Invitation refusée');
+  await expect(page.getByRole('heading',{name:project.title,exact:true}).locator('xpath=../..').getByText('Refusée',{exact:true})).toBeVisible();
   await page.goto(newLink);
-  await page.getByRole('button', { name: 'Refuser', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Invitation refusée' })).toBeVisible();
-  await page.reload();
   await expect(page.getByRole('heading', { name: 'Invitation indisponible' })).toBeVisible();
   expect(await adminRows('project_members', `project_id=eq.${project.projectId}&user_id=eq.${e2eArtisan!.id}&select=id`)).toHaveLength(0);
   expect((await adminRows('project_invitations', `project_id=eq.${project.projectId}&select=status`)).map(row => row.status).sort()).toEqual(['declined', 'revoked']);

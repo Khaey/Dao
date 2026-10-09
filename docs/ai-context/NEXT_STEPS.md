@@ -1,5 +1,16 @@
 # D.A.O — Next Steps
 
+## DEV 2 #83 — lot Artisan validé en PR #109
+
+Branche `feat/artisan-workflows-v2`, issue [#83](https://github.com/Khaey/Dao/issues/83),
+PR brouillon [#109](https://github.com/Khaey/Dao/pull/109). Les décisions Pilot
+sont implémentées : profil éditable avec revalidation ciblée, dernier espace
+utilisé, Mes offres avec retrait non destructif et Mes invitations actionnable.
+Contrôles locaux verts : backend 64/64, reconstruction locale 138/138,
+collaboration 15/15 + 24/24, frontend build. Finaliser la documentation et les
+tests de parcours, publier le checkpoint, passer la PR prête, puis observer la
+CI exacte avant fusion et déploiement main. Ne pas intervenir sur #64 ou #58.
+
 ## WORK OPT — Monitor #93, complément sur le corps réel de #104
 
 PR #107 corrige le titre et les marqueurs de silence. La reprise avec le
@@ -24,10 +35,6 @@ ni commentaire non autorisé ni collision d'identifiant ne masque le silence.
 [#93](https://github.com/Khaey/Dao/issues/93). Registre #93 = DAO Pilot 3,
 WORK OPT exécutant ; #85 suspendue, #91/#58/#83 intacts.
 
-
-## DEV 2 #83 — valider les correctifs Artisan, puis arbitrer les règles nouvelles
-
-Publier `feat/artisan-space-completion`, exécuter la CI exacte et ne fusionner que verte. Le lot est frontend et tests uniquement : aucune migration, aucun changement Auth/RLS et aucune intervention sur #64 ou #58. Après livraison, le DAO Pilot doit arbitrer séparément la règle de re-vérification des profils édités, l'espace par défaut des doubles rôles, l'intérêt d'une boîte globale d'invitations/offres et un éventuel retrait d'offre soumise. Ne pas transformer ces questions en comportement implicite. Preuves et décisions : [#83](https://github.com/Khaey/Dao/issues/83), avec le détail dans [l'audit](../artisan-space-audit.md).
 
 ## DEV 20 — OCE #58, vérifier les secrets sans terminal
 

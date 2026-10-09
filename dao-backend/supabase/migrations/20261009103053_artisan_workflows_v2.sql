@@ -8,8 +8,13 @@ alter table public.profiles
 
 alter table public.bid_versions
   add column withdrawn_at timestamptz,
-  add column withdrawn_by uuid references auth.users,
-  add constraint bid_version_withdrawal_state check (
+  add column withdrawn_by uuid references auth.users;
+update public.bid_versions bv set
+  withdrawn_at=coalesce(bv.submitted_at,bv.created_at),
+  withdrawn_by=cp.user_id
+from public.contractor_profiles cp
+where bv.contractor_id=cp.id and bv.status='withdrawn';
+alter table public.bid_versions add constraint bid_version_withdrawal_state check (
     (status='withdrawn')=(withdrawn_at is not null and withdrawn_by is not null)
   );
 

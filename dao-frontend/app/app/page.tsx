@@ -8,7 +8,7 @@ import { Badge, Button, Card, SectionHeading } from '../../components/ui';
 import { stageLabels } from '../../lib/collaboration';
 import { effectiveProjectStatus, statusLabel } from '../../lib/utils';
 
-type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number; client_id: string | null; project_stage: string };
+type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number; client_id: string | null; initiator_id:string; project_origin:string; project_stage: string };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
 const formatTnd = (value?: number | null) => value == null ? 'Budget à préciser' : new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(Number(value) / 1000);
 const badgeTone = (status: string) => status === 'rejected' ? 'red' : ['open', 'published', 'approved'].includes(status) ? 'teal' : ['client_review', 'dao_review'].includes(status) ? 'clay' : 'neutral';
@@ -20,15 +20,15 @@ export default function Dashboard() {
     const supabase = supabaseBrowser();
     const [{ data: user }, projects, versions, requests] = await Promise.all([
       supabase.auth.getUser(),
-      supabase.from('projects').select('id,status,project_type,surface_m2,indicative_budget_millimes,created_at,client_id,project_stage').order('created_at', { ascending: false }),
+      supabase.from('projects').select('id,status,project_type,surface_m2,indicative_budget_millimes,created_at,client_id,initiator_id,project_origin,project_stage').order('created_at', { ascending: false }),
       supabase.from('project_versions').select('project_id,title,status,version_no').order('version_no', { ascending: false }),
       supabase.from('project_requests').select('project_id').neq('status', 'withdrawn'),
     ]);
-    if (user.user) { const [{ data: roles }, { data: profile }] = await Promise.all([supabase.from('user_roles').select('role').eq('user_id', user.user.id),supabase.from('profiles').select('last_workspace').eq('user_id',user.user.id).maybeSingle()]); const hasContractor=Boolean(roles?.some(row=>row.role==='contractor')); const hasClient=Boolean(roles?.some(row=>row.role==='client')); setContractor(hasContractor&&(!hasClient||profile?.last_workspace==='contractor')); }
+    let contractorMode=false;if (user.user) { const [{ data: roles }, { data: profile }] = await Promise.all([supabase.from('user_roles').select('role').eq('user_id', user.user.id),supabase.from('profiles').select('last_workspace').eq('user_id',user.user.id).maybeSingle()]); const hasContractor=Boolean(roles?.some(row=>row.role==='contractor')); const hasClient=Boolean(roles?.some(row=>row.role==='client')); contractorMode=hasContractor&&(!hasClient||profile?.last_workspace==='contractor');setContractor(contractorMode); }
     setName(user.user?.user_metadata?.display_name ?? user.user?.email?.split('@')[0] ?? '');
     const latest = new Map<string, any>(); for (const version of versions.data ?? []) if (!latest.has(version.project_id)) latest.set(version.project_id, version);
     const lotCounts = new Map<string, number>(); for (const request of requests.data ?? []) lotCounts.set(request.project_id, (lotCounts.get(request.project_id) ?? 0) + 1);
-    setRows((projects.data ?? []).map(project => { const version = latest.get(project.id); return { ...project, status: effectiveProjectStatus(project.status, version?.status), title: version?.title, lots: lotCounts.get(project.id) ?? 0 }; }));
+    setRows((projects.data ?? []).filter(project=>{if(!user.user)return false;return contractorMode?(project.client_id!==user.user.id||(project.project_origin==='contractor_existing_client'&&project.initiator_id===user.user.id)):project.client_id===user.user.id}).map(project => { const version = latest.get(project.id); return { ...project, status: effectiveProjectStatus(project.status, version?.status), title: version?.title, lots: lotCounts.get(project.id) ?? 0 }; }));
     setLoading(false);
   })(); }, []);
   const stats = useMemo(() => ({ total: rows.length, drafts: rows.filter(row => row.status === 'draft').length, review: rows.filter(row => ['client_review', 'dao_review'].includes(row.status)).length, open: rows.filter(row => ['open', 'published', 'approved'].includes(row.status)).length }), [rows]);

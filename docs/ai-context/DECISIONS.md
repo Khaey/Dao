@@ -1,5 +1,16 @@
 # D.A.O — Decisions
 
+## D-043 — Espace Artisan complet et revalidation ciblée (#83)
+
+DAO Pilot valide : revalidation uniquement lors des changements d'identité,
+d'activité ou de métiers ; dernier espace explicitement utilisé pour un compte
+client + contractor ; prochain lot composé de Mes offres, retrait d'une offre
+soumise et Mes invitations. Le retrait porte sur la version entière, préserve
+le contenu soumis et est interdit après attribution active. Les boîtes globales
+résolvent l'acteur côté SQL et n'exposent ni jeton d'invitation ni offre d'un
+concurrent. Une suspension de professionnel ne peut pas être levée par l'édition
+du profil. Décision exécutée dans DEV 2 #83 ; #64 et #58 restent exclus.
+
 ## Contrôle OPS commun — issue #91 (2026-10-09)
 
 Tous les DEV/OPT/Pilot consomment DAO DEV operations via vocabulaire fixe,

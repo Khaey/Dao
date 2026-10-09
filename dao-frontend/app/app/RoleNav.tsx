@@ -44,7 +44,9 @@ export default function RoleNav() {
   const has = (role: AppRole) => roles.includes(role);
   const staff = isDaoStaff(roles);
   const homeHref = staff ? '/app/dao' : '/app';
-  const active = (href: string) => pathname === href || (!['/app', '/app/dao'].includes(href) && pathname.startsWith(href));
+  const active = (href: string) => href==='/app/artisan'
+    ? pathname===href||pathname.startsWith('/app/artisan/publications/')
+    : pathname === href || (!['/app', '/app/dao'].includes(href) && pathname.startsWith(`${href}/`));
   const links = [
     { href: '/app', label: 'Tableau de bord', icon: LayoutDashboard, show: !staff && (has('client') || has('contractor')) },
     { href: '/app/dao', label: 'Tableau de bord', icon: LayoutDashboard, show: staff },

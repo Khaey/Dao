@@ -1,5 +1,24 @@
 # D.A.O — Current State
 
+## DEV 2 #83 — décisions Artisan implémentées (2026-10-09)
+
+Après livraison du premier lot par PR #84, DAO Pilot a validé les trois règles
+restantes : revalidation limitée à l'identité, l'activité et les métiers ;
+dernier espace utilisé pour les doubles rôles ; Mes offres, retrait d'offre et
+Mes invitations dans le lot suivant. La branche `feat/artisan-workflows-v2`,
+basée sur le vrai main `efe86f584343e06553157c4a121f3c270cac8cbb`, porte la
+migration `20261009103053_artisan_workflows_v2.sql`, les RPC contrôlées, les
+écrans et les tests. PR brouillon [#109](https://github.com/Khaey/Dao/pull/109),
+checkpoint distant `2f95a45bba588ce291d20549e5e332c6f771ecb8` avant documentation.
+
+Le profil préserve une suspension et ne relance la vérification que pour les
+champs approuvés. Les invitations sont résolues depuis l'email Auth confirmé
+sans exposer de token. Le retrait conserve la version/lignes, audite l'acteur,
+marque la version obsolete et refuse toute attribution active. Les tableaux de
+bord d'un double rôle sont filtrés selon l'espace mémorisé. Vérifications locales
+à ce stade : backend 64/64 ; PGlite 138/138 ; collaboration 15/15 et 24/24 ;
+build Next.js 60 routes. #64 et #58 n'ont pas été modifiés.
+
 ## WORK OPT — Monitor #93, complément sur le corps réel de #104
 
 PR #107 corrige le titre et les marqueurs de silence. La reprise avec le
@@ -24,12 +43,6 @@ ni commentaire non autorisé ni collision d'identifiant ne masque le silence.
 [#93](https://github.com/Khaey/Dao/issues/93). Registre #93 = DAO Pilot 3,
 WORK OPT exécutant ; #85 suspendue, #91/#58/#83 intacts.
 
-
-## DEV 2 #83 — espace Artisan / Entreprise (2026-10-09)
-
-Reprise depuis le `main` réel `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`, les PR ouvertes et l'ensemble de `docs/ai-context/*`. L'audit confirme que l'inscription contractor, Mes chantiers partagé, les invitations, la visibilité RLS des DAO et le cycle brouillon/soumission/version/attribution des offres sont déjà livrés. La branche `feat/artisan-space-completion` corrige sans migration les écarts prouvés : profil professionnel visible en lecture seule, blocage explicite des offres tant que le profil n'est pas vérifié, statut Brouillon exact, restauration des lots d'un brouillon multi-lots et état vide de Mes chantiers adapté au contractor. Voir [audit Artisan / Entreprise](../artisan-space-audit.md) et [#83](https://github.com/Khaey/Dao/issues/83).
-
-Aucune nouvelle règle métier n'est introduite. La re-vérification après édition du profil, l'espace par défaut d'un double rôle, une boîte globale d'invitations/offres et le retrait d'une offre soumise attendent une décision DAO Pilot. Les périmètres Back-office #64 et OCE #58 restent intacts.
 
 ## DEV 20 — OCE #58, contrôle Cloudflare via GitHub Secrets préparé (2026-10-09)
 
