@@ -10,7 +10,7 @@ ChatGPT Work, seulement les événements publiés dans GitHub.
 
 1. Ouvrir le bot Telegram, lui écrire /start.
 2. Conserver le token BotFather exclusivement dans un gestionnaire privé.
-3. GitHub Khaey/Dao → Settings → Secrets and variables → Actions → New repository secret :
+3. GitHub Khaey/Dao → Settings → Environments → **dev** → Environment secrets :
    - DAO_MONITOR_TELEGRAM_BOT_TOKEN : valeur privée fournie par BotFather ;
    - DAO_MONITOR_TELEGRAM_CHAT_ID : ID de la conversation Telegram destinataire.
 4. Obtenir son chat ID en privé depuis l'application Telegram ou un bot
@@ -44,8 +44,17 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
 ## Alertes automatiques
 
 - Commentaire de checkpoint qualifié d'un agent DEV, OPT ou Pilot.
-- Fusion d'une PR vers main.
-- CI/déploiement workflow principal sur main : réussite ou échec.
+- Fusion d'une PR vers main. La notification affiche l'**agent responsable**
+  et son issue, trouvés dans le titre ou dans la référence de mission de la PR.
+- CI/déploiement workflow principal sur main : réussite ou échec. L'agent
+  est déterminé seulement si le SHA du run correspond exactement au
+  merge_commit_sha d'une unique PR fusionnée vers main, puis à son issue.
+- Quand la référence est absente ou ambiguë, le message porte explicitement
+  « Agent : non identifié », sans inventer de responsable. Ajouter "Refs #N"
+  sur les PR, avec N = issue propriétaire, et maintenir le registre d'agents
+  à jour au moment des transferts. Le merger ou l'auteur Git ne prouve pas
+  l'identité de l'agent.
+
 - Surveillance des seules missions explicitement ACTIVE : évaluation environ
   toutes les 15 minutes, seuil 90 minutes depuis le dernier checkpoint.
   Une seule alerte prudente par checkpoint ACTIVE, dédoublonnée par commentaire
