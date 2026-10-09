@@ -49,6 +49,9 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
 - CI/déploiement workflow principal sur main : réussite ou échec. L'agent
   est déterminé seulement si le SHA du run correspond exactement au
   merge_commit_sha d'une unique PR fusionnée vers main, puis à son issue.
+- L'attribution reconnaît aussi la mention française `Réfs #N` et le lien
+  canonique vers l'issue propriétaire (`github.com/Khaey/Dao/issues/N`).
+  Ainsi, une description qui cite d'autres PR/CI n'efface pas son propriétaire.
 - Quand la référence est absente ou ambiguë, le message porte explicitement
   « Agent : non identifié », sans inventer de responsable. Ajouter "Refs #N"
   sur les PR, avec N = issue propriétaire, et maintenir le registre d'agents

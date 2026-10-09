@@ -72,6 +72,47 @@ class MonitorTests(unittest.TestCase):
         pr = {"title": "fix(artisan): profil", "body": "Hors #58. Refs #83."}
         self.assertEqual(dm.pr_owner(pr, self.config), ("DAO DEV 2", 83))
 
+    def test_real_pr102_accented_refs_and_unrelated_oce(self):
+        pr = {"title": "fix(ops): garder les helpers accessibles sans release active",
+              "body": ("Aucun changement d'OCE #58. "
+                       "Suivi : https://github.com/Khaey/Dao/issues/91#issuecomment-6077429398 "
+                       "Réfs #91.")}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO OPT 20", 91))
+
+    def test_real_pr103_direct_issue_link_with_other_references(self):
+        pr = {"title": "docs(ops): conserver la preuve live du transport de récupération",
+              "body": ("Livré par #102, indépendant de #58. CI #423 et #424. "
+                       "Preuves de reprise : [issue #91]"
+                       "(https://github.com/Khaey/Dao/issues/91).")}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO OPT 20", 91))
+
+    def test_conflicting_canonical_issue_links_not_attributed(self):
+        pr = {"title": "maintenance",
+              "body": ("https://github.com/Khaey/Dao/issues/91 "
+                       "https://github.com/Khaey/Dao/issues/58")}
+        self.assertEqual(dm.pr_owner(pr, self.config), (None, None))
+
+    def test_explicit_refs_disambiguates_other_issue_links(self):
+        pr = {"title": "changes",
+              "body": ("https://github.com/Khaey/Dao/issues/58. Réfs #91")}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO OPT 20", 91))
+
+    def test_ci_for_real_pr102_and_pr103(self):
+        for number, sha, title, body in (
+            (102, "5e551b0dea87a49977f170f3466d71088defe27c",
+             "fix(ops): garder les helpers accessibles sans release active",
+             "Réfs #91. Aucun changement d'OCE #58."),
+            (103, "269b7018dc18f55a5c6f725246e1d4b4f5c7e580",
+             "docs(ops): conserver la preuve live du transport de récupération",
+             "[issue #91](https://github.com/Khaey/Dao/issues/91) #102 #58"),
+        ):
+            pr = {"number": number, "title": title, "body": body,
+                  "merged_at": "2026-10-09T08:00:00Z",
+                  "base": {"ref": "main"}, "merge_commit_sha": sha}
+            matched = dm.associated_merged_pr([pr], sha)
+            self.assertEqual(dm.owner_line(matched, self.config),
+                             "👤 Agent : DAO OPT 20 — mission #91")
+
     def test_pr_owner_unique_body_reference(self):
         pr = {"title": "fix(monitor): secrets", "body": "Correction ciblée de #93"}
         self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 3", 93))
