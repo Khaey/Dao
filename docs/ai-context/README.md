@@ -18,7 +18,9 @@ and actual repository/CI evidence take precedence over historical checkpoints.
 | [DECISIONS.md](DECISIONS.md) | Durable decisions, including completed and rejected optimizations |
 | [../architecture/README.md](../architecture/README.md) | Living C4/Structurizr visual architecture and maintenance workflow |
 
-WORK OPT starts from main on its own `chore/...` branch. It never resumes
+For a new task, WORK OPT starts from main on its own `chore/...` branch; for
+same-task recovery, verify and resume the owned published branch as described
+in WORK_CHECKPOINTS.md. It never resumes
 a functional branch named in an old checkpoint and never changes WORK DEV PRs.
 Do not treat historical headings such as “remaining” as current instructions
 without checking their dated status and the actual remote repository.
