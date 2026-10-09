@@ -1,5 +1,28 @@
 # D.A.O — Current State
 
+## OPT 20 — OPS #91, diagnostic du rollback de déploiement (2026-10-09)
+
+Base initiale réelle `269b7018dc18f55a5c6f725246e1d4b4f5c7e580`, CI/deploy
+#424 / 37906979914 SUCCESS ; lots maintenance/transport acquis, non rejoués.
+Réconciliation main `e0b2dbe7be35ad4b40720f9761caa97336b64f6e` (#104 Monitor
+conservée). Branche dédiée `chore/opt20-deploy-recovery-91` ; périmètre et livraison exacte
+suivis dans [#91 OPS 29 et suivants](https://github.com/Khaey/Dao/issues/91#issuecomment-6078006258).
+
+Le handler de déploiement conserve l'erreur initiale et continue les étapes
+applicables même si la restauration de lien/env/restart/cleanup échoue. Un
+JSON fermé expose leur résultat, sans exception/contenu sensible. Après restore
+et restart favorables, HTTP est vérifié en une passe avec le script revu de la
+candidate ; déploiement normal et health gardent leurs 15 tentatives. Aucun
+nouveau droit, helper root, catalogue, secret, DB ou service n'est ajouté.
+
+16 tests ciblés PASS, dont refus fictifs de lien/env/restart/HTTP/cleanup,
+absence de précédente release, conservation du code initial et redaction,
+mode HTTP unique et comportement normal préservé. Ces fautes restent fictives,
+pas un rollback de déploiement live ou une panne forcée. Lire #91 pour les CI,
+le déploiement normal du source exact et les limites, sans reprendre une étape
+qu'un checkpoint de livraison marque déjà achevée. Les contextes et travaux
+#58/#83/#64/#93 sont préservés ; bootstrap et rollback root non rejoués.
+
 ## OPT 20 — OPS #91, transport de récupération qualifié live (2026-10-09)
 
 PR [#102](https://github.com/Khaey/Dao/pull/102) fusionnée ; HEAD code durable
