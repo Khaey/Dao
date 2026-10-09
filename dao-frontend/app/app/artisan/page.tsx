@@ -20,6 +20,7 @@ type Publication = {
   submission_deadline: string | null;
 };
 type Lot = { publication_id: string; trade_id: string; safe_title: string };
+type ProfessionalProfile = { business_name: string; public_trade_name: string; verification_status: string };
 
 const visibilityLabel: Record<Publication['visibility'], string> = {
   public: 'DAO public',
@@ -28,6 +29,19 @@ const visibilityLabel: Record<Publication['visibility'], string> = {
 };
 const projectTypeLabel: Record<string, string> = {
   construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre',
+};
+const verificationLabel: Record<string, string> = {
+  pending: 'En attente de vérification',
+  verified: 'Profil vérifié',
+  rejected: 'Corrections demandées',
+  suspended: 'Profil suspendu',
+};
+const offerStatus: Record<string, { label: string; tone: 'neutral' | 'teal' | 'clay' | 'red' }> = {
+  draft: { label: 'Brouillon', tone: 'clay' },
+  submitted: { label: 'Offre envoyée', tone: 'teal' },
+  withdrawn: { label: 'Offre retirée', tone: 'neutral' },
+  expired: { label: 'Offre expirée', tone: 'red' },
+  superseded: { label: 'Version remplacée', tone: 'neutral' },
 };
 
 function formatTnd(value: number | null) {
@@ -53,6 +67,7 @@ export default function ArtisanDashboard() {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [error, setError] = useState('');
+  const [professional, setProfessional] = useState<ProfessionalProfile | null>(null);
 
   async function load() {
     setLoading(true); setError('');
@@ -63,6 +78,9 @@ export default function ArtisanDashboard() {
     if (roleError) { setError('Impossible de vérifier votre rôle artisan.'); setLoading(false); return; }
     if (!roleRows?.length) { setAllowed(false); setLoading(false); return; }
     setAllowed(true);
+    const professionalResult = await supabase.from('contractor_profiles').select('business_name,public_trade_name,verification_status').eq('user_id', userData.user.id).maybeSingle();
+    if (professionalResult.error || !professionalResult.data) { setError('Votre profil professionnel est introuvable.'); setLoading(false); return; }
+    setProfessional(professionalResult.data as ProfessionalProfile);
 
     const [publicationResult, tradeResult, governorateResult] = await Promise.all([
       supabase.from('publications').select('id,project_id,visibility,status,safe_title,safe_description,governorate_id,project_type,surface_m2,desired_start_date,indicative_budget_millimes,submission_deadline').eq('status', 'published').order('published_at', { ascending: false }),
@@ -105,11 +123,12 @@ export default function ArtisanDashboard() {
   }), [rows, query, tradeFilter, governorateFilter, typeFilter]);
 
   if (loading) return <p>Chargement de votre espace artisan…</p>;
-  if (allowed === false) return <Card><h1 className="text-xl font-semibold">Espace réservé aux artisans</h1><p className="mt-2 text-sm text-black/60">Votre compte ne dispose pas encore du rôle artisan vérifié.</p></Card>;
+  if (allowed === false) return <Card><h1 className="text-xl font-semibold">Espace réservé aux artisans</h1><p className="mt-2 text-sm text-black/60">Votre compte ne dispose pas du rôle Artisan / Entreprise.</p></Card>;
   return <section className="space-y-6">
     <div><p className="text-sm font-semibold text-teal">Espace artisan</p><h1 className="mt-1 text-3xl font-bold">DAO disponibles</h1><p className="mt-2 max-w-2xl text-black/60">Les publications affichées ici sont celles que votre compte est autorisé à consulter. Les DAO ciblés et sur invitation restent filtrés par la sécurité Supabase.</p></div>
+    <Card className="border-teal/20 bg-teal/[0.04]"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="text-xs font-bold uppercase tracking-wide text-teal">Mon profil professionnel</p><h2 className="mt-1 text-xl font-bold">{professional?.public_trade_name || professional?.business_name || 'Profil professionnel'}</h2><div className="mt-2"><Badge tone={professional?.verification_status === 'verified' ? 'teal' : professional?.verification_status === 'suspended' ? 'red' : 'clay'}>{verificationLabel[professional?.verification_status ?? ''] ?? 'Statut indisponible'}</Badge></div><p className="mt-2 text-sm text-black/55">{professional?.verification_status === 'verified' ? 'Vous pouvez répondre aux DAO accessibles.' : 'Vous pouvez consulter les DAO publics, mais la soumission d’offres sera possible après vérification par D.A.O.'}</p></div><Link href="/app/profile#professional-profile" className="inline-flex min-h-10 items-center justify-center rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white">Voir mon profil</Link></div></Card>
     <Card><div className="grid gap-3 md:grid-cols-4"><label className="block text-xs font-medium md:col-span-2">Rechercher<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Titre ou description" className="mt-1.5 w-full rounded-xl border border-black/10 px-3 py-2.5 text-sm" /></label><label className="block text-xs font-medium">Métier<select value={tradeFilter} onChange={(event) => setTradeFilter(event.target.value)} className="mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm"><option value="">Tous les métiers</option>{trades.map((trade) => <option value={trade.id} key={trade.id}>{trade.name_fr}</option>)}</select></label><label className="block text-xs font-medium">Gouvernorat<select value={governorateFilter} onChange={(event) => setGovernorateFilter(event.target.value)} className="mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm"><option value="">Tous les gouvernorats</option>{governorates.map((item) => <option value={item.id} key={item.id}>{item.name_fr}</option>)}</select></label></div><label className="mt-3 block max-w-xs text-xs font-medium">Type de chantier<select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm"><option value="">Tous les types</option>{Object.entries(projectTypeLabel).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></Card>
     {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-    {filtered.length === 0 ? <Card className="border-dashed text-center"><h2 className="font-semibold">Aucun DAO accessible</h2><p className="mt-2 text-sm text-black/55">Essayez un autre filtre ou revenez plus tard.</p></Card> : <div className="grid gap-4 lg:grid-cols-2">{filtered.map((row) => { const deadline = deadlineLabel(row.submission_deadline); return <Link key={row.id} href={`/app/artisan/publications/${row.id}`}><Card className="h-full transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex flex-wrap items-start justify-between gap-3"><div><Badge>{visibilityLabel[row.visibility]}</Badge><h2 className="mt-3 text-lg font-semibold">{row.safe_title}</h2></div><Badge>{row.bidStatus ? 'Offre envoyée' : 'À répondre'}</Badge></div><p className="mt-2 line-clamp-2 text-sm text-black/60">{row.safe_description}</p><div className="mt-4 flex flex-wrap gap-2 text-xs text-black/50"><span>{projectTypeLabel[row.project_type]}</span>{row.surface_m2 && <span>· {row.surface_m2} m²</span>}{row.governorateName && <span>· {row.governorateName}</span>}</div><div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3 text-xs"><span className={deadline.tone}>{deadline.label}</span><span>{formatTnd(row.indicative_budget_millimes)}</span></div>{row.tradeNames.length > 0 && <p className="mt-3 text-xs text-black/45">Métiers : {row.tradeNames.join(' · ')}</p>}</Card></Link>})}</div>}
+    {filtered.length === 0 ? <Card className="border-dashed text-center"><h2 className="font-semibold">Aucun DAO accessible</h2><p className="mt-2 text-sm text-black/55">Aucune publication ne correspond à vos accès et aux filtres sélectionnés.</p></Card> : <div className="grid gap-4 lg:grid-cols-2">{filtered.map((row) => { const deadline = deadlineLabel(row.submission_deadline); const bid = row.bidStatus ? offerStatus[row.bidStatus] ?? { label: row.bidStatus, tone: 'neutral' as const } : null; return <Link key={row.id} href={`/app/artisan/publications/${row.id}`}><Card className="h-full transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex flex-wrap items-start justify-between gap-3"><div><Badge>{visibilityLabel[row.visibility]}</Badge><h2 className="mt-3 text-lg font-semibold">{row.safe_title}</h2></div><Badge tone={bid?.tone}>{bid?.label ?? (professional?.verification_status === 'verified' ? 'À répondre' : 'Consultation uniquement')}</Badge></div><p className="mt-2 line-clamp-2 text-sm text-black/60">{row.safe_description}</p><div className="mt-4 flex flex-wrap gap-2 text-xs text-black/50"><span>{projectTypeLabel[row.project_type]}</span>{row.surface_m2 && <span>· {row.surface_m2} m²</span>}{row.governorateName && <span>· {row.governorateName}</span>}</div><div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3 text-xs"><span className={deadline.tone}>{deadline.label}</span><span>{formatTnd(row.indicative_budget_millimes)}</span></div>{row.tradeNames.length > 0 && <p className="mt-3 text-xs text-black/45">Métiers : {row.tradeNames.join(' · ')}</p>}</Card></Link>})}</div>}
   </section>;
 }

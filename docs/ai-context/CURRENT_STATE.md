@@ -1,5 +1,11 @@
 # D.A.O — Current State
 
+## DEV 2 #83 — espace Artisan / Entreprise (2026-10-09)
+
+Reprise depuis le `main` réel `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`, les PR ouvertes et l'ensemble de `docs/ai-context/*`. L'audit confirme que l'inscription contractor, Mes chantiers partagé, les invitations, la visibilité RLS des DAO et le cycle brouillon/soumission/version/attribution des offres sont déjà livrés. La branche `feat/artisan-space-completion` corrige sans migration les écarts prouvés : profil professionnel visible en lecture seule, blocage explicite des offres tant que le profil n'est pas vérifié, statut Brouillon exact, restauration des lots d'un brouillon multi-lots et état vide de Mes chantiers adapté au contractor. Voir [audit Artisan / Entreprise](../artisan-space-audit.md) et [#83](https://github.com/Khaey/Dao/issues/83).
+
+Aucune nouvelle règle métier n'est introduite. La re-vérification après édition du profil, l'espace par défaut d'un double rôle, une boîte globale d'invitations/offres et le retrait d'une offre soumise attendent une décision DAO Pilot. Les périmètres Back-office #64 et OCE #58 restent intacts.
+
 ## DEV 20 — OCE #58, contrôle Cloudflare via GitHub Secrets préparé (2026-10-09)
 
 Base main vérifiée `269b7018dc18f55a5c6f725246e1d4b4f5c7e580`, CI/deploy #424
@@ -173,7 +179,6 @@ This is documentation only: no CI/E2E/deployment/VPS change or added automation.
 PR #34/#46 sections remain preserved. OPT keeps #85; DEV 20 keeps #58;
 DEV 2 keeps #83; Back-office #64 is excluded. Older snapshots below keep
 their original evidence and do not transfer task ownership.
-
 ## DEV #64 — réouvert pour corrections UX et retours manuels (2026-10-08)
 
 Base vérifiée `c38e4ca137bd5997cc2e0876108a5ce486f7453a`, CI/deploy #343 SUCCESS. La livraison #68 (48/48, migration V2 appliquée une fois) reste acquise ; #64 est rouvert à la demande du pilote pour les défauts d’utilisation. Branche DEV `fix/backoffice-v2-usability` : filtres/dashboard, noms/affectation, annulation de saisie, garde-fous visuels lot publié, accès au chantier complet, filtres historiques par noms et libellés français. Frontend uniquement : aucune migration, permission, RPC ou opération OCE. TypeScript local PASS ; les scénarios E2E existants sont renforcés, leur nombre reste 48. CI exacte/livraison et retours manuels sont suivis dans [#64](https://github.com/Khaey/Dao/issues/64). Ne pas clôturer cette issue sur la seule base des tests automatiques alors que le pilote annonce de nouveaux retours manuels. Voir [audit de reprise](../backoffice-v2-followup.md).

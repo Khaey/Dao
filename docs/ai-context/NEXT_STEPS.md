@@ -1,5 +1,9 @@
 # D.A.O — Next Steps
 
+## DEV 2 #83 — valider les correctifs Artisan, puis arbitrer les règles nouvelles
+
+Publier `feat/artisan-space-completion`, exécuter la CI exacte et ne fusionner que verte. Le lot est frontend et tests uniquement : aucune migration, aucun changement Auth/RLS et aucune intervention sur #64 ou #58. Après livraison, le DAO Pilot doit arbitrer séparément la règle de re-vérification des profils édités, l'espace par défaut des doubles rôles, l'intérêt d'une boîte globale d'invitations/offres et un éventuel retrait d'offre soumise. Ne pas transformer ces questions en comportement implicite. Preuves et décisions : [#83](https://github.com/Khaey/Dao/issues/83), avec le détail dans [l'audit](../artisan-space-audit.md).
+
 ## DEV 20 — OCE #58, vérifier les secrets sans terminal
 
 Reprendre `fix/dev20-oce-actions-check` et le dernier checkpoint #58. Observer
@@ -138,7 +142,6 @@ For new sessions use [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md), including its
 short startup message and owner-issue template. OPT #85, DEV 20 #58, DEV 2 #83
 and Back-office #64 stay with their owners; the older next steps below do not
 authorize OPT 20 to take them over.
-
 ## DEV #64 — livrer le correctif UX, puis intégrer les retours manuels
 
 Poursuivre la branche `fix/backoffice-v2-usability` depuis le main vérifié `c38e4ca…`. Observer sa CI exacte sans rejouer les contrôles pour des entrées inchangées, corriger uniquement les échecs prouvés, fusionner vert et vérifier main/deploy. Ce correctif est frontend uniquement : ne rejouer aucune migration et ne modifier ni Auth/RLS ni OCE/#58 ni contrats/#61. Garder #64 ouvert pour les corrections que le pilote annoncera après ses tests manuels ; tracer chaque observation, sa cause, sa correction et la preuve de validation. Les preuves finales de #68 restent valides pour son périmètre. Voir [audit de reprise](../backoffice-v2-followup.md).
