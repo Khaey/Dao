@@ -1,5 +1,20 @@
 # D.A.O — Next Steps
 
+## DEV 20 — OCE #58, terminer la correction du GET zones
+
+Reprendre `fix/dev20-oce-zone-page-size` et le dernier checkpoint #58.
+PR #105, CI/deploy main #429 et Pages #47 acquis ; les deux secrets ont été
+consommés sans exposition par Cloudflare check #2, refus `ZONE_LOOKUP / HTTP_403`.
+Ne pas rejouer cette requête identique. Le nouveau candidat corrige réellement
+`per_page=100` vers le maximum GET `/zones` documenté 50, sans cause du 403
+présumée ni changement de droits. Valider/livrer le candidat courant puis une
+seule demande de contrôle sur cette nouvelle requête. Si le refus demeure,
+correction du jeton via UI Cloudflare : permissions/périmètre, validité et IP,
+puis reprise après fait nouveau. Aucun secret dans Work, CMD/TTY ou bootstrap.
+L'audit complet exige encore `OCE_CLOUDFLARE_APPROVED_EMAILS` indépendant ;
+provisionnement root via GitHub à préparer/revoir séparément, sans détourner
+audit/status/env-sync. Aucun tunnel start, :8080 ou gateway-host apply.
+
 ## WORK OPT — Monitor #93, complément sur le corps réel de #104
 
 PR #107 corrige le titre et les marqueurs de silence. La reprise avec le

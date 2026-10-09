@@ -23,7 +23,7 @@ class ProvisionTests(unittest.TestCase):
         fixture = fixture_module.PrivateDemoTests()
         fixture.setUp()
         self.m, self.data = fixture.m, fixture.data
-        self.data['/zones?name=logiclab.fr&per_page=100'] = [
+        self.data['/zones?name=logiclab.fr&per_page=50'] = [
             {'name': 'logiclab.fr', 'id': self.m['zone_id'], 'account': {'id': self.m['account_id']}}]
         self.token = base64.b64encode(json.dumps({'a': self.m['account_id'], 't': self.m['tunnel_id'],
                          's': base64.b64encode(bytes(32)).decode()}).encode()).decode()
