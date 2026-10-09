@@ -1,0 +1,149 @@
+# Contrôle OPS commun — #91
+
+Les DEV, OPT et Pilot utilisent **DAO DEV operations** sur `main`, le même
+compte machine `dao` et l'environnement protégé `dev`. Aucun compte VPS ou
+secret individuel n'est nécessaire pour un nouveau Work. Le propriétaire
+GitHub connecté est `Khaey` ; un autre acteur est refusé. L'agent doit avoir
+un mandat pour l'opération demandée, même si le workflow la propose.
+
+## Guide sans terminal
+
+1. Lire le main réel, sa dernière CI/deploy, l'issue propriétaire et les
+   checkpoints. Vérifier la release active avant une mutation partagée.
+2. Publier sur **l'issue #91** un nouveau commentaire dont le contenu entier
+   est `/dao-ops <opération>` avec un seul verbe du tableau ci-dessous.
+   Le connecteur GitHub suffit : il n'a pas besoin de workflow_dispatch.
+   Une édition, une PR, un autre numéro, un suffixe ou du texte libre est refusé.
+   L'alternative est le menu Actions de DAO DEV operations, branche `main`.
+3. Lire le nouveau run **DAO DEV operations**, son SHA, tentative et conclusion,
+   puis les sorties expurgées de l'étape Execute fixed DEV operation.
+   Un commentaire publié ne prouve pas l'exécution ; un run sauté ne la prouve pas.
+4. Reporter dans l'issue propriétaire le lien du run, le résultat et les limites.
+   Réutiliser une preuve inchangée ; ne pas rejouer backups/migrations/E2E
+   validés pour tester l'accès. GitHub ne relance pas une session Work.
+
+## Matrice des consommateurs
+
+Tous les rôles utilisent le même workflow ; les différences ci-dessous
+portent sur le mandat et les préconditions, pas sur des clés individuelles.
+
+| Rôle agent | Opérations fixes | Préconditions | Preuve à conserver |
+| --- | --- | --- | --- |
+| DEV, OPT, Pilot actuels et futurs | `status`, `health`, `diagnostics`, `log-summary` | Release déployée ; log-summary : helper DEV installé | Run + release/service/readiness ; diagnostics : hashes et grants booléens ; logs : compteurs sans messages |
+| DEV/OPT chargé de récupération DEV | `restart`, `env-sync` | Accord sur la mutation partagée ; sudoers DEV existants ; env-sync : trois clés protégées disponibles | Run + smoke/status ; sync idempotent ou restauration de l'env précédente |
+| OPT responsable maintenance, autres agents sous mandat explicite | `ops-status`, `ops-preflight`, `ops-upgrade`, `ops-rollback` | Bootstrap OPS ; upgrade : main/CI/admission explicite ; services concernés inactifs ; aucune dérive installée | Run + version actuelle/précédente, fichiers changés, CI et commentaire d'admission ; rollback : restauration vérifiée |
+| DEV/OPT en lecture OCE | `oce-integration-inventory`, `oce-gateway-plan`, `backup-status`, `oce-status` | Helpers installés ; backup-status nécessite bootstrap OPS et état de backup existant | Métadonnées expurgées ; aucun nouveau backup/restore ou basculement |
+| DEV 20, successeurs explicitement affectés à #58 | `oce-audit`, `oce-probe`, `oce-start`, `oce-stop` | Helper privé et provisionnement #58 ; start exige mandat de démarrage et audit favorable | Run du helper privé ; les secrets et la configuration restent privés |
+
+`oce-audit` désigne ici **l'audit Access/Tunnel du helper privé**, comme le
+workflow OCE private demo operations. L'ancien audit runtime/backup OCE reste
+dans son workflow spécialisé et conserve ses preuves. Les workflows existants
+de backup/restauration, identité, pin runtime et qualification gateway restent
+les points d'entrée de leurs opérations déjà bornées. Ils ne deviennent pas
+des tâches à rejouer. Aucune migration, restauration de DB partagée, bascule
+gateway ou fermeture de `:8080` n'est ajoutée au contrôle commun.
+
+## Maintenance des copies root
+
+Le routeur `scripts/dao-operations.sh` est non privilégié. Il n'exécute en root
+que les chemins/arguments littéraux accordés. Les mutations DEV et OPS partagent
+la concurrence Actions du déploiement et le verrou `/opt/dao/.deploy.lock`.
+Le gestionnaire **installé** `/usr/local/sbin/dao-ops-admin` utilise Python isolé,
+des chemins fixes et des verrous root communs avec les helpers DEV/OCE.
+Il ne charge ni script ni manifeste depuis `/opt/dao/current`.
+
+Le catalogue fermé dans `ops/dao-ops-admin.py` couvre les neuf fichiers Python
+gérés. Seuls les fichiers **déjà installés** sont maintenus ; les fichiers
+absents sont signalés, jamais installés implicitement. Il n'installe pas de
+binaire cloudflared, unité systemd, sudoers additionnel, configuration ou secret.
+Il ne démarre aucun service. Toute modification des sources du catalogue doit
+mettre à jour `ops/ops-release.json` avec `python3 scripts/build-ops-release.py`
+dans la même PR ; un test vérifie ce manifeste.
+
+Pour admettre une version : revue de la PR, fusion autorisée, **CI main verte
+du SHA exact**, puis nouveau commentaire propriétaire sur #91 dont tout le
+contenu est `/dao-ops approve <SHA-main-40-caractères>`. Ce commentaire ne
+déclenche aucune opération. `ops-preflight` et `ops-upgrade` relisent main,
+le dernier run du workflow CI officiel, puis cette admission datée après sa
+réussite. Le téléchargement HTTPS est limité à ce dépôt/SHA immuable, sans
+redirection ; chaque fichier doit correspondre au manifeste SHA-256 et être
+du Python syntaxiquement valide. Main est revérifié avant toute écriture.
+Un nouveau run CI ou une avancée de main invalide l'admission précédente.
+
+Les snapshots, manifestes et journal résident sous `/var/lib/dao-ops`, root
+0700/0600 ; les exécutables restent root 0755. Un snapshot est publié seulement
+quand complet. Avant remplacement, un journal durable garde la version à
+restaurer. Une validation du nouveau contrôleur échouée restaure automatiquement
+les anciens octets/état. Après interruption entre deux copies, `ops-status`
+signale le journal et `ops-rollback` restaure depuis les copies root, sans
+GitHub ni réseau. `ops-upgrade` refuse tant que cette récupération est pendante.
+Une dérive extérieure, un hash invalide ou un service concerné actif bloque
+l'écriture. Le rollback porte sur **le code des helpers**, pas leurs données,
+configurations ou migrations. Une release modifiant leur format persistant
+doit prévoir sa compatibilité ; une admission n'en est pas une preuve.
+
+Une correction root menée par DEV 20 doit précéder le bootstrap, qui adopte
+les octets réellement installés. Après bootstrap, utiliser la maintenance
+commune pour les changements approuvés ; un changement manuel ultérieur est
+signalé comme dérive et nécessite un arbitrage, jamais un écrasement silencieux.
+
+## Bootstrap unique, préparé avant intervention
+
+État à la préparation de PR #96 : helper OPS/sudoers **non installés** ; les
+droits DEV/OCE existants ne suffisent pas à installer cette nouvelle permission.
+`diagnostics` peut mesurer ce manque sans root et sans lire de credentials.
+Une fusion/YAML ne donne pas ce droit. Ne pas annoncer l'autonomie maintenance
+comme effective avant une preuve live de `ops-status`, upgrade et rollback.
+
+La seule intervention administrateur proposée télécharge **deux fichiers**
+depuis un SHA main revu et vert dans un répertoire temporaire root 0700 :
+`ops/dao-ops-admin.py` et `ops/install-ops-admin.sh`. Le bloc exact, SHA et leurs
+deux SHA-256 sont publiés dans #91 après validation ; ne jamais substituer
+`main` mutable aux URLs. Vérification des hashes avant `bash`, puis installation
+du contrôleur root et d'une règle sudoers validée par visudo pour seulement
+`status / preflight / upgrade / rollback / backup-status`.
+Le verbe bootstrap n'est pas accordé à `dao`. Aucune autre copie installée,
+configuration, credential, service ou permission n'est remplacée.
+
+Préconditions : propriétaire root présent, compte dao et helper DEV existants,
+absence du nouveau helper/état/sudoers, chemins root non modifiables par dao,
+coordination avec #58 et absence de mutation concurrente. Résultat attendu :
+`OPS_BOOTSTRAP_READY`, état `bootstrap` adopté depuis les copies effectives.
+Vérifier ensuite **par Actions** diagnostics et ops-status. Publier l'admission
+du SHA, lancer preflight, upgrade si nécessaire, puis confirmer la version et
+qualifier le rollback sur cette première évolution approuvée sans service actif.
+Si tous les octets sont déjà identiques, upgrade est un no-op : aucune preuve
+de rollback live ne doit être inventée.
+
+Un échec normal avant publication du sudoers retire seulement les fichiers OPS
+nouvellement créés. Une coupure brutale pendant le bootstrap peut laisser un
+état incomplet : la reprise majeure reste administrateur, après inspection
+privée des **trois nouveaux chemins OPS uniquement**, sans supprimer les helpers
+DEV/OCE, secrets ou backups. Ne pas élargir sudo pour contourner une panne.
+
+## Secrets et fournisseurs
+
+DEV_SSH_KEY et les secrets de déploiement restent dans Environment dev ; les
+agents ne les téléchargent pas. Env-sync conserve son payload privé éphémère,
+suppression runner/hôte et restauration protégée. Les logs publics contiennent
+des compteurs et des codes fixes, jamais les messages du journal ou les erreurs
+brutes des fournisseurs.
+
+Les credentials OCE/Cloudflare demeurent dans leurs magasins root avec saisie
+masquée prévue par #58. Un secret déjà provisionné n'est pas redemandé à chaque
+Work. L'autorisation Access/Tunnel chez Cloudflare, la saisie initiale/rotation
+de secrets et une reprise root majeure peuvent demander le propriétaire ;
+aucun agent ne les déduit d'une CI verte. Coordonner l'unique bloc de bootstrap
+avec l'état réel #58 avant toute demande afin d'éviter des commandes successives.
+
+## Qualification et reprise
+
+PR #96 et [#91](https://github.com/Khaey/Dao/issues/91) portent les HEAD/runs
+réels. Les tests utilisent des fichiers fictifs et vérifient l'admission,
+les refus, intégrité, locks, upgrade/rollback et interruption. Ils ne prouvent
+pas les droits du VPS. La CI obligatoire conserve tous les gates existants.
+Après déploiement, le signal #91 et ses sorties live prouvent l'interface
+commune ; l'absence de bootstrap reste une limite explicite jusqu'à installation.
+En cas de crash/quota Work, reprendre le dernier HEAD publié/checkpoint selon
+[WORK_CHECKPOINTS.md](ai-context/WORK_CHECKPOINTS.md), jamais des edits locaux
+non sauvegardés. Aucun arrêt brutal Work n'est intercepté automatiquement.

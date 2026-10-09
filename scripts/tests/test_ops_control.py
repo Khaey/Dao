@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -138,6 +139,20 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(admin.installed_files(), self.old)
         self.assertEqual(admin.load_ledger(), self.ledger)
 
+    def test_interrupted_snapshot_does_not_publish_a_partial_version(self):
+        target = 'rev-' + 'a' * 40
+        with patch.object(admin, 'atomic', side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            admin.save_snapshot(target, self.new)
+        self.assertFalse((self.state / target).exists())
+        admin.save_snapshot(target, self.new)
+        self.assertEqual(admin.load_snapshot(target), self.new)
+
+    def test_root_lock_contention_refuses_second_mutation(self):
+        with contextlib.ExitStack() as first:
+            admin.locked(first)
+            with contextlib.ExitStack() as second, self.assertRaises(BlockingIOError):
+                admin.locked(second)
+
     def test_external_drift_refused_before_network_or_overwrite(self):
         Path(admin.CATALOG['ops/oce-cloudflare.py'][0]).write_bytes(b'changed by DEV 20\n')
         with patch.object(admin, 'admission') as network, self.assertRaisesRegex(admin.Halt, 'INSTALLED_DRIFT'):
@@ -188,6 +203,62 @@ class MaintenanceTests(unittest.TestCase):
             admin.strict_json('{"schema":1,"schema":2}')
         with self.assertRaises(admin.Halt):
             admin.folder('../escape')
+
+
+class RouterTests(unittest.TestCase):
+    def test_fixed_privileged_calls_and_failed_env_sync_recovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app, commands = root / 'dao', root / 'commands'
+            scripts = app / 'current/scripts'
+            scripts.mkdir(parents=True)
+            commands.mkdir()
+            log = root / 'calls'
+            for name in ('dev-status.sh', 'validate-dev.sh'):
+                (scripts / name).write_text('echo "' + name + '" >> "$CALL_LOG"\n')
+            sudo = commands / 'sudo'
+            sudo.write_text('''#!/bin/bash
+printf '%s\\n' "$*" >> "$CALL_LOG"
+case "$*" in
+  *'env-sync') echo 'ENV_SYNC updated';;
+  *'systemctl restart dao-dev.service')
+    if [[ ! -e "$RESTART_MARKER" ]]; then touch "$RESTART_MARKER"; exit 1; fi;;
+esac
+''')
+            sudo.chmod(0o755)
+            router = root / 'router.sh'
+            router.write_text((ROOT / 'scripts/dao-operations.sh').read_text().replace('/opt/dao', str(app)))
+            environment = {**os.environ, 'PATH': str(commands) + ':' + os.environ['PATH'],
+                           'CALL_LOG': str(log), 'RESTART_MARKER': str(root / 'restart')}
+            def run(operation):
+                return subprocess.run(['bash', str(router), operation, '22', '1'],
+                                      env=environment, capture_output=True, text=True)
+            self.assertEqual(run('ops-rollback').returncode, 0)
+            self.assertIn('-n /usr/local/sbin/dao-ops-admin rollback', log.read_text())
+            before = log.read_bytes()
+            self.assertNotEqual(run('ops-rollback; id').returncode, 0)
+            self.assertEqual(log.read_bytes(), before)
+            payload = app / 'ops-incoming/22-1'
+            payload.mkdir(parents=True)
+            (payload / 'dao-env.json').write_text('{"fictional":"not-a-real-secret"}')
+            self.assertNotEqual(run('env-sync').returncode, 0)
+            calls = log.read_text()
+            self.assertEqual(calls.count('systemctl restart dao-dev.service'), 2)
+            self.assertIn('-n /usr/local/sbin/dao-dev-admin env-restore', calls)
+            self.assertIn('validate-dev.sh', calls)
+            self.assertFalse(payload.exists())
+
+
+class RedactionTests(unittest.TestCase):
+    def test_backup_status_accepts_only_bounded_public_values(self):
+        value = {'id': 'a' * 32, 'phase': 'complete', 'backup_complete': True,
+                 'restore_verified': True, 'live_resumed': True, 'cleanup_complete': True,
+                 'credential': 'fictional-secret', 'targets': {'private': 'metadata'}}
+        self.assertNotIn('fictional-secret', json.dumps(admin.backup_status(value)))
+        for field, bad in [('id', 'fictional-secret'), ('phase', 'fictional-secret'),
+                           ('backup_complete', 'fictional-secret')]:
+            with self.subTest(field=field), self.assertRaises(admin.Halt):
+                admin.backup_status({**value, field: bad})
 
 
 class AdmissionTests(unittest.TestCase):

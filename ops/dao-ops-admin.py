@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import signal
 import stat
 import subprocess
@@ -181,11 +182,18 @@ def save_snapshot(bundle, files):
     validate_manifest(manifest(files), complete=False)
     target = STATE / bundle
     require(BUNDLE.fullmatch(bundle) and not target.exists() and not target.is_symlink(), 'VERSION_ALREADY_EXISTS')
-    target.mkdir(mode=0o700)
-    for source, data in files.items():
-        atomic(target / blob_name(source), data, 0o600)
-    write_json(target / 'manifest.json', manifest(files))
-    sync_directory(STATE)
+    # Publish only a complete snapshot. A crash while copying leaves an
+    # unreferenced temporary directory, never an unusable version identifier.
+    staging = Path(tempfile.mkdtemp(prefix='.snapshot-', dir=STATE))
+    try:
+        for source, data in files.items():
+            atomic(staging / blob_name(source), data, 0o600)
+        write_json(staging / 'manifest.json', manifest(files))
+        os.rename(staging, target)
+        sync_directory(STATE)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
 
 
 def check_current(ledger):
@@ -375,6 +383,19 @@ def bootstrap():
     return {'ops_bootstrap': 'complete', 'files_adopted': len(files), 'services_changed': False}
 
 
+def backup_status(data):
+    require(isinstance(data, dict) and isinstance(data.get('id'), str)
+            and re.fullmatch(r'[0-9a-f]{32}', data['id'])
+            and data.get('phase') in {'queued', 'checking', 'stopping', 'archiving',
+                                     'resuming', 'restoring', 'complete', 'failed', 'recovery_failed'},
+            'INVALID_BACKUP_STATUS')
+    result = {k: data[k] for k in ('id', 'phase')}
+    for key in ('backup_complete', 'restore_verified', 'live_resumed', 'cleanup_complete'):
+        require(data.get(key) is None or type(data.get(key)) is bool, 'INVALID_BACKUP_STATUS')
+        result[key] = data.get(key)
+    return {'backup_status': result}
+
+
 def locked(stack):
     safe(STATE, directory=True)
     require(stat.S_IMODE(STATE.stat().st_mode) == 0o700, 'INVALID_STATE_MODE')
@@ -406,9 +427,7 @@ def main():
             result = subprocess.run(['/usr/bin/python3', '-I', CATALOG['ops/dao-oce-backup.py'][0], 'status'],
                                     capture_output=True, text=True, timeout=20, check=True)
             data = strict_json(result.stdout)
-            allowed = {'id', 'phase', 'backup_complete', 'restore_verified', 'live_resumed', 'cleanup_complete'}
-            require(isinstance(data, dict), 'INVALID_BACKUP_STATUS')
-            report = {'backup_status': {k: v for k, v in data.items() if k in allowed}}
+            report = backup_status(data)
         else:
             with ExitStack() as stack:
                 locked(stack)

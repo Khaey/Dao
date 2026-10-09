@@ -1,5 +1,20 @@
 # D.A.O — Next Steps
 
+## OPT 20 — terminer uniquement le premier lot #91
+
+Reprendre [#91](https://github.com/Khaey/Dao/issues/91) / PR #96 et le HEAD
+réel de `chore/opt20-ops-control-91`. Observer les nouvelles CI automatiques
+sans rejouer les acquis #85/OCE. Réconcilier main et les contextes DEV avant
+fusion autorisée verte ; qualifier le signal commun et diagnostics par Actions
+après déploiement. Préparer le seul bloc root immuable/haché pour le droit OPS
+manquant, coordonné avec l'état #58. Ne pas annoncer la maintenance effective
+avant installation et preuves live. Upgrade/rollback ne modifient que le code
+des helpers installés ; aucune bascule OCE, nouvelle provision privée, backup,
+restauration DB partagée ou commande arbitraire. La matrice/runbook est dans
+[OPS control](../ops-control.md). Les sections suivantes sont historiques et
+ne relancent pas #85/#87 ; DEV 20 conserve #58, DEV 2 #83, Back-office #64,
+Telegram #93 distinct. Les checkpoints GitHub actualisent livraison et limites.
+
 ## DEV 20 — débloquer uniquement le bootstrap OCE #58
 
 Reprendre PR #90 / `fix/dev20-oce-bootstrap-diagnostic` et les résultats réels

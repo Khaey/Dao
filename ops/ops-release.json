@@ -13,8 +13,8 @@
       "size": 4093
     },
     "ops/dao-ops-admin.py": {
-      "sha256": "9d13a85db1af2760e0b7ec96a9e2f7c3df1ba79148dca549f606bd289de142f1",
-      "size": 17591
+      "sha256": "1097ebf85a40b85fc6af2992f8d01aaed658520005ef2fd43eaf240e032e7a12",
+      "size": 18398
     },
     "ops/oce-cloudflare.py": {
       "sha256": "2aa45c24ca1ffc1b880e8830997bfb641fc8cb59cedbb086194211786ea1dce4",

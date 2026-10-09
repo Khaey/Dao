@@ -44,6 +44,12 @@ deployment; this is not a claim of an atomic GitHub-to-VPS transaction.
 
 ## Stable control through GitHub Actions
 
+The common interface for every DEV/OPT/Pilot is documented in
+[OPS control](ops-control.md), including exact owner-comment signals on #91,
+the role/operation/precondition/proof matrix and versioned root maintenance.
+Existing workflows and qualified backups/restores remain valid. Root OPS
+bootstrap is prepared by PR #96, not presumed installed by a merge.
+
 ### VPS operations policy
 
 For D.A.O, **all routine VPS operations must transit through GitHub Actions**.
@@ -82,7 +88,7 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | restart | Restart only dao-dev.service, then smoke/status | Existing dao service sudoers |
 | env-sync | Manual recovery operation; normal main deploys now run the same three-key sync automatically before release activation | One-time admin helper installation plus Resend secrets |
 | log-summary | Last hour priority counts, at most 200 journal entries; no message bodies | One-time admin helper installation |
-| oce-audit | Fixed read-only OCE container/image/converter/backup metadata; no env values, file contents or arbitrary Docker command | Reinstall reviewed admin helper once as root after this operation is added |
+| oce-audit | Private Access/Tunnel audit through dao-oce-private-admin; the existing runtime audit remains in its specialized workflow | Installed private helper and provisioning #58 |
 | oce-integration-inventory | Fixed OCE DB/Compose/storage/network metadata for #58; anonymous peers and no credential/path values | Reinstall reviewed admin helper once as root; available in DAO DEV operations on main |
 | oce-gateway-plan | Fixed read-only gateway host plan; no service start, bind change or demo-access change | One-time reviewed admin-helper refresh grants this exact operation; then GitHub Actions only |
 
@@ -93,8 +99,9 @@ gh workflow run dev-operations.yml --repo Khaey/Dao --ref main -f operation=stat
 ```
 
 The GitHub connector used by Work can inspect runs/logs but may not expose
-dispatch. Use an authorized Actions-capable CLI/API or GitHub Actions UI in
-that case. Do not claim dispatch occurred when only the workflow was committed.
+dispatch. Use the exact owner comment `/dao-ops <operation>` on #91 for the
+common workflow, or an authorized Actions-capable CLI/API or Actions UI.
+Do not claim execution occurred when only the workflow/comment was published.
 No shell Work SSH key is required. SSH remains between GitHub's runner and VPS;
 this removes dependence on the Work shell network, not on SSH altogether.
 
@@ -114,8 +121,11 @@ does not provision the gateway or perform a backup/pin/restore. The older
 `oce-audit` operation is invoked by the separate OCE audit workflow, not the
 DEV operations dropdown; completed audit #45 must not be repeated.
 
-The initial root bootstrap is complete. When a reviewed helper release adds a new fixed operation (for example `oce-audit`), rerun
-`bash ops/install-dev-admin.sh` once as root from that exact reviewed main release; the installer only replaces the root-owned helper and its fixed sudoers allowlist, without changing environment values or service state. The operator originally ran the same installer and confirmed:
+The initial DEV admin bootstrap is complete. Its original installation path
+was `ops/install-dev-admin.sh`. For future code updates, use the admitted root
+maintenance interface after its one-time OPS bootstrap rather than repeated
+installer commands. A new sudoers grant remains an explicit trust change and
+is not installed by a code upgrade. The operator originally confirmed:
 `D.A.O admin helper installed; environment values and service unchanged.`
 Therefore `/usr/local/sbin/dao-dev-admin` is installed, root-owned and
 available to the main-only DAO DEV operations workflow. `env-sync` remains

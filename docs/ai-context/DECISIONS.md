@@ -1,5 +1,22 @@
 # D.A.O — Decisions
 
+## Contrôle OPS commun — issue #91 (2026-10-09)
+
+Tous les DEV/OPT/Pilot consomment DAO DEV operations via vocabulaire fixe,
+main et Environment dev, y compris les signaux owner exacts sur #91 lorsque
+le connecteur ne fournit pas workflow_dispatch. Aucun compte root individuel.
+La nouvelle maintenance root doit être installée une fois après revue ;
+une fusion/YAML ne lui donne pas de droits. Catalogue Python fermé, fichiers
+déjà installés seulement, main/CI officielle verte et admission explicite
+du SHA, manifeste SHA-256, chemins root, verrous, snapshots et journal durable.
+Rollback sans réseau après interruption ; dérive installée bloquée. Aucun
+secret/config/service/réseau/backup n'est changé par une mise à jour de code.
+Nouvelles permissions, provisioning fournisseur et reprises root majeures
+restent des frontières explicites. Voir [OPS control](../ops-control.md).
+Qualification live et installation sont tracées dans #91 ; tests fictifs et
+publication ne prouvent pas l'autonomie effective. #58 reste DEV 20, les preuves
+#85/OCE sont conservées ; #83/#64/#93 et leurs branches exclus.
+
 ## D-042 — Back-office V2 authority and durable notifications
 
 Issue #64 approves Option A: assigned staff prepares immutable new versions and approves directly. Technical sub-lots remain inside the commercial lot, with stable IDs and published scope snapshots; future OCE mapping is documentation only. Review claim is atomic, Admin reassigns with reason, suspension applies to existing JWTs, and the last ACTIVE Admin is protected. Published-lot withdrawal preserves offers, serializes project-first against submission/award and republication creates a new identity. Transactional outbox delivery cannot rollback a business mutation. See [contract](../backoffice-v2.md).

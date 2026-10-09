@@ -72,6 +72,11 @@ model {
   github = softwareSystem "GitHub" "Source de vérité, PR, Actions, Releases et CI/CD." "External"
   githubDevEnv = softwareSystem "GitHub Environment dev" "Stockage protégé des variables/secrets DEV consommés uniquement par les workflows autorisés." "External"
   vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr, dao-dev.service et /etc/dao/dao-dev.env." "External"
+  workAgents = person "Agents DEV / OPT / Pilot" "Consomment les opérations fixes depuis GitHub ; aucun compte root individuel."
+  rootMaintenance = softwareSystem "Maintenance root OPS" "Préparée #91, bootstrap non qualifié : catalogue fixe, admission main/CI/SHA, snapshots et rollback sous root." "External,Planned"
+  workAgents -> github "Commentaires owner exacts #91 ou Actions main selon mandat"
+  github -> rootMaintenance "Prévu après bootstrap : release admise, manifeste SHA-256 ; aucun checkout dao en root" "Planned"
+  rootMaintenance -> vps "Prévu : mises à jour des seuls helpers installés ; aucun secret/service/réseau modifié" "Planned"
 
   client -> dao.web.shell "Utilise l'espace client"
   contractor -> dao.web.shell "Utilise l'espace artisan"
@@ -157,7 +162,7 @@ model {
 
   github -> githubDevEnv "Lit les variables/secrets protégés du déploiement DEV"
   githubDevEnv -> vps "Alimente env-sync via un payload éphémère hors artifact"
-  github -> vps "Déploie uniquement main validé sous host lock; sync env idempotent avant readiness"
+  github -> vps "Main validé : déploiement et contrôle OPS fixe sous identité dao ; secrets protégés, verrous et readiness"
   vps -> dao.web "Exécute la release DEV et restaure env + release si readiness échoue"
   github -> supabase "CI utilise une stack Supabase locale jetable, pas DEV" "CI"
 
@@ -172,6 +177,11 @@ views {
   systemLandscape "Landscape" "Vision globale acteurs, D.A.O, Supabase, Resend et exploitation." {
     include client contractor reviewer admin dao supabase resend github githubDevEnv vps
     autoLayout lr
+  }
+
+  systemLandscape "OpsControl" "Contrôle commun GitHub ; maintenance root clairement préparée, non qualifiée live." {
+    include workAgents github githubDevEnv vps rootMaintenance
+    autoLayout tb
   }
 
   systemContext dao "SystemContext" "Qui utilise D.A.O et de quels systèmes dépend la plateforme." {
