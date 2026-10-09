@@ -48,7 +48,9 @@ The common interface for every DEV/OPT/Pilot is documented in
 [OPS control](ops-control.md), including exact owner-comment signals on #91,
 the role/operation/precondition/proof matrix and versioned root maintenance.
 Existing workflows and qualified backups/restores remain valid. Root OPS
-bootstrap is prepared by PR #96, not presumed installed by a merge.
+bootstrap from PR #96 is now installed and confirmed by live Actions #16/#17
+on 2026-10-09; do not repeat it. Read OPS control for the exact maintenance
+proofs and remaining rollback qualification. A merge alone is not installation.
 
 ### VPS operations policy
 
