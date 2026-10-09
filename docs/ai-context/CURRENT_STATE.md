@@ -1,5 +1,27 @@
 # D.A.O — Current State
 
+## OPT 20 — OPS #91, reprise indépendante de la release active (2026-10-09)
+
+Base main réelle `4d3a0cdba0eff601c202c27c320cecfc962dfb35`, dernière CI/deploy
+#420 / 37901509702 SUCCESS ; PR #101 et Pages #43 livrées, acquis non rejoués.
+Branche dédiée `chore/opt20-ops-recovery-91`, issue/checkpoint
+[#91 OPS 22](https://github.com/Khaey/Dao/issues/91#issuecomment-6077137940).
+
+Écart corrigé dans le candidat : le workflow et son routeur dépendaient du
+lien `/opt/dao/current`, bloquant même les helpers installés si le lien était
+absent/cassé. Quatre scripts publics fixes sont désormais transportés depuis
+main dans le répertoire non-root run/attempt ; mêmes 18 verbes, identité,
+root-owned helpers, sudoers, admission et verrous. Payload privé uniquement
+pour env-sync, mêmes modes/cleanup ; aucun changement du catalogue root.
+Tests ciblés : 23 PASS, dont nouveaux cas liens fictifs absent/cassé et
+transport relatif, sans panne VPS. CI finale et qualification live du transport
+restent à suivre dans le dernier checkpoint #91 avant de les déclarer acquises.
+Pas de restauration implicite de release applicative/DB/config/secrets.
+
+Le bootstrap et le cycle upgrade/rollback déjà qualifiés ci-dessous restent
+acquis. #58/#83/#64/#93 et leurs contextes sont préservés ; aucune opération
+OCE, backup, migration ou nouvelle permission.
+
 ## OPT 20 — OPS #91, premier lot maintenance qualifié live (2026-10-09)
 
 Handoff Pilot #6073726736 et GO propriétaire ; #85/#92 livrés, non rejoués.

@@ -75,7 +75,7 @@ model {
   workAgents = person "Agents DEV / OPT / Pilot" "Consomment les opérations fixes depuis GitHub ; aucun compte root individuel."
   rootMaintenance = softwareSystem "Maintenance root OPS" "Catalogue installé #91, admission main/CI/SHA et snapshots root ; cycle upgrade/rollback du contrôleur qualifié live sur une évolution réelle." "External"
   workAgents -> github "Commentaires owner exacts #91 ou Actions main selon mandat"
-  github -> rootMaintenance "Contrôle fixe main-only ; maintenance exige CI verte et admission du SHA"
+  github -> rootMaintenance "Scripts de contrôle non-root main-only, indépendants du lien release ; maintenance exige CI verte et admission du SHA"
   rootMaintenance -> vps "Maintient et restaure le code des neuf copies root ; aucun secret/service/réseau modifié"
 
   client -> dao.web.shell "Utilise l'espace client"

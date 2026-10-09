@@ -29,7 +29,7 @@ portent sur le mandat et les préconditions, pas sur des clés individuelles.
 
 | Rôle agent | Opérations fixes | Préconditions | Preuve à conserver |
 | --- | --- | --- | --- |
-| DEV, OPT, Pilot actuels et futurs | `status`, `health`, `diagnostics`, `log-summary` | Release déployée ; log-summary : helper DEV installé | Run + release/service/readiness ; diagnostics : hashes et grants booléens ; logs : compteurs sans messages |
+| DEV, OPT, Pilot actuels et futurs | `status`, `health`, `diagnostics`, `log-summary` | Scripts main transportés ; log-summary : helper DEV installé | Run + release/service/readiness ; diagnostics : hashes et grants booléens ; logs : compteurs sans messages |
 | DEV/OPT chargé de récupération DEV | `restart`, `env-sync` | Accord sur la mutation partagée ; sudoers DEV existants ; env-sync : trois clés protégées disponibles | Run + smoke/status ; sync idempotent ou restauration de l'env précédente |
 | OPT responsable maintenance, autres agents sous mandat explicite | `ops-status`, `ops-preflight`, `ops-upgrade`, `ops-rollback` | Bootstrap OPS ; upgrade : main/CI/admission explicite ; services concernés inactifs ; aucune dérive installée | Run + version actuelle/précédente, fichiers changés, CI et commentaire d'admission ; rollback : restauration vérifiée |
 | DEV/OPT en lecture OCE | `oce-integration-inventory`, `oce-gateway-plan`, `backup-status`, `oce-status` | Helpers installés ; backup-status nécessite bootstrap OPS et état de backup existant | Métadonnées expurgées ; aucun nouveau backup/restore ou basculement |
@@ -45,6 +45,34 @@ restauration de DB partagée, bascule
 gateway ou fermeture de `:8080` n'est ajoutée au contrôle commun.
 
 ## Maintenance des copies root
+
+### Récupération sans lien de release active
+
+Le workflow transporte depuis son checkout main quatre scripts publics fixes
+(`dao-operations.sh`, `dev-status.sh`, `validate-dev.sh`,
+`dao-ops-diagnostics.py`) sous `/opt/dao/ops-incoming/<run>-<attempt>/scripts`.
+Le routeur est exécuté comme `dao` depuis ce répertoire, sans `cd current`.
+Ainsi un lien `/opt/dao/current` absent ou cassé n'empêche plus d'atteindre les
+helpers déjà installés, notamment `ops-status` et `ops-rollback`. `status` peut
+alors signaler une release non vérifiée ; `health` continue de vérifier le vrai
+service local. Cela ne restaure pas automatiquement la release applicative,
+la DB ou les secrets et ne permet pas d'activer une ancienne révision.
+
+Les 18 verbes, contrôle owner/main/dev, identité SSH et verrous restent les
+mêmes. Aucun script transporté n'est exécuté en root : les appels sudo gardent
+leurs chemins/arguments littéraux. Les helpers root ne sont pas remplacés par
+le transport ; manifeste et admission de maintenance restent indépendants.
+Le JSON privé existe seulement pour `env-sync`, hors artefact GitHub, avec le
+même mode 0644 éphémère pour le conteneur SCP puis 0600 avant consommation.
+Les nettoyages `always()` retirent le répertoire exact run/attempt sur runner
+et hôte, y compris après échec ; une coupure empêchant le cleanup peut laisser
+un résidu limité à ce répertoire, sans promesse d'intercepter toute interruption.
+
+Qualification : tests sur liens fictifs absent/cassé et transfert tar relatif,
+puis une opération Actions en lecture sur DEV après CI/main verts. Les preuves
+live du nouveau chemin sont dans le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91).
+Ne pas provoquer de panne VPS ou rejouer le cycle de maintenance acquis pour
+prouver seulement le transport.
 
 Le routeur `scripts/dao-operations.sh` est non privilégié. Il n'exécute en root
 que les chemins/arguments littéraux accordés. Les mutations DEV et OPS partagent

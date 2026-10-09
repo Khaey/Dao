@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Nonprivileged router in the deployed main release; sudo verbs stay fixed.
+# Nonprivileged router from the protected main checkout; sudo verbs stay fixed.
 set -euo pipefail
 [[ $# == 3 && "$2" =~ ^[0-9]+$ && "$3" =~ ^[0-9]+$ ]] || exit 2
 operation="$1"
 payload_dir="/opt/dao/ops-incoming/$2-$3"
 cleanup() { rm -f -- "$payload_dir/dao-env.json"; rmdir -- "$payload_dir" 2>/dev/null || true; }
 trap cleanup EXIT
-cd /opt/dao/current
+# Actions transports these public scripts independently of the active release.
+# A missing/broken current link must not block installed helper recovery.
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 case "$operation" in
   restart|env-sync|ops-upgrade|ops-rollback)
     exec 9>/opt/dao/.deploy.lock
@@ -14,12 +16,12 @@ case "$operation" in
     ;;
 esac
 case "$operation" in
-  status) bash scripts/dev-status.sh ;;
-  health) bash scripts/validate-dev.sh http://127.0.0.1:3000 ;;
+  status) bash dev-status.sh ;;
+  health) bash validate-dev.sh http://127.0.0.1:3000 ;;
   restart)
     sudo -n /usr/bin/systemctl restart dao-dev.service
-    bash scripts/validate-dev.sh http://127.0.0.1:3000
-    bash scripts/dev-status.sh
+    bash validate-dev.sh http://127.0.0.1:3000
+    bash dev-status.sh
     ;;
   env-sync)
     [[ -s "$payload_dir/dao-env.json" && ! -L "$payload_dir/dao-env.json" ]]
@@ -27,20 +29,20 @@ case "$operation" in
     result="$(sudo -n /usr/local/sbin/dao-dev-admin env-sync < "$payload_dir/dao-env.json")"
     rm -f -- "$payload_dir/dao-env.json"
     printf '%s\n' "$result"
-    if ! sudo -n /usr/bin/systemctl restart dao-dev.service || ! bash scripts/validate-dev.sh http://127.0.0.1:3000; then
+    if ! sudo -n /usr/bin/systemctl restart dao-dev.service || ! bash validate-dev.sh http://127.0.0.1:3000; then
       if [[ "$result" == ENV_SYNC\ updated* ]]; then
         sudo -n /usr/local/sbin/dao-dev-admin env-restore
         sudo -n /usr/bin/systemctl restart dao-dev.service
-        bash scripts/validate-dev.sh http://127.0.0.1:3000
+        bash validate-dev.sh http://127.0.0.1:3000
       fi
       exit 1
     fi
-    bash scripts/dev-status.sh
+    bash dev-status.sh
     ;;
   log-summary) sudo -n /usr/local/sbin/dao-dev-admin log-summary ;;
   oce-integration-inventory) sudo -n /usr/local/sbin/dao-dev-admin oce-integration-inventory ;;
   oce-gateway-plan) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan ;;
-  diagnostics) python3 scripts/dao-ops-diagnostics.py ;;
+  diagnostics) python3 dao-ops-diagnostics.py ;;
   ops-status) sudo -n /usr/local/sbin/dao-ops-admin status ;;
   ops-preflight) sudo -n /usr/local/sbin/dao-ops-admin preflight ;;
   ops-upgrade) sudo -n /usr/local/sbin/dao-ops-admin upgrade ;;
