@@ -78,6 +78,10 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Proposition technique / inclusions').fill('Fourniture, pose, essais et remise en état.');
   await artisan.getByRole('button', { name: 'Enregistrer le brouillon' }).click();
   await expect(artisan.getByRole('status')).toContainText('Brouillon enregistré');
+  await artisan.goto('/app/artisan');
+  const draftCard = artisan.getByRole('link').filter({ hasText: project.title });
+  await expect(draftCard.getByText('Brouillon', { exact: true })).toBeVisible();
+  await draftCard.click();
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();

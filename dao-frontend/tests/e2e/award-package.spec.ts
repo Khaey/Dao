@@ -28,14 +28,29 @@ test('Package indivisible : proposition, attribution complète, annulation et r�
   recordE2EValue(info, 'publications', publicationId); await rc.close();
   const ac = await browser.newContext(), artisan = await ac.newPage();
   await login(artisan, e2eArtisan!); await artisan.goto(`/app/artisan/publications/${publicationId}`);
+  const lotA = artisan.getByRole('article').filter({ has: artisan.getByRole('heading', { name: 'Lot package A', exact: true }) });
+  const lotB = artisan.getByRole('article').filter({ has: artisan.getByRole('heading', { name: 'Lot package B', exact: true }) });
+  await lotB.getByLabel('Répondre à ce lot').uncheck();
+  const firstLine = artisan.locator('div.rounded-xl').filter({ has: artisan.getByRole('heading', { name: 'Lot package A', exact: true }) }).filter({ has: artisan.getByLabel('Prix proposé (TND)') });
+  await firstLine.getByLabel('Prix proposé (TND)').fill('1500');
+  await firstLine.getByLabel('Délai (jours)').fill('10');
+  await firstLine.getByLabel('Proposition technique / inclusions').fill('Package complet Lot package A');
+  await artisan.getByRole('button', { name: 'Enregistrer le brouillon' }).click();
+  await expect(artisan.getByRole('status')).toContainText('Brouillon enregistré');
+  await artisan.reload();
+  await expect(lotA.getByLabel('Répondre à ce lot')).toBeChecked();
+  await expect(lotB.getByLabel('Répondre à ce lot')).not.toBeChecked();
+  await lotB.getByLabel('Répondre à ce lot').check();
   for (const title of ['Lot package A', 'Lot package B']) {
     // The proposal form and published-lot list both contain the title. Scope
     // the editable line via its labelled input, without a forced interaction.
     const formLine = artisan.locator('div.rounded-xl').filter({ has: artisan.getByRole('heading', { name: title, exact: true }) }).filter({ has: artisan.getByLabel('Prix proposé (TND)') });
     await expect(formLine).toHaveCount(1);
-    await formLine.getByLabel('Prix proposé (TND)').fill('1500');
-    await formLine.getByLabel('Délai (jours)').fill('10');
-    await formLine.getByLabel('Proposition technique / inclusions').fill(`Package complet ${title}`);
+    if (title === 'Lot package B') {
+      await formLine.getByLabel('Prix proposé (TND)').fill('1500');
+      await formLine.getByLabel('Délai (jours)').fill('10');
+      await formLine.getByLabel('Proposition technique / inclusions').fill(`Package complet ${title}`);
+    }
   }
   await artisan.getByLabel('Package indivisible : tous les lots de cette offre ensemble').check();
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
