@@ -82,14 +82,17 @@ def pr_owner(pr, config):
     title = pr.get("title") or ""
     body = pr.get("body") or ""
     explicit = " ".join(re.findall(
-        r"(?i)\b(?:refs?|fixes|closes|resolves|owner\s+issue)\s*:?\s*#\d+\b", body))
-    for scope in (title, explicit, title + "\n" + body):
+        r"(?i)\b(?:r[eé]fs?|fixes|closes|resolves|owner\s+issue)\s*:?\s*#\d+\b", body))
+    # GitHub's canonical issue links distinguish owner issues from PR/CI links.
+    linked_issues = " ".join("#" + issue for issue in re.findall(
+        r"https://github\.com/Khaey/Dao/issues/(\d+)(?!\d)", body))
+    for scope in (title, explicit, linked_issues, title + "\n" + body):
         refs = re.findall(r"(?<!\w)#(\d+)\b", scope)
         mission, issue = _unique_mission(refs, config)
         if mission:
             return mission["agent"], issue
         if refs and scope != title + "\n" + body:
-            # An ambiguous explicit reference is not safe to attribute.
+            # Do not guess when explicit references or owner links conflict.
             return None, None
     return None, None
 
