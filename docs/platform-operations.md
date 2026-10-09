@@ -183,6 +183,20 @@ restores both the previous release and the previous environment, then restarts
 the service with the restored values. Manual `DAO DEV operations` `env-sync`
 remains available as a recovery path and does not send a test email.
 
+The manual router preserves the first failing command's status and emits a
+closed `env_sync_recovery` record on failure. Recognized changed syncs are
+restored after a pre-readiness failure; recovery restart and payload cleanup
+remain independent of restore success. Recovery HTTP is checked once only
+after environment/restart outcomes are favorable. An unchanged sync can recover
+the service without restoring an older environment. Unknown/failed helper
+results are unverified and never trigger a blind restore or restart.
+A read-only status failure after successful normal readiness does not roll back
+a healthy sync. Cleanup errors cannot mask an existing failure; cleanup alone
+can fail the operation. See [OPS control](ops-control.md) for exact fields and
+the distinction between private-payload cleanup and workflow transport cleanup.
+Fault tests are fictional; no manual live sync or outage is required to qualify
+this nonroot change, and interruption recovery is not guaranteed.
+
 Raw application logs may contain tokens/user data, so they are not copied to public Actions logs. Detailed log review
 remains a private operator session or a future private, redacted log channel.
 The helper installation is verified by the operator; use the status operation

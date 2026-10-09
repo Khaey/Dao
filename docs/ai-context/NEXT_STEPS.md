@@ -1,5 +1,23 @@
 # D.A.O — Next Steps
 
+## OPT 20 — reprendre env-sync manuel #91 depuis le checkpoint courant
+
+Branche `chore/opt20-env-sync-recovery-91`, PR [#111](https://github.com/Khaey/Dao/pull/111),
+base `178ace17824bb114d4e17c89c6834c33a55b9ddd`. Lire le dernier checkpoint
+[#91, OPS 35 et suivants](https://github.com/Khaey/Dao/issues/91#issuecomment-6082986863)
+avant d'agir : une livraison finale est acquise, pas un lot à reconstruire.
+18 tests ciblés sur fichiers fictifs PASS ; diagnostics fermés et erreur
+initiale conservée, pas d'env restore/restart aveugle sur résultat ambigu.
+
+Suite tant que non achevée : suivre la CI automatique du HEAD final, réconcilier
+toute nouvelle avancée de main sans toucher aux autres Work, fusion autorisée
+après vert, puis vérifier deploy normal exact et une seule lecture `status`
+par le routeur nouvellement transporté. Cette lecture ne prouve pas une panne
+ou sync live. Pas d'env-sync/restart manuels pour la qualification, pas de
+bootstrap/admission/ops-upgrade/ops-rollback root ou DB à rejouer. #106/OPS 33
+reste livré. Voir [OPS control](../ops-control.md) pour interpréter une future
+récupération incomplète ; garder la coordination et la borne D-023.
+
 ## DEV 20 — OCE #58, terminer la correction du GET zones
 
 Reprendre `fix/dev20-oce-zone-page-size` et le dernier checkpoint #58.

@@ -78,7 +78,7 @@ case "$operation" in
     chmod 0600 "$payload_dir/dao-env.json" 2>/dev/null
     env_phase=sync
     env_state=unverified
-    result="$(sudo -n /usr/local/sbin/dao-dev-admin env-sync < "$payload_dir/dao-env.json" 2>/dev/null)"
+    result="$(sudo -n /usr/local/sbin/dao-dev-admin env-sync 2>/dev/null < "$payload_dir/dao-env.json")"
     case "$result" in
       'ENV_SYNC unchanged') env_state=unchanged ;;
       'ENV_SYNC updated keys=DAO_EMAIL_FROM'|'ENV_SYNC updated keys=DAO_PUBLIC_URL'|'ENV_SYNC updated keys=RESEND_API_KEY'|\

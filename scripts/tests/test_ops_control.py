@@ -330,8 +330,14 @@ case "$*" in
 esac
 ''',
             'rm': '''#!/bin/bash
-if [[ "$*" == *dao-env.json* && "${CLEANUP_STATUS:-0}" != 0 ]]; then
-  echo 'fictional-private-value' >&2; exit "$CLEANUP_STATUS"
+if [[ "$*" == *dao-env.json* ]]; then
+  if [[ -e "$MARKER.rm" && "${EXIT_CLEANUP_STATUS:-0}" != 0 ]]; then
+    echo 'fictional-private-value' >&2; exit "$EXIT_CLEANUP_STATUS"
+  fi
+  touch "$MARKER.rm"
+  if [[ "${CLEANUP_STATUS:-0}" != 0 ]]; then
+    echo 'fictional-private-value' >&2; exit "$CLEANUP_STATUS"
+  fi
 fi
 exec /bin/rm "$@"
 ''',
@@ -358,8 +364,8 @@ exit "${STATUS_STATUS:-0}"
                             'MARKER': str(self.root / 'marker'),
                             'SYNC_RESULT': 'ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY'}
 
-    def run_router(self, **changes):
-        result = subprocess.run(['bash', str(self.router), 'env-sync', '22', '1'],
+    def run_router(self, operation='env-sync', **changes):
+        result = subprocess.run(['bash', str(self.router), operation, '22', '1'],
                                 env={**self.environment, **changes}, capture_output=True, text=True)
         self.assertNotIn('fictional-private-value', result.stdout + result.stderr)
         return result
@@ -441,7 +447,7 @@ exit "${STATUS_STATUS:-0}"
         self.assertNotIn('env-restore', self.log.read_text())
         self.assertNotIn('systemctl', self.log.read_text())
 
-    def test_cleanup_failure_cannot_replace_original_error(self):
+    def test_initial_payload_deletion_failure_recovers_changed_environment(self):
         result = self.run_router(INITIAL_RESTART_STATUS='37', CLEANUP_STATUS='74')
         # Payload deletion is attempted before restart; its first failure is the original error.
         self.assertEqual(result.returncode, 74)
@@ -451,6 +457,55 @@ exit "${STATUS_STATUS:-0}"
         self.assertEqual(record['cleanup'], 'failed')
         self.assertEqual(record['env_sync_recovery'], 'incomplete')
         self.assertTrue(self.payload.exists())
+
+    def test_exit_cleanup_failure_cannot_replace_original_restart_error(self):
+        result = self.run_router(INITIAL_RESTART_STATUS='37', EXIT_CLEANUP_STATUS='74')
+        self.assertEqual(result.returncode, 37)
+        record = self.recovery(result)
+        self.assertEqual(record['phase'], 'restart')
+        self.assertEqual(record['environment'], 'restored')
+        self.assertEqual(record['readiness'], 'passed')
+        self.assertEqual(record['cleanup'], 'failed')
+        self.assertEqual(record['env_sync_recovery'], 'incomplete')
+
+    def test_cleanup_only_failure_is_nonzero_without_rolling_back_healthy_sync(self):
+        result = self.run_router(EXIT_CLEANUP_STATUS='74')
+        self.assertEqual(result.returncode, 74)
+        record = self.recovery(result)
+        self.assertEqual(record['phase'], 'cleanup')
+        self.assertEqual(record['environment'], 'updated')
+        self.assertEqual(record['restart'], 'not_needed')
+        self.assertEqual(record['env_sync_recovery'], 'incomplete')
+        self.assertNotIn('env-restore', self.log.read_text())
+        self.assertTrue(self.router.exists())
+
+    def test_other_operations_keep_initial_status_when_cleanup_also_fails(self):
+        result = self.run_router(operation='status', STATUS_STATUS='42', CLEANUP_STATUS='74')
+        self.assertEqual(result.returncode, 42)
+        self.assertNotIn('env_sync_recovery', result.stdout)
+        self.assertIn('OPS_PAYLOAD_CLEANUP_FAILED', result.stderr)
+        self.assertEqual(self.log.read_text(), 'status\n')
+
+    def test_updated_result_accepts_only_exact_allowed_key_sets(self):
+        keys = ['DAO_EMAIL_FROM', 'DAO_PUBLIC_URL', 'RESEND_API_KEY']
+        for mask in range(1, 8):
+            result_text = 'ENV_SYNC updated keys=' + ','.join(key for index, key in enumerate(keys) if mask & (1 << index))
+            with self.subTest(result=result_text):
+                self.payload.write_text('{"fictional":"fictional-private-value"}')
+                result = self.run_router(SYNC_RESULT=result_text)
+                self.assertEqual(result.returncode, 0)
+                self.assertIn(result_text, result.stdout)
+        for result_text in ['ENV_SYNC updated', 'ENV_SYNC updated keys=UNKNOWN',
+                            'ENV_SYNC updated keys=RESEND_API_KEY,DAO_EMAIL_FROM',
+                            'ENV_SYNC unchanged\nfictional-private-value']:
+            with self.subTest(result=result_text):
+                self.payload.write_text('{"fictional":"fictional-private-value"}')
+                before = self.log.read_text().count('systemctl')
+                result = self.run_router(SYNC_RESULT=result_text)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(self.recovery(result)['environment'], 'unverified')
+                self.assertEqual(self.log.read_text().count('systemctl'), before)
+                self.assertNotIn('env-restore', self.log.read_text())
 
     def test_chmod_failure_never_calls_helper_and_cleans_payload(self):
         result = self.run_router(CHMOD_STATUS='40')
@@ -463,6 +518,10 @@ exit "${STATUS_STATUS:-0}"
 
     def test_missing_or_symlink_payload_cannot_call_privileged_helpers(self):
         self.payload.unlink()
+        missing = self.run_router()
+        self.assertEqual(missing.returncode, 1)
+        self.assertEqual(self.recovery(missing)['environment'], 'not_attempted')
+        self.assertFalse(self.log.exists())
         target = self.root / 'keep'
         target.write_text('fictional-private-value')
         self.payload.symlink_to(target)
