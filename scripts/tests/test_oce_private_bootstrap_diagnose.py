@@ -77,10 +77,12 @@ class DiagnosticTests(unittest.TestCase):
         payload = {'a': self.m['account_id'], 't': self.m['tunnel_id'],
                    's': base64.b64encode(bytes(36)).decode()}
         token = base64.b64encode(json.dumps(payload).encode()).decode()
-        result = self.run_diagnostic(token=token)
+        # The VPS still has the older strict validator. Retain diagnosis support
+        # after the repository validator is corrected, without modifying that VPS.
+        with patch.object(self.cf, 'validate_tunnel_token', side_effect=ValueError('legacy strict validator')):
+            result = self.run_diagnostic(token=token)
         self.assertEqual(result['token_check'], 'INSTALLED_EXACT_32_BYTE_CONSTRAINT')
         self.assertTrue(result['secret_minimum_32_bytes_met'])
-        self.assertGreater(result['installed_module_line'], 29)
         self.assertNotIn(token, json.dumps(result))
         self.assertNotIn(payload['s'], json.dumps(result))
 
@@ -98,6 +100,8 @@ class DiagnosticTests(unittest.TestCase):
                 self.assertEqual(result['token_check'], expected)
                 self.assertNotIn(value, json.dumps(result))
                 self.assertNotIn(token, json.dumps(result))
+                if field == 'a':
+                    self.assertGreater(result['installed_module_line'], 29)
 
     def test_short_secret_is_distinguished_from_exact_size_compatibility(self):
         payload = {'a': self.m['account_id'], 't': self.m['tunnel_id'],

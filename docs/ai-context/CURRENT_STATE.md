@@ -1,5 +1,19 @@
 # D.A.O — Current State
 
+## DEV 20 — OCE #58, bootstrap installé, correctif du jeton préparé (2026-10-09)
+
+Main observé `c1d443a1c37d2b76399a25a3fed72d13061bc254`, nouvelles consignes
+#87 conservées. Branche propre `fix/dev20-oce-bootstrap-diagnostic`, PR #90.
+Le propriétaire a installé le helper/sudoers, sans démarrage du tunnel ; le
+provisionnement échoue avant audit complet. Diagnostic privé expurgé confirme
+le refus local exactement-32-octets, alors que le secret respecte le minimum
+Cloudflare. Correction : au moins 32 octets, contrôles compte/tunnel/endpoint
+et limites de jeton conservés. Code publié/CI/état de livraison et prochaine
+action sont suivis dans #58 ; publication ne vaut pas installation VPS.
+Mise à jour root ciblée du seul module/provisionnement reste à autoriser
+spécifiquement. Pas de nouveau bootstrap cloudflared/sudoers ni de rotation
+inutile, pas de :8080/gateway apply, pas de changement Auth/RLS/données démo.
+
 ## OPT 20 — Work continuity #87 (2026-10-09 Europe/Paris)
 
 Implementation base: verified main `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`;

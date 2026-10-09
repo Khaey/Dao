@@ -151,6 +151,24 @@ class PrivateDemoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             cf.validate_tunnel_token(base64.b64encode(duplicated.encode()).decode(), self.m)
 
+    def test_tunnel_secret_minimum_accepts_longer_credentials_without_weakening_binding(self):
+        def token(secret, **overrides):
+            payload = {'a': self.m['account_id'], 't': self.m['tunnel_id'],
+                       's': base64.b64encode(secret).decode(), **overrides}
+            return base64.b64encode(json.dumps(payload).encode()).decode()
+        for size in (32, 36, 64):
+            with self.subTest(valid_size=size):
+                cf.validate_tunnel_token(token(bytes(size)), self.m)
+        for size in (0, 1, 31):
+            with self.subTest(short_size=size), self.assertRaises(ValueError):
+                cf.validate_tunnel_token(token(bytes(size)), self.m)
+        for changes in ({'a': 'd' * 32}, {'t': '33333333-3333-3333-3333-333333333333'},
+                        {'e': 'unapproved.test'}, {'extra': 'unapproved'}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                cf.validate_tunnel_token(token(bytes(36), **changes), self.m)
+        with self.assertRaises(ValueError):
+            cf.validate_tunnel_token(token(bytes(4096)), self.m)
+
     def test_no_redirect_following(self):
         self.assertIsNone(cf.RefuseRedirect().redirect_request(None, None, 302, '', {}, 'https://evil.test'))
 

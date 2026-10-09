@@ -1,5 +1,17 @@
 # D.A.O — Next Steps
 
+## DEV 20 — débloquer uniquement le bootstrap OCE #58
+
+Reprendre PR #90 / `fix/dev20-oce-bootstrap-diagnostic` et les résultats réels
+de #58. Le helper est déjà installé : ne pas le réinstaller ou élargir les
+permissions. Cause du refus confirmée par le diagnostic propriétaire : secret
+plus long que 32 octets, respectant le minimum Cloudflare, rejeté par notre
+contrainte exacte. Valider le correctif sur son HEAD exact, puis respecter
+l'autorisation spécifique des changements VPS avant fusion/déploiement et
+mise à jour root ciblée du seul module. Ensuite reprendre la saisie privée et
+l'audit complet ; ne jamais lancer start après un audit en échec. :8080 et
+gateway apply restent bloqués sans accord distinct. #83/#85/#87 intacts.
+
 ## OPT 20 — finish only Work continuity #87
 
 Read [#87](https://github.com/Khaey/Dao/issues/87) and

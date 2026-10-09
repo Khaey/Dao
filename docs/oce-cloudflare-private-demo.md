@@ -211,3 +211,19 @@ Source du format local du jeton :
 [cloudflared 2026.10.0 TunnelToken](https://github.com/cloudflare/cloudflared/blob/2026.10.0/connection/connection.go).
 Permissions GET token :
 [API officielle](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/subresources/token/methods/get/).
+
+## Correctif du bootstrap — DEV 20, 2026-10-09
+
+Le helper/service a été installé par le propriétaire, mais le provisionnement
+est bloqué avant audit complet. Le diagnostic expurgé a confirmé la contrainte
+locale exactement-32-octets comme cause, avec un secret respectant le minimum.
+La [documentation API Cloudflare](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/methods/create/)
+indique au moins 32 octets. La correction garde le décodage strict, la taille
+maximale du jeton, les IDs compte/tunnel et le refus d'endpoint alternatif.
+Voir [le diagnostic et la reprise ciblée](oce-private-bootstrap-diagnostic.md).
+
+La PR #90 contient le diagnostic et la correction ; sa CI et son état réels
+sont suivis dans #58. Aucun nouveau validateur n'est réputé installé sur le VPS
+par la seule publication de cette PR. Mise à jour root ciblée/provisionnement
+requièrent l'autorisation spécifique du propriétaire ; aucun start implicite,
+changement de sudoers ou :8080, ni gateway-host apply.

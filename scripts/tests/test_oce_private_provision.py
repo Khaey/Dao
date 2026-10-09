@@ -75,6 +75,14 @@ class ProvisionTests(unittest.TestCase):
             self.run_provision()
         self.assertEqual(list(self.root.iterdir()), [])
 
+    def test_longer_tunnel_secret_provisions_only_after_same_full_audit(self):
+        self.token = base64.b64encode(json.dumps({
+            'a': self.m['account_id'], 't': self.m['tunnel_id'],
+            's': base64.b64encode(bytes(36)).decode()}).encode()).decode()
+        self.run_provision()
+        self.assertEqual((self.root / 'tunnel-token').read_text().strip(), self.token)
+        self.assertEqual((self.root / 'tunnel-token').stat().st_mode & 0o777, 0o600)
+
 
 if __name__ == '__main__':
     unittest.main()

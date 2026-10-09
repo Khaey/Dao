@@ -56,12 +56,23 @@ encodage et contrainte de taille. Il rapporte le site d'appel du refus et des
 codes fixes, sans valeurs privées. Le validateur installé exige exactement
 32 octets, alors que [l'API Cloudflare](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/methods/create/)
 décrit un minimum de 32 octets pour le secret du tunnel. Cette incompatibilité
-possible est prouvée sur fixture synthétique de 36 octets ; **elle n'est pas
-encore prouvée comme cause du jeton réel du propriétaire**.
+possible est prouvée sur fixture synthétique de 36 octets. Le second diagnostic
+propriétaire a maintenant confirmé le refus exact
+`INSTALLED_EXACT_32_BYTE_CONSTRAINT`, minimum 32 respecté, site d'appel ligne 62.
+Compte, tunnel, schéma, endpoint et encodage ont passé les contrôles locaux.
 
-Le nouveau diagnostic ne change ni le validateur root ni son acceptation.
-Si `token_check` vaut `INSTALLED_EXACT_32_BYTE_CONSTRAINT` avec
-`secret_minimum_32_bytes_met=true`, préparer une correction de compatibilité
-testée en gardant les contrôles compte/tunnel/endpoint et l'authentification
-cloudflared. Sinon, corriger uniquement la cause indiquée. Ne pas refaire
-l'installation ni proposer une rotation de jeton sans cause démontrée.
+La correction repository accepte désormais au moins 32 octets, sous la même
+limite de taille totale de jeton, avec contrôle des IDs compte/tunnel, absence
+d'endpoint alternatif, refus des champs supplémentaires/doublons et décodage
+strict. Elle ne démontre pas la validité cryptographique du secret : Cloudflare
+l'authentifie toujours au démarrage. Le diagnostic garde le support du module
+ancien encore installé sur le VPS.
+
+Avant activation : CI du commit exact, livraison/merge selon autorisation puis
+mise à jour ciblée du seul module installé depuis la release revue. Cette
+opération root reste distincte et exige l'autorisation spécifique propriétaire.
+Ne pas réinstaller cloudflared/service/sudoers, modifier :8080 ou démarrer le
+tunnel. Conserver une copie root privée du module antérieur, vérifier les hash
+ancien/nouveau et l'arrêt du service, remplacer atomiquement, puis reprendre
+le provisionnement guidé. Un refus ultérieur peut encore venir de l'audit
+Access/policy/ingress : ces contrôles n'ont pas été contournés.
