@@ -73,10 +73,10 @@ model {
   githubDevEnv = softwareSystem "GitHub Environment dev" "Stockage protégé des variables/secrets DEV consommés uniquement par les workflows autorisés." "External"
   vps = softwareSystem "VPS DEV OVH" "Héberge dao-dev.logiclab.fr, dao-dev.service et /etc/dao/dao-dev.env." "External"
   workAgents = person "Agents DEV / OPT / Pilot" "Consomment les opérations fixes depuis GitHub ; aucun compte root individuel."
-  rootMaintenance = softwareSystem "Maintenance root OPS" "Installée #91, droits et état confirmés par Actions : catalogue fixe, admission main/CI/SHA, snapshots root ; rollback live à qualifier sur une évolution réelle." "External"
+  rootMaintenance = softwareSystem "Maintenance root OPS" "Catalogue installé #91, admission main/CI/SHA et snapshots root ; cycle upgrade/rollback du contrôleur qualifié live sur une évolution réelle." "External"
   workAgents -> github "Commentaires owner exacts #91 ou Actions main selon mandat"
   github -> rootMaintenance "Contrôle fixe main-only ; maintenance exige CI verte et admission du SHA"
-  rootMaintenance -> vps "Gère neuf copies Python adoptées sous root ; aucun secret/service/réseau modifié"
+  rootMaintenance -> vps "Maintient et restaure le code des neuf copies root ; aucun secret/service/réseau modifié"
 
   client -> dao.web.shell "Utilise l'espace client"
   contractor -> dao.web.shell "Utilise l'espace artisan"
@@ -179,7 +179,7 @@ views {
     autoLayout lr
   }
 
-  systemLandscape "OpsControl" "Contrôle commun GitHub ; bootstrap, grants et état root confirmés live, rollback restant à qualifier." {
+  systemLandscape "OpsControl" "Premier lot OPS #91 : bootstrap, grants et cycle de maintenance du code qualifiés live." {
     include workAgents github githubDevEnv vps rootMaintenance
     autoLayout tb
   }

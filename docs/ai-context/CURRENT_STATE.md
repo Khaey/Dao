@@ -1,37 +1,38 @@
 # D.A.O — Current State
 
-## OPT 20 — OPS #91 installé, diagnostic de refus préparé (2026-10-09)
+## OPT 20 — OPS #91, premier lot maintenance qualifié live (2026-10-09)
 
 Handoff Pilot #6073726736 et GO propriétaire ; #85/#92 livrés, non rejoués.
-PR [#96](https://github.com/Khaey/Dao/pull/96) fusionnée au main
-`155caf1704b8f81673020087b818043072caf333`, CI/deploy #408 SUCCESS ; Pages #39
-SUCCESS. Son HEAD sauvegardé est `60d50c88f1015cb36a3e9851f264919155908ff1`.
-Suivi documentaire #99 fusionné au main
-`dac60a4274ecbf15d0407bc282fabafcc76ce4af`, CI/deploy #416 et Pages #41 SUCCESS.
-Branche propre suivante `chore/opt20-ops-errors-91` depuis ce main ; #98/#95
-conservées.
-Interface commune DAO DEV operations : signaux owner stricts #91, verbes fixes,
-diagnostics expurgés et maintenance des copies root installées par SHA main/CI
-et admission explicite, manifeste, verrous, snapshots/journal et rollback.
-Bootstrap propriétaire terminé : neuf copies adoptées, visudo OK. Diagnostics
-live [#16](https://github.com/Khaey/Dao/actions/runs/37893592552) et ops-status
-[#17](https://github.com/Khaey/Dao/actions/runs/37893942786), tentative 1 SUCCESS :
-cinq grants maintenance vrais, bootstrap_required=false, current=bootstrap,
-previous=null, installed_match=true, neuf fichiers, aucune transaction pendante.
-Preflight #29 / 37895168260 SUCCESS au SHA 072842b8b8497b344b7b09faf9b48d22e03abf78
-après dernière CI #414 et admission : aucun fichier différent/absent.
-Upgrade #30/#34 refuse OPERATION_FAILED, cause inconnue ; status final #35 /
-37895795045 confirme snapshot/copies intègres, sans transaction pendante.
-Mutation arrêtée, aucun no-op upgrade réussi revendiqué. Correction ciblée
-préparée : codes fixes pour contention de verrou et erreurs transport/HTTP
-GitHub, sans corps/URL/message sensible ; manifeste régénéré et tests renforcés.
-Publication/CI/admission puis installation réelle restent distinctes et sont
-suivies dans #91 ; aucune correction de la cause historique n'est présumée.
-Le rollback live ne découle pas des 17 tests fictifs ; une évolution réelle
-approuvée est nécessaire pour le qualifier. Ne plus demander le bootstrap.
-Aucun nouveau secret, service, réseau, backup ou migration modifié.
-#58 reste à DEV 20, #83/#64/#93
-exclus. Voir [OPS control](../ops-control.md) pour la matrice et les limites.
+PR #96/#99/#100 fusionnées ; source actuelle du contrôleur livrée au main
+`642376a21ac79558745e3c0b99d1c7ea2c7d154e`, CI/deploy #418 / 37897760282 SUCCESS.
+HEAD code sauvegardé `0eba8edbbea07139b06c543acfd7db7d85b5c5aa`, branche
+`chore/opt20-ops-errors-91` ; suivi documentaire sur
+`chore/opt20-ops-live-proof-91`. #95/#98 et tous les contextes DEV conservés.
+
+Bootstrap propriétaire terminé et confirmé par Actions #16/#17 : neuf copies
+adoptées, visudo OK, cinq droits maintenance. Ne plus le demander à un Work.
+Après dernière CI main verte et admission 6076369263, nouveau preflight
+[#41](https://github.com/Khaey/Dao/actions/runs/37898487723) puis upgrade
+[#42](https://github.com/Khaey/Dao/actions/runs/37898617882) SUCCESS : seul
+le contrôleur de diagnostic change dans les neuf fichiers installés.
+Rollback réel [#45](https://github.com/Khaey/Dao/actions/runs/37899006657) vers
+bootstrap et status #46 SUCCESS ; remise de la version admise
+[#47](https://github.com/Khaey/Dao/actions/runs/37899331901) et status
+[#48](https://github.com/Khaey/Dao/actions/runs/37899568438) SUCCESS :
+current=rev-642376a21ac79558745e3c0b99d1c7ea2c7d154e, previous=bootstrap,
+installed_match=true, neuf copies, pending_transaction=false.
+Diagnostics final [#49](https://github.com/Khaey/Dao/actions/runs/37899837321)
+SUCCESS : root-controlled, cinq grants vrais, bootstrap_required=false,
+SHA-256 0998ca3e64ce1ba61512d9768333fed9528341155540d5bca661e39f077ad8d6,
+secrets_read=false. Tous ces runs sont tentative 1.
+
+Maintenance du code installé qualifiée sur une vraie évolution utile, sans
+nouvelle permission, configuration, service, secret, réseau, backup ou migration.
+Les refus historiques #30/#34 restent de cause inconnue ; les nouveaux codes
+expurgés ne les expliquent pas rétroactivement. Les 19 tests fictifs couvrent
+aussi le journal après interruption ; aucun crash VPS n'a été forcé.
+#91 reste ouverte pour le périmètre global/prochain mandat Pilot ; #58 à DEV 20,
+#83/#64/#93 distincts. Voir [OPS control](../ops-control.md) pour preuves et limites.
 Les anciennes sections ci-dessous conservent leurs snapshots historiques ;
 elles ne réactivent pas #85/#87 et ne confèrent pas la propriété #58.
 
