@@ -7,8 +7,9 @@ import ProfessionalMedia from './ProfessionalMedia';
 import { professionalRead } from '../lib/professionals';
 const typeNames:Record<string,string>={artisan:'Artisan',company:'Entreprise',general_contractor:'Entreprise générale',independent_professional:'Professionnel indépendant'};
 const availabilityNames:Record<string,string>={available:'Disponible',unavailable:'Indisponible',scheduled:'Disponible à partir du',to_discuss:'Disponibilité à discuter'};
-export default function ProfessionalPublicProfile({id}:{id:string}) {
-  const preview=useSearchParams().get('preview')==='true';
+export default function ProfessionalPublicProfile({id,previewOverride}:{id:string;previewOverride?:boolean}) {
+  const params=useSearchParams();
+  const preview=previewOverride??(params.get('preview')==='true');
   const [profile,setProfile]=useState<any>(null),[error,setError]=useState('');
   useEffect(()=>{setProfile(null);void professionalRead({view:'public',id,preview:String(preview)}).then(setProfile).catch(e=>setError(e.message));},[id,preview]);
   if(!profile)return <Card><p role={error?'alert':'status'}>{error||'Chargement de la fiche…'}</p><Link href="/app/professionals" className="mt-4 inline-block text-teal">Retour aux professionnels</Link></Card>;
