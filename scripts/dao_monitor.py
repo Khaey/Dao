@@ -68,7 +68,49 @@ def validate_url(url):
     return BASE
 
 
-def classify(event_name, event, config):
+def _unique_mission(numbers, config):
+    """Resolve an issue owner only when exactly one registered mission matches."""
+    issues = {int(raw) for raw in numbers if mission_for(int(raw), config)}
+    if len(issues) != 1:
+        return None, None
+    issue = issues.pop()
+    return mission_for(issue, config), issue
+
+
+def pr_owner(pr, config):
+    """Derive an agent from a canonical issue, never from the merge actor."""
+    title = pr.get("title") or ""
+    body = pr.get("body") or ""
+    explicit = " ".join(re.findall(
+        r"(?i)\b(?:refs?|fixes|closes|resolves|owner\s+issue)\s*:?\s*#\d+\b", body))
+    for scope in (title, explicit, title + "\n" + body):
+        refs = re.findall(r"(?<!\w)#(\d+)\b", scope)
+        mission, issue = _unique_mission(refs, config)
+        if mission:
+            return mission["agent"], issue
+        if refs and scope != title + "\n" + body:
+            # An ambiguous explicit reference is not safe to attribute.
+            return None, None
+    return None, None
+
+
+def owner_line(pr, config):
+    agent, issue = pr_owner(pr or {}, config)
+    return (f"👤 Agent : {agent} — mission #{issue}" if agent
+            else "👤 Agent : non identifié")
+
+
+def associated_merged_pr(pulls, sha):
+    """Never correlate a CI to a PR without its exact merge SHA."""
+    if not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha):
+        return None
+    matches = [pr for pr in pulls if isinstance(pr, dict)
+               and pr.get("merge_commit_sha") == sha and pr.get("merged_at")
+               and pr.get("base", {}).get("ref") == "main"]
+    return matches[0] if len(matches) == 1 else None
+
+
+def classify(event_name, event, config, related_pr=None):
     if event_name == "issue_comment":
         if event.get("action") != "created" or event.get("issue", {}).get("pull_request"):
             return None
@@ -91,6 +133,7 @@ def classify(event_name, event, config):
             return None
         number = pr.get("number")
         return (f"🔀 D.A.O — PR #{number} fusionnée\n"
+                f"{owner_line(pr, config)}\n"
                 f"{clean(pr.get('title', ''), 120)}\n"
                 f"{validate_url(pr.get('html_url'))}")
     if event_name == "workflow_run":
@@ -107,7 +150,8 @@ def classify(event_name, event, config):
             label = "❌ CI / déploiement DEV : " + clean(conclusion, 20)
         else:
             return None
-        return f"{label}\nRun #{run.get('run_number')}\n{validate_url(run.get('html_url'))}"
+        return (f"{label}\n{owner_line(related_pr, config)}\n"
+                f"Run #{run.get('run_number')}\n{validate_url(run.get('html_url'))}")
     return None
 
 
@@ -237,7 +281,23 @@ def main():
         return
     with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as handle:
         event = json.load(handle)
-    message = classify(event_name, event, config)
+    related_pr = None
+    if event_name == "workflow_run":
+        run = event.get("workflow_run", {})
+        sha = run.get("head_sha")
+        if (event.get("action") == "completed"
+                and run.get("name") == "DAO CI and DEV deploy"
+                and run.get("head_branch") == "main"
+                and run.get("event") == "push"
+                and isinstance(sha, str)
+                and re.fullmatch(r"[a-f0-9]{40}", sha)):
+            try:
+                pulls = github_api("GET", f"commits/{sha}/pulls?per_page=100")
+                related_pr = associated_merged_pr(pulls, sha)
+            except RuntimeError:
+                # Never drop an alert solely because issue attribution failed.
+                print("DAO Monitor: owner lookup unavailable; using unknown agent.")
+    message = classify(event_name, event, config, related_pr)
     if message:
         telegram(message)
     else:
