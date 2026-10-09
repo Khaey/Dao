@@ -235,7 +235,7 @@ printf '%s\\n' "$*" >> "$CALL_LOG"
 case "$*" in
   *'env-sync')
     stat -c 'payload-mode=%a' "$ENV_PAYLOAD" >> "$CALL_LOG"
-    echo 'ENV_SYNC updated';;
+    echo 'ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY';;
   *'systemctl restart dao-dev.service')
     if [[ ! -e "$RESTART_MARKER" ]]; then touch "$RESTART_MARKER"; exit 1; fi;;
 esac
@@ -291,6 +291,209 @@ esac
                     '-n /usr/local/sbin/dao-ops-admin status',
                     '-n /usr/local/sbin/dao-ops-admin rollback'])
                 self.assertFalse((app / 'current').exists())
+
+
+class EnvSyncRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        app, commands = self.root / 'dao', self.root / 'commands'
+        self.payload = app / 'ops-incoming/22-1/dao-env.json'
+        self.payload.parent.mkdir(parents=True)
+        self.payload.write_text('{"fictional":"fictional-private-value"}')
+        self.scripts = self.payload.parent / 'scripts'
+        self.scripts.mkdir()
+        commands.mkdir()
+        self.log = self.root / 'calls'
+        self.router = self.scripts / 'dao-operations.sh'
+        self.router.write_text((ROOT / 'scripts/dao-operations.sh').read_text().replace('/opt/dao', str(app)))
+        fixtures = {
+            'sudo': '''#!/bin/bash
+printf '%s\\n' "$*" >> "$CALL_LOG"
+case "$*" in
+  '-n /usr/local/sbin/dao-dev-admin env-sync')
+    stat -c 'payload-mode=%a' "$ENV_PAYLOAD" >> "$CALL_LOG"
+    printf '%s\\n' "$SYNC_RESULT"
+    echo 'fictional-private-value' >&2
+    exit "${SYNC_STATUS:-0}";;
+  '-n /usr/local/sbin/dao-dev-admin env-restore')
+    echo 'fictional-private-value'
+    exit "${RESTORE_STATUS:-0}";;
+  '-n /usr/bin/systemctl restart dao-dev.service')
+    if [[ ! -e "$MARKER.restart" ]]; then
+      touch "$MARKER.restart"; exit "${INITIAL_RESTART_STATUS:-0}"
+    fi
+    echo 'fictional-private-value' >&2
+    exit "${RECOVERY_RESTART_STATUS:-0}";;
+  *) exit 99;;
+esac
+''',
+            'rm': '''#!/bin/bash
+if [[ "$*" == *dao-env.json* && "${CLEANUP_STATUS:-0}" != 0 ]]; then
+  echo 'fictional-private-value' >&2; exit "$CLEANUP_STATUS"
+fi
+exec /bin/rm "$@"
+''',
+            'chmod': '''#!/bin/bash
+if [[ "${CHMOD_STATUS:-0}" != 0 ]]; then
+  echo 'fictional-private-value' >&2; exit "$CHMOD_STATUS"
+fi
+exec /bin/chmod "$@"
+''',
+        }
+        for name, content in fixtures.items():
+            path = commands / name
+            path.write_text(content)
+            path.chmod(0o755)
+        (self.scripts / 'validate-dev.sh').write_text('''printf 'health %s\\n' "$*" >> "$CALL_LOG"
+if [[ "$*" == *--once* ]]; then exit "${RECOVERY_HEALTH_STATUS:-0}"; fi
+exit "${INITIAL_HEALTH_STATUS:-0}"
+''')
+        (self.scripts / 'dev-status.sh').write_text('''echo status >> "$CALL_LOG"
+exit "${STATUS_STATUS:-0}"
+''')
+        self.environment = {**os.environ, 'PATH': str(commands) + ':' + os.environ['PATH'],
+                            'CALL_LOG': str(self.log), 'ENV_PAYLOAD': str(self.payload),
+                            'MARKER': str(self.root / 'marker'),
+                            'SYNC_RESULT': 'ENV_SYNC updated keys=DAO_EMAIL_FROM,DAO_PUBLIC_URL,RESEND_API_KEY'}
+
+    def run_router(self, **changes):
+        result = subprocess.run(['bash', str(self.router), 'env-sync', '22', '1'],
+                                env={**self.environment, **changes}, capture_output=True, text=True)
+        self.assertNotIn('fictional-private-value', result.stdout + result.stderr)
+        return result
+
+    def recovery(self, result):
+        records = [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
+        self.assertEqual(len(records), 1, result.stdout + result.stderr)
+        record = records[0]
+        self.assertEqual(record['original_status'], result.returncode)
+        return record
+
+    def test_restart_failure_keeps_status_and_checks_restored_service_once(self):
+        result = self.run_router(INITIAL_RESTART_STATUS='37')
+        self.assertEqual(result.returncode, 37)
+        self.assertEqual(self.recovery(result), {
+            'env_sync_recovery': 'complete', 'original_status': 37, 'phase': 'restart',
+            'environment': 'restored', 'restart': 'complete', 'readiness': 'passed',
+            'cleanup': 'complete'})
+        calls = self.log.read_text()
+        self.assertEqual(calls.count('systemctl restart dao-dev.service'), 2)
+        self.assertIn('health http://127.0.0.1:3000 --once', calls)
+        self.assertIn('payload-mode=600', calls)
+        self.assertFalse(self.payload.exists())
+
+    def test_restore_failure_does_not_abort_restart_or_replace_initial_status(self):
+        result = self.run_router(INITIAL_HEALTH_STATUS='38', RESTORE_STATUS='71')
+        self.assertEqual(result.returncode, 38)
+        record = self.recovery(result)
+        self.assertEqual(record['env_sync_recovery'], 'incomplete')
+        self.assertEqual(record['environment'], 'failed')
+        self.assertEqual(record['restart'], 'complete')
+        self.assertEqual(record['readiness'], 'not_checked')
+        self.assertEqual(self.log.read_text().count('systemctl restart dao-dev.service'), 2)
+        self.assertFalse(self.payload.exists())
+
+    def test_recovery_restart_failure_still_cleans_payload(self):
+        result = self.run_router(INITIAL_RESTART_STATUS='37', RECOVERY_RESTART_STATUS='72')
+        self.assertEqual(result.returncode, 37)
+        record = self.recovery(result)
+        self.assertEqual(record['environment'], 'restored')
+        self.assertEqual(record['restart'], 'failed')
+        self.assertEqual(record['readiness'], 'not_checked')
+        self.assertEqual(record['cleanup'], 'complete')
+        self.assertFalse(self.payload.exists())
+
+    def test_recovery_http_failure_is_incomplete_without_retries(self):
+        result = self.run_router(INITIAL_HEALTH_STATUS='38', RECOVERY_HEALTH_STATUS='73')
+        self.assertEqual(result.returncode, 38)
+        record = self.recovery(result)
+        self.assertEqual(record['env_sync_recovery'], 'incomplete')
+        self.assertEqual(record['readiness'], 'failed')
+        self.assertEqual(self.log.read_text().count('--once'), 1)
+
+    def test_unchanged_sync_recovers_service_without_blind_restore(self):
+        result = self.run_router(SYNC_RESULT='ENV_SYNC unchanged', INITIAL_RESTART_STATUS='37')
+        self.assertEqual(result.returncode, 37)
+        record = self.recovery(result)
+        self.assertEqual(record['environment'], 'unchanged')
+        self.assertEqual(record['env_sync_recovery'], 'complete')
+        self.assertNotIn('env-restore', self.log.read_text())
+        self.assertEqual(self.log.read_text().count('--once'), 1)
+
+    def test_helper_failure_is_unverified_and_never_restores_or_restarts(self):
+        result = self.run_router(SYNC_STATUS='39', SYNC_RESULT='fictional-private-value')
+        self.assertEqual(result.returncode, 39)
+        record = self.recovery(result)
+        self.assertEqual(record['environment'], 'unverified')
+        self.assertEqual(record['env_sync_recovery'], 'incomplete')
+        self.assertNotIn('env-restore', self.log.read_text())
+        self.assertNotIn('systemctl', self.log.read_text())
+        self.assertFalse(self.payload.exists())
+
+    def test_unrecognized_success_is_redacted_and_cannot_claim_unchanged(self):
+        result = self.run_router(SYNC_RESULT='fictional-private-value')
+        self.assertEqual(result.returncode, 1)
+        record = self.recovery(result)
+        self.assertEqual(record['environment'], 'unverified')
+        self.assertEqual(record['restart'], 'not_needed')
+        self.assertNotIn('env-restore', self.log.read_text())
+        self.assertNotIn('systemctl', self.log.read_text())
+
+    def test_cleanup_failure_cannot_replace_original_error(self):
+        result = self.run_router(INITIAL_RESTART_STATUS='37', CLEANUP_STATUS='74')
+        # Payload deletion is attempted before restart; its first failure is the original error.
+        self.assertEqual(result.returncode, 74)
+        record = self.recovery(result)
+        self.assertEqual(record['phase'], 'payload_cleanup')
+        self.assertEqual(record['environment'], 'restored')
+        self.assertEqual(record['cleanup'], 'failed')
+        self.assertEqual(record['env_sync_recovery'], 'incomplete')
+        self.assertTrue(self.payload.exists())
+
+    def test_chmod_failure_never_calls_helper_and_cleans_payload(self):
+        result = self.run_router(CHMOD_STATUS='40')
+        self.assertEqual(result.returncode, 40)
+        record = self.recovery(result)
+        self.assertEqual(record['environment'], 'not_attempted')
+        self.assertEqual(record['env_sync_recovery'], 'not_needed')
+        self.assertFalse(self.log.exists())
+        self.assertFalse(self.payload.exists())
+
+    def test_missing_or_symlink_payload_cannot_call_privileged_helpers(self):
+        self.payload.unlink()
+        target = self.root / 'keep'
+        target.write_text('fictional-private-value')
+        self.payload.symlink_to(target)
+        result = self.run_router()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.recovery(result)['environment'], 'not_attempted')
+        self.assertFalse(self.log.exists())
+        self.assertEqual(target.read_text(), 'fictional-private-value')
+        self.assertFalse(self.payload.is_symlink())
+
+    def test_success_preserves_normal_polling_status_and_transport_scripts(self):
+        result = self.run_router()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn('env_sync_recovery', result.stdout)
+        self.assertIn('ENV_SYNC updated keys=', result.stdout)
+        calls = self.log.read_text()
+        self.assertIn('health http://127.0.0.1:3000\nstatus\n', calls)
+        self.assertNotIn('--once', calls)
+        self.assertNotIn('env-restore', calls)
+        self.assertFalse(self.payload.exists())
+        self.assertTrue(self.router.exists())
+
+    def test_status_failure_after_readiness_does_not_roll_back_healthy_sync(self):
+        result = self.run_router(STATUS_STATUS='41')
+        self.assertEqual(result.returncode, 41)
+        record = self.recovery(result)
+        self.assertEqual(record['phase'], 'status')
+        self.assertEqual(record['environment'], 'updated')
+        self.assertEqual(record['env_sync_recovery'], 'not_needed')
+        self.assertNotIn('env-restore', self.log.read_text())
+        self.assertEqual(self.log.read_text().count('systemctl restart dao-dev.service'), 1)
 
 
 class TransportTests(unittest.TestCase):
