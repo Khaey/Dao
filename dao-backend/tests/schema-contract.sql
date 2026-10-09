@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -126,6 +126,12 @@ BEGIN
       'public.cancel_award_item_atomic(text,uuid,text,text)',
       'public.publication_lot_availability(uuid)',
       'public.configure_bid_package(uuid,boolean,uuid[])',
+      'public.set_my_workspace(text)',
+      'public.update_my_contractor_profile(text,text,text,text,integer,text,date,uuid[])',
+      'public.my_project_invitations()',
+      'public.respond_my_project_invitation(uuid,boolean)',
+      'public.my_bid_summaries()',
+      'public.withdraw_bid_version(uuid)',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -186,6 +192,23 @@ BEGIN
       RAISE EXCEPTION 'schema contract: collaboration RPC % must require authenticated execution', missing_name;
     END IF;
   END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.set_my_workspace(text)',
+    'public.update_my_contractor_profile(text,text,text,text,integer,text,date,uuid[])',
+    'public.my_project_invitations()',
+    'public.respond_my_project_invitation(uuid,boolean)',
+    'public.my_bid_summaries()',
+    'public.withdraw_bid_version(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'artisan workflow RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' AND column_name='last_workspace')
+     OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bid_versions' AND column_name='withdrawn_at')
+     OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bid_versions' AND column_name='withdrawn_by') THEN
+    RAISE EXCEPTION 'artisan workflow persistence columns are missing';
+  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema='public' AND table_name='project_invitations' AND column_name='principal_request_id'

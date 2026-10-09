@@ -9,9 +9,9 @@ model {
 
   dao = softwareSystem "D.A.O" "Plateforme construction/rénovation, marketplace et workflow chantier." {
     web = container "Application Web + API" "Interface responsive et API serveur." "Next.js 15 / React 19 / TypeScript" {
-      shell = component "Shell applicatif & RoleNav" "Navigation selon rôles et accès aux espaces client, artisan et D.A.O." "Next.js"
+      shell = component "Shell applicatif & RoleNav" "Navigation selon rôles, dernier espace client/artisan utilisé et accès D.A.O." "Next.js"
       auth = component "Auth" "Login, register client/contractor, forgot/reset password, invitation return." "Supabase Auth"
-      profile = component "Profils" "Profil utilisateur, contractor profile, statuts public/verification." "Next.js / Supabase"
+      profile = component "Profils" "Profil utilisateur et contractor éditable ; identité, activité ou métiers relancent la vérification." "Next.js / Supabase RPC"
 
       projects = component "Chantiers" "Création, édition, versions, statut, avancement et archivage." "Next.js / API / RPC"
       lots = component "Lots / project_requests" "Lots réels versionnés; métier, périmètre, budget et retrait logique." "Next.js / RPC"
@@ -19,14 +19,14 @@ model {
       documents = component "Documents" "Upload Storage privé, grants et signed URLs après autorisation." "Next.js / Supabase Storage"
 
       collaboration = component "Collaboration chantier" "Membres, rôles projet, permissions privées et affectation aux lots." "Next.js / RPC"
-      invitations = component "Invitations chantier" "Token one-shot hashé, expiration, preview, accept/refuse/revoke." "Next.js / RPC"
+      invitations = component "Invitations chantier" "Token one-shot hashé et boîte du destinataire ; expiration, preview, accept/refuse/revoke." "Next.js / RPC"
       teamCreation = component "Création avec équipe existante" "Création atomique projet + lots principaux + invitations." "Next.js / RPC"
 
       review = component "Revue D.A.O" "Soumission client, revue staff, rejet motivé, correction et approbation." "Next.js / RPC"
       publications = component "Publications" "Publication de snapshots approuvés: public, targeted, invite-only." "Next.js / RPC"
       marketplace = component "DAO disponibles" "Découverte artisan des publications autorisées." "Next.js / RLS"
 
-      bids = component "Offres / bids" "Brouillon, items, versioning, pièces et soumission immuable." "Next.js / RPC"
+      bids = component "Offres / bids" "Vue globale, brouillon, items, versioning, soumission immuable et retrait historique avant attribution." "Next.js / RPC"
       compare = component "Comparaison offres P2" "Comparaison client par lot de la version soumise actuelle de chaque offre." "Next.js / RLS"
       awards = component "Attribution" "Attribution par lot ou package indivisible, fermeture aux offres, résultats confidentiels, annulation motivée et réattribution auditées." "Supabase RPC"
 
@@ -102,8 +102,8 @@ model {
   client -> dao.web.compare "Compare les offres" "P2"
 
   contractor -> dao.web.marketplace "Consulte les DAO autorisées"
-  contractor -> dao.web.bids "Prépare/soumet ses offres"
-  contractor -> dao.web.invitations "Accepte/refuse une invitation"
+  contractor -> dao.web.bids "Prépare, suit, soumet ou retire une offre non attribuée"
+  contractor -> dao.web.invitations "Consulte sa boîte et accepte/refuse une invitation"
   contractor -> dao.web.collaboration "Travaille sur un chantier accepté"
   contractor -> dao.web.contracts "Participe à l’exécution" "Futur"
 
@@ -297,7 +297,7 @@ views {
     dao.web.api -> dao.web.services "Valide et orchestre"
     dao.web.services -> dao.web.rpc "Publie les snapshots autorisés"
     contractor -> dao.web.marketplace "Voit une publication autorisée"
-    contractor -> dao.web.bids "Crée puis soumet son offre"
+    contractor -> dao.web.bids "Crée, soumet puis peut retirer son offre non attribuée"
     dao.web.bids -> dao.web.api "Soumet la commande d'offre"
     dao.web.api -> dao.web.services "Valide l'offre"
     dao.web.services -> dao.web.rpc "Versionne et fige"

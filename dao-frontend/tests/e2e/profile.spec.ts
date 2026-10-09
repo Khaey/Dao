@@ -74,5 +74,5 @@ test('Mon espace affiche le profil, permet de se déconnecter et de récupérer 
   await expect(page.getByRole('status')).toContainText('Votre mot de passe a été mis à jour');
   e2eClient!.password = nextPassword;
   await login(page, e2eClient!);
-  await expect(page).toHaveURL(/\/app\/projects/);
+  await expect(page).toHaveURL(/\/app$/);
 });

@@ -2,8 +2,8 @@
 
 Date de reprise : 2026-10-09  
 Issue de suivi : [#83](https://github.com/Khaey/Dao/issues/83)  
-Branche : `feat/artisan-space-completion`  
-Base vérifiée : `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`
+Branches : `feat/artisan-space-completion`, puis `feat/artisan-workflows-v2`
+Base du lot 2 : `efe86f584343e06553157c4a121f3c270cac8cbb`
 
 ## Périmètre vérifié
 
@@ -31,20 +31,25 @@ L'audit part du `main` GitHub réel, des PR ouvertes et de `docs/ai-context/*`. 
 
 Les scénarios E2E existants sont renforcés sans augmenter leur nombre : profil contractor en attente, distinction du brouillon et restauration d'une sélection multi-lots. Aucun changement Auth, RLS, SQL, migration ou architecture n'est introduit.
 
-## Décisions métier laissées au DAO Pilot
+## Décisions DAO Pilot et lot 2
 
-- Définir quels changements du profil professionnel remettent un artisan vérifié au statut `pending` avant d'autoriser l'édition.
-- Choisir l'espace d'arrivée par défaut d'un compte qui cumule les rôles client et contractor.
-- Décider si une boîte « Mes invitations » et une vue globale « Mes offres » font partie du produit ; elles ne sont pas implicites dans les parcours actuels.
-- Confirmer un éventuel retrait d'offre soumise ; le contrat actuel place `BidService.withdraw` hors MVP.
+- Identité, activité et métiers sont les seuls changements qui relancent la
+  vérification. Le lot 2 active l'édition contrôlée et conserve les suspensions.
+- Un double rôle ouvre le dernier espace explicitement utilisé ; les listes du
+  tableau de bord sont filtrées selon cet espace.
+- « Mes invitations » liste l'historique et permet accepter/refuser après
+  contrôle de l'adresse Auth confirmée, sans reconstruire ni exposer le token.
+- « Mes offres » centralise toutes les versions et leurs résultats. Une offre
+  soumise non attribuée peut être retirée entièrement, sans effacer son contenu.
 
-Ces décisions ne sont pas implémentées dans DEV 2 afin de ne pas inventer de nouvelle règle métier.
+Les commandes restent atomiques, auditables et RPC-only pour l'acteur
+authentifié. Une offre attribuée ne peut pas être retirée par ce parcours.
 
 ## Validation
 
 - `git diff --check`
 - `npx tsc --noEmit`
-- `npm run build` — 57 routes
+- `npm run build` — 60 routes
 - `npx playwright test --list` — 48 tests, desktop et mobile
 
 La preuve de CI exacte, de PR et de fusion est tenue dans l'issue #83.

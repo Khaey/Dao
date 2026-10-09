@@ -6,6 +6,27 @@ The current assigned-review/version/sublot/withdrawal/assisted-award and notific
 
 > Stable business constraints and invariants. Changes here require explicit product/architecture review.
 
+## Espace Artisan / Entreprise — règles validées #83
+
+- Un compte qui cumule les rôles client et contractor ouvre le dernier espace
+  explicitement choisi. Le choix est accepté uniquement si le rôle correspondant
+  est réellement attribué ; le défaut historique reste l'espace client.
+- Le profil professionnel est éditable par son propriétaire via une commande
+  contrôlée. Seuls un changement d'identité (`business_name`, nom public), de
+  type d'activité ou de métiers actifs remet un profil vérifié/rejeté à
+  `pending`. Présentation, expérience et disponibilité ne relancent pas la
+  vérification. Une suspension reste suspendue et relève exclusivement de D.A.O.
+- « Mes invitations » ne révèle jamais le jeton hashé ou le jeton en clair.
+  L'adresse confirmée Supabase Auth, le rôle attendu et l'état courant sont
+  vérifiés côté SQL avant acceptation/refus ; l'acceptation conserve les mêmes
+  invariants de membership et d'affectation au lot que le parcours par lien.
+- « Mes offres » expose uniquement les versions du contractor authentifié.
+  Une version soumise, courante et non attribuée peut être retirée dans son
+  intégralité. Elle devient `withdrawn`/`obsolete`, reste immuable et auditée,
+  et ses lignes restent dans l'historique. Une offre déjà attribuée ne peut pas
+  être retirée par ce parcours. Une nouvelle version peut être préparée si la
+  publication accepte encore les offres.
+
 ## 1. Project and request model
 
 A **project** may contain multiple work requests.

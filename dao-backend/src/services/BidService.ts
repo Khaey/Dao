@@ -44,7 +44,10 @@ export class BidService {
     if (error) throw error;
     return data;
   }
-  async withdraw(_versionId: string) {
-    throw new DomainError('Le retrait d’une offre soumise est hors périmètre MVP', 'BID_WITHDRAWAL_NOT_AVAILABLE');
+  async withdraw(versionId: string) {
+    if (!versionId) throw new DomainError('Offer version is required', 'BAD_REQUEST');
+    const { data, error } = await this.db.rpc('withdraw_bid_version', { p_version_id: versionId });
+    if (error) throw error;
+    return data;
   }
 }
