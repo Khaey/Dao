@@ -128,8 +128,15 @@ as dev environment secrets. The workflow fixes `DAO_PUBLIC_URL` to the DEV
 URL. The normal main-only `deploy-dev` job creates a private, run-scoped JSON
 payload from those protected secrets, transfers it outside the build artifact,
 and deletes it from the runner and VPS in `always()` cleanup paths. The runner
+stages it at `ops-incoming/<run>-<attempt>/dao-env.json`. One pinned SCP action
+uploads this file together with the unchanged package to `/opt/dao`, retaining
+both relative paths; the JSON is never an uploaded GitHub build artifact.
+This is one SCP action/upload, not a guarantee of one TCP/SSH session inside
+the third-party action. See [issue #85](https://github.com/Khaey/Dao/issues/85)
+for before/after timing and deployment evidence. The runner
 temporarily changes only the payload's mode to `0644` for the pinned SCP
-container; the VPS payload is changed to `0600` before root-helper consumption.
+container, with traversable staging directories; the VPS payload is changed
+to `0600` before root-helper consumption.
 The deploy script invokes the installed helper under the existing host lock,
 after stale-main validation and before release activation. The helper preserves
 all non-managed keys and atomically keeps `/etc/dao/dao-dev.env` at `root:dao /

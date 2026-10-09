@@ -1,5 +1,28 @@
 # D.A.O — Current State
 
+## OPT 20 — SCP DEV #85, préparation du 2026-10-09
+
+Relais temporaire explicite du Pilot dans [#85](https://github.com/Khaey/Dao/issues/85#issuecomment-6073031291) :
+OPT 20 est seul actif sur ce chantier ; WORK OPT attend un handback explicite.
+Base réelle `c1d443a1c37d2b76399a25a3fed72d13061bc254`, CI/deploy main #391
+(`37875029150`, tentative 1 SUCCESS). #88 a entre-temps été fusionnée par
+décision distincte du propriétaire ; ne pas recommencer #87.
+
+Branche préparée `chore/ci-dev-single-transfer`, avancée sans réécriture au
+main réel. Le candidat regroupe les deux uploads dans l'action SCP déjà épinglée,
+avec package inchangé sous `/opt/dao` et JSON privé sous
+`/opt/dao/ops-incoming/<run>-<attempt>/dao-env.json`. Secrets hors artefact,
+modes, manifeste, verrou, stale-main, rollback et nettoyages conservés.
+Tests locaux ciblés : 5/5 PASS sur données fictives, sans SSH ni secret DEV.
+CI exacte et mesure réelle après fusion restent à vérifier à ce snapshot.
+
+Baselines déjà acquises, non rejouées : #383 = SCP 10 + 9 s, deploy 35 s ;
+#391 = SCP 10 + 8 s, deploy 41 s (construction du conteneur 8 s contre 3 s).
+L'essai six workers #86 est rejeté : navigateur +8,25 %, job +4,17 % ;
+conserver quatre workers et les 29 intégrations / 48 E2E desktop/mobile.
+Les preuves finales, SHA/PR/runs et limites de comparaison sont dans #85.
+OCE #58, Artisan #83, Back-office #64 et leurs branches restent hors périmètre.
+
 ## OPT 20 — Work continuity #87 (2026-10-09 Europe/Paris)
 
 Implementation base: verified main `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`;
