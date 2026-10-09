@@ -87,6 +87,27 @@ class MonitorTests(unittest.TestCase):
               "body": "https://github.com/Khaey/Dao/issues/91"}
         self.assertEqual(dm.pr_owner(pr, self.config), ("DAO OPT 20", 91))
 
+    def test_pr104_quoted_refs_are_examples_not_owners(self):
+        pr = {"title": "fix(monitor): identifier OPT 20 sur les PR #102/#103 et CI",
+              "body": ("Corrige la régression de DAO Monitor #93 montrée par les notifications "
+                       "Telegram de PR #102/#103 et CI #422/#424 : le responsable est "
+                       "**DAO OPT 20 (#91)**, mais le parseur ignorait `Réfs #91` et les liens "
+                       "directs vers l'issue `.../issues/91`.\n\n"
+                       "- Reconnaît `Refs #N` **et** `Réfs #N` (français).\n"
+                       "- Ajoute 5 tests de régression, priorité de `Réfs #91`.\n\nRefs #93")}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 3", 93))
+
+    def test_fenced_example_does_not_override_real_owner(self):
+        pr = {"body": "```text\nRefs #91\nhttps://github.com/Khaey/Dao/issues/58\n```\nRefs #93"}
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 3", 93))
+
+    def test_example_alone_cannot_assign_owner(self):
+        self.assertEqual(dm.pr_owner({"body": "Example: `Refs #91`"}, self.config), (None, None))
+
+    def test_real_conflicting_refs_remain_ambiguous_after_example(self):
+        self.assertEqual(dm.pr_owner({"body": "`Refs #83`\nRefs #91\nRefs #58"}, self.config),
+                         (None, None))
+
     def test_conflicting_registered_title_is_not_overridden(self):
         pr = {"title": "Corrections #58 et #91", "body": "Refs #93"}
         self.assertEqual(dm.pr_owner(pr, self.config), (None, None))
