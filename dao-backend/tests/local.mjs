@@ -1,4 +1,5 @@
 import { backofficeCases } from './backoffice-cases.mjs';
+import { professionalCases } from './professional-cases.mjs';
 import { awardLifecycleCases } from './award-lifecycle-cases.mjs';
 import {PGlite} from '@electric-sql/pglite';
 import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
@@ -50,7 +51,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,54);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,56);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -221,15 +222,17 @@ await test('generic document cannot point to bid namespace',()=>denied(`insert i
 await db.exec(`update public.bid_versions set validity='obsolete' where id='${B.proB.v}'`);
 await test('obsolete offer cannot be awarded',()=>denied(awardSql(A2,C.proB,B.proB.items[3],requests[3].r),'23514'));
 await db.exec(`update public.bid_versions set validity='current' where id='${B.proB.v}'`);
-const portfolio=await insert('portfolio_projects',{contractor_id:C.proA,title:'Portfolio test',description:'Synthetic',status:'published'});
+const portfolio=await insert('portfolio_projects',{contractor_id:C.proA,title:'Portfolio test',description:'Synthetic',status:'published',publication_consent:true});
+await db.query("insert into public.contractor_profile_details(contractor_id,review_status) values($1,'approved') on conflict(contractor_id) do update set review_status='approved'",[C.proA]);
 await test('portfolio hidden until commercial identity approved',()=>as('clientB',async()=>eq(await rows('portfolio_projects',portfolio),0)));
 await db.exec(`update public.contractor_profiles set public_identity_status='approved' where id='${C.proA}'`);
 await test('approved public portfolio visible',()=>as('clientB',async()=>eq(await rows('portfolio_projects',portfolio),1)));
 const asset=await insert('portfolio_assets',{portfolio_project_id:portfolio,contractor_id:C.proA,object_path:'portfolio/'+portfolio+'/asset.jpg',mime_type:'image/jpeg',size_bytes:100});
 await test('quarantined portfolio asset hidden',()=>as('clientB',async()=>eq(await rows('portfolio_assets',asset),0)));
-await db.exec(`update public.portfolio_assets set status='approved' where id='${asset}'`);
+await db.query("update public.portfolio_assets set status='approved',public_consent=true,content_sha256=$1 where id=$2",['a'.repeat(64),asset]);
 await test('approved portfolio asset visible',()=>as('clientB',async()=>eq(await rows('portfolio_assets',asset),1)));
 await awardLifecycleCases(db,test);
 await backofficeCases(db,test);
+await professionalCases(db,test);
 writeFileSync(new URL('./local-results.json',import.meta.url),JSON.stringify({engine:'PGlite PostgreSQL WASM',auth:'Simulated SQL sub claims; NO real JWT, NO Supabase Auth or HTTP gateway',concurrency:'NOT tested with independent sessions',fixtures:'Synthetic local only, not verified geographic seed',results,passed:results.filter(x=>x.result==='PASS').length,failed:fails},null,2));
 console.log(JSON.stringify({passed:results.length-fails,failed:fails,failures:results.filter(x=>x.result==='FAIL')}));await db.close();process.exitCode=fails?1:0;
