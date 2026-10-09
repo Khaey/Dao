@@ -81,12 +81,15 @@ def pr_owner(pr, config):
     """Derive an agent from a canonical issue, never from the merge actor."""
     title = pr.get("title") or ""
     body = pr.get("body") or ""
+    # Documentation can quote other missions as parser examples. Code spans
+    # and fenced code are data, not declarations of this PR's owner.
+    reference_body = re.sub(r"(?s)```.*?```|`[^`\n]*`", "", body)
     explicit = " ".join(re.findall(
-        r"(?i)\b(?:r[eé]fs?|fixes|closes|resolves|owner\s+issue)\s*:?\s*#\d+\b", body))
+        r"(?i)\b(?:r[eé]fs?|fixes|closes|resolves|owner\s+issue)\s*:?\s*#\d+\b", reference_body))
     # GitHub's canonical issue links distinguish owner issues from PR/CI links.
     linked_issues = " ".join("#" + issue for issue in re.findall(
-        r"https://github\.com/Khaey/Dao/issues/(\d+)(?!\d)", body))
-    for index, scope in enumerate((title, explicit, linked_issues, title + "\n" + body)):
+        r"https://github\.com/Khaey/Dao/issues/(\d+)(?!\d)", reference_body))
+    for index, scope in enumerate((title, explicit, linked_issues, title + "\n" + reference_body)):
         refs = re.findall(r"(?<!\w)#(\d+)\b", scope)
         mission, issue = _unique_mission(refs, config)
         if mission:

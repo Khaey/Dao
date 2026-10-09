@@ -55,6 +55,9 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
 - Les numéros PR/CI du titre qui ne correspondent à aucune mission enregistrée
   n'empêchent pas la lecture de la référence propriétaire du corps. Des missions
   enregistrées contradictoires dans le titre restent ambiguës.
+- Les références citées dans du code Markdown (en ligne ou bloc à trois
+  backticks) sont des exemples, pas des déclarations de propriétaire. Écrire
+  la référence canonique `Refs #N` en texte normal hors de ces exemples.
 - Quand la référence est absente ou ambiguë, le message porte explicitement
   « Agent : non identifié », sans inventer de responsable. Ajouter "Refs #N"
   sur les PR, avec N = issue propriétaire, et maintenir le registre d'agents

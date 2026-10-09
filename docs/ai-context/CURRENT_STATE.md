@@ -1,5 +1,16 @@
 # D.A.O — Current State
 
+## WORK OPT — Monitor #93, complément sur le corps réel de #104
+
+PR #107 corrige le titre et les marqueurs de silence. La reprise avec le
+corps GitHub **complet** de #104 prouve aussi des exemples `Réfs #91` en code
+Markdown, à distinguer de la vraie déclaration `Refs #93`. Branche propre
+`chore/monitor-owner-code-examples-93` : références dans les exemples de code
+ignorées, vrais conflits toujours refusés. 39 tests locaux et rejeu hors ligne
+du corps réel + SHA de #104 PASS, sans nouvel envoi historique. Résultats exacts
+et limite téléphone dans [#93](https://github.com/Khaey/Dao/issues/93).
+
+
 ## WORK OPT — qualification Monitor #93 (2026-10-09)
 
 Branche propre `chore/monitor-watchdog-marker-93`, depuis main vérifié
