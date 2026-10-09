@@ -1,5 +1,24 @@
 # D.A.O — Current State
 
+## OPT #85 — FULL E2E concurrency experiment (2026-10-09 Europe/Paris)
+
+New user scope: Actions/E2E/DEV deployment efficiency only. DEV 3 exclusively
+owns OCE/Cloudflare #58; older OPT #58 sections below are historical for this
+Work. No OCE operation, configuration or script belongs to this phase.
+
+Verified main `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`; CI #383
+(`37866132094`, attempt 1) and DEV deploy SUCCESS. Baseline: workflow 384 s,
+FULL E2E job 336 s, browser execution 161.77 s (48/48), fresh stack 70.68 s,
+reset/replay 28.59 s, real integration 7.35 s (29/29), deployment 35 s.
+
+Owned branch `chore/ci-e2e-six-workers` changes only FULL E2E's existing
+worker override from four to six, on the same disposable runner/stack.
+Assertions, viewports, fresh/reset proof and all deployment controls remain.
+Independent fixtures were reviewed; actual concurrency acceptance requires the
+candidate's complete CI. See [measurement note](../ci-e2e-optimization.md) and
+[#85](https://github.com/Khaey/Dao/issues/85) for exact candidate/main results.
+No performance gain or new merged/deployed SHA is inferred at this checkpoint.
+
 ## DEV #64 — réouvert pour corrections UX et retours manuels (2026-10-08)
 
 Base vérifiée `c38e4ca137bd5997cc2e0876108a5ce486f7453a`, CI/deploy #343 SUCCESS. La livraison #68 (48/48, migration V2 appliquée une fois) reste acquise ; #64 est rouvert à la demande du pilote pour les défauts d’utilisation. Branche DEV `fix/backoffice-v2-usability` : filtres/dashboard, noms/affectation, annulation de saisie, garde-fous visuels lot publié, accès au chantier complet, filtres historiques par noms et libellés français. Frontend uniquement : aucune migration, permission, RPC ou opération OCE. TypeScript local PASS ; les scénarios E2E existants sont renforcés, leur nombre reste 48. CI exacte/livraison et retours manuels sont suivis dans [#64](https://github.com/Khaey/Dao/issues/64). Ne pas clôturer cette issue sur la seule base des tests automatiques alors que le pilote annonce de nouveaux retours manuels. Voir [audit de reprise](../backoffice-v2-followup.md).

@@ -1,5 +1,19 @@
 # D.A.O — Optimization backlog (analysis, not implementation)
 
+## Current OPT measurement — 2026-10-09
+
+Main `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`, CI #383 / run
+`37866132094`, attempt 1, SUCCESS including deploy. Current coverage is
+29 real integration tests and 48 FULL E2E desktop/mobile tests. Older counts
+and proposed startup/deploy fixes below are historical where already delivered.
+
+Dominant segment: browser execution 161.77 s; critical job 336 s. Next segment:
+fresh stack 70.68 s plus reset/replay 28.59 s. General build 63 s is parallel;
+deploy 35 s. First isolated experiment is FULL E2E four → six workers on the
+same runner, preserving all other inputs. No new runner, shard, browser cache,
+prepopulated DB, skip or coverage reduction. See [measurement note](../ci-e2e-optimization.md)
+and [#85](https://github.com/Khaey/Dao/issues/85) for actual results/acceptance.
+
 Verified 2026-10-04 Europe/Paris against main
 `c09b8e1e39706c4946e5f075a8fe166e85b443aa` (CI main #272 and DEV deploy green).
 V3-C is implemented as platform tooling only; no product/Auth/RLS logic,

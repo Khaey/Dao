@@ -1,5 +1,17 @@
 # D.A.O — Decisions
 
+## D-043 — Measure concurrency changes against unchanged FULL E2E coverage
+
+The 2026-10-09 OPT phase identifies browser execution as the dominant segment
+on CI #383: 161.77 s out of a 336 s FULL E2E job, 48/48 desktop/mobile tests.
+Trial six workers through the already supported FULL E2E job override; preserve
+the four-worker default for other Playwright workflows and local configuration.
+Keep one fresh stack, complete reset/replay, real integration and target guards.
+Never modify assertions, retries, timeouts or product/Auth/RLS for a speed gain.
+Accept only measured green candidate and main evidence; use #85 for run/SHA
+outcomes and runner-variability limits. OCE/Cloudflare #58 remains DEV 3 only.
+This extends D-033's earlier four-worker experiment; it does not repeat it.
+
 ## D-042 — Back-office V2 authority and durable notifications
 
 Issue #64 approves Option A: assigned staff prepares immutable new versions and approves directly. Technical sub-lots remain inside the commercial lot, with stable IDs and published scope snapshots; future OCE mapping is documentation only. Review claim is atomic, Admin reassigns with reason, suspension applies to existing JWTs, and the last ACTIVE Admin is protected. Published-lot withdrawal preserves offers, serializes project-first against submission/award and republication creates a new identity. Transactional outbox delivery cannot rollback a business mutation. See [contract](../backoffice-v2.md).

@@ -148,6 +148,8 @@ jobs:
     name: Fresh schema, real Supabase integration, and FULL E2E
     runs-on: ubuntu-latest
     env:
+      # Measured FULL E2E concurrency; other Playwright workflows keep their default.
+      PLAYWRIGHT_WORKERS: 6
       DAO_PUBLIC_URL: http://127.0.0.1:3000
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start

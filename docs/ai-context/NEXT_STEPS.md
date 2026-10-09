@@ -1,5 +1,19 @@
 # D.A.O — Next Steps
 
+## OPT #85 — qualify the independent E2E optimization
+
+Continue `chore/ci-e2e-six-workers` through exact-head full CI, compare browser
+and critical-job durations with main CI #383, then reconcile current main and
+merge within existing authorization only if the evidence supports six workers.
+Verify the resulting main CI and exact DEV release; record PR/main timings,
+coverage, attempts and conclusions in [#85](https://github.com/Khaey/Dao/issues/85).
+Use [the measurement note](../ci-e2e-optimization.md) for the preserved gates.
+Do not rerun unchanged successful checks or repeat rejected cache experiments.
+
+OCE/Cloudflare #58 is exclusively DEV 3's temporary responsibility. The older
+OPT #58 next actions below are superseded for this Work. Product features and
+Auth/RLS remain owned by DEV; no migration or functional test assertion change.
+
 ## DEV #64 — livrer le correctif UX, puis intégrer les retours manuels
 
 Poursuivre la branche `fix/backoffice-v2-usability` depuis le main vérifié `c38e4ca…`. Observer sa CI exacte sans rejouer les contrôles pour des entrées inchangées, corriger uniquement les échecs prouvés, fusionner vert et vérifier main/deploy. Ce correctif est frontend uniquement : ne rejouer aucune migration et ne modifier ni Auth/RLS ni OCE/#58 ni contrats/#61. Garder #64 ouvert pour les corrections que le pilote annoncera après ses tests manuels ; tracer chaque observation, sa cause, sa correction et la preuve de validation. Les preuves finales de #68 restent valides pour son périmètre. Voir [audit de reprise](../backoffice-v2-followup.md).
