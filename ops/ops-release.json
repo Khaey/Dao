@@ -1,0 +1,41 @@
+{
+  "files": {
+    "ops/dao-dev-admin.py": {
+      "sha256": "954351b154fc5888c81db545de6bea5587729241a6ae51e5ec70c4e92e8066a8",
+      "size": 21147
+    },
+    "ops/dao-oce-backup.py": {
+      "sha256": "f7547796feb2a28252668684be2560af2e67ae9f24a162b156b7bd9f006b3ec4",
+      "size": 32622
+    },
+    "ops/dao-oce-private-admin.py": {
+      "sha256": "6ed4f22d8cc8cebc82bfa4c2380268435842a130832253816b8fafca58e26fc4",
+      "size": 4093
+    },
+    "ops/dao-ops-admin.py": {
+      "sha256": "9d13a85db1af2760e0b7ec96a9e2f7c3df1ba79148dca549f606bd289de142f1",
+      "size": 17591
+    },
+    "ops/oce-cloudflare.py": {
+      "sha256": "2aa45c24ca1ffc1b880e8830997bfb641fc8cb59cedbb086194211786ea1dce4",
+      "size": 8822
+    },
+    "ops/oce-v1-egress-guard.py": {
+      "sha256": "cca5cb0b9d901a4a4b1f1992f7f234e0ef1ba3243e806a95793a9d70d54ef20b",
+      "size": 2277
+    },
+    "ops/oce-v1-gateway-host.py": {
+      "sha256": "7ea45222786718907ae2df40076642d946135f0752d333e7b952e0a5d8b92e26",
+      "size": 18182
+    },
+    "ops/oce-v1-gateway-qualify.py": {
+      "sha256": "b94bf64b317f5d4ab15de670ba283a58450b5a6aec35d01f496f8a1cb17df79a",
+      "size": 9634
+    },
+    "ops/oce-v1-gateway.py": {
+      "sha256": "d6d418002ed3481bacc85f75b0b7d98d36a8729d081ca9c2ccdfad07c95bc4fd",
+      "size": 49298
+    }
+  },
+  "schema": 1
+}
