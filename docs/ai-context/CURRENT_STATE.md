@@ -22,6 +22,12 @@ PR [#111](https://github.com/Khaey/Dao/pull/111) ; HEAD/CI/main/livraison et
 lecture live du nouveau routeur : [OPS 35 et suivants](https://github.com/Khaey/Dao/issues/91#issuecomment-6082986863).
 Reprise depuis le dernier HEAD publié, sans relancer les preuves inchangées.
 
+Réconcilié avec main `d18bf1211883fd8c6832fcdc62e6fbaf30e3357b` (#109 Artisan) :
+27 fichiers produit/migration/tests/règles/C4 intégralement conservés. La CI
+#449 de l'ancienne base ne qualifie pas cette nouvelle candidate ; suivre la
+nouvelle CI automatique. Les deux scripts OPS et leurs inputs ciblés sont
+inchangés, donc les 18 tests locaux acquis ne sont pas rejoués.
+
 ## DEV 20 — OCE #58, secrets détectés, requête des zones corrigée (2026-10-09)
 
 PR #105 livrée au main `5bebd1f1e66ec575620ca3e0ded7ed4fe53be4bb` : CI/deploy

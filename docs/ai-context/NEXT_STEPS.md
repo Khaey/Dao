@@ -18,6 +18,10 @@ bootstrap/admission/ops-upgrade/ops-rollback root ou DB à rejouer. #106/OPS 33
 reste livré. Voir [OPS control](../ops-control.md) pour interpréter une future
 récupération incomplète ; garder la coordination et la borne D-023.
 
+Candidate réconciliée avec main `d18bf1211883fd8c6832fcdc62e6fbaf30e3357b`
+(#109 Artisan conservée). Attendre la CI automatique de ce nouveau HEAD ;
+ne pas fusionner sur la preuve #449 de la base précédente.
+
 ## DEV 20 — OCE #58, terminer la correction du GET zones
 
 Reprendre `fix/dev20-oce-zone-page-size` et le dernier checkpoint #58.

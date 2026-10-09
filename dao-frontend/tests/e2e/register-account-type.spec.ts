@@ -84,5 +84,11 @@ test('inscription artisan/entreprise : activité requise, statut pending et redi
   await page.getByRole('link', { name: 'Voir mon profil' }).click();
   await expect(page.getByRole('heading', { name: 'Profil professionnel', exact: true })).toBeVisible();
   await expect(page.getByText(`Atelier E2E ${suffix}`, { exact: true })).toBeVisible();
-  await expect(page.getByText('La modification de la fiche professionnelle sera activée après validation de la règle de re-vérification par D.A.O.')).toBeVisible();
+  await page.getByRole('button', { name: 'Modifier le profil professionnel' }).click();
+  await page.getByLabel('Nom public').fill(`Artisan public ${suffix}`);
+  await page.getByLabel('Type d’activité').selectOption('artisan');
+  await page.locator('fieldset').getByRole('checkbox').first().check();
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Profil professionnel mis à jour');
+  await expect(page.getByText(`Artisan public ${suffix}`, { exact: true })).toBeVisible();
 });

@@ -102,6 +102,22 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await secondArtisan.getByLabel('Proposition technique / inclusions').fill('Seconde offre concurrente complète.');
   await secondArtisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(secondArtisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
+  await secondArtisan.goto('/app/artisan/offers');
+  const offerCard=secondArtisan.getByRole('heading',{name:project.title,exact:true}).locator('xpath=../..');
+  await expect(offerCard.getByText('Soumise',{exact:true})).toBeVisible();
+  secondArtisan.once('dialog',dialog=>dialog.accept());
+  await offerCard.getByRole('button',{name:'Retirer l’offre'}).click();
+  await expect(secondArtisan.getByRole('status')).toContainText('Offre retirée');
+  const withdrawnCard=secondArtisan.getByRole('heading',{name:project.title,exact:true}).locator('xpath=../..');
+  await expect(withdrawnCard.getByText('Retirée',{exact:true})).toBeVisible();
+  await withdrawnCard.getByRole('link',{name:'Voir le DAO'}).click();
+  await secondArtisan.getByRole('button',{name:'Préparer une nouvelle version'}).click();
+  await secondArtisan.getByLabel('Répondre à ce lot').check();
+  await secondArtisan.getByLabel('Prix proposé (TND)').fill('24000');
+  await secondArtisan.getByLabel('Délai (jours)').fill('25');
+  await secondArtisan.getByLabel('Proposition technique / inclusions').fill('Seconde offre concurrente complète.');
+  await secondArtisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
+  await expect(secondArtisan.getByText(/Version 2 soumise/)).toBeVisible();
   await secondArtisanContext.close();
 
   await page.goto(publicationUrl);
