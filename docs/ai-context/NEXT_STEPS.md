@@ -1,22 +1,29 @@
 # D.A.O — Next Steps
 
-## OPT 20 — terminer le transport de récupération #91
+## OPT 20 — transport de récupération #91 livré, reprendre ses preuves
 
-Reprendre la branche dédiée `chore/opt20-ops-recovery-91` et les derniers
-checkpoints [#91](https://github.com/Khaey/Dao/issues/91). La base de ce lot est
-main `4d3a0cdba0eff601c202c27c320cecfc962dfb35`, CI/deploy #420 et Pages #43
-verts. Les quatre scripts non-root sont transportés indépendamment du lien
-current ; tests fictifs de lien absent/cassé et transfert relatif validés.
+PR #102 fusionnée au main source 5e551b0dea87a49977f170f3466d71088defe27c ;
+CI/deploy #422 / 37905181405 et Pages #45 SUCCESS. Le transport de quatre
+scripts non-root indépendant du lien current est qualifié par un unique
+ops-status [#58 / 37905759566](https://github.com/Khaey/Dao/actions/runs/37905759566),
+tentative 1 SUCCESS, staging/SCP/dispatch et nettoyages runner/hôte verts.
+Ne pas refaire cette lecture, le bootstrap ou le cycle de maintenance des
+helpers pour une nouvelle session ou une publication documentaire. Les liens
+cassés/absents sont qualifiés sur fichiers fictifs seulement ; pas de panne
+VPS, restauration applicative/DB/config ou redeploy d'ancien SHA.
 
-Observer la CI automatique du candidat exact, réconcilier uniquement cette
-branche si main avance puis fusionner vert dans le mandat #91. Après main/CI
-deploy verts, qualifier le nouveau transport par une seule opération helper
-en lecture et conserver run/attempt/sortie expurgée. Ne pas casser current,
-redéployer un ancien SHA, refaire un bootstrap, rejouer le rollback code déjà
-qualifié, ni restaurer données/configurations. Mettre les preuves live et la
-limite (pas de panne VPS provoquée) dans le checkpoint de livraison #91.
-Les helpers/catalogue/admissions ne changent pas : pas de nouvel ops-upgrade
-pour transporter seulement les scripts. #58/#83/#64/#93 restent exclus.
+Code durable : `chore/opt20-ops-recovery-91`, HEAD
+7437039065ba0e1bf67d8a51be3a3231828ba755. Suivi documentaire :
+`chore/opt20-ops-recovery-proof-91` ; lire les derniers checkpoints
+[#91](https://github.com/Khaey/Dao/issues/91) pour sa livraison exacte.
+Catalogue/root inchangé : version rev-642376a…, previous=bootstrap, neuf copies
+intègres, aucune transaction pendante ; aucun ops-upgrade requis pour ces docs.
+
+#91 reste ouverte pour un nouvel écart réellement observé dans le mandat
+global ou une consigne Pilot, pas pour rejouer les lots livrés. Conserver la
+séparation #58/DEV 20, #83/DEV 2, #64 et #93 ; pas de fournisseur/start OCE,
+gateway-host apply, fermeture :8080, restauration de DB ou nouveaux droits
+implicites. Reprise depuis le dernier HEAD GitHub, sans hook crash/quota Work.
 
 ## OPT 20 — premier lot #91 livré, reprendre les acquis
 
