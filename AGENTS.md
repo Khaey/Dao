@@ -19,6 +19,12 @@ green CI and authorized merge without asking again for normal technical steps.
 Do not rerun a successful check for identical code and relevant inputs.
 Report actual evidence and blockers; do not claim a live check from old logs.
 
+Use `docs/ai-context/WORK_CHECKPOINTS.md` for every DEV/OPT task: publish each
+small meaningful phase, including safe WIP, on the owned branch; keep incomplete
+PRs in draft and record an authorized owner-issue checkpoint with verified HEAD,
+proof, limits and next action. Recovery starts at the last GitHub-published
+commit; no automatic Work crash/Stop/quota hook or local-only recovery is promised.
+
 Never weaken Auth, RLS, data isolation, secrets, business permissions or
 financial integrity. FULL E2E runs only on the disposable local stack. DEV
 smoke checks and permanent TEST accounts are a separate controlled scope;

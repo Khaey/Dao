@@ -29,9 +29,12 @@ for scripts, DEV operations and the fixture reset boundary.
 3. Read the actual `refs/heads/main`, latest main workflow and open PR metadata.
    Record SHA, run ID/attempt, conclusion, and PR ownership without changing
    other PRs. Chat and old documentation are leads, not live state.
-4. Create a new `chore/...` branch from that exact main SHA, remotely before
-   implementation. Use an isolated clone/worktree; preserve all other local
-   changes. Never reset, clean, stash or switch a Work DEV checkout.
+4. For a new OPT task, create a new `chore/...` branch from that exact main SHA,
+   remotely before implementation. For recovery of the same assigned task,
+   verify ownership and resume its published branch/PR using
+   [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md). Use an isolated clone/worktree;
+   preserve all other local changes. Never reset, clean, stash or switch a
+   Work DEV checkout.
 5. Before each modification phase, verify main again. If it advanced, inspect
    the delta and rebase only your own branch or recreate it cleanly from the
    new main, carrying only reviewed OPT changes. Never overwrite a concurrent
@@ -170,6 +173,13 @@ Do not claim live VPS inspection from an old CI log. Do not rerun deployment
 solely to test whether credentials exist.
 
 ## 8. Durable checkpoint and stop condition
+
+All DEV/OPT sessions follow [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md): publish
+after each small meaningful phase and before a long check or planned pause,
+including safe incomplete work on the owned branch with a draft PR. Record
+the verified published HEAD and next action on the authorized owner issue.
+There is no reliable Work crash/Stop/quota hook; only the last actually
+published commit is recoverable from GitHub. Publication failure stays explicit.
 
 Update CURRENT_STATE and NEXT_STEPS, linking the owned branch/PR, without
 rewriting WORK DEV's history. Add durable execution decisions to DECISIONS.

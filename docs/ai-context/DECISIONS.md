@@ -566,3 +566,17 @@ Keep the same key for retries, including ambiguous network failures. Provider
 payload conflicts fail cleanly, without silently issuing a fresh invitation.
 HTML and text contain only inviter name, chantier title, CTA/link and validity.
 CI mocks delivery and uses only disposable local Supabase.
+
+## Work continuity — issue #87 (2026-10-09)
+
+Extend D-024/D-030 and the existing execution protocol to every DEV/OPT task:
+publish small meaningful phases, including safe incomplete work, to the owned
+remote branch; keep incomplete PRs draft and append an authorized owner-issue
+checkpoint with verified HEAD, proof, limits and next action. Publication is
+confirmed by reading the remote ref. Recovery starts at that actual published
+commit, inspecting any commits ahead of the comment and reusing only evidence
+whose tested inputs remain valid. No crash/Stop/quota hook or local-only recovery
+is promised. The existing read-only preflight and GitHub evidence are sufficient;
+no new scheduler, CI job or privilege is introduced. See
+[WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md). This issue-based heading avoids
+reusing decision numbers already present in the open product-documentation PR #34.
