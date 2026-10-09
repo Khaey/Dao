@@ -1,6 +1,6 @@
 # Profil professionnel enrichi — #112
 
-Lot en cours sur `feat/opt20-professional-profile-112`, propriétaire DAO OPT 20.
+Lot en cours, PR draft #113 sur `feat/opt20-professional-profile-112`, propriétaire DAO OPT 20.
 La présence de ce document sur une branche ne signifie pas migration ou livraison DEV.
 
 ## Données et visibilité
@@ -32,7 +32,7 @@ La complétude indique les sections renseignées, jamais la vérification DAO.
 Les commandes RPC JWT contrôlent le propriétaire, le rôle et le compte actif.
 Les décisions staff utilisent une révision attendue, un refus motivé et un audit
 sans valeurs fiscales/contact. La publication de l'identité reste Admin uniquement,
-en réutilisant la décision #64. La surface dossier PRO sera distincte du Directory
+en réutilisant la décision #64. La surface dossier PRO est distincte du Directory
 back-office partagé ; vérification et suspension restent les règles existantes.
 
 Identité, activité, métiers, identifiants légaux et changement de pièce légale
@@ -60,5 +60,5 @@ Les PDF sont servis en pièce jointe, avec `nosniff`.
 Migration additive `20261009180000_professional_profile.sql`, jamais de reset DEV.
 PGlite couvre la matrice RPC/RLS avec claims simulés. Les tests de handler couvrent
 JWT, inspection, altération et retrait pendant une lecture. Auth/JWT/Storage réels
-et E2E seront exécutés sur la stack CI jetable avant livraison. La migration DEV
+et E2E sont ajoutés pour la stack CI jetable avant livraison. La migration DEV
 nécessite une capacité Supabase authentifiée ; son exécution n'est pas encore prouvée.

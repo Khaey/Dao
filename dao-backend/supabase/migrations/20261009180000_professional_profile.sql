@@ -120,12 +120,12 @@ declare
 begin
   if not dao_private.account_active(actor) then raise exception using errcode='42501',message='Session absente ou compte suspendu'; end if;
   if p_input is null or p_action is null or jsonb_typeof(p_input)<>'object' or p_action not in ('details','portfolio_save','portfolio_submit','portfolio_hide',
-      'file_create','file_withdraw','profile_submit','profile_hide','review_profile','review_portfolio','review_file') then
+      'file_create','file_update','file_withdraw','profile_submit','profile_hide','review_profile','review_portfolio','review_file') then
     raise exception using errcode='22023',message='Commande professionnelle invalide'; end if;
   review:=p_action like 'review_%'; target:=nullif(p_input->>'id','')::uuid;
   if p_action in ('portfolio_save','portfolio_submit','portfolio_hide','review_portfolio') and target is not null then
     select contractor_id into cid from public.portfolio_projects where id=target;
-  elsif p_action in ('file_withdraw','review_file') then
+  elsif p_action in ('file_update','file_withdraw','review_file') then
     if p_input->>'kind'='portfolio' then select contractor_id into cid from public.portfolio_assets where id=target;
     elsif p_input->>'kind'='professional' then select contractor_id into cid from public.contractor_files where id=target;
     else raise exception using errcode='22023',message='Type de fichier invalide'; end if;
@@ -236,6 +236,8 @@ begin
     result:=jsonb_build_object('id',coalesce(pp.id,target));
   elsif p_action='file_create' then
     kind:=p_input->>'kind';
+    if length(coalesce(p_input->>'original_name','')) not between 1 and 120 or length(coalesce(p_input->>'caption',''))>500 then
+      raise exception using errcode='22023',message='Nom ou légende du fichier invalide'; end if;
     if p_input->>'mime_type' not in ('application/pdf','image/jpeg','image/png','image/webp')
       or coalesce((p_input->>'size_bytes')::bigint,0) not between 1 and 20971520 then
       raise exception using errcode='22023',message='PDF ou image de 20 Mo maximum requis'; end if;
@@ -253,11 +255,24 @@ begin
         update public.contractor_profiles set verification_status=case when verification_status='suspended' then 'suspended' else 'pending' end where id=cp.id;
       end if;
     else raise exception using errcode='22023',message='Type de fichier invalide'; end if;
-  elsif p_action in ('file_withdraw','review_file') then
+  elsif p_action in ('file_update','file_withdraw','review_file') then
     kind:=p_input->>'kind';
     if kind='portfolio' then select * into file_row from public.portfolio_assets where id=target for update;
     else select * into file_row from public.contractor_files where id=target for update; end if;
-    if p_action='review_file' then
+    if p_action='file_update' then
+      if file_row.status='withdrawn' or exists(select 1 from jsonb_object_keys(p_input) k where k not in ('kind','id','caption','asset_kind','public_consent')) then
+        raise exception using errcode='22023',message='Média retiré ou champ non modifiable'; end if;
+      if kind='portfolio' then
+        if length(coalesce(p_input->>'caption',''))>500 then raise exception using errcode='22023',message='Légende trop longue'; end if;
+        update public.portfolio_assets set caption=coalesce(p_input->>'caption',caption),asset_kind=coalesce(p_input->>'asset_kind',asset_kind),
+          public_consent=coalesce((p_input->>'public_consent')::boolean,public_consent),
+          status=case when content_sha256 is null then 'quarantined' else 'ready' end,revision=revision+1 where id=target;
+      else
+        if file_row.purpose<>'logo' then raise exception using errcode='22023',message='Une pièce légale ne devient pas un média public'; end if;
+        update public.contractor_files set public_consent=coalesce((p_input->>'public_consent')::boolean,public_consent),
+          status=case when content_sha256 is null then 'quarantined' else 'ready' end,revision=revision+1 where id=target;
+      end if;
+    elsif p_action='review_file' then
       approved:=coalesce((p_input->>'approve')::boolean,false);
       if (file_row.status<>'ready' and (approved or file_row.status<>'approved')) or file_row.content_sha256 is null or file_row.revision<>coalesce((p_input->>'revision')::integer,-1) then
         raise exception using errcode='23514',message='Fichier non inspecté ou modifié : rechargez'; end if;
@@ -269,7 +284,8 @@ begin
           raise exception using errcode='23514',message='Consentement de publication du logo requis'; end if;
       end if;
     end if;
-    if kind='portfolio' then
+    if p_action='file_update' then null;
+    elsif kind='portfolio' then
       update public.portfolio_assets set status=case when p_action='file_withdraw' then 'withdrawn' when approved then 'approved' else 'rejected' end,
         public_consent=case when p_action='file_withdraw' then false else public_consent end,revision=revision+1,
         review_reason=coalesce(p_input->>'reason',''),reviewed_at=now(),reviewed_by=actor where id=target;

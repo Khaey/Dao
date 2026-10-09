@@ -12,6 +12,9 @@ model {
       shell = component "Shell applicatif & RoleNav" "Navigation selon rôles, dernier espace client/artisan utilisé et accès D.A.O." "Next.js"
       auth = component "Auth" "Login, register client/contractor, forgot/reset password, invitation return." "Supabase Auth"
       profile = component "Profils" "Profil utilisateur et contractor éditable ; identité, activité ou métiers relancent la vérification." "Next.js / Supabase RPC"
+      professionalDossier = component "Dossier professionnel privé" "Six sections, informations légales privées, consentements explicites et revue distincte de la vérification." "Next.js / RPC / RLS" "InProgress"
+      professionalPublic = component "Fiches professionnelles client" "Projection autorisée des profils vérifiés/approuvés et réalisations consenties ; aucun identifiant légal exposé." "Next.js / RPC" "InProgress"
+      professionalMedia = component "Médias professionnels" "Upload privé, inspection MIME/taille/SHA-256 et revue ; lectures médiées avec contrôle de retrait à chaque demande." "API / Storage privé" "InProgress"
 
       projects = component "Chantiers" "Création, édition, versions, statut, avancement et archivage." "Next.js / API / RPC"
       lots = component "Lots / project_requests" "Lots réels versionnés; métier, périmètre, budget et retrait logique." "Next.js / RPC"
@@ -90,6 +93,16 @@ model {
   dao.web.shell -> dao.web.auth "Oriente selon identité/rôles"
   dao.web.auth -> supabaseAuth "Login/register/recovery"
   dao.web.profile -> supabaseDb "Lit/écrit le profil autorisé"
+  contractor -> dao.web.professionalDossier "Complète son dossier et choisit la visibilité"
+  client -> dao.web.professionalPublic "Consulte les fiches autorisées"
+  reviewer -> dao.web.professionalDossier "Consulte les pièces privées et modère les médias"
+  admin -> dao.web.professionalDossier "Approuve la publication après vérification"
+  dao.web.professionalDossier -> dao.web.api "Commandes de dossier et revue à révision attendue"
+  dao.web.professionalDossier -> dao.web.professionalMedia "Ajoute ou retire pièces et médias"
+  dao.web.professionalPublic -> dao.web.api "Demande une projection sans données légales"
+  dao.web.professionalPublic -> dao.web.professionalMedia "Lit uniquement les médias approuvés et consentis"
+  dao.web.professionalMedia -> dao.web.api "Autorise chaque upload/finalisation/lecture"
+  dao.web.professionalMedia -> supabaseStorage "URLs de lecture courtes consommées uniquement par le serveur"
 
   client -> dao.web.projects "Gère ses chantiers"
   client -> dao.web.lots "Gère ses lots"
@@ -201,6 +214,7 @@ views {
   component dao.web "ProductMap" "Carte fonctionnelle détaillée de ce qui existe aujourd'hui." {
     include client contractor reviewer admin
     include dao.web.shell dao.web.auth dao.web.profile
+    include dao.web.professionalDossier dao.web.professionalPublic dao.web.professionalMedia
     include dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
     include dao.web.teamCreation dao.web.invitations dao.web.collaboration
     include dao.web.review dao.web.publications dao.web.marketplace
@@ -240,6 +254,7 @@ views {
   component dao.web "SecurityData" "Frontières sécurité/data: Auth, API, RPC, RLS et Storage privé." {
     include client contractor reviewer admin
     include dao.web.auth dao.web.api dao.web.services dao.web.rpc dao.web.documents dao.web.email
+    include dao.web.professionalDossier dao.web.professionalPublic dao.web.professionalMedia
     include supabaseAuth supabaseDb supabaseRls supabaseStorage resend
     autoLayout lr
   }

@@ -985,6 +985,9 @@ sans accord explicite séparé. Voir docs/oce-cloudflare-private-demo.md.
 Mandat produit explicite [#112](https://github.com/Khaey/Dao/issues/112), remplaçant
 l'ancien propriétaire DEV 2. Branche `feat/opt20-professional-profile-112` depuis
 main `5f87ec3d7d06ddafae1589981b89c869a505d1bd` ; #91 passif.
-Migration additive, dossier privé, portfolio consenti et téléchargement médié
-en cours : voir [contrat PRO](../professional-profile.md). UI/tests réels/DEV
-restent à livrer ; aucun déploiement de ce lot revendiqué. Checkpoints canoniques #112.
+PR draft #113 : migration additive, dossier privé, portfolio consenti,
+téléchargement médié, éditeur six sections, revue dédiée et fiche client.
+Voir [contrat PRO](../professional-profile.md). Première phase modèle/API CI #453
+SUCCESS ; qualification des nouveaux tests réels/52 E2E de la phase UI en cours.
+Connexion Supabase DEV absente dans Work ; aucune migration/livraison DEV de #112
+revendiquée. Reprise et preuves exactes : checkpoints canoniques #112.

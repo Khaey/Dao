@@ -63,10 +63,8 @@ export async function professionalCases(db, check) {
     await deny(()=>rpc('pro','professional_confirm_upload',['portfolio',photo.id,users.pro,'a'.repeat(64)]),'42501');
     await rpc('service','professional_confirm_upload',['portfolio',photo.id,users.pro,'a'.repeat(64)]);
     await deny(()=>cmd('admin','review_file',{kind:'portfolio',id:photo.id,approve:true,revision:2}),'23514');
-    await cmd('pro','file_withdraw',{kind:'portfolio',id:photo.id});
-    photo=await cmd('pro','file_create',{kind:'portfolio',portfolio_project_id:project.id,object_path:`portfolio/${project.id}/consented.png`,original_name:'photo.png',mime_type:'image/png',size_bytes:100,asset_kind:'photo',public_consent:true});
-    await rpc('service','professional_confirm_upload',['portfolio',photo.id,users.pro,'b'.repeat(64)]);
-    await cmd('reviewer','review_file',{kind:'portfolio',id:photo.id,approve:true,revision:2});
+    await cmd('pro','file_update',{kind:'portfolio',id:photo.id,public_consent:true,caption:'Avec accord'});
+    await cmd('reviewer','review_file',{kind:'portfolio',id:photo.id,approve:true,revision:3});
     await cmd('pro','portfolio_submit',{id:project.id});
     await cmd('reviewer','review_portfolio',{id:project.id,approve:true,revision:2});
     assert.equal((await publicProfile()).portfolio[0].assets[0].id,photo.id);
@@ -85,6 +83,7 @@ export async function professionalCases(db, check) {
     await cmd('reviewer','review_file',{kind:'professional',id:legal.id,approve:true,revision:2});
     assert.equal((await dossier()).profile.verification_status,'pending');
     await deny(()=>rpc('client','professional_file_access',['professional',legal.id,false]),'42501');
+    await deny(()=>cmd('pro','file_update',{kind:'professional',id:legal.id,public_consent:true}),'22023');
     brochure=await cmd('pro','file_create',{kind:'portfolio',portfolio_project_id:project.id,object_path:`portfolio/${project.id}/brochure.pdf`,original_name:'brochure.pdf',mime_type:'application/pdf',size_bytes:100,asset_kind:'brochure',public_consent:true});
     await rpc('service','professional_confirm_upload',['portfolio',brochure.id,users.pro,'d'.repeat(64)]);
     await cmd('reviewer','review_file',{kind:'portfolio',id:brochure.id,approve:true,revision:2});
