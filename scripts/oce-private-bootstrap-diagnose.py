@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Read-only TTY diagnostic; no credentials persisted or raw errors emitted."""
+import base64
 import getpass
 import hashlib
 import importlib.util
@@ -12,6 +13,44 @@ import urllib.error
 import warnings
 
 MODULE = Path('/usr/local/libexec/dao-oce-cloudflare.py')
+
+
+def tunnel_token_failure(token, manifest):
+    """Explain the installed strict-32 validator using fixed codes, never values.
+
+    Diagnosis only: does not accept a token, change policy or replace cloudflared
+    authentication. The minimum-size flag helps distinguish a local exact-size
+    compatibility constraint from a missing/short/incorrect credential.
+    """
+    try:
+        if not isinstance(token, str) or not 0 < len(token) <= 4096:
+            return {'token_check': 'INPUT_FORMAT'}
+        def unique_object(pairs):
+            value = dict(pairs)
+            if len(value) != len(pairs):
+                raise ValueError('Duplicate fields')
+            return value
+        payload = json.loads(base64.b64decode(token, validate=True), object_pairs_hook=unique_object)
+        if not isinstance(payload, dict) or not {'a', 't', 's'} <= set(payload) <= {'a', 't', 's', 'e'}:
+            return {'token_check': 'TOKEN_FIELDS'}
+        if payload['a'] != manifest['account_id']:
+            return {'token_check': 'ACCOUNT_MISMATCH'}
+        if payload['t'] != manifest['tunnel_id']:
+            return {'token_check': 'TUNNEL_MISMATCH'}
+        if payload.get('e'):
+            return {'token_check': 'ALTERNATE_ENDPOINT'}
+        if not isinstance(payload['s'], str):
+            return {'token_check': 'SECRET_ENCODING'}
+        try:
+            secret = base64.b64decode(payload['s'], validate=True)
+        except Exception:
+            return {'token_check': 'SECRET_ENCODING'}
+        if len(secret) != 32:
+            return {'token_check': 'INSTALLED_EXACT_32_BYTE_CONSTRAINT',
+                    'secret_minimum_32_bytes_met': len(secret) >= 32}
+        return {'token_check': 'UNCLASSIFIED_INSTALLED_VALIDATOR_FAILURE'}
+    except Exception:
+        return {'token_check': 'TOKEN_ENCODING_OR_DUPLICATE_FIELDS'}
 
 
 def category(path):
@@ -39,6 +78,7 @@ def category(path):
 def diagnose(cf, get, tunnel_id, emails, tunnel_token):
     stage = 'INPUT_VALIDATION'
     api_pending = False
+    manifest = None
 
     def read(path):
         nonlocal stage, api_pending
@@ -81,12 +121,16 @@ def diagnose(cf, get, tunnel_id, emails, tunnel_token):
         line = None
         tb = exc.__traceback__
         while tb:
-            if tb.tb_frame.f_code.co_filename == getattr(cf, '__file__', None):
+            if (tb.tb_frame.f_code.co_filename == getattr(cf, '__file__', None)
+                    and tb.tb_frame.f_code.co_name != 'require'):
                 line = tb.tb_lineno
             tb = tb.tb_next
-        return {'diagnostic': 'FAIL', 'stage': stage, 'reason': error,
-                'installed_module_line': line,
-                'configuration_written': False, 'tunnel_started': False}
+        result = {'diagnostic': 'FAIL', 'stage': stage, 'reason': error,
+                  'installed_module_line': line,
+                  'configuration_written': False, 'tunnel_started': False}
+        if stage == 'TUNNEL_TOKEN_BINDING' and manifest is not None:
+            result.update(tunnel_token_failure(tunnel_token, manifest))
+        return result
 
 
 def load_installed():

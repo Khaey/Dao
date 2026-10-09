@@ -1,5 +1,29 @@
 # D.A.O — Current State
 
+## OPT 20 — Work continuity #87 (2026-10-09 Europe/Paris)
+
+Implementation base: verified main `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`;
+main CI/deploy #383 (`37866132094`, attempt 1) SUCCESS, read without rerun.
+Owned branch `chore/opt20-work-checkpoints-87`, [PR #88](https://github.com/Khaey/Dao/pull/88).
+[WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md) adds the common DEV/OPT WIP cadence,
+owner-issue template, verified remote-HEAD recovery and short startup message.
+Root AGENTS/index/execution protocol link it; existing preflight is reused.
+Recovery covers only the last actually published commit, with no crash hook.
+
+Five safe fictitious recovery cases passed using temporary local Git repositories:
+published WIP versus later local edits, comment lag, failed push/local-only
+commit, unchanged proof reuse and changed-main reconciliation. No real product
+test or another Work's branch was changed. Initial PR CI #388 (`37870413973`,
+attempt 1) passed backend/build but failed at Supabase startup because runner
+port 54322 was occupied; migration/integration/E2E did not execute. This is not
+green final-head evidence. Exact final HEAD, CI and delivery state are tracked
+in [#87](https://github.com/Khaey/Dao/issues/87); read them before resuming.
+
+This is documentation only: no CI/E2E/deployment/VPS change or added automation.
+PR #34/#46 sections remain preserved. OPT keeps #85; DEV 20 keeps #58;
+DEV 2 keeps #83; Back-office #64 is excluded. Older snapshots below keep
+their original evidence and do not transfer task ownership.
+
 ## DEV #64 — réouvert pour corrections UX et retours manuels (2026-10-08)
 
 Base vérifiée `c38e4ca137bd5997cc2e0876108a5ce486f7453a`, CI/deploy #343 SUCCESS. La livraison #68 (48/48, migration V2 appliquée une fois) reste acquise ; #64 est rouvert à la demande du pilote pour les défauts d’utilisation. Branche DEV `fix/backoffice-v2-usability` : filtres/dashboard, noms/affectation, annulation de saisie, garde-fous visuels lot publié, accès au chantier complet, filtres historiques par noms et libellés français. Frontend uniquement : aucune migration, permission, RPC ou opération OCE. TypeScript local PASS ; les scénarios E2E existants sont renforcés, leur nombre reste 48. CI exacte/livraison et retours manuels sont suivis dans [#64](https://github.com/Khaey/Dao/issues/64). Ne pas clôturer cette issue sur la seule base des tests automatiques alors que le pilote annonce de nouveaux retours manuels. Voir [audit de reprise](../backoffice-v2-followup.md).

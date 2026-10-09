@@ -1,5 +1,25 @@
 # D.A.O — Next Steps
 
+## OPT 20 — finish only Work continuity #87
+
+Read [#87](https://github.com/Khaey/Dao/issues/87) and
+[PR #88](https://github.com/Khaey/Dao/pull/88) for the exact published HEAD and
+current delivery state. Resume `chore/opt20-work-checkpoints-87` only while
+it is still this task's owned active branch. The guide and five fictitious
+recovery cases are delivered; do not reconstruct them or rerun unchanged proofs.
+Observe the final candidate's mandatory automatic checks, preserving the
+initial #388 runner-port failure as history; review latest main/PR overlaps.
+Keep incomplete/blocked work draft. Deliver/merge only within authorization
+and green checks; a documentation merge still triggers the existing main CI
+and DEV deployment, so honor any task restriction on deployment before merging.
+Record the final outcome on #87 without creating a commit just to repeat CI
+metadata. If #87/PR #88 is already complete, there is no new OPT 20 task here.
+
+For new sessions use [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md), including its
+short startup message and owner-issue template. OPT #85, DEV 20 #58, DEV 2 #83
+and Back-office #64 stay with their owners; the older next steps below do not
+authorize OPT 20 to take them over.
+
 ## DEV #64 — livrer le correctif UX, puis intégrer les retours manuels
 
 Poursuivre la branche `fix/backoffice-v2-usability` depuis le main vérifié `c38e4ca…`. Observer sa CI exacte sans rejouer les contrôles pour des entrées inchangées, corriger uniquement les échecs prouvés, fusionner vert et vérifier main/deploy. Ce correctif est frontend uniquement : ne rejouer aucune migration et ne modifier ni Auth/RLS ni OCE/#58 ni contrats/#61. Garder #64 ouvert pour les corrections que le pilote annoncera après ses tests manuels ; tracer chaque observation, sa cause, sa correction et la preuve de validation. Les preuves finales de #68 restent valides pour son périmètre. Voir [audit de reprise](../backoffice-v2-followup.md).

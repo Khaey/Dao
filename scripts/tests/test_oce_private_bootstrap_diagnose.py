@@ -73,6 +73,39 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(result['stage'], 'TUNNEL_TOKEN_BINDING')
         self.assertNotIn('fixture-invalid-sensitive-token', json.dumps(result))
 
+    def test_valid_minimum_secret_can_be_rejected_by_installed_exact_length_check(self):
+        payload = {'a': self.m['account_id'], 't': self.m['tunnel_id'],
+                   's': base64.b64encode(bytes(36)).decode()}
+        token = base64.b64encode(json.dumps(payload).encode()).decode()
+        result = self.run_diagnostic(token=token)
+        self.assertEqual(result['token_check'], 'INSTALLED_EXACT_32_BYTE_CONSTRAINT')
+        self.assertTrue(result['secret_minimum_32_bytes_met'])
+        self.assertGreater(result['installed_module_line'], 29)
+        self.assertNotIn(token, json.dumps(result))
+        self.assertNotIn(payload['s'], json.dumps(result))
+
+    def test_token_mismatch_and_endpoint_have_distinct_non_sensitive_codes(self):
+        payload = {'a': self.m['account_id'], 't': self.m['tunnel_id'],
+                   's': base64.b64encode(bytes(32)).decode()}
+        for field, value, expected in (
+                ('a', 'd' * 32, 'ACCOUNT_MISMATCH'),
+                ('t', '33333333-3333-3333-3333-333333333333', 'TUNNEL_MISMATCH'),
+                ('e', 'fixture-sensitive-endpoint.test', 'ALTERNATE_ENDPOINT'),
+                ('s', 'fixture-sensitive-malformed-secret', 'SECRET_ENCODING')):
+            with self.subTest(field=field):
+                token = base64.b64encode(json.dumps({**payload, field: value}).encode()).decode()
+                result = self.run_diagnostic(token=token)
+                self.assertEqual(result['token_check'], expected)
+                self.assertNotIn(value, json.dumps(result))
+                self.assertNotIn(token, json.dumps(result))
+
+    def test_short_secret_is_distinguished_from_exact_size_compatibility(self):
+        payload = {'a': self.m['account_id'], 't': self.m['tunnel_id'],
+                   's': base64.b64encode(bytes(16)).decode()}
+        token = base64.b64encode(json.dumps(payload).encode()).decode()
+        result = self.run_diagnostic(token=token)
+        self.assertFalse(result['secret_minimum_32_bytes_met'])
+
     def test_api_schema_error_is_not_misreported_as_policy_mismatch(self):
         def malformed(path):
             raise ValueError('fixture-secret-provider-response')

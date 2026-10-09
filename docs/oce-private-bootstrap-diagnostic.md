@@ -42,3 +42,26 @@ Le défaut réel doit être identifié avant correction. :8080 est conservé ;
 aucun gateway-host apply ou changement des permissions VPS. Preuves, SHA,
 PR/tests et prochain checkpoint sont suivis dans l'issue #58. Les issues #83,
 #85 et #87 et leurs branches restent hors périmètre.
+
+## Résultat propriétaire et précision du diagnostic — 2026-10-09
+
+Le premier résultat privé expurgé refuse `TUNNEL_TOKEN_BINDING`, module installé
+SHA-256 `562cdef34ffd11abc243f3c5dd1f672dc395e258b1f8ab6200d3de454d3c4b07`,
+identique à celui de la release initiale. Le numéro 29 désigne le helper
+générique `require`, pas son appel précis. Les appels Access/organisation de
+découverte ont passé ; l'audit complet Access/policy/ingress n'a pas commencé.
+
+Le diagnostic distingue maintenant compte/tunnel différents, endpoint alternatif,
+encodage et contrainte de taille. Il rapporte le site d'appel du refus et des
+codes fixes, sans valeurs privées. Le validateur installé exige exactement
+32 octets, alors que [l'API Cloudflare](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/methods/create/)
+décrit un minimum de 32 octets pour le secret du tunnel. Cette incompatibilité
+possible est prouvée sur fixture synthétique de 36 octets ; **elle n'est pas
+encore prouvée comme cause du jeton réel du propriétaire**.
+
+Le nouveau diagnostic ne change ni le validateur root ni son acceptation.
+Si `token_check` vaut `INSTALLED_EXACT_32_BYTE_CONSTRAINT` avec
+`secret_minimum_32_bytes_met=true`, préparer une correction de compatibilité
+testée en gardant les contrôles compte/tunnel/endpoint et l'authentification
+cloudflared. Sinon, corriger uniquement la cause indiquée. Ne pas refaire
+l'installation ni proposer une rotation de jeton sans cause démontrée.
