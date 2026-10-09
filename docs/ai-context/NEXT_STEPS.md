@@ -1,5 +1,22 @@
 # D.A.O — Next Steps
 
+## DEV 20 — reprise OCE #58 après le nouveau refus
+
+Reprendre `fix/dev20-oce-provisioning-session` et les checkpoints #58 : #90/#397
+sont livrés, ne pas les refaire ni rejouer leur CI. Valider/livrer la session
+privée qui indique stage/reason/ligne/hash, puis fournir un seul lancement court
+du provisionnement mis à jour depuis un commit immuable vérifié. Ne pas relancer
+le long remplacement du validateur déjà proposé : il refuse un module ou une
+sauvegarde déjà présents. Une nouvelle saisie initiale reste requise, car une
+tentative refusée ne conserve pas les jetons. Pendant la session, corriger
+uniquement le contrôle indiqué côté Cloudflare puis Entrée pour réauditer sans
+ressaisie ; ne pas prétendre que le défaut vient forcément des permissions.
+Autorisation propriétaire reçue pour les droits nécessaires OCE, à appliquer
+selon la preuve du refus. Opérations usuelles Actions après READY, sans nouveau
+sudo générique, service, bascule :8080 ou gateway-host apply. #91 reste à OPT 20.
+Le bootstrap OPS encore absent peut suivre dans la même session administrateur,
+séquentiellement, via son bloc approuvé #91 ; il est indépendant de READY OCE
+et ne nécessite aucun remplacement du module Cloudflare par #95.
 ## OPT 20 — terminer uniquement le premier lot #91
 
 Reprendre [#91](https://github.com/Khaey/Dao/issues/91) / PR #96 et le HEAD
