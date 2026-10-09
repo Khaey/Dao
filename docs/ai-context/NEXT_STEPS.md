@@ -1,15 +1,28 @@
 # D.A.O — Next Steps
 
-## DEV 2 #83 — lot Artisan validé en PR #109
+## OPT 20 — reprendre le diagnostic de déploiement #91 depuis GitHub
 
-Branche `feat/artisan-workflows-v2`, issue [#83](https://github.com/Khaey/Dao/issues/83),
-PR brouillon [#109](https://github.com/Khaey/Dao/pull/109). Les décisions Pilot
-sont implémentées : profil éditable avec revalidation ciblée, dernier espace
-utilisé, Mes offres avec retrait non destructif et Mes invitations actionnable.
-Contrôles locaux verts : backend 64/64, reconstruction locale 138/138,
-collaboration 15/15 + 24/24, frontend build. Finaliser la documentation et les
-tests de parcours, publier le checkpoint, passer la PR prête, puis observer la
-CI exacte avant fusion et déploiement main. Ne pas intervenir sur #64 ou #58.
+Branche `chore/opt20-deploy-recovery-91`, base initiale
+269b7018dc18f55a5c6f725246e1d4b4f5c7e580 (CI/deploy #424 vert), réconciliée
+avec main efe86f584343e06553157c4a121f3c270cac8cbb en conservant #104/#107/#108
+Monitor, #105 DEV 20 et #84 Artisan. Lire le dernier checkpoint [#91](https://github.com/Khaey/Dao/issues/91)
+pour HEAD/PR/CI/deploy réels ; si la livraison est marquée achevée, ne pas
+réexécuter les tests ou opérations. Les 16 tests ciblés couvrent les nouvelles
+fautes sur fichiers temporaires ; aucun test ne justifie une panne DEV réelle.
+
+Pour une future erreur de déploiement, lire `deploy_recovery` dans son run :
+erreur initiale conservée, résultats distincts lien/env/restart/readiness/
+cleanup. Une readiness en passe unique échouée indique seulement l'absence de
+preuve HTTP à cet instant. Utiliser les lectures fixes du contrôle commun pour
+un constat nouveau, coordonner toute mutation ; garder la borne D-023 en cas
+de cause ambiguë. Les routes/attentes de déploiement normal sont préservées.
+
+La preuve post-fusion attendue est le déploiement normal au SHA exact, pas une
+injection de panne VPS. Une CI automatique pending se suit sans relance ; un
+checkpoint final vert est acquis. Pas de nouvel ops-upgrade/bootstrap/rollback
+root pour ce script non catalogué ; pas de DB/backup/migration ou code OCE,
+produit/Auth/RLS. #58/#83/#64/#93 restent à leurs owners. Reprise uniquement
+depuis le HEAD publié, sans hook crash/Stop/quota Work.
 
 ## WORK OPT — Monitor #93, complément sur le corps réel de #104
 
@@ -35,6 +48,10 @@ ni commentaire non autorisé ni collision d'identifiant ne masque le silence.
 [#93](https://github.com/Khaey/Dao/issues/93). Registre #93 = DAO Pilot 3,
 WORK OPT exécutant ; #85 suspendue, #91/#58/#83 intacts.
 
+
+## DEV 2 #83 — valider les correctifs Artisan, puis arbitrer les règles nouvelles
+
+Publier `feat/artisan-space-completion`, exécuter la CI exacte et ne fusionner que verte. Le lot est frontend et tests uniquement : aucune migration, aucun changement Auth/RLS et aucune intervention sur #64 ou #58. Après livraison, le DAO Pilot doit arbitrer séparément la règle de re-vérification des profils édités, l'espace par défaut des doubles rôles, l'intérêt d'une boîte globale d'invitations/offres et un éventuel retrait d'offre soumise. Ne pas transformer ces questions en comportement implicite. Preuves et décisions : [#83](https://github.com/Khaey/Dao/issues/83), avec le détail dans [l'audit](../artisan-space-audit.md).
 
 ## DEV 20 — OCE #58, vérifier les secrets sans terminal
 

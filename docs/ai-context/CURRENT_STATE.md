@@ -1,23 +1,27 @@
 # D.A.O — Current State
 
-## DEV 2 #83 — décisions Artisan implémentées (2026-10-09)
+## OPT 20 — OPS #91, diagnostic du rollback de déploiement (2026-10-09)
 
-Après livraison du premier lot par PR #84, DAO Pilot a validé les trois règles
-restantes : revalidation limitée à l'identité, l'activité et les métiers ;
-dernier espace utilisé pour les doubles rôles ; Mes offres, retrait d'offre et
-Mes invitations dans le lot suivant. La branche `feat/artisan-workflows-v2`,
-basée sur le vrai main `efe86f584343e06553157c4a121f3c270cac8cbb`, porte la
-migration `20261009103053_artisan_workflows_v2.sql`, les RPC contrôlées, les
-écrans et les tests. PR brouillon [#109](https://github.com/Khaey/Dao/pull/109),
-checkpoint distant `2f95a45bba588ce291d20549e5e332c6f771ecb8` avant documentation.
+Base initiale réelle `269b7018dc18f55a5c6f725246e1d4b4f5c7e580`, CI/deploy
+#424 / 37906979914 SUCCESS ; lots maintenance/transport acquis, non rejoués.
+Réconciliation main `efe86f584343e06553157c4a121f3c270cac8cbb` : #104/#107/#108
+Monitor, #105 DEV 20 et #84 Artisan conservées. Branche dédiée `chore/opt20-deploy-recovery-91` ; périmètre et livraison exacte
+suivis dans [#91 OPS 29 et suivants](https://github.com/Khaey/Dao/issues/91#issuecomment-6078006258).
 
-Le profil préserve une suspension et ne relance la vérification que pour les
-champs approuvés. Les invitations sont résolues depuis l'email Auth confirmé
-sans exposer de token. Le retrait conserve la version/lignes, audite l'acteur,
-marque la version obsolete et refuse toute attribution active. Les tableaux de
-bord d'un double rôle sont filtrés selon l'espace mémorisé. Vérifications locales
-à ce stade : backend 64/64 ; PGlite 138/138 ; collaboration 15/15 et 24/24 ;
-build Next.js 60 routes. #64 et #58 n'ont pas été modifiés.
+Le handler de déploiement conserve l'erreur initiale et continue les étapes
+applicables même si la restauration de lien/env/restart/cleanup échoue. Un
+JSON fermé expose leur résultat, sans exception/contenu sensible. Après restore
+et restart favorables, HTTP est vérifié en une passe avec le script revu de la
+candidate ; déploiement normal et health gardent leurs 15 tentatives. Aucun
+nouveau droit, helper root, catalogue, secret, DB ou service n'est ajouté.
+
+16 tests ciblés PASS, dont refus fictifs de lien/env/restart/HTTP/cleanup,
+absence de précédente release, conservation du code initial et redaction,
+mode HTTP unique et comportement normal préservé. Ces fautes restent fictives,
+pas un rollback de déploiement live ou une panne forcée. Lire #91 pour les CI,
+le déploiement normal du source exact et les limites, sans reprendre une étape
+qu'un checkpoint de livraison marque déjà achevée. Les contextes et travaux
+#58/#83/#64/#93 sont préservés ; bootstrap et rollback root non rejoués.
 
 ## WORK OPT — Monitor #93, complément sur le corps réel de #104
 
@@ -43,6 +47,12 @@ ni commentaire non autorisé ni collision d'identifiant ne masque le silence.
 [#93](https://github.com/Khaey/Dao/issues/93). Registre #93 = DAO Pilot 3,
 WORK OPT exécutant ; #85 suspendue, #91/#58/#83 intacts.
 
+
+## DEV 2 #83 — espace Artisan / Entreprise (2026-10-09)
+
+Reprise depuis le `main` réel `77cd7ba74d59069f0f8c2534e258ea7c9a2cab77`, les PR ouvertes et l'ensemble de `docs/ai-context/*`. L'audit confirme que l'inscription contractor, Mes chantiers partagé, les invitations, la visibilité RLS des DAO et le cycle brouillon/soumission/version/attribution des offres sont déjà livrés. La branche `feat/artisan-space-completion` corrige sans migration les écarts prouvés : profil professionnel visible en lecture seule, blocage explicite des offres tant que le profil n'est pas vérifié, statut Brouillon exact, restauration des lots d'un brouillon multi-lots et état vide de Mes chantiers adapté au contractor. Voir [audit Artisan / Entreprise](../artisan-space-audit.md) et [#83](https://github.com/Khaey/Dao/issues/83).
+
+Aucune nouvelle règle métier n'est introduite. La re-vérification après édition du profil, l'espace par défaut d'un double rôle, une boîte globale d'invitations/offres et le retrait d'une offre soumise attendent une décision DAO Pilot. Les périmètres Back-office #64 et OCE #58 restent intacts.
 
 ## DEV 20 — OCE #58, contrôle Cloudflare via GitHub Secrets préparé (2026-10-09)
 
