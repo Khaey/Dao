@@ -980,3 +980,14 @@ et audit avant écriture root 0600 ; aucune activation automatique.
 Prochaine étape : validation de cette correction, bootstrap unique guidé,
 puis Actions audit/start/probe. :8080 conservé, gateway apply toujours interdit
 sans accord explicite séparé. Voir docs/oce-cloudflare-private-demo.md.
+# #112 — DAO OPT 20, phase modèle/API en cours (2026-10-09)
+
+Mandat produit explicite [#112](https://github.com/Khaey/Dao/issues/112), remplaçant
+l'ancien propriétaire DEV 2. Branche `feat/opt20-professional-profile-112` depuis
+main `5f87ec3d7d06ddafae1589981b89c869a505d1bd` ; #91 passif.
+PR draft #113 : migration additive, dossier privé, portfolio consenti,
+téléchargement médié, éditeur six sections, revue dédiée et fiche client.
+Voir [contrat PRO](../professional-profile.md). Première phase modèle/API CI #453
+SUCCESS ; qualification des nouveaux tests réels/52 E2E de la phase UI en cours.
+Connexion Supabase DEV absente dans Work ; aucune migration/livraison DEV de #112
+revendiquée. Reprise et preuves exactes : checkpoints canoniques #112.

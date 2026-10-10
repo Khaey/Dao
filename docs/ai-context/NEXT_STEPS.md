@@ -615,3 +615,10 @@ checkout changes, stop coding and recover the expected remote branch first.
 Stop if a DB migration, RLS change, Auth change or new product choice is
 required. Do not commit `dao-frontend/tsconfig.tsbuildinfo`. Never discard
 unsaved work. Read current PR state rather than using historical checkpoints.
+# #112 — mandat actif DAO OPT 20 (2026-10-09)
+
+Qualifier éditeur six sections, portfolio/media, revue dédiée et consultation
+client avec RPC/RLS/Storage réels et 52 E2E sur stack jetable, CI/PR,
+migration additive DEV puis déploiement. Reprendre le dernier HEAD publié et
+checkpoint [#112](https://github.com/Khaey/Dao/issues/112). #83 livré conservé,
+#91 passif ; ne pas rouvrir OPS/OCE/back-office/Monitor hors coordination.

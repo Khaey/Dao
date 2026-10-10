@@ -6,6 +6,7 @@ import { InvitationAuthorization } from '../services/InvitationAuthorization.js'
 import { ProjectInvitationEmailService, invitationSecretColumns } from '../services/ProjectInvitationEmailService.js';
 import { emailConfiguration, ResendEmailTransport } from '../services/ResendEmailTransport.js';
 import { createInvitationEmailHandler } from './invitationEmailHandler.js';
+import { createProfessionalHandler } from './professionalHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -60,4 +61,9 @@ export function createInvitationEmailApi(request: Request) {
 export function createBackofficeApi(request: Request) {
   const { url, db, resolveActor } = requestScope(request);
   return createBackofficeHandler(db, resolveActor, () => authAdministration(url, env('DAO_SUPABASE_SECRET_KEY')));
+}
+
+export function createProfessionalApi(request:Request) {
+  const {url,db,resolveActor}=requestScope(request);
+  return createProfessionalHandler(db,resolveActor,()=>createClient(url,env('DAO_SUPABASE_SECRET_KEY'),{auth:{persistSession:false,autoRefreshToken:false}}));
 }
