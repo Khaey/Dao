@@ -44,6 +44,29 @@ de credential, artifact ou transfert SSH. Le client existant refuse les
 redirections et proxies hérités ; GET limité, réponses/pagination bornées,
 timeout par requête 15 secondes, échéance totale 240 secondes, aucun retry.
 
+Pour un refus HTTP 401/403 du GET en cours, le runner lit au maximum
+16 Kio + 1 octet de la réponse d'erreur, en mémoire uniquement, puis ferme la
+réponse. Aucun appel fournisseur supplémentaire. Il publie seulement :
+
+- `provider_error_format` : `CLOUDFLARE_JSON`, `NON_JSON`, `UNEXPECTED_JSON`,
+  `TOO_LARGE` ou `UNREADABLE` ;
+- `provider_error_codes` : sous-ensemble de la liste fermée
+  `6003, 6111, 9103, 9106, 9107, 9109, 10000`, sans interpréter leur cause ;
+- `provider_error_labels` : correspondance exacte avec les libellés prédéfinis
+  `FORBIDDEN`, `AUTHENTICATION_ERROR`, `INVALID_REQUEST_HEADERS`,
+  `INVALID_ACCESS_TOKEN`, `ACCESS_DENIED` ; aucun texte fournisseur libre ;
+- `provider_unrecognized_code` et `provider_zone_documentation` : booléens.
+  La documentation est comparée uniquement à l'URL connue de GET `/zones` ;
+  aucune URL retournée n'est affichée ou suivie.
+
+Le JSON exige `success:false`, de 1 à 16 objets d'erreur et des clés uniques.
+Codes non autorisés, chaînes numériques, booléens, floats, détails imbriqués,
+headers, messages libres et URLs sont exclus. Lecture/parsing/fermeture en
+échec conservent le refus HTTP initial. Une erreur générique ne prouve pas que
+le jeton est expiré, invalide ou privé d'un droit particulier. Un corps qui
+ne correspond pas à l'enveloppe attendue ne devient pas un diagnostic Cloudflare
+JSON. Ce traitement n'affaiblit aucune validation d'accès.
+
 Un `HTTP_403` à `ZONE_LOOKUP` constate uniquement le refus du GET des zones.
 La recherche utilise `per_page=50`, maximum documenté par GET `/zones`.
 Cette correction de paramètre ne prouve pas la cause du 403 précédent :
@@ -53,6 +76,18 @@ l'expiration et les restrictions IP du jeton. Ne pas en déduire une cause uniqu
 ni élargir aveuglément les droits. Si un jeton est remplacé dans GitHub,
 déclencher une nouvelle demande après ce changement réel ; ne pas répéter une
 preuve réussie pour des entrées inchangées.
+
+Le workflow référence `dev`. Un secret du même nom dans cet environnement a
+priorité sur celui du dépôt ; la présence d'un secret ne prouve pas sa validité
+ni l'identité de sa valeur avec un jeton affiché dans Cloudflare. Le propriétaire
+a confirmé le 2026-10-10 avoir remplacé `OCE_CLOUDFLARE_API_TOKEN` dans `dev` ;
+le contrôle [#59 / 38011927486](https://github.com/Khaey/Dao/actions/runs/38011927486)
+reste `ZONE_LOOKUP / HTTP_403`. Les droits visibles dans le formulaire étaient
+déjà présents, sans correction de droits déclarée. Ne pas lui faire ajouter
+aveuglément les mêmes permissions ou répéter une requête identique. Le candidat
+`fix/dev20-oce-http-diagnostics` apporte le diagnostic expurgé ci-dessus ; sa
+validation/livraison et le contrôle réel enrichi sont suivis dans
+[#58](https://github.com/Khaey/Dao/issues/58).
 
 Après déclenchement, conserver dans #58 le run, SHA, tentative, conclusion et
 diagnostic expurgé. Un commentaire accepté ou une CI verte ne prouve pas que
@@ -74,3 +109,5 @@ Sources : [secrets Actions](https://docs.github.com/en/actions/how-tos/write-wor
 [GET zones](https://developers.cloudflare.com/api/resources/zones/methods/list/),
 [GET tunnel](https://developers.cloudflare.com/api/resources/zero_trust/subresources/tunnels/subresources/cloudflared/methods/get/)
 et [création/périmètre du jeton](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
+Voir aussi les [403 Cloudflare enrichis](https://developers.cloudflare.com/changelog/post/2026-08-20-contextual-403s/)
+et la [priorité des secrets GitHub](https://docs.github.com/en/actions/reference/security/secrets).

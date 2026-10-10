@@ -1,5 +1,16 @@
 # D.A.O — Decisions
 
+## DEV 20 #58 — diagnostic HTTP fournisseur fermé (2026-10-10)
+
+Un refus API ambigu ne justifie ni l'affichage du corps d'erreur ni l'élargissement
+aveugle des permissions. Le runner peut analyser en mémoire une réponse 401/403
+déjà reçue, avec taille/enveloppe/clés bornées et identifiants publics fermés.
+Tout texte libre, URL, header ou code inconnu est supprimé ; aucune nouvelle
+requête, endpoint, permission root ou validation affaiblie. Le refus initial est
+conservé si cette analyse échoue. Les libellés génériques n'établissent pas une
+cause unique. Preuves du candidat et opération réelle suivies exclusivement
+dans [#58](https://github.com/Khaey/Dao/issues/58).
+
 ## D-043 — Espace Artisan complet et revalidation ciblée (#83)
 
 DAO Pilot valide : revalidation uniquement lors des changements d'identité,
