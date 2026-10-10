@@ -6,7 +6,7 @@
 [#445 / 37943557783](https://github.com/Khaey/Dao/actions/runs/37943557783),
 tentative 1 SUCCESS ; 196 plateforme, 63 backend, 29 intégrations et 48/48
 FULL E2E desktop/mobile (2,8 min), release exacte active attestée dans ce run.
-Les acquis ne sont pas rejoués. Main courant
+Les acquis ne sont pas rejoués. Base initiale vérifiée
 `5f87ec3d7d06ddafae1589981b89c869a505d1bd` et CI/deploy
 37947264174 SUCCESS ; #109 Artisan et #111 OPS conservées.
 
@@ -31,6 +31,12 @@ n'écrit pas sur le VPS ; le déploiement applicatif main automatique est une
 preuve distincte. Provisionnement root Actions absent et liste approuvée privée
 encore nécessaires ; tunnel start, gateway-host apply et fermeture :8080
 gardent leurs autorisations spécifiques. Aucun CMD/TTY à redemander.
+
+Réconcilié avec main `2a0d1ba36a8badaa329aa7dcef446e4992c32390` (#113) :
+les 29 fichiers métier/migration/RLS/Storage/C4/tests et le gate **52 E2E** sont
+intégralement conservés. Le code et les cinq nouveaux tests du diagnostic sont
+inchangés ; les preuves locales restent acquises. La CI #458 de l'ancienne
+base ne qualifie pas ce candidat réconcilié ; suivre sa nouvelle CI automatique.
 
 ## OPT 20 — OPS #91, récupération env-sync manuel (2026-10-09)
 
@@ -1012,3 +1018,14 @@ et audit avant écriture root 0600 ; aucune activation automatique.
 Prochaine étape : validation de cette correction, bootstrap unique guidé,
 puis Actions audit/start/probe. :8080 conservé, gateway apply toujours interdit
 sans accord explicite séparé. Voir docs/oce-cloudflare-private-demo.md.
+# #112 — DAO OPT 20, phase modèle/API en cours (2026-10-09)
+
+Mandat produit explicite [#112](https://github.com/Khaey/Dao/issues/112), remplaçant
+l'ancien propriétaire DEV 2. Branche `feat/opt20-professional-profile-112` depuis
+main `5f87ec3d7d06ddafae1589981b89c869a505d1bd` ; #91 passif.
+PR draft #113 : migration additive, dossier privé, portfolio consenti,
+téléchargement médié, éditeur six sections, revue dédiée et fiche client.
+Voir [contrat PRO](../professional-profile.md). Première phase modèle/API CI #453
+SUCCESS ; qualification des nouveaux tests réels/52 E2E de la phase UI en cours.
+Connexion Supabase DEV absente dans Work ; aucune migration/livraison DEV de #112
+revendiquée. Reprise et preuves exactes : checkpoints canoniques #112.

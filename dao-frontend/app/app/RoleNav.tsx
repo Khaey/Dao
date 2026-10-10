@@ -53,6 +53,8 @@ export default function RoleNav() {
     { href: '/app/projects', label: 'Mes chantiers', icon: FolderKanban, show: has('client') || has('contractor') },
     { href: '/app/artisan', label: 'DAO disponibles', icon: HardHat, show: has('contractor') },
     { href: '/app/artisan/offers', label: 'Mes offres', icon: ReceiptText, show: has('contractor') },
+    { href: '/app/artisan/profile', label: 'Mon dossier professionnel', icon: HardHat, show: has('contractor') },
+    { href: '/app/professionals', label: 'Trouver un professionnel', icon: HardHat, show: has('client') },
     { href: '/app/invitations', label: 'Mes invitations', icon: Mail, show: !staff && (has('client') || has('contractor')) },
     { href: '/app/dao/review', label: 'Revues', icon: ShieldCheck, show: staff },
     { href: '/app/dao/publications', label: 'Publications', icon: Megaphone, show: staff },
