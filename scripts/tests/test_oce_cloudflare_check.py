@@ -168,8 +168,95 @@ class CheckTests(unittest.TestCase):
         self.assertEqual((result['stage'], result['reason']), ('ZONE_LOOKUP', 'HTTP_403'))
         self.assertTrue(result['api_token_present'])
         self.assertTrue(result['tunnel_token_present'])
+        self.assertEqual(result['provider_error_format'], 'NON_JSON')
         for private in ('fake-api-token', self.token, 'owner@example.test', 'https://provider'):
             self.assertNotIn(private, output)
+
+    def test_http_provider_identifiers_are_closed_and_response_is_read_once_then_closed(self):
+        private = 'fake-api-token ' + self.token + ' owner@example.test'
+        body = {'success': False, 'errors': [{'code': 10000, 'message': 'Forbidden',
+            'documentation_url': c.ZONE_DOC, 'detail': private}], 'messages': [private], 'result': private}
+        stream = io.BytesIO(json.dumps(body).encode())
+        reads = []
+        def get(path):
+            reads.append(path)
+            raise urllib.error.HTTPError('https://provider/' + private, 403, private,
+                                        {'Authorization': private}, stream)
+        code, output = self.run_main(get)
+        result = json.loads(output)
+        self.assertEqual(code, 1)
+        self.assertEqual(reads, ['/zones?name=logiclab.fr&per_page=50'])
+        self.assertTrue(stream.closed)
+        self.assertEqual(result['reason'], 'HTTP_403')
+        self.assertEqual(result['provider_error_format'], 'CLOUDFLARE_JSON')
+        self.assertEqual(result['provider_error_codes'], [10000])
+        self.assertEqual(result['provider_error_labels'], ['FORBIDDEN'])
+        self.assertTrue(result['provider_zone_documentation'])
+        self.assertFalse(result['provider_unrecognized_code'])
+        for secret in ('fake-api-token', self.token, 'owner@example.test', 'https://provider', c.ZONE_DOC):
+            self.assertNotIn(secret, output)
+
+    def test_provider_unknown_fields_messages_urls_and_non_whitelisted_codes_are_never_echoed(self):
+        errors = [{'code': value, 'message': 'fake-api-token',
+                   'documentation_url': c.ZONE_DOC + '?token=fake-api-token'}
+                  for value in ('10000', True, 10000.0, 98765, 12345678901234567890)]
+        errors.append({'code': 10000, 'message': 'Authentication error'})
+        exc = urllib.error.HTTPError('private', 401, 'private', {},
+            io.BytesIO(json.dumps({'success': False, 'errors': errors}).encode()))
+        result = c.failure(exc, {'stage': 'ZONE_LOOKUP', 'api_pending': True})
+        self.assertEqual(result['reason'], 'HTTP_401')
+        self.assertEqual(result['provider_error_codes'], [10000])
+        self.assertEqual(result['provider_error_labels'], ['AUTHENTICATION_ERROR'])
+        self.assertTrue(result['provider_unrecognized_code'])
+        self.assertFalse(result['provider_zone_documentation'])
+        for private in ('fake-api-token', '98765', '12345678901234567890', c.ZONE_DOC):
+            self.assertNotIn(private, json.dumps(result))
+
+    def test_provider_body_size_read_failure_and_close_failure_keep_original_http_reason(self):
+        for mode in ('large', 'read_failure', 'close_failure'):
+            stream = unittest.mock.Mock()
+            if mode == 'read_failure':
+                stream.read.side_effect = TimeoutError('private-token')
+            else:
+                stream.read.return_value = b'x' * (c.ERROR_BODY_LIMIT + 1) if mode == 'large' else b'{}'
+            if mode == 'close_failure':
+                stream.close.side_effect = RuntimeError('private-token')
+            exc = urllib.error.HTTPError('private-token', 403, 'private-token', {}, stream)
+            with self.subTest(mode=mode):
+                result = c.failure(exc, {'stage': 'ZONE_LOOKUP', 'api_pending': True})
+                self.assertEqual(result['reason'], 'HTTP_403')
+                self.assertEqual(result['provider_error_format'],
+                    {'large': 'TOO_LARGE', 'read_failure': 'UNREADABLE',
+                     'close_failure': 'UNEXPECTED_JSON'}[mode])
+                stream.read.assert_called_once_with(c.ERROR_BODY_LIMIT + 1)
+                stream.close.assert_called_once()
+                self.assertNotIn('private-token', json.dumps(result))
+
+    def test_provider_malformed_duplicate_or_unexpected_json_fails_closed(self):
+        bodies = (b'not-json private-token', b'{"success":false,"success":true,"errors":[]}',
+            b'{"success":false,"errors":[{"code":10000,"code":9109}]}',
+            b'[]', b'{"success":true,"errors":[{"code":10000}]}',
+            b'{"success":false,"errors":["private-token"]}',
+            json.dumps({'success': False, 'errors': [{'code': 10000}] * 17}).encode())
+        for body in bodies:
+            stream = io.BytesIO(body)
+            with self.subTest(body=body):
+                result = c.failure(urllib.error.HTTPError('private', 403, 'private', {}, stream),
+                                   {'stage': 'ZONE_LOOKUP', 'api_pending': True})
+                self.assertEqual(result['reason'], 'HTTP_403')
+                self.assertNotEqual(result['provider_error_format'], 'CLOUDFLARE_JSON')
+                self.assertNotIn('provider_error_codes', result)
+                self.assertNotIn('private-token', json.dumps(result))
+                self.assertTrue(stream.closed)
+
+    def test_redirect_and_non_api_errors_do_not_read_or_follow_provider_body(self):
+        for status, pending in ((302, True), (403, False), (500, True)):
+            stream = unittest.mock.Mock()
+            with self.subTest(status=status, pending=pending):
+                result = c.failure(urllib.error.HTTPError('private', status, 'private', {}, stream),
+                                   {'stage': 'ZONE_LOOKUP', 'api_pending': pending})
+                stream.read.assert_not_called()
+                self.assertNotIn('provider_error_format', result)
 
     def test_redirect_network_and_unexpected_http_are_redacted(self):
         for exc, reason in ((urllib.error.HTTPError('private', 302, 'private', {}, None), 'HTTP_ERROR'),

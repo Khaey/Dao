@@ -16,6 +16,14 @@ SECRET_NAMES = ('OCE_CLOUDFLARE_API_TOKEN', 'OCE_CLOUDFLARE_TUNNEL_TOKEN',
                 'OCE_CLOUDFLARE_APPROVED_EMAILS')
 SAFE_FLAGS = ('api_token_present', 'tunnel_token_present', 'approved_emails_present',
               'zone_read_verified', 'tunnel_token_binding_verified', 'tunnel_read_verified')
+ERROR_BODY_LIMIT = 16384
+# Closed public identifiers, never arbitrary provider text or numeric input.
+ERROR_CODES = frozenset((6003, 6111, 9103, 9106, 9107, 9109, 10000))
+ERROR_LABELS = {'Forbidden': 'FORBIDDEN', 'Authentication error': 'AUTHENTICATION_ERROR',
+                'Invalid request headers': 'INVALID_REQUEST_HEADERS',
+                'Invalid access token': 'INVALID_ACCESS_TOKEN',
+                'Unauthorized to access requested resource': 'ACCESS_DENIED'}
+ZONE_DOC = 'https://developers.cloudflare.com/api/resources/zones/methods/list'
 
 
 class Rejected(Exception):
@@ -114,6 +122,48 @@ def check(cf, operation, api_token, tunnel_token, approved_emails, get, progress
     return dict(result, scope='access_dns_and_connector', access_policy_verified=True)
 
 
+def provider_failure(exc):
+    """Bounded in-memory error parsing; only closed identifiers reach stdout."""
+    result = {'provider_error_format': 'UNREADABLE'}
+
+    def unique_object(pairs):
+        value = dict(pairs)
+        if len(value) != len(pairs):
+            raise ValueError()
+        return value
+
+    try:
+        raw = exc.read(ERROR_BODY_LIMIT + 1)
+        if len(raw) > ERROR_BODY_LIMIT:
+            return dict(result, provider_error_format='TOO_LARGE')
+        result['provider_error_format'] = 'NON_JSON'
+        body = json.loads(raw, object_pairs_hook=unique_object)
+        result['provider_error_format'] = 'UNEXPECTED_JSON'
+        if (not isinstance(body, dict) or body.get('success') is not False
+                or not isinstance(body.get('errors'), list) or not 1 <= len(body['errors']) <= 16
+                or not all(isinstance(error, dict) for error in body['errors'])):
+            return result
+        errors = body['errors']
+        codes = {error['code'] for error in errors
+                 if type(error.get('code')) is int and error['code'] in ERROR_CODES}
+        labels = {ERROR_LABELS[error['message']] for error in errors
+                  if isinstance(error.get('message'), str) and error['message'] in ERROR_LABELS}
+        result.update(provider_error_format='CLOUDFLARE_JSON',
+                      provider_error_codes=sorted(codes), provider_error_labels=sorted(labels),
+                      provider_unrecognized_code=any(type(error.get('code')) is not int
+                          or error['code'] not in ERROR_CODES for error in errors),
+                      provider_zone_documentation=any(isinstance(error.get('documentation_url'), str)
+                          and error['documentation_url'] in (ZONE_DOC, ZONE_DOC + '/') for error in errors))
+    except Exception:
+        pass  # Parsing/read failures never replace the original HTTP failure.
+    finally:
+        try:
+            exc.close()
+        except Exception:
+            pass
+    return result
+
+
 def failure(exc, progress):
     reason = 'API_READ_FAILED' if progress.get('api_pending') else 'VALIDATION_FAILED'
     if isinstance(exc, Rejected):
@@ -122,8 +172,11 @@ def failure(exc, progress):
         reason = 'HTTP_' + str(exc.code) if exc.code in (400, 401, 403, 404, 429, 500, 502, 503, 504) else 'HTTP_ERROR'
     elif isinstance(exc, (TimeoutError, urllib.error.URLError)):
         reason = 'NETWORK_OR_TIMEOUT'
-    return {'cloudflare_check': 'FAIL', 'stage': progress.get('stage', 'LOCAL_PREREQUISITE'),
-            'reason': reason}
+    result = {'cloudflare_check': 'FAIL', 'stage': progress.get('stage', 'LOCAL_PREREQUISITE'),
+              'reason': reason}
+    if isinstance(exc, urllib.error.HTTPError) and exc.code in (401, 403) and progress.get('api_pending'):
+        result.update(provider_failure(exc))
+    return result
 
 
 def deadline(signum, frame):

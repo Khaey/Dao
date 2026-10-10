@@ -1,5 +1,25 @@
 # D.A.O — Next Steps
 
+## DEV 20 — qualifier le diagnostic HTTP expurgé #58
+
+Reprendre `fix/dev20-oce-http-diagnostics` et le dernier checkpoint
+[#58](https://github.com/Khaey/Dao/issues/58). #110/CI main #445 livrées ; main
+`5f87ec3d7d06ddafae1589981b89c869a505d1bd` conserve Artisan #109 et OPS #111.
+Les droits du formulaire étaient déjà présents ; l'owner a remplacé le secret
+dans `dev`, et le contrôle réel #59 /38011927486 reste `HTTP_403 / ZONE_LOOKUP`.
+Ne pas rechercher encore un doublon de niveau comme cause établie ni répéter
+le même essai sans fait nouveau.
+
+Valider/publier le petit candidat, suivre la CI automatique du HEAD exact,
+vérifier main/head avant fusion autorisée et conserver les nouvelles CI/tests
+si main avance. Puis un seul contrôle pour obtenir le diagnostic désormais
+enrichi de la réponse déjà reçue, sans endpoint ou requête supplémentaire.
+Ne pas attribuer une cause unique à un code générique ou à un format inattendu.
+Conserver le run, SHA, tentative et résultat expurgé dans #58 et agir uniquement
+sur une cause réellement établie. La liste d'e-mails indépendante et la capacité
+de provisionnement root Actions restent des étapes distinctes absentes ; aucun
+CMD/TTY, bootstrap acquis, tunnel start, :8080 ou gateway-host apply implicite.
+
 ## OPT 20 — reprendre env-sync manuel #91 depuis le checkpoint courant
 
 Branche `chore/opt20-env-sync-recovery-91`, PR [#111](https://github.com/Khaey/Dao/pull/111),

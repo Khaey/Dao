@@ -1,5 +1,37 @@
 # D.A.O — Current State
 
+## DEV 20 — OCE #58, refus persistant après remplacement dans dev (2026-10-10)
+
+#110 livrée : main `178ace17824bb114d4e17c89c6834c33a55b9ddd`, CI/deploy
+[#445 / 37943557783](https://github.com/Khaey/Dao/actions/runs/37943557783),
+tentative 1 SUCCESS ; 196 plateforme, 63 backend, 29 intégrations et 48/48
+FULL E2E desktop/mobile (2,8 min), release exacte active attestée dans ce run.
+Les acquis ne sont pas rejoués. Main courant
+`5f87ec3d7d06ddafae1589981b89c869a505d1bd` et CI/deploy
+37947264174 SUCCESS ; #109 Artisan et #111 OPS conservées.
+
+L'owner confirme que les droits visibles étaient déjà présents et le
+remplacement du secret API dans **Environments / dev**. Nouveau contrôle
+[#59 / 38011927486](https://github.com/Khaey/Dao/actions/runs/38011927486),
+tentative 1 FAILURE : deux jetons présents, `ZONE_LOOKUP / HTTP_403`, aucune
+lecture zone/binding/tunnel validée ; liste approuvée absente. Aucun contact
+VPS, écriture de configuration ou tunnel démarré par ce contrôle. Ni la présence
+des secrets ni la capture ne prouvent une cause précise du refus.
+
+Branche dédiée `fix/dev20-oce-http-diagnostics` : lecture bornée de l'erreur
+401/403 déjà reçue, identifiants fermés uniquement, aucun nouvel endpoint,
+retry, texte libre, URL/header/secret publié. Tests de redaction, tailles,
+JSON ambigu, lecture/fermeture en échec et conservation du refus initial.
+Helpers root/catalogue/grants/C4 et autres périmètres inchangés. Candidat et
+preuve finale à suivre dans [#58](https://github.com/Khaey/Dao/issues/58).
+
+Les fusions/déploiements DEV normaux du périmètre #58 et checkpoints non
+sensibles sont autorisés sans confirmation répétée. Le diagnostic runner
+n'écrit pas sur le VPS ; le déploiement applicatif main automatique est une
+preuve distincte. Provisionnement root Actions absent et liste approuvée privée
+encore nécessaires ; tunnel start, gateway-host apply et fermeture :8080
+gardent leurs autorisations spécifiques. Aucun CMD/TTY à redemander.
+
 ## OPT 20 — OPS #91, récupération env-sync manuel (2026-10-09)
 
 Nouveau lot dédié `chore/opt20-env-sync-recovery-91` depuis main réel
