@@ -57,8 +57,23 @@ Les PDF sont servis en pièce jointe, avec `nosniff`.
 
 ## Qualification et livraison
 
-Migration additive `20261009180000_professional_profile.sql`, jamais de reset DEV.
-PGlite couvre la matrice RPC/RLS avec claims simulés. Les tests de handler couvrent
-JWT, inspection, altération et retrait pendant une lecture. Auth/JWT/Storage réels
-et E2E sont ajoutés pour la stack CI jetable avant livraison. La migration DEV
-nécessite une capacité Supabase authentifiée ; son exécution n'est pas encore prouvée.
+PR [#113](https://github.com/Khaey/Dao/pull/113) livrée le 2026-10-10 au main
+`2a0d1ba36a8badaa329aa7dcef446e4992c32390`. Migration additive
+`20261009180000_professional_profile.sql`, précédée de la migration #83
+`20261009103053_artisan_workflows_v2.sql`, sans reset DEV. Le
+[checkpoint Pilot](https://github.com/Khaey/Dao/issues/112#issuecomment-6092084896)
+atteste application, versions canoniques du ledger, RPC/RLS et Storage privé.
+L'outil connecteur attribuait un timestamp différent : Pilot a réparé le ledger
+par transaction contrôlée immédiatement après chaque migration. Ce procédé
+ponctuel ne constitue pas un workflow général à rejouer.
+
+PGlite couvre la matrice RPC/RLS avec claims simulés. Les tests de handler
+couvrent JWT, inspection, altération et retrait pendant une lecture. CI PR #457
+et [CI/deploy main #459](https://github.com/Khaey/Dao/actions/runs/38012628814)
+SUCCESS : 37 intégrations Supabase Auth/JWT/Storage réelles et 52 E2E
+desktop/mobile sur stack jetable. Ces tests ne réinitialisent pas DEV.
+
+Éditeur : `/app/artisan/profile`, lié depuis le résumé `/app/profile` ; fiches
+clients : `/app/professionals` selon droits et approbation. La livraison du code,
+la migration DB et la recette visuelle authentifiée restent des preuves distinctes.
+Cette dernière n'est pas attestée dans Work ; #112 reste ouverte pour réception.

@@ -1018,14 +1018,30 @@ et audit avant écriture root 0600 ; aucune activation automatique.
 Prochaine étape : validation de cette correction, bootstrap unique guidé,
 puis Actions audit/start/probe. :8080 conservé, gateway apply toujours interdit
 sans accord explicite séparé. Voir docs/oce-cloudflare-private-demo.md.
-# #112 — DAO OPT 20, phase modèle/API en cours (2026-10-09)
+## OPT 20 — PRO #112, code, base et DEV livrés (2026-10-12)
 
-Mandat produit explicite [#112](https://github.com/Khaey/Dao/issues/112), remplaçant
-l'ancien propriétaire DEV 2. Branche `feat/opt20-professional-profile-112` depuis
-main `5f87ec3d7d06ddafae1589981b89c869a505d1bd` ; #91 passif.
-PR draft #113 : migration additive, dossier privé, portfolio consenti,
-téléchargement médié, éditeur six sections, revue dédiée et fiche client.
-Voir [contrat PRO](../professional-profile.md). Première phase modèle/API CI #453
-SUCCESS ; qualification des nouveaux tests réels/52 E2E de la phase UI en cours.
-Connexion Supabase DEV absente dans Work ; aucune migration/livraison DEV de #112
-revendiquée. Reprise et preuves exactes : checkpoints canoniques #112.
+PR [#113](https://github.com/Khaey/Dao/pull/113) fusionnée le 2026-10-10 au main
+`2a0d1ba36a8badaa329aa7dcef446e4992c32390`, HEAD produit
+`522c0e144ceae31e7b5440d3e9492841908516d5`. Dossier privé, portfolio consenti,
+téléchargement médié, éditeur six sections, revue dédiée et fiches clients livrés.
+Voir [contrat PRO](../professional-profile.md).
+
+Le [Pilot a appliqué et contrôlé les deux migrations DEV](https://github.com/Khaey/Dao/issues/112#issuecomment-6092084896)
+sur la cible confirmée : #83 `20261009103053`, puis #112 `20261009180000`.
+Ledger 32 entrées, versions canoniques uniques, aucune version temporaire,
+RPC présentes, RLS activé, aucun SELECT anon sur les nouvelles tables et
+bucket privé. Ce sont ses contrôles du 2026-10-10, pas une nouvelle lecture DB OPT.
+
+[CI/deploy #459](https://github.com/Khaey/Dao/actions/runs/38012628814), tentative 1,
+SUCCESS au main de fusion : intégration réelle et 52 E2E desktop/mobile réussis,
+release exacte active et smoke Auth HTTP200. Pages 38012628772 SUCCESS.
+Main relu `4b3741f69f3526ebab9032bc12232a7e2d4c03c2` conserve #112 après #114 ;
+[CI/deploy #461](https://github.com/Khaey/Dao/actions/runs/38013301175), tentative 1,
+SUCCESS, logs de release/service/HTTP inspectés. Aucun acquis rejoué.
+
+Route de l'éditeur : `/app/artisan/profile`, accessible depuis le résumé
+`/app/profile`. Contrôle HTTP de cette reprise : route et nouveau chunk servis.
+La recette visuelle authentifiée sur DEV reste à recevoir ; l'ouverture du
+navigateur Work a expiré. #112 reste ouverte pour cette réception ou un défaut
+prouvé. #91 reste passif ; pas de nouveau lot OPS/OCE/back-office/Monitor.
+Reprise et preuves exactes : [checkpoint PRO 12](https://github.com/Khaey/Dao/issues/112#issuecomment-6132912341).
