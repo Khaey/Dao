@@ -38,7 +38,37 @@
     },
     {
       "issue": 85,
-      "agent": "WORK OPT",
+      "agent": "OPT",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 112,
+      "agent": "DAO OPT 20",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 115,
+      "agent": "OPT",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 116,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 61,
+      "agent": "DAO DEV 1",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 120,
+      "agent": "DAO OPT 20",
       "role": "OPT",
       "watchdog": false
     }

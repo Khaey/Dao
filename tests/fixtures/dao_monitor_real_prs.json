@@ -1,0 +1,166 @@
+{
+  "source": "GitHub REST Khaey/Dao; full PR bodies captured 2026-10-13",
+  "pull_requests": [
+    {
+      "number": 107,
+      "title": "fix(monitor): attribuer les titres citant des PR et protéger les alertes de silence",
+      "body": "Refs #93\n\nDeux défauts reproduits lors de la qualification indépendante : le titre réel de PR #104 cite des numéros de PR sans mission enregistrée et empêche de lire sa référence propriétaire ; le watchdog accepte un marqueur de déduplication provenant de n’importe quel auteur et confond des identifiants préfixes.\n\nLe parseur poursuit vers la référence du corps lorsque le titre n’identifie aucune mission, tout en refusant les missions contradictoires. Le watchdog exige le bot GitHub Actions de type Bot et la première ligne exacte du marqueur du checkpoint concerné. Aucun registre, seuil, fréquence, workflow, secret ou périmètre DEV/OCE/OPS modifié.\n\nValidation : 35 tests Monitor locaux PASS, dont 8 nouveaux tests de régression. Les fixtures couvrent le cas #104 et son SHA de CI, références contradictoires, auteur/branche insuffisants, marqueurs usurpés/cités/ID voisins, acquittement réel et nouvelle période ACTIVE. Toute la couverture existante est conservée. CI automatique exacte requise avant fusion ; preuve Telegram sur événements normaux après merge, aucun faux blocage ou historique renvoyé.\n\nWORK OPT exécutant ; DAO Pilot 3 reste propriétaire canonique de #93. Le checkpoint précédent de qualification est corrigé par le signal téléphone du propriétaire : #104/#426 étaient réellement non identifiés, tandis que DEV 20 et DEV 2 sont bien identifiés.",
+      "user": {
+        "login": "Khaey"
+      },
+      "author_association": "OWNER",
+      "head": {
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "base": {
+        "ref": "main",
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "merged": true,
+      "merged_at": "2026-10-09T10:01:49Z",
+      "merge_commit_sha": "11533039e5c4e26f24d11ee3e39e88ab06beef70",
+      "html_url": "https://github.com/Khaey/Dao/pull/107"
+    },
+    {
+      "number": 108,
+      "title": "fix(monitor): distinguer les exemples de code de la mission propriétaire",
+      "body": "Refs #93\n\nLe corps complet réel de la PR d’attribution cite une référence d’une autre mission comme exemple de parseur en code Markdown, puis déclare sa propre référence en texte normal. Après la correction du titre, ces exemples créent encore un faux conflit et produisent « non identifié ».\n\nIgnorer les références dans les exemples de code en ligne ou blocs à trois backticks lors de la résolution du propriétaire. Conserver les conflits de références réelles, les priorités existantes, le SHA exact pour la CI, le registre et l’absence d’inférence depuis l’auteur.\n\n39 tests Monitor locaux PASS, quatre régressions ajoutées. Rejeu hors ligne indépendant avec le **corps GitHub complet** de la PR et son merge SHA : DAO Pilot 3 — mission #93. Aucun renvoi historique Telegram ou faux état. Correction limitée Monitor/tests/docs, sans workflows, secrets, VPS, OCE, OPS, Artisan ni Auth/RLS. CI automatique exacte avant merge.\n\nSuite technique de PR #107 ; sa protection des marqueurs watchdog reste conservée. WORK OPT exécutant, DAO Pilot 3 propriétaire canonique.",
+      "user": {
+        "login": "Khaey"
+      },
+      "author_association": "OWNER",
+      "head": {
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "base": {
+        "ref": "main",
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "merged": true,
+      "merged_at": "2026-10-09T10:11:06Z",
+      "merge_commit_sha": "efe86f584343e06553157c4a121f3c270cac8cbb",
+      "html_url": "https://github.com/Khaey/Dao/pull/108"
+    },
+    {
+      "number": 117,
+      "title": "PRO : documenter la livraison DEV et l’architecture opérationnelle (#112)",
+      "body": "La documentation #112 annonçait encore une PR draft et une migration absente après la livraison de #113. Cette finalisation consigne les migrations canoniques contrôlées par Pilot, les CI/deploy du produit et le parcours `/app/artisan/profile`. Les trois composants PRO livrés figurent désormais comme opérationnels dans le modèle C4.\n\nQuatre fichiers docs/C4 uniquement. [Réception DEV authentifiée terminée le 2026-10-13](https://github.com/Khaey/Dao/issues/112#issuecomment-6133482422) et #112 clôturée ; les anciennes limites consignées dans le snapshot documentaire sont supersédées par ce checkpoint.\n\nValidation : diff/whitespace revus ; [CI PR #462](https://github.com/Khaey/Dao/actions/runs/38310898450) et [CI/deploy main #463](https://github.com/Khaey/Dao/actions/runs/38311684885), tentatives1 SUCCESS, 37 intégrations réelles et 52 E2E chacune. [Pages #60](https://github.com/Khaey/Dao/actions/runs/38311684890) SUCCESS au main `d48ea26cff5b64313c7ff5b1a5dbb8d3e88280b8` ; release exacte/service/smoke et cleanups inspectés. Aucun rerun manuel ni replay de migration.\n\nOwner DAO OPT 20, Refs #112.",
+      "user": {
+        "login": "Khaey"
+      },
+      "author_association": "OWNER",
+      "head": {
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "base": {
+        "ref": "main",
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "merged": true,
+      "merged_at": "2026-10-12T21:36:28Z",
+      "merge_commit_sha": "d48ea26cff5b64313c7ff5b1a5dbb8d3e88280b8",
+      "html_url": "https://github.com/Khaey/Dao/pull/117"
+    },
+    {
+      "number": 118,
+      "title": "docs(agents): mode économique pour DEV 2 et OPT sans alléger les contrôles",
+      "body": "## Objectif\nRendre le mode économique **durable dans les instructions utilisées par les agents**, plutôt qu'un simple commentaire dans les issues.\n\n## Changements\n- **AGENTS.md** : reprise depuis l'issue et dernier checkpoint, lecture ciblée du contexte, ownership DEV 2 #116 et OPT #115, séparation OPT 20.\n- **docs/ai-context/README.md** : abandon de la relecture automatique de tous les longs documents à chaque nouvelle session ; lecture exhaustive des invariants applicables si le changement touche métier, Auth/RLS, argent ou OPS.\n- **AUTONOMOUS_EXECUTION.md** : exécution en phases courtes, tests inchangés et CI complète obligatoire, pas de rerun identique, résultats concis, aucune nouvelle infrastructure.\n- **WORK_CHECKPOINTS.md** : statut actuel #115/#116, reprise sélective, checkpoints résumés plutôt que répétitions historiques.\n\n**Non-objectifs** : aucune modification applicative/SQL/CI/scripts, aucune réduction des E2E/sécurité, aucun changement de statut Work ou nouveau GO. Les politiques de protection et le déploiement main restent inchangés.\n\nMandat Pilot pour économie de quota : [#115](https://github.com/Khaey/Dao/issues/115#issuecomment-6133304876), [#116](https://github.com/Khaey/Dao/issues/116#issuecomment-6133306108).\n\n## Préflight et preuve\nBase main d48ea26cff5b64313c7ff5b1a5dbb8d3e88280b8, branche f85377dc1e51f05173f6bc20caf72c7f91b40a3e. Comparaison GitHub : 4 fichiers documentation uniquement, 4 commits, 0 retard sur main. Observer la CI automatique, sans rerun manuel, avant fusion. \n",
+      "user": {
+        "login": "Khaey"
+      },
+      "author_association": "OWNER",
+      "head": {
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "base": {
+        "ref": "main",
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "merged": true,
+      "merged_at": "2026-10-12T22:07:34Z",
+      "merge_commit_sha": "f1e91ab5009ae01a64c5d754b6b14737b8ad8788",
+      "html_url": "https://github.com/Khaey/Dao/pull/118"
+    },
+    {
+      "number": 119,
+      "title": "docs(agents): généraliser le mode économique à tous les agents D.A.O",
+      "body": "## Décision du propriétaire — mode économique universel\n\nÉtendre le protocole validé pour DEV 2 / OPT (PR #118) à **tous les agents présents et futurs** : DEV 1, DEV 2, DEV 20, OPT, OPT 20, Back-office, Pilot/coordinators et nouveaux agents. Les responsabilités demeurent définies par les issues canoniques, et OPT n'est pas OPT 20.\n\n### Application\n- `AGENTS.md` : consigne au démarrage **sans exception d'agent** ; reprise ciblée, checkpoint utile, preuves existantes, arrêt sur vrai blocage.\n- `docs/ai-context/AUTONOMOUS_EXECUTION.md` : section 3A réécrite comme protocole commun, six règles concrètes, exemples par agent dont OCE, Contrat, Back-office et Pilot.\n- `docs/ai-context/WORK_CHECKPOINTS.md` : récupération, WIP durable et commentaires courts pour tous les agents.\n- `docs/ai-context/README.md` : index et branche/ownership non exclusifs aux anciens noms Work.\n\n### Limites inchangées\nPas de code produit, migration, workflow ni infrastructure modifiés. **Les tests obligatoires, sécurité Auth/RLS, secrets, CI complète, E2E, protections OPS et déploiement DEV restent obligatoires et inchangés**. Un résumé court n'est pas une preuve et un commentaire GitHub ne démarre pas un agent Work. Pas de plafond de crédits garanti.\n\n### Préflight\nBase exacte `main f1e91ab5009ae01a64c5d754b6b14737b8ad8788`; HEAD `7769e8126356bafbb8f0dc4e3a4ad3f5bd4b1b41`. Comparaison GitHub : 4 fichiers docs seulement, 0 behind / 4 commits ahead. CI automatique requise avant merge ; aucun rerun manuel.",
+      "user": {
+        "login": "Khaey"
+      },
+      "author_association": "OWNER",
+      "head": {
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "base": {
+        "ref": "main",
+        "repo": {
+          "full_name": "Khaey/Dao"
+        }
+      },
+      "merged": true,
+      "merged_at": "2026-10-12T22:21:25Z",
+      "merge_commit_sha": "5174cb50a417cc5797196650559fa92f64bc1b45",
+      "html_url": "https://github.com/Khaey/Dao/pull/119"
+    }
+  ],
+  "workflow_events": [
+    {
+      "action": "completed",
+      "workflow_run": {
+        "id": 38311684885,
+        "name": "DAO CI and DEV deploy",
+        "head_sha": "d48ea26cff5b64313c7ff5b1a5dbb8d3e88280b8",
+        "head_branch": "main",
+        "event": "push",
+        "conclusion": "success",
+        "run_number": 463,
+        "html_url": "https://github.com/Khaey/Dao/actions/runs/38311684885"
+      }
+    },
+    {
+      "action": "completed",
+      "workflow_run": {
+        "id": 38314823144,
+        "name": "DAO CI and DEV deploy",
+        "head_sha": "f1e91ab5009ae01a64c5d754b6b14737b8ad8788",
+        "head_branch": "main",
+        "event": "push",
+        "conclusion": "success",
+        "run_number": 465,
+        "html_url": "https://github.com/Khaey/Dao/actions/runs/38314823144"
+      }
+    },
+    {
+      "action": "completed",
+      "workflow_run": {
+        "id": 38316183793,
+        "name": "DAO CI and DEV deploy",
+        "head_sha": "5174cb50a417cc5797196650559fa92f64bc1b45",
+        "head_branch": "main",
+        "event": "push",
+        "conclusion": "success",
+        "run_number": 467,
+        "html_url": "https://github.com/Khaey/Dao/actions/runs/38316183793"
+      }
+    }
+  ]
+}

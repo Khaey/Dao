@@ -33,6 +33,10 @@ and Pilot coordination alike. Full Auth/RLS, required CI/E2E, migrations,
 release and infrastructure authorization gates remain intact.
 Report actual evidence and blockers; do not claim a live check from old logs.
 
+In each owned PR body, declare `Owner issue: #N` on its own normal-text line,
+using the canonical registered owner issue. Other issue links are context;
+conflicting Refs/Fixes/Closes remain ambiguous. See `docs/dao-monitor.md`.
+
 Use `docs/ai-context/WORK_CHECKPOINTS.md` for every agent's code/ops task:
 publish each
 small meaningful phase, including safe WIP, on the owned branch; keep incomplete
