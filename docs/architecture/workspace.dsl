@@ -22,6 +22,7 @@ model {
       documents = component "Documents" "Upload Storage privé, grants et signed URLs après autorisation." "Next.js / Supabase Storage"
 
       collaboration = component "Collaboration chantier" "Membres, rôles projet, permissions privées et affectation aux lots." "Next.js / RPC"
+      messaging = component "Messagerie privée chantier" "Fil texte par chantier et professionnel confirmé, historique immuable et notifications internes." "Next.js / API / RPC / RLS"
       invitations = component "Invitations chantier" "Token one-shot hashé et boîte du destinataire ; expiration, preview, accept/refuse/revoke." "Next.js / RPC"
       teamCreation = component "Création avec équipe existante" "Création atomique projet + lots principaux + invitations." "Next.js / RPC"
 
@@ -110,6 +111,7 @@ model {
   client -> dao.web.documents "Gère les documents"
   client -> dao.web.teamCreation "Crée avec équipe existante"
   client -> dao.web.collaboration "Gère l'équipe chantier"
+  client -> dao.web.messaging "Échange avec le professionnel confirmé"
   client -> dao.web.review "Soumet/corrige le DAO"
   client -> dao.web.publications "Publie après approbation"
   client -> dao.web.compare "Compare les offres" "P2"
@@ -118,6 +120,7 @@ model {
   contractor -> dao.web.bids "Prépare, suit, soumet ou retire une offre non attribuée"
   contractor -> dao.web.invitations "Consulte sa boîte et accepte/refuse une invitation"
   contractor -> dao.web.collaboration "Travaille sur un chantier accepté"
+  contractor -> dao.web.messaging "Échange avec le client confirmé"
   contractor -> dao.web.contracts "Participe à l’exécution" "Futur"
 
   reviewer -> dao.web.manager "Pilote les opérations"
@@ -136,6 +139,7 @@ model {
   dao.web.projects -> dao.web.review "Soumet une version"
   dao.web.teamCreation -> dao.web.invitations "Crée une invitation par lot principal"
   dao.web.invitations -> dao.web.collaboration "Active la participation après acceptation"
+  dao.web.collaboration -> dao.web.messaging "Autorise le fil tant que les deux membres restent acceptés"
   dao.web.review -> dao.web.publications "Rend publiable après approbation"
   dao.web.publications -> dao.web.marketplace "Expose uniquement les publications autorisées"
   dao.web.marketplace -> dao.web.bids "Permet une offre autorisée"
@@ -153,6 +157,7 @@ model {
   dao.web.lots -> dao.web.api "Appelle les routes/RPC"
   dao.web.documents -> dao.web.api "Upload/download contrôlé"
   dao.web.invitations -> dao.web.api "Issue/revoke/send"
+  dao.web.messaging -> dao.web.api "Liste, ouvre, envoie et marque lu"
   dao.web.review -> dao.web.api "Décision de revue"
   dao.web.publications -> dao.web.api "Publication"
   dao.web.bids -> dao.web.api "Cycle offre"
@@ -216,7 +221,7 @@ views {
     include dao.web.shell dao.web.auth dao.web.profile
     include dao.web.professionalDossier dao.web.professionalPublic dao.web.professionalMedia
     include dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
-    include dao.web.teamCreation dao.web.invitations dao.web.collaboration
+    include dao.web.teamCreation dao.web.invitations dao.web.collaboration dao.web.messaging
     include dao.web.review dao.web.publications dao.web.marketplace
     include dao.web.bids dao.web.compare dao.web.awards
     include dao.web.manager dao.web.managerReview dao.web.managerPublications dao.web.managerProfessionals dao.web.managerClients dao.web.notificationWorker dao.web.technicalSubLots
@@ -228,7 +233,7 @@ views {
   component dao.web "ClientWorkspace" "Détail de l'espace Client." {
     include client
     include dao.web.auth dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
-    include dao.web.teamCreation dao.web.invitations dao.web.collaboration
+    include dao.web.teamCreation dao.web.invitations dao.web.collaboration dao.web.messaging
     include dao.web.review dao.web.publications dao.web.compare dao.web.api dao.web.services dao.web.rpc
     include supabaseAuth supabaseDb supabaseStorage supabaseRls
     autoLayout lr
@@ -237,7 +242,7 @@ views {
   component dao.web "ContractorWorkspace" "Détail de l'espace Artisan / Entreprise." {
     include contractor
     include dao.web.auth dao.web.profile dao.web.marketplace dao.web.bids
-    include dao.web.invitations dao.web.collaboration dao.web.api dao.web.services dao.web.rpc
+    include dao.web.invitations dao.web.collaboration dao.web.messaging dao.web.api dao.web.services dao.web.rpc
     include supabaseAuth supabaseDb supabaseRls
     autoLayout lr
   }

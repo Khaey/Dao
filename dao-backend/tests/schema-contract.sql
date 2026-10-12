@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -132,6 +132,12 @@ BEGIN
       'public.respond_my_project_invitation(uuid,boolean)',
       'public.my_bid_summaries()',
       'public.withdraw_bid_version(uuid)',
+      'public.open_project_conversation(uuid,uuid)',
+      'public.open_project_member_conversation(uuid,uuid)',
+      'public.list_my_conversations()',
+      'public.list_conversation_messages(uuid,timestamptz,integer)',
+      'public.send_conversation_message(uuid,text,uuid)',
+      'public.mark_conversation_read(uuid)',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -151,6 +157,12 @@ BEGIN
      OR has_table_privilege('authenticated','public.project_invitations','DELETE')
      OR has_column_privilege('authenticated','public.project_invitations','token_hash','SELECT') THEN
     RAISE EXCEPTION 'schema contract: project participation writes and token hashes must stay RPC-only';
+  END IF;
+  IF has_table_privilege('authenticated','public.messages','INSERT')
+     OR has_table_privilege('authenticated','public.messages','UPDATE')
+     OR has_table_privilege('authenticated','public.messages','DELETE')
+     OR has_table_privilege('authenticated','public.notifications','UPDATE') THEN
+    RAISE EXCEPTION 'schema contract: messaging writes must stay RPC-only';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
     WHERE table_schema='public' AND table_name='projects' AND column_name='client_id' AND is_nullable='YES')
@@ -190,6 +202,18 @@ BEGIN
     IF has_function_privilege('anon',missing_name,'EXECUTE')
        OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
       RAISE EXCEPTION 'schema contract: collaboration RPC % must require authenticated execution', missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.open_project_conversation(uuid,uuid)',
+    'public.open_project_member_conversation(uuid,uuid)',
+    'public.list_my_conversations()',
+    'public.list_conversation_messages(uuid,timestamptz,integer)',
+    'public.send_conversation_message(uuid,text,uuid)',
+    'public.mark_conversation_read(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'messaging RPC grant mismatch: %',missing_name;
     END IF;
   END LOOP;
   FOR missing_name IN SELECT unnest(ARRAY[

@@ -6,6 +6,7 @@ import { AwardService } from '../services/AwardService.js';
 import { DocumentService } from '../services/DocumentService.js';
 import { ProfileService } from '../services/ProfileService.js';
 import { AIService } from '../services/AIService.js';
+import { MessageService } from '../services/MessageService.js';
 import { DomainError } from '../lib/errors.js';
 
 export type BackendServices = {
@@ -16,6 +17,7 @@ export type BackendServices = {
   documents: DocumentService;
   profiles: ProfileService;
   ai: AIService;
+  messages: MessageService;
 };
 
 export async function createProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {

@@ -664,3 +664,9 @@ Reprendre le [checkpoint PRO 12](https://github.com/Khaey/Dao/issues/112#issueco
 et le main réel avant une éventuelle correction ciblée. Garder #112 ouverte
 pour réception ou défaut prouvé ; ne pas demander SQL, clé ou terminal au
 propriétaire. #83 conservée, #91 passif ; les autres owners restent séparés.
+## DEV 2 — #116 messagerie chantier
+
+Valider la migration sur schéma frais/réel, les refus multi-acteurs, le build et
+le nouveau parcours E2E desktop/mobile. Publier les checkpoints sur la branche
+et dans #116, réconcilier tout nouveau main avant fusion, puis appliquer une
+seule fois la migration DEV après CI/merge verts et vérifier le déploiement.

@@ -6,6 +6,21 @@ The current assigned-review/version/sublot/withdrawal/assisted-award and notific
 
 > Stable business constraints and invariants. Changes here require explicit product/architecture review.
 
+## Messagerie privée de chantier V1 — #116
+
+- Un fil texte existe par chantier confirmé et professionnel accepté. Le client
+  confirmé et l'utilisateur du profil contractor concerné sont les seuls
+  acteurs autorisés ; staff, concurrents, invitations non acceptées et simples
+  visiteurs n'obtiennent aucun accès.
+- L'autorisation est recalculée à chaque lecture/envoi depuis les memberships
+  actifs et l'état des comptes. Un participant révoqué ou suspendu perd l'accès
+  immédiatement ; les lignes historiques restent conservées sans être exposées.
+- Les messages sont immuables, attribués à `auth.uid()`, horodatés par la base,
+  bornés à 4 000 caractères, paginés et envoyés avec une clé idempotente.
+- Une notification interne sans contenu privé est créée uniquement pour l'autre
+  participant. Aucun e-mail, SMS, Telegram, pièce jointe, temps réel strict ou
+  accès de modération staff n'est introduit en V1.
+
 ## Espace Artisan / Entreprise — règles validées #83
 
 - Un compte qui cumule les rôles client et contractor ouvre le dernier espace
