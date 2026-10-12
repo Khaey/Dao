@@ -13,23 +13,28 @@ Run `bash scripts/dao-task-check.sh` for a bounded, read-only preflight and
 impact suggestion when the local checkout is available. Its suggested checks
 are a starting point, not a substitute for mandatory CI or full coverage.
 
-The latest owner issue determines scope: **DEV 2** owns messaging #116,
-**OPT** owns audit #115 and **OPT 20** is a different agent. The older role
-labels cannot override assigned owners. Never modify another Work's branch
-or PR.
+The latest owner issue determines scope for **every** D.A.O agent: DEV 1,
+DEV 2, DEV 20, OPT, OPT 20, Back-office, Pilot/coordinators and all future
+agents. OPT and OPT 20 are distinct; issue-specific assignments (#115,
+#116, #58, #61, #64, #91, etc.) override older role labels. No agent may
+modify another owner's branch or PR without explicit coordination.
 Reconcile changes to main before merge; preserve newly merged tests and docs.
 
 Within the assigned task, continue through targeted checks, commit/push, PR,
 green CI and authorized merge without asking again for normal technical steps.
 Do not rerun a successful check for identical code and relevant inputs.
-For DEV 2 #116 and OPT #115, use **quota-aware execution**: resume from the
-published checkpoint, inspect only affected areas, batch independent reads,
-avoid repeating validated UI paths and long checkpoint prose. Publish short
-coherent milestones; stop on completion or proven blocker. Mandatory
-Auth/RLS, full CI/E2E, migrations and DEV release gates stay intact.
+**For every current and future agent**, use quota-aware execution: resume
+from the last published checkpoint, inspect only affected areas, batch
+independent reads, reuse exact-SHA proofs, avoid repeating already validated
+UI paths, builds and long checkpoint prose. Publish concise meaningful
+milestones; stop when the bounded mission is complete or blocked by a proved
+dependency. This applies to feature agents, auditors, infra/OPS agents
+and Pilot coordination alike. Full Auth/RLS, required CI/E2E, migrations,
+release and infrastructure authorization gates remain intact.
 Report actual evidence and blockers; do not claim a live check from old logs.
 
-Use `docs/ai-context/WORK_CHECKPOINTS.md` for every DEV/OPT task: publish each
+Use `docs/ai-context/WORK_CHECKPOINTS.md` for every agent's code/ops task:
+publish each
 small meaningful phase, including safe WIP, on the owned branch; keep incomplete
 PRs in draft and record an authorized owner-issue checkpoint with verified HEAD,
 proof, limits and next action. Recovery starts at the last GitHub-published
