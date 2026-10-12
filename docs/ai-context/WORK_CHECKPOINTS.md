@@ -12,8 +12,10 @@ does not save the code itself.
 
 ## 1. Find the owner before starting
 
-Read the current assignment, the entire owner issue and its comments, actual
-remote `main`, root `AGENTS.md`, the complete AI-context index and open PRs.
+Read the current owner issue and **latest relevant checkpoint** (not every
+historical comment), remote `main`, root `AGENTS.md`, the AI-context index,
+applicable decisions/files and open PR ownership. Expand history only when
+a conflict, security boundary or missing decision requires it.
 Record exact main SHA and the matching CI run/attempt; do not confuse a newer
 unrelated operational workflow with the application's main CI.
 
@@ -33,12 +35,18 @@ Ownership at introduction (2026-10-09; verify live assignments on each restart):
 | DEV 20 (formerly DEV 3) | [#58](https://github.com/Khaey/Dao/issues/58) | OCE/Cloudflare work |
 | DEV 2 | [#83](https://github.com/Khaey/Dao/issues/83) | Artisan/Entreprise |
 
+**Updated ownership (2026-10-12, revalidate live):** DEV 2 now has GO on
+[messaging #116](https://github.com/Khaey/Dao/issues/116), while OPT owns
+[UX audit #115](https://github.com/Khaey/Dao/issues/115). #83 is closed and
+#85 is paused; OPT and OPT 20 are distinct. The table above is historical.
+
 Back-office [#64](https://github.com/Khaey/Dao/issues/64) remains a separate
 owner's scope. This table neither transfers ownership nor authorizes work.
 
 ## 2. Publish during the work, including incomplete work
 
-Keep at most one small, meaningful phase between publications. Checkpoint
+Keep at most one coherent, meaningful phase between publications.
+Checkpoint with concise changes instead of repeating whole prior reports
 after an audit that changes the next action, an implementation slice, a
 targeted correction, a useful validation result or a newly understood blocker.
 Also checkpoint before a long-running check or a planned pause/handoff. Do

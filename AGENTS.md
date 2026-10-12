@@ -1,8 +1,11 @@
 # D.A.O — instructions for every Work/Codex session
 
-Before changing this repository, read `docs/ai-context/AUTONOMOUS_EXECUTION.md`
-and every file indexed by `docs/ai-context/README.md`. Verify actual GitHub
-main, the latest CI and open PR ownership. A historical checkpoint is not a
+Before changing this repository, read the **current owner issue and last
+meaningful checkpoint**, `docs/ai-context/AUTONOMOUS_EXECUTION.md` and the
+`docs/ai-context/README.md` index. Verify actual GitHub main, the relevant
+latest CI and open PR ownership. Read task-relevant context and source only;
+review complete applicable business/Auth/RLS/financial/OPS invariants before
+changing those domains. A historical checkpoint is not a
 current instruction. If shell Git is unavailable, use the authorized GitHub
 connector; do not work from an unrelated local directory.
 
@@ -10,13 +13,20 @@ Run `bash scripts/dao-task-check.sh` for a bounded, read-only preflight and
 impact suggestion when the local checkout is available. Its suggested checks
 are a starting point, not a substitute for mandatory CI or full coverage.
 
-WORK DEV owns functional work. WORK OPT owns platform/CI/test infrastructure
-on its own `chore/*` branches. Never modify another Work's branch or PR.
+The latest owner issue determines scope: **DEV 2** owns messaging #116,
+**OPT** owns audit #115 and **OPT 20** is a different agent. The older role
+labels cannot override assigned owners. Never modify another Work's branch
+or PR.
 Reconcile changes to main before merge; preserve newly merged tests and docs.
 
 Within the assigned task, continue through targeted checks, commit/push, PR,
 green CI and authorized merge without asking again for normal technical steps.
 Do not rerun a successful check for identical code and relevant inputs.
+For DEV 2 #116 and OPT #115, use **quota-aware execution**: resume from the
+published checkpoint, inspect only affected areas, batch independent reads,
+avoid repeating validated UI paths and long checkpoint prose. Publish short
+coherent milestones; stop on completion or proven blocker. Mandatory
+Auth/RLS, full CI/E2E, migrations and DEV release gates stay intact.
 Report actual evidence and blockers; do not claim a live check from old logs.
 
 Use `docs/ai-context/WORK_CHECKPOINTS.md` for every DEV/OPT task: publish each

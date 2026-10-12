@@ -2,9 +2,10 @@
 
 ## Scope and ownership
 
-WORK OPT owns execution efficiency: CI, Playwright infrastructure, TEST
-fixtures, validation scripts, DEV deployment tooling, VPS access diagnostics
-and docs/ai-context. WORK DEV owns product features and their branches/PRs.
+The **latest owner issue** controls scope: DEV 2 owns messaging #116, OPT
+owns the UX/functional audit #115, OPT 20 and other agents keep their own
+assigned tasks. Older WORK OPT / WORK DEV labels are historical, not
+authorization to cross-edit another owner's branch.
 
 This protocol supports A→Z execution within the user's authorized scope.
 It is not permission to change product behavior, business rules, RLS, Auth,
@@ -13,7 +14,8 @@ Work's branch. Explicit current user instructions take precedence over old
 checkpoints. Do not ask again for already authorized routine work.
 
 Repository-root `AGENTS.md` is the startup instruction for new Work/Codex
-sessions. Read this protocol first, then the complete context index. The user
+sessions. Read this protocol first, then the index and task-relevant context.
+Read full applicable security/business decisions for any domain being changed. The user
 has authorized WORK OPT to complete its own normal branch → checks → PR → CI
 → merge workflow without repeated confirmations. WORK DEV remains separate.
 Permanent DEV TEST accounts are allowed for targeted validation; they do not
@@ -24,8 +26,11 @@ for scripts, DEV operations and the fixture reset boundary.
 
 1. Identify the official repository `Khaey/Dao`, local path (if any), branch,
    HEAD, worktree status and remote. Never assume a directory named dao is it.
-2. Read every file in `docs/ai-context/` at the verified remote main SHA.
-   Read applicable AGENTS.md instructions if present. Use the README index.
+2. Read root `AGENTS.md`, the current owner issue + latest checkpoint,
+   this protocol and the README index. From the index, load task-relevant
+   context/decisions and files at verified main SHA. Read full cross-domain
+   invariants when needed, especially business, Auth/RLS, money or access.
+   Do not repeatedly read all historical documents by default.
 3. Read the actual `refs/heads/main`, latest main workflow and open PR metadata.
    Record SHA, run ID/attempt, conclusion, and PR ownership without changing
    other PRs. Chat and old documentation are leads, not live state.
@@ -35,10 +40,11 @@ for scripts, DEV operations and the fixture reset boundary.
    [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md). Use an isolated clone/worktree;
    preserve all other local changes. Never reset, clean, stash or switch a
    Work DEV checkout.
-5. Before each modification phase, verify main again. If it advanced, inspect
-   the delta and rebase only your own branch or recreate it cleanly from the
-   new main, carrying only reviewed OPT changes. Never overwrite a concurrent
-   context update or force-push another Work's history.
+5. Verify main at preflight and before publication/merge; also recheck on
+   observed concurrent changes. Avoid refetching unchanged refs after every
+   small edit. If main advanced, inspect the delta and reconcile only your
+   own branch, preserving other Work's changes. Never overwrite concurrent
+   context or force-push another Work's history.
 
 Use a working authenticated GitHub connector when shell Git/network access is
 unavailable. Git data API publication must use the verified main tree as its
@@ -74,6 +80,36 @@ for access diagnosis; do not spend the task trying equivalent failed paths.
   Avoid a push for every prose correction: finish the small phase first.
 - Send concise progress updates about findings, next action or blockers.
   During execution, avoid long silent waits and tight polling.
+
+## 3A. Quota-aware execution — DEV 2 #116 and OPT #115
+
+The goal is fewer repeated reads/messages/attempts, **not fewer safety
+checks**. This cannot impose a Work credit limit or guarantee savings.
+
+- **Resume once:** inspect owner issue and most recent published checkpoint;
+  verify exact remote main, own branch/PR and relevant CI. Use bounded code
+  search and read the impacted lines; do not replay long historical context.
+  Batch independent checks and stop retrying an unchanged failing operation.
+- **DEV 2 #116:** deliver coherent steps: (A) reuse conversations,
+  participants and messages with secure server commands/RLS and negative tests;
+  (B) text-only Client/Artisan threads, inbox and existing internal alerts;
+  (C) changed-code targeted checks, mandatory full PR CI/E2E, authorized merge
+  and verified DEV deployment. No redundant message schema, real-time service
+  or new provider. Preserve safe WIP before long checks/quota exhaustion.
+- **OPT #115:** reuse the five existing UX checkpoints. Do not retest verified
+  Client/Admin/Artisan routes unless a new fact changes the conclusion.
+  Prioritize proven severe bugs, rights boundaries and remaining material
+  coverage; consolidate findings into one short final table/handoff. Avoid
+  low-value repeated screenshots and explorations; respect other owners.
+- **Proof and CI:** never re-run tests on the same validated SHA and inputs.
+  For changed code, run focused tests then the **unchanged full required CI**
+  on the final HEAD; diagnose genuine failures. No skipped E2E, weakened
+  integration/Auth/RLS guards, or falsely claimed live checks.
+- **Checkpoints:** one concise remote checkpoint per meaningful completed
+  phase and before risky pause: owned HEAD, new result, actual proof, exact
+  next action. No repeated essays, no minute-by-minute status polling,
+  no assertion that a GitHub comment wakes a Work session. Stop the bounded
+  mission on completion or an established blocker.
 
 ## 4. Validation proportional to change
 
@@ -181,8 +217,10 @@ the verified published HEAD and next action on the authorized owner issue.
 There is no reliable Work crash/Stop/quota hook; only the last actually
 published commit is recoverable from GitHub. Publication failure stays explicit.
 
-Update CURRENT_STATE and NEXT_STEPS, linking the owned branch/PR, without
-rewriting WORK DEV's history. Add durable execution decisions to DECISIONS.
+Update only context documents **materially changed** by the work and link
+the issue/branch/PR. Avoid duplicating long issue checkpoints in historical
+CURRENT_STATE/NEXT_STEPS. Add genuine durable decisions to DECISIONS and
+preserve every other owner's history.
 Every checkpoint should record:
 
 - verification timestamp/timezone; base main and owned head SHA;
