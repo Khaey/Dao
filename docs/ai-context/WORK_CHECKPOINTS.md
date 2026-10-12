@@ -1,6 +1,9 @@
 # D.A.O — Work checkpoints and recovery
 
-Common DEV/OPT procedure, introduced by [issue #87](https://github.com/Khaey/Dao/issues/87).
+Common procedure for **every D.A.O agent** implementing code, docs or
+authorized operations, introduced by [issue #87](https://github.com/Khaey/Dao/issues/87).
+Pilot/coordinators use the same concise issue-checkpoint format for
+coordination, without opening a code branch for an issue comment.
 It supplements [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md), especially
 sections 1, 4, 6 and 8; it grants no additional product or operational authority.
 
@@ -15,7 +18,9 @@ does not save the code itself.
 Read the current owner issue and **latest relevant checkpoint** (not every
 historical comment), remote `main`, root `AGENTS.md`, the AI-context index,
 applicable decisions/files and open PR ownership. Expand history only when
-a conflict, security boundary or missing decision requires it.
+a conflict, security boundary or missing decision requires it. These rules
+apply to all agents, not just the DEV 2/OPT examples below; avoid repeatedly
+copying historical conclusions into new checkpoints.
 Record exact main SHA and the matching CI run/attempt; do not confuse a newer
 unrelated operational workflow with the application's main CI.
 
@@ -38,7 +43,9 @@ Ownership at introduction (2026-10-09; verify live assignments on each restart):
 **Updated ownership (2026-10-12, revalidate live):** DEV 2 now has GO on
 [messaging #116](https://github.com/Khaey/Dao/issues/116), while OPT owns
 [UX audit #115](https://github.com/Khaey/Dao/issues/115). #83 is closed and
-#85 is paused; OPT and OPT 20 are distinct. The table above is historical.
+#85 is paused; OPT and OPT 20 are distinct. The table above is historical. **Every current and future agent** must follow
+the same quota-aware reprise/checkpoint rules, including DEV 1, DEV 20,
+OPT 20, Back-office and any new owner.
 
 Back-office [#64](https://github.com/Khaey/Dao/issues/64) remains a separate
 owner's scope. This table neither transfers ownership nor authorizes work.

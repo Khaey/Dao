@@ -2,10 +2,11 @@
 
 ## Scope and ownership
 
-The **latest owner issue** controls scope: DEV 2 owns messaging #116, OPT
-owns the UX/functional audit #115, OPT 20 and other agents keep their own
-assigned tasks. Older WORK OPT / WORK DEV labels are historical, not
-authorization to cross-edit another owner's branch.
+The **latest canonical owner issue** controls scope for every D.A.O agent:
+DEV 1, DEV 2, DEV 20, OPT, OPT 20, Back-office, Pilot/coordinators and any
+new agents. OPT is distinct from OPT 20. Issue #116 belongs to DEV 2; #115
+belongs to OPT. Historical role labels or old snapshots never authorize
+changes on another owner's branch, project, VPS task or PR.
 
 This protocol supports A→Z execution within the user's authorized scope.
 It is not permission to change product behavior, business rules, RLS, Auth,
@@ -34,12 +35,14 @@ for scripts, DEV operations and the fixture reset boundary.
 3. Read the actual `refs/heads/main`, latest main workflow and open PR metadata.
    Record SHA, run ID/attempt, conclusion, and PR ownership without changing
    other PRs. Chat and old documentation are leads, not live state.
-4. For a new OPT task, create a new `chore/...` branch from that exact main SHA,
-   remotely before implementation. For recovery of the same assigned task,
+4. For **any agent implementing code/docs**, create the task's own branch
+   from that exact main SHA (respect established `chore/*` for OPT and
+   feature/fix naming for DEV). For recovery of the same assigned task,
    verify ownership and resume its published branch/PR using
    [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md). Use an isolated clone/worktree;
-   preserve all other local changes. Never reset, clean, stash or switch a
-   Work DEV checkout.
+   preserve all other local changes. Never reset, clean, stash or switch
+   another agent's checkout. A Pilot coordination comment alone needs no
+   branch, build or CI run.
 5. Verify main at preflight and before publication/merge; also recheck on
    observed concurrent changes. Avoid refetching unchanged refs after every
    small edit. If main advanced, inspect the delta and reconcile only your
@@ -81,35 +84,55 @@ for access diagnosis; do not spend the task trying equivalent failed paths.
 - Send concise progress updates about findings, next action or blockers.
   During execution, avoid long silent waits and tight polling.
 
-## 3A. Quota-aware execution — DEV 2 #116 and OPT #115
+## 3A. Quota-aware execution — ALL D.A.O agents
 
-The goal is fewer repeated reads/messages/attempts, **not fewer safety
-checks**. This cannot impose a Work credit limit or guarantee savings.
+**Permanent default for DEV 1/2/20, OPT, OPT 20, Back-office, Pilot and every
+future agent.** Save Work quota by reducing repeated reasoning/tool calls,
+not by weakening the quality or security gates. This protocol cannot set a
+ChatGPT Work credit limit or guarantee quantified savings.
 
-- **Resume once:** inspect owner issue and most recent published checkpoint;
-  verify exact remote main, own branch/PR and relevant CI. Use bounded code
-  search and read the impacted lines; do not replay long historical context.
-  Batch independent checks and stop retrying an unchanged failing operation.
-- **DEV 2 #116:** deliver coherent steps: (A) reuse conversations,
-  participants and messages with secure server commands/RLS and negative tests;
-  (B) text-only Client/Artisan threads, inbox and existing internal alerts;
-  (C) changed-code targeted checks, mandatory full PR CI/E2E, authorized merge
-  and verified DEV deployment. No redundant message schema, real-time service
-  or new provider. Preserve safe WIP before long checks/quota exhaustion.
-- **OPT #115:** reuse the five existing UX checkpoints. Do not retest verified
-  Client/Admin/Artisan routes unless a new fact changes the conclusion.
-  Prioritize proven severe bugs, rights boundaries and remaining material
-  coverage; consolidate findings into one short final table/handoff. Avoid
-  low-value repeated screenshots and explorations; respect other owners.
-- **Proof and CI:** never re-run tests on the same validated SHA and inputs.
-  For changed code, run focused tests then the **unchanged full required CI**
-  on the final HEAD; diagnose genuine failures. No skipped E2E, weakened
-  integration/Auth/RLS guards, or falsely claimed live checks.
-- **Checkpoints:** one concise remote checkpoint per meaningful completed
-  phase and before risky pause: owned HEAD, new result, actual proof, exact
-  next action. No repeated essays, no minute-by-minute status polling,
-  no assertion that a GitHub comment wakes a Work session. Stop the bounded
-  mission on completion or an established blocker.
+1. **Resume rather than restart.** Read the canonical owner issue, the last
+   useful published checkpoint and exact remote HEAD/PR. Check actual main,
+   open PR ownership and matching CI **once per coherent phase**, then again
+   before publication/merge or after a genuine conflicting change. Don't
+   reread entire history or repeat known setup without new evidence.
+2. **Smallest useful context.** Start with root AGENTS.md, this protocol,
+   the context index and the affected sections/code. Batch independent reads
+   and search for a known file/symbol instead of opening entire large trees.
+   Expand the review whenever business rules, Auth/RLS, privacy, finance,
+   infra/root boundaries, cross-domain changes or uncertain decisions demand
+   it. Context economy is **not** a permission to skip security review.
+3. **One coherent phase at a time.** Complete a bounded outcome, run focused
+   validation, push safe WIP with verified remote HEAD and publish **one short
+   checkpoint** describing the delta, proof and next step. Avoid verbose
+   repeated reports, frequent polling, duplicate screenshots and parallel
+   exploratory tasks with no clear acceptance criterion.
+4. **Reuse existing proof, not stale proof.** For unchanged code/inputs,
+   reference the already green exact run/SHA. When code or relevant inputs
+   change, execute focused tests and the **unchanged mandatory** CI including
+   full E2E, fresh schema/integration, negative permissions and DEV deployment
+   checks appropriate to the change. Investigate failures rather than using
+   skips or rerunning the same failing attempt unchanged.
+5. **Stop on a real blocker.** One useful failed capability check plus its
+   supported fallback is normally enough. Save a durable checkpoint, do
+   independent safe work, then surface only the essential permission/secret/
+   product decision. Do not spin on identical Cloudflare/SSH/Auth errors.
+   Never ask the owner to relay agent instructions or publish secrets.
+6. **Finish rather than extend.** After all authorized acceptance evidence is
+   collected, deliver a concise final report with verified links and mark
+   gaps honestly. Do not add new features, speculative audits or repeated
+   validation without a new mandate. A GitHub comment does not wake a Work
+   session and no end-of-quota background-save hook is promised.
+
+**Agent-specific applications:** DEV 2 #116 reuses the messaging schema and
+delivers server permissions → Client/Artisan UI → final tests/CI/deploy.
+OPT #115 resumes its existing UX checkpoints rather than repeating
+authenticated routes. DEV 20 #58 doesn't retry the same rejected Cloudflare
+token; OPT 20 #91/#112 doesn't reconstruct delivered OPS/profile work;
+DEV 1 #61 awaits actual contract decisions instead of inventing them;
+Back-office #64 reviews only new proven gaps; Pilot coordinates through
+canonical GitHub checkpoints without unnecessary full builds. New agents
+inherit these generic rules automatically, using their own issues and gates.
 
 ## 4. Validation proportional to change
 
