@@ -11,11 +11,12 @@ import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
 TUNNEL_ID = '0a42e8b3-1f74-4b3b-8440-e54efe20145a'  # Owner-approved, public ID.
-OPERATIONS = ('check', 'audit')
+OPERATIONS = ('inputs', 'check', 'audit')
 SECRET_NAMES = ('OCE_CLOUDFLARE_API_TOKEN', 'OCE_CLOUDFLARE_TUNNEL_TOKEN',
                 'OCE_CLOUDFLARE_APPROVED_EMAILS')
 SAFE_FLAGS = ('api_token_present', 'tunnel_token_present', 'approved_emails_present',
-              'zone_read_verified', 'tunnel_token_binding_verified', 'tunnel_read_verified')
+              'zone_read_verified', 'tunnel_token_binding_verified', 'tunnel_read_verified',
+              'api_token_size_ok', 'api_token_header_safe', 'tunnel_token_size_ok')
 ERROR_BODY_LIMIT = 16384
 # Closed public identifiers, never arbitrary provider text or numeric input.
 ERROR_CODES = frozenset((6003, 6111, 9103, 9106, 9107, 9109, 10000))
@@ -70,12 +71,21 @@ def stage(path):
 
 def check(cf, operation, api_token, tunnel_token, approved_emails, get, progress):
     progress['stage'] = 'ENVIRONMENT_SECRETS'
+    api_size_ok = isinstance(api_token, str) and 0 < len(api_token) <= 4096
+    progress.update(api_token_size_ok=api_size_ok,
+                    api_token_header_safe=api_size_ok and all(32 < ord(c) < 127 for c in api_token),
+                    tunnel_token_size_ok=isinstance(tunnel_token, str) and 0 < len(tunnel_token) <= 4096)
     if not api_token or not tunnel_token:
         raise Rejected('REQUIRED_TOKEN_MISSING')
     cf.require(operation in OPERATIONS)
-    cf.require(isinstance(api_token, str) and 0 < len(api_token) <= 4096
-               and all(32 < ord(c) < 127 for c in api_token))
-    cf.require(isinstance(tunnel_token, str) and 0 < len(tunnel_token) <= 4096)
+    for flag, reason in (('api_token_size_ok', 'API_TOKEN_SIZE_INVALID'),
+                         ('api_token_header_safe', 'API_TOKEN_UNSAFE_CHARACTERS'),
+                         ('tunnel_token_size_ok', 'TUNNEL_TOKEN_SIZE_INVALID')):
+        if not progress[flag]:
+            raise Rejected(reason)
+    if operation == 'inputs':
+        return {'scope': 'input_format', 'access_policy_verified': False,
+                'configuration_verified': False}
 
     def read(path):
         progress.update(stage=stage(path), api_pending=True)
@@ -206,7 +216,9 @@ def main():
                         approved_emails_present=bool(approved_emails))
         result = check(cf, sys.argv[1], api_token, tunnel_token, approved_emails,
                        lambda path: cf.api_get(path, api_token), progress)
-        result['cloudflare_check'] = 'PASS'
+        result['cloudflare_check'] = 'NOT_RUN' if sys.argv[1] == 'inputs' else 'PASS'
+        if sys.argv[1] == 'inputs':
+            result['input_check'] = 'PASS'
         result['tunnel_secret_authenticated'] = False  # Offline binding is not a connection.
         result.update({key: bool(progress.get(key, False)) for key in SAFE_FLAGS})
         result.update(configuration_written=False, tunnel_started=False, vps_contacted=False)
@@ -214,6 +226,8 @@ def main():
         return 0
     except Exception as exc:
         result = failure(exc, progress)
+        if len(sys.argv) == 2 and sys.argv[1] == 'inputs':
+            result.update(cloudflare_check='NOT_RUN', input_check='FAIL', scope='input_format')
         result.update({key: bool(progress.get(key, False)) for key in SAFE_FLAGS})
         result.update(configuration_written=False, tunnel_started=False, vps_contacted=False)
         print(json.dumps(result, sort_keys=True))

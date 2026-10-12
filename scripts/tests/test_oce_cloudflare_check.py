@@ -28,7 +28,7 @@ class RequestTests(unittest.TestCase):
         return c.select(name, event or self.event, repo, ref, actor)
 
     def test_exact_owner_comment_and_dispatch(self):
-        for operation in ('check', 'audit'):
+        for operation in ('inputs', 'check', 'audit'):
             self.event['comment']['body'] = '/dao-oce ' + operation
             self.assertEqual(self.select(), operation)
             self.assertEqual(self.select({'inputs': {'operation': operation}}, name='workflow_dispatch'), operation)
@@ -45,6 +45,8 @@ class RequestTests(unittest.TestCase):
                 ('comment', 'author_association', 'COLLABORATOR'),
                 ('comment', 'body', '/dao-oce check\nstart'),
                 ('comment', 'body', '/dao-oce check; sudo bash'),
+                ('comment', 'body', '/dao-oce inputs\ncheck'),
+                ('comment', 'body', '/dao-oce inputs; echo hidden'),
                 ('comment', 'body', '/dao-oce start')):
             event = copy.deepcopy(self.event)
             (event[section] if section else event)[key] = value
@@ -135,16 +137,67 @@ class CheckTests(unittest.TestCase):
         self.assertEqual(caught.exception.reason, 'APPROVED_EMAILS_MISSING')
         self.assertEqual(self.progress['stage'], 'APPROVED_EMAIL_INPUT')
 
-    def run_main(self, get, operation='check'):
+    def run_main(self, get, operation='check', api_token='fake-api-token', tunnel_token=None):
         fake_spec = SimpleNamespace(loader=SimpleNamespace(exec_module=lambda module: None))
         with patch.object(c.importlib.util, 'spec_from_file_location', return_value=fake_spec), \
                 patch.object(c.importlib.util, 'module_from_spec', return_value=cf), \
                 patch.object(cf, 'api_get', side_effect=lambda path, token: get(path)), \
-                patch.dict(os.environ, dict(zip(c.SECRET_NAMES, ('fake-api-token', self.token, ','.join(self.m['emails']))))), \
+                patch.dict(os.environ, dict(zip(c.SECRET_NAMES,
+                    (api_token, self.token if tunnel_token is None else tunnel_token, ','.join(self.m['emails']))))), \
                 patch('sys.argv', ['script', operation]), patch('sys.stdout', new_callable=io.StringIO) as output, \
                 patch('builtins.open', side_effect=AssertionError('unexpected file operation')):
             code = c.main()
         return code, output.getvalue()
+
+    def test_local_inputs_never_reads_provider_and_does_not_claim_cloudflare_or_binding_verification(self):
+        code, output = self.run_main(lambda _: self.fail('provider called'), operation='inputs')
+        result = json.loads(output)
+        self.assertEqual(code, 0)
+        self.assertEqual((result['scope'], result['input_check'], result['cloudflare_check']),
+                         ('input_format', 'PASS', 'NOT_RUN'))
+        for flag in ('api_token_size_ok', 'api_token_header_safe', 'tunnel_token_size_ok'):
+            self.assertTrue(result[flag])
+        for flag in ('zone_read_verified', 'tunnel_token_binding_verified', 'tunnel_read_verified',
+                     'tunnel_secret_authenticated', 'configuration_verified', 'access_policy_verified',
+                     'vps_contacted', 'configuration_written', 'tunnel_started'):
+            self.assertFalse(result[flag])
+        self.assertNotIn('fake-api-token', output)
+        self.assertNotIn(self.token, output)
+
+    def test_precise_input_failures_are_redacted_and_do_not_read_provider_for_any_operation(self):
+        cases = [('fake-api-token x', self.token, 'API_TOKEN_UNSAFE_CHARACTERS'),
+                 ('fake-api-token\nFAKE_INJECTED_PAYLOAD_94851', self.token, 'API_TOKEN_UNSAFE_CHARACTERS'),
+                 ('fake-api-token\u200b', self.token, 'API_TOKEN_UNSAFE_CHARACTERS'),
+                 ('a' * 4097, self.token, 'API_TOKEN_SIZE_INVALID'),
+                 ('fake-api-token', 'b' * 4097, 'TUNNEL_TOKEN_SIZE_INVALID')]
+        for operation in c.OPERATIONS:
+            for api, tunnel, reason in cases:
+                with self.subTest(operation=operation, reason=reason):
+                    code, output = self.run_main(lambda _: self.fail('provider called'),
+                        operation=operation, api_token=api, tunnel_token=tunnel)
+                    result = json.loads(output)
+                    self.assertEqual(code, 1)
+                    self.assertEqual((result['stage'], result['reason']), ('ENVIRONMENT_SECRETS', reason))
+                    self.assertEqual(result['cloudflare_check'], 'NOT_RUN' if operation == 'inputs' else 'FAIL')
+                    if operation == 'inputs':
+                        self.assertEqual(result['input_check'], 'FAIL')
+                    self.assertEqual(result['api_token_size_ok'], len(api) <= 4096)
+                    self.assertEqual(result['api_token_header_safe'],
+                        len(api) <= 4096 and all(32 < ord(c) < 127 for c in api))
+                    self.assertEqual(result['tunnel_token_size_ok'], len(tunnel) <= 4096)
+                    for private in ('fake-api-token', api, tunnel, 'FAKE_INJECTED_PAYLOAD_94851', 'owner@example.test'):
+                        self.assertNotIn(private, output)
+                    self.assertNotIn('provider_error_format', result)
+
+    def test_local_inputs_only_reports_tunnel_size_not_its_semantic_validity(self):
+        code, output = self.run_main(lambda _: self.fail('provider called'),
+                                    operation='inputs', tunnel_token='opaque-not-a-tunnel-token')
+        result = json.loads(output)
+        self.assertEqual(code, 0)
+        self.assertTrue(result['tunnel_token_size_ok'])
+        self.assertFalse(result['tunnel_token_binding_verified'])
+        self.assertEqual(result['cloudflare_check'], 'NOT_RUN')
+        self.assertNotIn('opaque-not-a-tunnel-token', output)
 
     def test_main_has_no_file_write_and_reports_partial_scope_and_no_tunnel_authentication(self):
         code, output = self.run_main(self.data.__getitem__)
@@ -280,6 +333,8 @@ class WorkflowBoundaryTests(unittest.TestCase):
             self.assertNotIn(forbidden, workflow)
         for name in c.SECRET_NAMES:
             self.assertIn('${{ secrets.' + name + ' }}', workflow)
+        self.assertIn('options: [inputs, check, audit]', workflow)
+        self.assertIn('/dao-oce inputs', workflow)
 
 
 if __name__ == '__main__':
