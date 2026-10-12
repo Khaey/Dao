@@ -1,7 +1,8 @@
 # OCE #58 — contrôles Cloudflare sans terminal
 
 Le workflow **DAO OCE Cloudflare check** consomme les secrets de l'environnement
-protégé `dev` sur un runner GitHub. Il effectue uniquement des GET Cloudflare ;
+protégé `dev` sur un runner GitHub. `inputs` reste local ; `check` et `audit`
+effectuent uniquement des GET Cloudflare ;
 il ne contacte pas le VPS et n'écrit aucune configuration. Les helpers root
 installés, sudoers, services et exposition de `:8080` ne sont pas modifiés.
 Le démarrage du tunnel et `gateway-host apply` restent des mandats distincts.
@@ -9,14 +10,15 @@ Le démarrage du tunnel et `gateway-host apply` restent des mandats distincts.
 ## Déclenchement fixe
 
 Le propriétaire `Khaey` publie un **nouveau** commentaire sur l'issue #58 dont
-le contenu entier est `/dao-oce check` ou `/dao-oce audit`. Le connecteur GitHub
+le contenu entier est `/dao-oce inputs`, `/dao-oce check` ou `/dao-oce audit`. Le connecteur GitHub
 peut le publier sous mandat ; aucun terminal n'est requis. Le menu Actions du
-workflow offre les mêmes deux opérations sur `main`. Une édition, une PR, un
+workflow offre les mêmes trois opérations sur `main`. Une édition, une PR, un
 autre acteur/dépôt/numéro/branche ou un suffixe est refusé. Les requêtes sont
 validées avant l'étape qui reçoit les secrets ; aucun texte libre n'est exécuté.
 
 | Opération | Secrets protégés nécessaires | Preuve et limite |
 | --- | --- | --- |
+| `inputs` | Les deux jetons | Taille et sûreté des caractères du champ API, taille du champ tunnel ; aucun GET, aucune preuve de validité Cloudflare ou de binding du tunnel |
 | `check` | `OCE_CLOUDFLARE_API_TOKEN`, `OCE_CLOUDFLARE_TUNNEL_TOKEN` | Zone logiclab.fr Active, correspondance structurelle compte/tunnel et lecture du tunnel approuvé ; aucune preuve de politique Access ni d'authentification du secret par une connexion |
 | `audit` | Les deux précédents + `OCE_CLOUDFLARE_APPROVED_EMAILS` | Audit existant complet : OTP, liste e-mail exacte, absence de bypass/app concurrente, DNS et garde JWT au connecteur ; aucune recette utilisateur authentifié ni écriture root |
 
@@ -36,6 +38,26 @@ approbation du propriétaire. Sans cette entrée privée, `audit` s'arrête avec
 `APPROVED_EMAILS_MISSING` ; `check` reste utilisable avec les deux jetons.
 
 ## Diagnostic et reprise
+
+En cas d'échec avant tout GET à `ENVIRONMENT_SECRETS`, utiliser une seule fois
+`/dao-oce inputs`. Ce mode examine les mêmes valeurs après le `strip` existant,
+en mémoire, sans réseau. `cloudflare_check:NOT_RUN` reste explicite même quand
+`input_check:PASS` : cela ne valide ni l'authenticité du token API ni le base64,
+le compte, le tunnel ou son secret. Le VPS et les fichiers de credentials ne
+sont jamais contactés/écrits. Aucun nouvel accès ou endpoint n'est ajouté.
+
+| Motif fermé | Champ concerné | Condition conservée |
+| --- | --- | --- |
+| `API_TOKEN_SIZE_INVALID` | `OCE_CLOUDFLARE_API_TOKEN` | Chaîne non vide, au maximum 4096 caractères |
+| `API_TOKEN_UNSAFE_CHARACTERS` | `OCE_CLOUDFLARE_API_TOKEN` | ASCII imprimable, sans espace/contrôle/caractère non ASCII interne |
+| `TUNNEL_TOKEN_SIZE_INVALID` | `OCE_CLOUDFLARE_TUNNEL_TOKEN` | Chaîne non vide, au maximum 4096 caractères |
+
+Les trois résultats `api_token_size_ok`, `api_token_header_safe` et
+`tunnel_token_size_ok` sont seulement des booléens. La sûreté des caractères est
+fausse/non évaluée quand la taille API est invalide. Aucun caractère, longueur
+exacte, préfixe, hash ou valeur n'est affiché. Les valeurs manquantes gardent
+`REQUIRED_TOKEN_MISSING`. Les modes `check/audit` réutilisent ces mêmes gardes,
+sans assouplissement ; une entrée invalide ne provoque aucun GET.
 
 Les seules sorties fournisseur sont des codes/stages fixes et des booléens.
 Aucun jeton, e-mail, manifeste, URL d'erreur, header ou corps de réponse n'est

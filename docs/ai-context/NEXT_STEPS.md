@@ -1,5 +1,14 @@
 # D.A.O — Next Steps
 
+## DEV 20 #58 — isoler le champ secret rejeté sans Cloudflare
+
+Reprendre `fix/dev20-oce-input-diagnostics` et le dernier checkpoint
+[#58](https://github.com/Khaey/Dao/issues/58). Qualifier/livrer le candidat puis
+une seule demande `/dao-oce inputs`, locale et sans réseau. Corriger uniquement
+le champ indiqué via l'interface privée GitHub avant tout nouveau GET fournisseur.
+Ne pas redemander des recopies API à l'aveugle, élargir les droits ou déclarer
+un token authentifié sur un PASS de format. Root/start/apply/:8080 restent séparés.
+
 ## DEV 20 — qualifier le diagnostic HTTP expurgé #58
 
 Reprendre `fix/dev20-oce-http-diagnostics` et le dernier checkpoint

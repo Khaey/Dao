@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: 'Runner GET only: check tokens or audit the approved private configuration'
+        description: 'Runner only: validate input format locally, check tokens, or audit approved configuration'
         required: true
         default: check
         type: choice
-        options: [check, audit]
+        options: [inputs, check, audit]
   issue_comment:
     types: [created]
 
@@ -25,12 +25,12 @@ jobs:
       github.repository == 'Khaey/Dao' && github.ref == 'refs/heads/main' &&
       github.actor == 'Khaey' &&
       ((github.event_name == 'workflow_dispatch' &&
-        contains(fromJSON('["check","audit"]'), github.event.inputs.operation)) ||
+        contains(fromJSON('["inputs","check","audit"]'), github.event.inputs.operation)) ||
        (github.event_name == 'issue_comment' && github.event.action == 'created' &&
         github.event.issue.number == 58 && !github.event.issue.pull_request &&
         github.event.comment.user.login == 'Khaey' &&
         github.event.comment.author_association == 'OWNER' &&
-        contains(fromJSON('["/dao-oce check","/dao-oce audit"]'), github.event.comment.body)))
+        contains(fromJSON('["/dao-oce inputs","/dao-oce check","/dao-oce audit"]'), github.event.comment.body)))
     runs-on: ubuntu-latest
     environment: dev
     timeout-minutes: 5

@@ -1,5 +1,16 @@
 # D.A.O — Current State
 
+## DEV 20 #58 — diagnostic local du format des secrets (2026-10-13)
+
+Après remplacement/recopie déclarés dans `dev`, les contrôles #100/38320641520
+et #104/38321295835 s'arrêtent à `ENVIRONMENT_SECRETS` avant Cloudflare ; le
+dernier 9109 fournisseur n'est donc pas réévalué. Branche dédiée
+`fix/dev20-oce-input-diagnostics` : motifs par champ et opération `inputs`
+locale, sans réseau, valeurs/longueurs/hashes publiés ou garde affaiblie.
+`input_check:PASS` ne vaut pas validité Cloudflare. Sources/gates root inchangés.
+Voir [contrôle OCE](../oce-cloudflare-actions.md) et le checkpoint courant
+[#58](https://github.com/Khaey/Dao/issues/58) pour HEAD/CI/livraison/diagnostic.
+
 ## DEV 20 — OCE #58, refus persistant après remplacement dans dev (2026-10-10)
 
 #110 livrée : main `178ace17824bb114d4e17c89c6834c33a55b9ddd`, CI/deploy
