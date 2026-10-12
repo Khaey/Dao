@@ -1,8 +1,13 @@
 # D.A.O — AI context entry point
 
-Read every file in this directory on the verified remote main before starting
-a new task. Re-read affected context after main changes. Current user scope
-and actual repository/CI evidence take precedence over historical checkpoints.
+Start with the owner issue's latest meaningful checkpoint, root `AGENTS.md`,
+`AUTONOMOUS_EXECUTION.md` and this index. Read **task-relevant** documents
+and code sections at verified remote main, not every long historical file by
+default. Read all applicable invariants and decisions before product business
+rules, Auth/RLS, collaboration, finance or infrastructure permissions change.
+Re-read relevant context if main changes; do not bypass security using a
+narrow scope. Current user scope and live GitHub/CI evidence supersede
+historical checkpoints.
 
 | File | Purpose |
 | --- | --- |
