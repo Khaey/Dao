@@ -58,11 +58,55 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
 - Les références citées dans du code Markdown (en ligne ou bloc à trois
   backticks) sont des exemples, pas des déclarations de propriétaire. Écrire
   la référence canonique `Refs #N` en texte normal hors de ces exemples.
-- Quand la référence est absente ou ambiguë, le message porte explicitement
-  « Agent : non identifié », sans inventer de responsable. Ajouter "Refs #N"
-  sur les PR, avec N = issue propriétaire, et maintenir le registre d'agents
-  à jour au moment des transferts. Le merger ou l'auteur Git ne prouve pas
-  l'identité de l'agent.
+- Quand la référence est absente, non fiable ou ambiguë, le message porte
+  « Attribution à confirmer — PR #N » si la PR est connue, sans inventer de
+  responsable. Le merger ou l'auteur Git ne prouve pas l'identité de l'agent.
+
+## Déclarer le propriétaire d'une PR (#120)
+
+Dans le corps de chaque nouvelle PR, écrire sur une ligne en texte normal :
+
+    Owner issue: #120
+
+Remplacer 120 par l'issue canonique du chantier ; le template PR et AGENTS.md
+rappellent cette convention. Le nom affiché vient exclusivement du registre
+révisé, jamais d'un champ libre « Agent » ou « Owner ». Le compte GitHub partagé
+ne permet pas de distinguer les agents.
+
+- La déclaration explicite désigne la propriété de **cette PR**. Ses autres
+  liens d'issues et numéros de titre sont du contexte. Une PR transversale du
+  Pilot déclare `Owner issue: #89`, même si elle cite #115 et #116.
+- Plusieurs déclarations identiques sont acceptées. Deux issues propriétaires
+  différentes, un owner inconnu, ou un `Refs`/`Réfs`/`Fixes`/`Closes`/`Resolves`
+  contradictoire restent ambigus. Une liste de références incompatibles n'est
+  pas résolue par la première entrée.
+- Sans cette ligne, les références historiques restent reconnues : titre,
+  déclaration Refs/closing, lien canonique puis référence unique du corps.
+  Les conflits entre mission du titre et déclaration Refs ne sont pas ignorés.
+- Code Markdown (backticks, tildes, blocs non fermés ou indentés), citations
+  et commentaires HTML ne déclarent aucun propriétaire.
+- Une attribution exige une PR de ce dépôt, créée par une identité déjà
+  autorisée dans `allowed_comment_authors`, et une issue enregistrée.
+  Les métadonnées d'un fork ou d'un auteur extérieur restent indéterminées.
+  La liste des auteurs autorisés et les permissions Actions restent inchangées.
+- La CI reste liée uniquement au SHA exact d'une unique PR fusionnée vers main.
+  Les logs exposent seulement l'attribution résolue et le résultat Telegram,
+  jamais le corps de PR, le token ou le destinataire.
+
+Le registre ajoute les missions confirmées #112, #115, #116, #61 et #120, et
+utilise le nom officiel `OPT`, distinct de `DAO OPT 20`. Ces nouvelles entrées
+servent au routage avec `watchdog: false` ; aucun suivi d'inactivité supplémentaire
+ni état ACTIVE n'est créé. #64 reste hors registre faute de nom d'agent canonique
+distinct suffisamment confirmé pour ce lot. Ses travaux ne sont pas repris.
+
+Les fixtures conservent les corps GitHub complets de #107/#108/#117/#118/#119
+et les événements CI exacts de #117/#118/#119. #117 se résout vers #112 ; les
+corps historiques #118/#119 ne déclarent pas #89 et restent prudents. Les tests
+de leur future déclaration explicite prouvent la séparation du contexte.
+Aucune ancienne alerte n'est réémise et aucun corps de PR d'un autre agent
+n'est modifié. Les messages déjà reçus ne changent pas rétroactivement.
+
+## Surveillance explicite existante
 
 - Surveillance des seules missions explicitement ACTIVE : évaluation environ
   toutes les 15 minutes, seuil 90 minutes depuis le dernier checkpoint.
@@ -75,7 +119,7 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
   ne peut pas supprimer une alerte. Un nouveau checkpoint ACTIVE ouvre une
   nouvelle période de surveillance ; son ancien acquittement ne la masque pas.
 
-Les missions passives (dont Pilot 3 #89 et ancien OPT #85) ne déclenchent
+Les missions passives (dont Pilot 3 #89 et OPT #85) ne déclenchent
 pas d'alerte d'inactivité. #91 est inscrite mais ne devient ACTIVE
 qu'après un checkpoint explicite.
 
@@ -98,6 +142,8 @@ Tests locaux (sans token ni appels réseau) :
 
     python3 -m unittest discover -s tests -p test_dao_monitor.py -v
 
-La configuration des deux secrets GitHub et la réception du test réel restent
-l'unique étape propriétaire requise. Pas de connexion SSH.
+Les deux secrets existants ne sont ni lus ni changés par #120. La qualification
+de livraison utilise les événements normaux de sa PR/CI, sans dispatch de test,
+faux blocage ni connexion SSH. Le succès Telegram dans les logs établit
+l'acceptation par l'API ; l'affichage effectif dans l'application reste distinct.
 

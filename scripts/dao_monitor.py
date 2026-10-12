@@ -77,24 +77,61 @@ def _unique_mission(numbers, config):
     return mission_for(issue, config), issue
 
 
+def pr_reference_text(body):
+    """Exclude Markdown examples/quotes, including unclosed fences, from claims."""
+    body = re.sub(r"(?s)<!--.*?(?:-->|$)", "", body or "")
+    lines, fence = [], None
+    for line in body.splitlines():
+        marker = re.match(r"^[ ]{0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence:
+            if (marker and marker[1][0] == fence[0]
+                    and len(marker[1]) >= len(fence) and not marker[2].strip()):
+                fence = None
+            continue
+        if marker:
+            fence = marker[1]
+            continue
+        if re.match(r"^(?:[ ]{4}|\t|[ ]{0,3}>)", line):
+            continue
+        lines.append(line)
+    return re.sub(r"(?s)(?<!`)(`+)(?!`).*?(?<!`)\1(?!`)", "", "\n".join(lines))
+
+
 def pr_owner(pr, config):
-    """Derive an agent from a canonical issue, never from the merge actor."""
-    title = pr.get("title") or ""
-    body = pr.get("body") or ""
-    # Documentation can quote other missions as parser examples. Code spans
-    # and fenced code are data, not declarations of this PR's owner.
-    reference_body = re.sub(r"(?s)```.*?```|`[^`\n]*`", "", body)
+    """Resolve trusted, same-repository PR claims through the reviewed registry."""
+    if not ((pr.get("user") or {}).get("login") in config.get("allowed_comment_authors", [])
+            and ((pr.get("head") or {}).get("repo") or {}).get("full_name") == REPO
+            and ((pr.get("base") or {}).get("repo") or {}).get("full_name") == REPO):
+        return None, None
+    title = pr_reference_text(pr.get("title"))
+    reference_body = pr_reference_text(pr.get("body"))
+    declared = re.findall(
+        r"(?im)^[ ]{0,3}owner issue:[ \t]*#(\d+)[ \t]*$", reference_body)
     explicit = " ".join(re.findall(
-        r"(?i)\b(?:r[eé]fs?|fixes|closes|resolves|owner\s+issue)\s*:?\s*#\d+\b", reference_body))
+        r"(?i)\b(?:r[eé]fs?|fixes|closes|resolves)\s*:?\s*"
+        r"(#\d+\b(?:(?:[ \t]*(?:,|/|and|et|&)[ \t]*|[ \t]+)#\d+\b)*)",
+        reference_body))
+    explicit_refs = re.findall(r"#(\d+)\b", explicit)
+    if declared or explicit_refs:
+        refs = declared + explicit_refs
+        if any(not mission_for(int(raw), config) for raw in refs):
+            return None, None
+        # A standalone owner declaration distinguishes ownership from context
+        # links/titles. Legacy Refs/closing declarations remain ownership claims.
+        if not declared:
+            refs += [raw for raw in re.findall(r"(?<!\w)#(\d+)\b", title)
+                     if mission_for(int(raw), config)]
+        mission, issue = _unique_mission(refs, config)
+        return (mission["agent"], issue) if mission else (None, None)
     # GitHub's canonical issue links distinguish owner issues from PR/CI links.
     linked_issues = " ".join("#" + issue for issue in re.findall(
         r"https://github\.com/Khaey/Dao/issues/(\d+)(?!\d)", reference_body))
-    for index, scope in enumerate((title, explicit, linked_issues, title + "\n" + reference_body)):
+    for index, scope in enumerate((title, linked_issues, title + "\n" + reference_body)):
         refs = re.findall(r"(?<!\w)#(\d+)\b", scope)
         mission, issue = _unique_mission(refs, config)
         if mission:
             return mission["agent"], issue
-        if refs and index < 3 and (index != 0 or any(
+        if refs and index < 2 and (index != 0 or any(
                 mission_for(int(raw), config) for raw in refs)):
             # Do not guess when explicit references or owner links conflict.
             # Unregistered PR/CI numbers in the title are not owner issues;
@@ -105,8 +142,11 @@ def pr_owner(pr, config):
 
 def owner_line(pr, config):
     agent, issue = pr_owner(pr or {}, config)
-    return (f"👤 Agent : {agent} — mission #{issue}" if agent
-            else "👤 Agent : non identifié")
+    if agent:
+        return f"👤 Agent : {agent} — mission #{issue}"
+    number = (pr or {}).get("number")
+    suffix = f" — PR #{number}" if isinstance(number, int) and number > 0 else ""
+    return f"👤 Attribution à confirmer{suffix}"
 
 
 def associated_merged_pr(pulls, sha):
@@ -159,6 +199,7 @@ def classify(event_name, event, config, related_pr=None):
             label = "❌ CI / déploiement DEV : " + clean(conclusion, 20)
         else:
             return None
+        related_pr = associated_merged_pr([related_pr], run.get("head_sha"))
         return (f"{label}\n{owner_line(related_pr, config)}\n"
                 f"Run #{run.get('run_number')}\n{validate_url(run.get('html_url'))}")
     return None
@@ -313,6 +354,10 @@ def main():
                 print("DAO Monitor: owner lookup unavailable; using unknown agent.")
     message = classify(event_name, event, config, related_pr)
     if message:
+        if event_name in {"pull_request", "workflow_run"}:
+            pr = event.get("pull_request") if event_name == "pull_request" else related_pr
+            # Registry/PR-number metadata only; no body, title, recipient or token.
+            print("DAO Monitor: " + owner_line(pr, config))
         telegram(message)
     else:
         print("No qualified event to notify.")
