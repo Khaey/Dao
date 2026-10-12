@@ -14,6 +14,21 @@ export function createDaoApi(
   }
 
   return {
+    async listConversations(request: Request) {
+      return run(() => actor(request).then(() => services.messages.listConversations()));
+    },
+    async openConversation(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.messages.open(String(i.project_id ?? ''), String(i.contractor_id ?? ''), String(i.member_id ?? '')))));
+    },
+    async listMessages(request: Request) {
+      return run(() => actor(request).then(() => { const q=new URL(request.url).searchParams; return services.messages.listMessages(q.get('conversation_id') ?? '',q.get('before'),Number(q.get('limit') ?? 30)); }));
+    },
+    async sendMessage(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.messages.send(String(i.conversation_id ?? ''),String(i.body ?? ''),String(i.idempotency_key ?? '')))));
+    },
+    async markConversationRead(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(i => services.messages.markRead(String(i.conversation_id ?? '')))));
+    },
     async issueProjectInvitation(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => services.projects.issueInvitation(i, a.id))));
     },

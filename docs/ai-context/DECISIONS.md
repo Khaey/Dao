@@ -1,5 +1,15 @@
 # D.A.O — Decisions
 
+## D-044 — Messagerie privée liée aux memberships actifs (#116)
+
+Le fil réutilise `conversations(project_id, contractor_id)`, les participants
+et messages existants. Les lignes de participants ne constituent pas un droit :
+RLS et commandes revérifient le client confirmé, le membre contractor accepté,
+les comptes actifs et l'absence d'archivage. Les messages sont append-only,
+texte seul, idempotents et notifiés uniquement dans l'application. Staff ne
+dispose d'aucun accès automatique. Toute consultation durable après rupture,
+modération ou canal externe reste une décision produit séparée.
+
 ## DEV 20 #58 — diagnostic HTTP fournisseur fermé (2026-10-10)
 
 Un refus API ambigu ne justifie ni l'affichage du corps d'erreur ni l'élargissement

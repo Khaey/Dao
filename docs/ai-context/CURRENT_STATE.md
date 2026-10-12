@@ -11,6 +11,17 @@ locale, sans réseau, valeurs/longueurs/hashes publiés ou garde affaiblie.
 Voir [contrôle OCE](../oce-cloudflare-actions.md) et le checkpoint courant
 [#58](https://github.com/Khaey/Dao/issues/58) pour HEAD/CI/livraison/diagnostic.
 
+## DEV 2 — messagerie privée chantier #116 (2026-10-12)
+
+Branche `feat/private-project-messaging-v1` réconciliée avec le main vérifié
+`e516f61e34c3c5b6cf0f4123a94dc623f6826194`. Le lot réutilise les tables
+`conversations`, `conversation_participants`, `messages` et `notifications` :
+autorisation dynamique par memberships actifs, commandes atomiques/idempotentes,
+messages immuables, pagination, boîte « Mes messages », raccourci chantier et
+notifications internes sans contenu privé. Tests et publication sont suivis
+dans [#116](https://github.com/Khaey/Dao/issues/116). #64/#58/#61/#112 restent
+hors périmètre.
+
 ## DEV 20 — OCE #58, refus persistant après remplacement dans dev (2026-10-10)
 
 #110 livrée : main `178ace17824bb114d4e17c89c6834c33a55b9ddd`, CI/deploy

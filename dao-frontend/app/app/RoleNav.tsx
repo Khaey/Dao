@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText } from 'lucide-react';
+import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText, MessageCircle } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 
@@ -56,6 +56,7 @@ export default function RoleNav() {
     { href: '/app/artisan/profile', label: 'Mon dossier professionnel', icon: HardHat, show: has('contractor') },
     { href: '/app/professionals', label: 'Trouver un professionnel', icon: HardHat, show: has('client') },
     { href: '/app/invitations', label: 'Mes invitations', icon: Mail, show: !staff && (has('client') || has('contractor')) },
+    { href: '/app/messages', label: 'Mes messages', icon: MessageCircle, show: !staff && (has('client') || has('contractor')) },
     { href: '/app/dao/review', label: 'Revues', icon: ShieldCheck, show: staff },
     { href: '/app/dao/publications', label: 'Publications', icon: Megaphone, show: staff },
     { href: '/app/dao/projects', label: 'Chantiers', icon: FolderKanban, show: staff },
