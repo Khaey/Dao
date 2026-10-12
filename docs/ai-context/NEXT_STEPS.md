@@ -639,10 +639,19 @@ checkout changes, stop coding and recover the expected remote branch first.
 Stop if a DB migration, RLS change, Auth change or new product choice is
 required. Do not commit `dao-frontend/tsconfig.tsbuildinfo`. Never discard
 unsaved work. Read current PR state rather than using historical checkpoints.
-# #112 — mandat actif DAO OPT 20 (2026-10-09)
+## OPT 20 — PRO #112, réception après livraison (2026-10-12)
 
-Qualifier éditeur six sections, portfolio/media, revue dédiée et consultation
-client avec RPC/RLS/Storage réels et 52 E2E sur stack jetable, CI/PR,
-migration additive DEV puis déploiement. Reprendre le dernier HEAD publié et
-checkpoint [#112](https://github.com/Khaey/Dao/issues/112). #83 livré conservé,
-#91 passif ; ne pas rouvrir OPS/OCE/back-office/Monitor hors coordination.
+#113 est fusionnée ; migrations #83 et #112 appliquées et contrôlées par Pilot,
+CI/deploy main #459 et #461 SUCCESS, 52 E2E conservés. Ne pas reconstruire le lot,
+rejouer les migrations ou relancer une CI verte pour des inputs inchangés.
+
+Recevoir la recette authentifiée du parcours `/app/artisan/profile`, accessible
+par le lien du résumé `/app/profile`. Vérifier les six sections et l'aperçu ;
+un dossier pending n'est pas une fiche client publiée avant approbation.
+Le HTTP public et la CI jetable ne valent pas réception visuelle du compte DEV.
+L'ouverture du navigateur Work a expiré ; aucun login propriétaire revendiqué.
+
+Reprendre le [checkpoint PRO 12](https://github.com/Khaey/Dao/issues/112#issuecomment-6132912341)
+et le main réel avant une éventuelle correction ciblée. Garder #112 ouverte
+pour réception ou défaut prouvé ; ne pas demander SQL, clé ou terminal au
+propriétaire. #83 conservée, #91 passif ; les autres owners restent séparés.

@@ -12,9 +12,9 @@ model {
       shell = component "Shell applicatif & RoleNav" "Navigation selon rôles, dernier espace client/artisan utilisé et accès D.A.O." "Next.js"
       auth = component "Auth" "Login, register client/contractor, forgot/reset password, invitation return." "Supabase Auth"
       profile = component "Profils" "Profil utilisateur et contractor éditable ; identité, activité ou métiers relancent la vérification." "Next.js / Supabase RPC"
-      professionalDossier = component "Dossier professionnel privé" "Six sections, informations légales privées, consentements explicites et revue distincte de la vérification." "Next.js / RPC / RLS" "InProgress"
-      professionalPublic = component "Fiches professionnelles client" "Projection autorisée des profils vérifiés/approuvés et réalisations consenties ; aucun identifiant légal exposé." "Next.js / RPC" "InProgress"
-      professionalMedia = component "Médias professionnels" "Upload privé, inspection MIME/taille/SHA-256 et revue ; lectures médiées avec contrôle de retrait à chaque demande." "API / Storage privé" "InProgress"
+      professionalDossier = component "Dossier professionnel privé" "Six sections, informations légales privées, consentements explicites et revue distincte de la vérification." "Next.js / RPC / RLS"
+      professionalPublic = component "Fiches professionnelles client" "Projection autorisée des profils vérifiés/approuvés et réalisations consenties ; aucun identifiant légal exposé." "Next.js / RPC"
+      professionalMedia = component "Médias professionnels" "Upload privé, inspection MIME/taille/SHA-256 et revue ; lectures médiées avec contrôle de retrait à chaque demande." "API / Storage privé"
 
       projects = component "Chantiers" "Création, édition, versions, statut, avancement et archivage." "Next.js / API / RPC"
       lots = component "Lots / project_requests" "Lots réels versionnés; métier, périmètre, budget et retrait logique." "Next.js / RPC"
