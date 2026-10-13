@@ -83,8 +83,7 @@
       "issue": 124,
       "agent": "DAO OPT 20",
       "role": "OPT",
-      "watchdog": true,
-      "threshold_minutes": 90
+      "watchdog": false
     },
     {
       "issue": 125,
