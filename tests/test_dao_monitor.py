@@ -1,4 +1,5 @@
 """Offline unit tests: no network and no Telegram token required."""
+import base64
 import datetime as dt
 import copy
 import contextlib
@@ -54,16 +55,16 @@ class MonitorTests(unittest.TestCase):
         self.assertIn("⛔ DAO DEV 20", dm.classify("issue_comment", event, self.config))
 
     def test_decision_pilot(self):
-        event = self.comment_event("DAO_MONITOR_V1\nagent: DAO Pilot 3\nstatus: DECISION\nsummary: arbitrage", issue=89)
+        event = self.comment_event("DAO_MONITOR_V1\nagent: DAO Pilot 4\nstatus: DECISION\nsummary: arbitrage", issue=89)
         result = dm.classify("issue_comment", event, self.config)
-        self.assertIn("DAO Pilot 3", result)
+        self.assertIn("DAO Pilot 4", result)
 
     def test_reject_unknown_author(self):
         event = self.comment_event("DAO_MONITOR_V1\nagent: DAO DEV 20\nstatus: BLOCKED\nsummary: bloque", user="outside")
         self.assertIsNone(dm.classify("issue_comment", event, self.config))
 
     def test_reject_agent_spoof_wrong_issue(self):
-        event = self.comment_event("DAO_MONITOR_V1\nagent: DAO Pilot 3\nstatus: DONE\nsummary: livre", issue=58)
+        event = self.comment_event("DAO_MONITOR_V1\nagent: DAO Pilot 4\nstatus: DONE\nsummary: livre", issue=58)
         self.assertIsNone(dm.classify("issue_comment", event, self.config))
 
     def test_ignore_ordinary_and_active(self):
@@ -95,12 +96,12 @@ class MonitorTests(unittest.TestCase):
     def test_real_pr104_title_pr_numbers_do_not_hide_owner(self):
         pr = {"title": "fix(monitor): identifier OPT 20 sur les PR #102/#103 et CI",
               "body": "Corrige les notifications PR #102/#103 et CI #422/#424. Refs #93"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 3", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
         sha = "e0b2dbe7be35ad4b40720f9761caa97336b64f6e"
         merged = dict(pr, merge_commit_sha=sha, merged_at="2026-10-09T09:25:09Z",
                       base={"ref": "main"})
         self.assertEqual(self.owner_line(dm.associated_merged_pr([merged], sha), self.config),
-                         "👤 Agent : DAO Pilot 3 — mission #93")
+                         "👤 Agent : DAO Pilot 4 — mission #93")
 
     def test_unregistered_title_allows_canonical_owner_link(self):
         pr = {"title": "docs: preuve PR #103 CI #424",
@@ -115,11 +116,11 @@ class MonitorTests(unittest.TestCase):
                        "directs vers l'issue `.../issues/91`.\n\n"
                        "- Reconnaît `Refs #N` **et** `Réfs #N` (français).\n"
                        "- Ajoute 5 tests de régression, priorité de `Réfs #91`.\n\nRefs #93")}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 3", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
 
     def test_fenced_example_does_not_override_real_owner(self):
         pr = {"body": "```text\nRefs #91\nhttps://github.com/Khaey/Dao/issues/58\n```\nRefs #93"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 3", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
 
     def test_example_alone_cannot_assign_owner(self):
         self.assertEqual(self.owner({"body": "Example: `Refs #91`"}, self.config), (None, None))
@@ -179,7 +180,7 @@ class MonitorTests(unittest.TestCase):
 
     def test_pr_owner_unique_body_reference(self):
         pr = {"title": "fix(monitor): secrets", "body": "Correction ciblée de #93"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 3", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
 
     def test_pr_owner_ambiguous_falls_back(self):
         pr = {"title": "maintenance", "body": "Impacte #83 et #58"}
@@ -311,8 +312,8 @@ class AttributionTests(unittest.TestCase):
         return pr
 
     def test_registered_canonical_owners_and_unique_issues(self):
-        expected = {112: "DAO OPT 20", 115: "OPT", 116: "DAO DEV 2",
-                    61: "DAO DEV 1", 120: "DAO OPT 20", 85: "OPT"}
+        expected = {112: "DAO OPT 20", 115: "DAO OPT 2", 116: "DAO DEV 2",
+                    61: "DAO Pilot 4", 120: "DAO OPT 20", 85: "OPT"}
         issues = [m["issue"] for m in self.config["missions"]]
         self.assertEqual(len(issues), len(set(issues)))
         self.assertEqual(self.config["allowed_comment_authors"], ["Khaey"])
@@ -324,7 +325,7 @@ class AttributionTests(unittest.TestCase):
                                  (agent, issue))
 
     def test_complete_real_pr_bodies_preserve_107_108_and_repair_117(self):
-        expected = {107: ("DAO Pilot 3", 93), 108: ("DAO Pilot 3", 93),
+        expected = {107: ("DAO Pilot 4", 93), 108: ("DAO Pilot 4", 93),
                     117: ("DAO OPT 20", 112), 118: (None, None), 119: (None, None)}
         for number, owner in expected.items():
             with self.subTest(pr=number):
@@ -335,7 +336,7 @@ class AttributionTests(unittest.TestCase):
             with self.subTest(pr=number):
                 pr = copy.deepcopy(self.prs[number])
                 pr["body"] = "Owner issue: #89\n\n" + pr["body"]
-                self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 3", 89))
+                self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 4", 89))
 
     def test_unknown_and_conflicting_declarations_fail_closed(self):
         for body in ("Owner issue: #999", "Owner issue: #999\nRefs #120",
@@ -357,7 +358,7 @@ class AttributionTests(unittest.TestCase):
     def test_context_links_and_title_do_not_override_explicit_owner(self):
         pr = self.pr("Owner issue: #89\nContext: https://github.com/Khaey/Dao/issues/115 "
                      "https://github.com/Khaey/Dao/issues/116", title="Docs #115 / #116")
-        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 3", 89))
+        self.assertEqual(dm.pr_owner(pr, self.config), ("DAO Pilot 4", 89))
 
     def test_markdown_examples_cannot_inject_an_owner(self):
         for example in ("`Owner issue: #58`", "``Refs #58``", "```text\nOwner issue: #58\n```",
@@ -443,6 +444,75 @@ class AttributionTests(unittest.TestCase):
             self.assertIn("Agent : DAO OPT 20 — mission #112", delivery.call_args.args[0])
             self.assertIn("Agent : DAO OPT 20 — mission #112", output.getvalue())
             self.assertNotIn(self.prs[117]["body"], output.getvalue())
+
+
+
+class AgentOnboardingTests(unittest.TestCase):
+    def test_new_agent_and_transfer_are_announced_once(self):
+        before = {"missions": [{"issue": 64, "agent": "DAO DEV 1"},
+                               {"issue": 58, "agent": "DAO DEV 20"}]}
+        after = {"missions": [{"issue": 64, "agent": "DAO Chat 20"},
+                              {"issue": 58, "agent": "DAO DEV 20"},
+                              {"issue": 125, "agent": "DAO DEV 2"}]}
+        message = dm.registration_alert(before, after)
+        self.assertIn("DAO Chat 20 — missions #64", message)
+        self.assertIn("DAO DEV 2 — missions #125", message)
+        self.assertNotIn("DAO DEV 20 — missions", message)
+        self.assertIsNone(dm.registration_alert(after, after))
+
+    def test_renamed_pilot_and_passive_missions(self):
+        old = {"missions": [{"issue": 89, "agent": "DAO Pilot 3"}]}
+        new = {"missions": [{"issue": 89, "agent": "DAO Pilot 4"},
+                            {"issue": 93, "agent": "DAO Pilot 4"}]}
+        alert = dm.registration_alert(old, new)
+        self.assertIn("DAO Pilot 4 — missions #89, #93", alert)
+
+    def test_onboarding_reads_exact_commits_no_telegram_secrets(self):
+        sha_before, sha_after = "1" * 40, "2" * 40
+        old = {"missions": [{"issue": 58, "agent": "DAO DEV 20"}]}
+        new = {"missions": [{"issue": 58, "agent": "DAO DEV 20"},
+                            {"issue": 64, "agent": "DAO Chat 20"}]}
+        def read_registry(method, endpoint, body=None):
+            self.assertEqual(method, "GET")
+            self.assertTrue(endpoint.endswith("?ref=" + sha_before)
+                            or endpoint.endswith("?ref=" + sha_after))
+            data = old if endpoint.endswith(sha_before) else new
+            return {"encoding": "base64",
+                    "content": base64.b64encode(json.dumps(data).encode()).decode()}
+        with (patch.object(dm, "github_api", side_effect=read_registry),
+              patch.object(dm, "telegram", return_value=True) as send):
+            dm.onboarding_push({"ref": "refs/heads/main", "before": sha_before,
+                                "after": sha_after, "deleted": False})
+            send.assert_called_once()
+            self.assertIn("DAO Chat 20", send.call_args.args[0])
+
+    def test_untrusted_branch_or_deleted_push_never_qualifies(self):
+        with (patch.object(dm, "github_api") as github,
+              patch.object(dm, "telegram") as send):
+            dm.onboarding_push({"ref": "refs/heads/feature", "before": "1" * 40,
+                                "after": "2" * 40})
+            dm.onboarding_push({"ref": "refs/heads/main", "before": "1" * 40,
+                                "after": "2" * 40, "deleted": True})
+            dm.onboarding_push({"ref": "refs/heads/main", "before": "1" * 40,
+                                "after": "1" * 40})
+            github.assert_not_called()
+            send.assert_not_called()
+
+    def test_invalid_registry_entries_do_not_publish_untrusted_fields(self):
+        data = {"missions": [{"issue": 0, "agent": "bad"},
+                             {"issue": 64, "agent": "<script>"},
+                             {"issue": 125, "agent": "DAO DEV 2"}]}
+        message = dm.registration_alert({"missions": []}, data)
+        self.assertNotIn("<script>", message)
+        self.assertIn("#125", message)
+
+    def test_current_active_assignments_are_registered(self):
+        config = dm.configuration()
+        expected = {64: "DAO Chat 20", 115: "DAO OPT 2", 124: "DAO OPT 20",
+                    125: "DAO DEV 2", 89: "DAO Pilot 4", 93: "DAO Pilot 4"}
+        for issue, name in expected.items():
+            with self.subTest(issue=issue):
+                self.assertEqual(dm.mission_for(issue, config)["agent"], name)
 
 
 if __name__ == "__main__":
