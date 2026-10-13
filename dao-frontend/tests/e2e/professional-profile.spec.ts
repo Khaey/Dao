@@ -29,7 +29,17 @@ test('PRO : six sections, dossier privé, réalisation modérée, consultation c
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);await ac.close();await cc.close();
 });
 
-test('PRO : un brouillon ne devient pas public par une prévisualisation forgée',async({page,e2eSecondArtisan,e2eClient})=>{
-  expect(e2eSecondArtisan).toBeTruthy();expect(e2eClient).toBeTruthy();const cp=(await adminRows('contractor_profiles',`user_id=eq.${e2eSecondArtisan!.id}&select=id`))[0];
+test('PRO : un brouillon ne devient pas public par une prévisualisation forgée',async({page,browser,e2eSecondArtisan,e2eClient,e2eAdmin})=>{
+  expect(e2eSecondArtisan).toBeTruthy();expect(e2eClient).toBeTruthy();expect(e2eAdmin).toBeTruthy();const cp=(await adminRows('contractor_profiles',`user_id=eq.${e2eSecondArtisan!.id}&select=id`))[0];
+  const ac=await browser.newContext(),staff=await ac.newPage();await login(staff,e2eAdmin!);
+  await staff.goto('/app/dao/professionals');
+  await staff.getByLabel('Rechercher professionnels').fill(e2eSecondArtisan!.email);
+  await staff.getByRole('button').filter({hasText:e2eSecondArtisan!.email}).click();
+  const summary=staff.getByRole('dialog',{name:'Dossier du compte'});
+  await expect(summary.getByText(/Identité publique : Approuvée/)).toBeVisible();
+  await expect(summary.getByText(/^Fiche client : (Non soumis|Brouillon)$/)).toBeVisible();
+  await expect(summary.getByText(/L’approbation de l’identité publique ne publie pas la fiche client/)).toBeVisible();
+  await expect(summary.getByRole('link',{name:/Consulter le dossier détaillé et son état/})).toHaveAttribute('href',`/app/dao/professionals/${cp.id}/dossier`);
+  await ac.close();
   await login(page,e2eClient!);await page.goto(`/app/professionals/${cp.id}?preview=true`);await expect(page.getByRole('alert').filter({hasText:'Fiche non publiée ou non autorisée'})).toContainText('Fiche non publiée ou non autorisée');await expect(page.getByRole('link',{name:'Retour aux professionnels'})).toBeVisible();
 });
