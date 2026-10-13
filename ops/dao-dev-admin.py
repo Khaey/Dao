@@ -155,6 +155,65 @@ def _oce_topology(app, containers, image):
     }
 
 
+# Only literal gateway helper reasons may cross the public Actions boundary.
+# This reports a helper assertion, not independent proof of rollback or service state.
+GATEWAY_FAILURE_REASONS = frozenset({
+    'app inspect shape',
+    'app network identity',
+    'command failed',
+    'compose app image missing',
+    'compose app image not immutable',
+    'compose config invalid',
+    'compose env backup unsafe',
+    'compose env encoding',
+    'compose env owned by dao',
+    'compose env readable by dao',
+    'compose env unsafe',
+    'compose env world writable',
+    'compose env writable by dao',
+    'dao container bypass still reachable',
+    'dao has docker socket access',
+    'dao loopback bypass still reachable',
+    'demo access unavailable',
+    'docker socket unavailable',
+    'duplicate OE_BIND',
+    'egress guard inactive',
+    'gateway activation failed and rollback incomplete',
+    'gateway not installed',
+    'gateway service not ready',
+    'gateway service user missing',
+    'internal_or_command_error',
+    'invalid access probe',
+    'loopback or pinned runtime verification failed',
+    'nft unavailable',
+    'oce health',
+    'oce health or runtime digest pin unavailable',
+    'oce health timeout',
+    'operator OCE access or runtime pin unavailable',
+    'pinned runtime not restored',
+    'required command unavailable',
+    'response bound',
+    'root required',
+    'runtime digest pin not active',
+    'runtime pin unsafe',
+})
+
+
+def gateway_failure_reason(stderr):
+    if not isinstance(stderr, str) or len(stderr) > 4096:
+        return 'unclassified'
+    try:
+        data = json.loads(stderr)
+    except (ValueError, TypeError):
+        return 'unclassified'
+    if not isinstance(data, dict) or set(data) != {'oce_gateway_host_error'}:
+        return 'unclassified'
+    reason = data['oce_gateway_host_error']
+    if not isinstance(reason, str) or reason not in GATEWAY_FAILURE_REASONS:
+        return 'unclassified'
+    return reason
+
+
 def oce_gateway_plan():
     """Run only the installed gateway host read-only plan operation."""
     helper = Path('/usr/local/sbin/dao-oce-gateway-host')
@@ -180,7 +239,8 @@ def oce_gateway_plan():
         print(json.dumps(data, sort_keys=True))
         return
     # Keep failure sanitized; never forward stderr from a root helper.
-    print(json.dumps({'oce_gateway_plan': 'failed'}, sort_keys=True))
+    print(json.dumps({'oce_gateway_plan': 'failed',
+                      'reason': gateway_failure_reason(result.stderr)}, sort_keys=True))
     raise ValueError('gateway plan failed')
 
 
@@ -194,7 +254,8 @@ def oce_gateway_apply():
         capture_output=True, text=True, timeout=180, check=False,
     )
     if result.returncode != 0:
-        print(json.dumps({'oce_gateway_apply': 'failed'}, sort_keys=True))
+        print(json.dumps({'oce_gateway_apply': 'failed',
+                          'reason': gateway_failure_reason(result.stderr)}, sort_keys=True))
         raise ValueError('gateway apply failed')
     data = json.loads(result.stdout)
     expected = {
