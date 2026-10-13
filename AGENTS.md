@@ -1,5 +1,11 @@
 # D.A.O — instructions for every Work/Codex session
 
+**Pilot transition / coordination:** on taking over as DAO Pilot 4 or later,
+read [the 2026-10-13 Pilot 4 handoff](docs/ai-context/PILOT4_HANDOFF_20261013.md)
+first, then verify live main/PR/CI and the latest owner issues. The dated handoff
+is a snapshot, not a replacement for live evidence. Do not infer that a
+GitHub comment launches a ChatGPT Work session.
+
 Before changing this repository, read the **current owner issue and last
 meaningful checkpoint**, `docs/ai-context/AUTONOMOUS_EXECUTION.md` and the
 `docs/ai-context/README.md` index. Verify actual GitHub main, the relevant
