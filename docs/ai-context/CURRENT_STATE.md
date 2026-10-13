@@ -1,5 +1,15 @@
 # D.A.O — Current State
 
+## OPT 2 — navigation mobile partagée, #115 (2026-10-13)
+
+Le shell mobile utilise une barre compacte avec l’espace du rôle courant,
+un menu défilant même en écran court, le compte et la déconnexion accessibles.
+Les règles de visibilité des liens sont conservées. Le contrôle automatique
+couvre 390×844, 320×568, 568×320 et le retour desktop avec un acteur Gestionnaire
+isolé ; résultats exacts et livraison dans [#115](https://github.com/Khaey/Dao/issues/115).
+Coordination #64 : aucun composant métier back-office modifié. Le compte TEST
+Gestionnaire DEV distinct a été invité ; activation/recette réelle suivies dans #115.
+
 ## DEV 2 — Contrat V1, fondation P2.2-A #125 (2026-10-13)
 
 Branche `feat/contract-v1-foundation`, réconciliée avec le main
