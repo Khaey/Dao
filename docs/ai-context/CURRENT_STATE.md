@@ -1,5 +1,17 @@
 # D.A.O — Current State
 
+## DEV 2 — Contrat V1, fondation P2.2-A #125 (2026-10-13)
+
+Branche `feat/contract-v1-foundation`, réconciliée avec le main
+`69dd48db4dfa4ac250638d98c87cfa71a083896c`. Le candidat ajoute la préparation
+atomique et idempotente d'un contrat non engageant par award : snapshot des lots
+et montants, trois parties, version SHA-256, événements/archives immuables et RLS
+réduite aux parties actives plus administrateurs D.A.O actifs. La commande reste
+réservée au service et aucune API/UI, transition engageante, signature ou finance
+n'est exposée. Tests locaux : 149 schéma/RLS + 15 modèle + 24 RPC/RLS + 68 backend,
+tous PASS. Publication, CI, migration DEV et preuve finale restent à faire dans
+[#125](https://github.com/Khaey/Dao/issues/125). #58/#64/#116/#124 intacts.
+
 ## ENTRÉE PRIORITAIRE — PILOT 4 (2026-10-13, snapshot vérifié)
 
 **Lire en priorité [PILOT4_HANDOFF_20261013.md](PILOT4_HANDOFF_20261013.md),

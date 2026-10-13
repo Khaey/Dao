@@ -6,6 +6,23 @@ The current assigned-review/version/sublot/withdrawal/assisted-award and notific
 
 > Stable business constraints and invariants. Changes here require explicit product/architecture review.
 
+## Contrat V1 — fondation P2.2-A (#125)
+
+- Un contrat est rattaché à un seul award et fige atomiquement tous ses lots
+  actifs, leurs offres, périmètres et montants convenus. Le total exact est la
+  somme des millimes figés.
+- Les parties immuables sont le client, le contractor et D.A.O. La préparation
+  requiert une identité D.A.O explicite et ne peut pas en fabriquer une.
+- Versions, lignes, parties, événements et archives sont append-only et les
+  versions portent une empreinte SHA-256 vérifiée par la base.
+- Le brouillon créé par P2.2-A est uniquement technique et `non_engaging`.
+  Aucun utilisateur ne peut le créer ou le faire avancer vers `review`, `ready`,
+  `awaiting_signatures` ou `signed` dans ce lot.
+- Seules les parties actives et les administrateurs D.A.O actifs lisent le
+  contrat. Un reviewer générique, un concurrent ou un compte suspendu est refusé.
+- Aucun consentement, signature, PDF exécutoire, paiement ou mouvement financier
+  n'est introduit. Voir [le design canonique](../product/contract-v1-design.md).
+
 ## Messagerie privée de chantier V1 — #116
 
 - Un fil texte existe par chantier confirmé et professionnel accepté. Le client
