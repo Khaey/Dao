@@ -152,6 +152,8 @@ def probe(team):
             except urllib.error.HTTPError as exc:
                 code, location = exc.code, exc.headers.get('Location', '')
                 exc.close()
+            if code in (401, 403):
+                continue
             dest = urllib.parse.urlsplit(location)
             require(code in (302, 303, 307) and dest.scheme == 'https' and
                     dest.netloc == team + '.cloudflareaccess.com' and
