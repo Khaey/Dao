@@ -184,6 +184,33 @@ def oce_gateway_plan():
     raise ValueError('gateway plan failed')
 
 
+def oce_gateway_apply():
+    """Run the fixed acknowledged gateway activation and expose only its closed report."""
+    helper = Path('/usr/local/sbin/dao-oce-gateway-host')
+    if not helper.is_file() or not os.access(helper, os.X_OK):
+        raise ValueError('gateway helper missing')
+    result = subprocess.run(
+        [str(helper), 'apply', '--acknowledge-public-demo-link-closes'],
+        capture_output=True, text=True, timeout=180, check=False,
+    )
+    if result.returncode != 0:
+        print(json.dumps({'oce_gateway_apply': 'failed'}, sort_keys=True))
+        raise ValueError('gateway apply failed')
+    data = json.loads(result.stdout)
+    expected = {
+        'gateway_host', 'oce_loopback_only', 'immutable_runtime_pin_preserved',
+        'dao_loopback_bypass_denied', 'dao_container_bypass_denied',
+        'gateway_socket_ready', 'gateway_ready', 'demo_access_preserved',
+        'egress_guard_active', 'compose_env_not_readable_by_dao',
+        'dao_docker_socket_access',
+    }
+    if (not isinstance(data, dict) or set(data) != expected
+            or data.get('gateway_host') != 'complete'
+            or any(type(data[key]) is not bool for key in expected - {'gateway_host'})):
+        raise ValueError('gateway apply output invalid')
+    print(json.dumps(data, sort_keys=True))
+
+
 def oce_integration_inventory():
     """Fixed inspect-only command; no Docker exec, stop, compose or credentials."""
     docker = shutil.which('docker')
@@ -451,6 +478,8 @@ def main():
         oce_integration_inventory()
     elif operation == 'oce-gateway-plan':
         oce_gateway_plan()
+    elif operation == 'oce-gateway-apply':
+        oce_gateway_apply()
     elif operation == 'log-summary':
         p = subprocess.run(['/usr/bin/journalctl', '-u', 'dao-dev.service', '--since', '1 hour ago', '-n', '200', '-o', 'json', '--no-pager'], capture_output=True, text=True, timeout=15, check=True)
         counts = {}

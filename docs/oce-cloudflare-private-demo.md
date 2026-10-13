@@ -101,9 +101,12 @@ avant installation, installe le helper/service et la liste sudo fixe.
 Il n'active/démarre aucun service. Il refuse une mise à jour du tunnel actif.
 Ne pas donner à `dao` le droit d'installer son propre code root.
 
-Provisionner par un canal opérateur privé, root:root mode 0600 sous
-`/etc/dao-oce-cloudflare` (répertoire root:root 0700), sans copier via un
-répertoire lisible par `dao` :
+Après audit Actions réussi, le commentaire propriétaire exact
+`/dao-oce provision` sur #58 transmet les trois secrets protégés dans le flux
+SSH au helper root fixe. Le helper refait l'audit complet, refuse tout fichier
+déjà présent et écrit en root:root mode 0600 sous `/etc/dao-oce-cloudflare`
+(répertoire root:root 0700). Aucun payload de secret n'est copié dans
+`/opt/dao` :
 
 - `approved.json` : objet exact ci-dessous, IDs réels et e-mails validés ;
 - `api-token` : clé API Cloudflare de lecture à périmètre minimal ;
@@ -116,8 +119,9 @@ répertoire lisible par `dao` :
 ```
 
 Cet exemple n'est pas un fichier à déployer tel quel. Aucun secret n'est
-accepté comme input Actions. Aucun fichier root de configuration ne peut
-être modifié par les opérations usuelles.
+accepté comme input libre du workflow. Les valeurs proviennent uniquement des
+secrets de l'environnement `dev` et ne sont ni affichées ni conservées sur le
+runner.
 
 Ensuite, toutes les opérations usuelles passent par **OCE private demo
 operations**, main uniquement, environnement protégé `dev`, clé existante

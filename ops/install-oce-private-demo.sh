@@ -23,7 +23,7 @@ install -o root -g root -m 0755 "$source_dir/oce-cloudflare.py" /usr/local/libex
 install -o root -g root -m 0755 "$source_dir/dao-oce-private-admin.py" /usr/local/sbin/dao-oce-private-admin
 install -o root -g root -m 0644 "$source_dir/dao-oce-cloudflared.service" /etc/systemd/system/dao-oce-cloudflared.service
 cat > "$tmp/sudoers" <<'EOF'
-dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-oce-private-admin audit, /usr/local/sbin/dao-oce-private-admin probe, /usr/local/sbin/dao-oce-private-admin start, /usr/local/sbin/dao-oce-private-admin stop, /usr/local/sbin/dao-oce-private-admin status
+dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-oce-private-admin provision, /usr/local/sbin/dao-oce-private-admin audit, /usr/local/sbin/dao-oce-private-admin probe, /usr/local/sbin/dao-oce-private-admin start, /usr/local/sbin/dao-oce-private-admin stop, /usr/local/sbin/dao-oce-private-admin status
 EOF
 chmod 0440 "$tmp/sudoers"
 visudo -cf "$tmp/sudoers"

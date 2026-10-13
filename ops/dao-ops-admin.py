@@ -42,6 +42,22 @@ CATALOG = {
 }
 LOCKS = ('/etc/dao/.admin.lock', '/etc/dao-oce-cloudflare/.lock', '/var/backups/dao-oce/.lock')
 MAX_FILE = 512 * 1024
+OCE_PRIVATE_SUDOERS = Path('/etc/sudoers.d/dao-oce-private')
+DAO_ADMIN_SUDOERS = Path('/etc/sudoers.d/dao-admin')
+OLD_OCE_PRIVATE_GRANT = ('dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-oce-private-admin audit, '
+    '/usr/local/sbin/dao-oce-private-admin probe, /usr/local/sbin/dao-oce-private-admin start, '
+    '/usr/local/sbin/dao-oce-private-admin stop, /usr/local/sbin/dao-oce-private-admin status\n')
+NEW_OCE_PRIVATE_GRANT = ('dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-oce-private-admin provision, '
+    '/usr/local/sbin/dao-oce-private-admin audit, /usr/local/sbin/dao-oce-private-admin probe, '
+    '/usr/local/sbin/dao-oce-private-admin start, /usr/local/sbin/dao-oce-private-admin stop, '
+    '/usr/local/sbin/dao-oce-private-admin status\n')
+OLD_DAO_ADMIN_GRANT = ('# D.A.O environment and safe diagnostics; existing service sudoers remain intact.\n'
+    'dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-dev-admin env-sync, '
+    '/usr/local/sbin/dao-dev-admin env-restore, /usr/local/sbin/dao-dev-admin log-summary, '
+    '/usr/local/sbin/dao-dev-admin oce-audit, /usr/local/sbin/dao-dev-admin oce-integration-inventory, '
+    '/usr/local/sbin/dao-dev-admin oce-gateway-plan\n')
+NEW_DAO_ADMIN_GRANT = OLD_DAO_ADMIN_GRANT.rstrip('\n') + \
+    ', /usr/local/sbin/dao-dev-admin oce-gateway-apply\n'
 
 
 class Halt(Exception):
@@ -302,6 +318,40 @@ def install_files(files):
         atomic(Path(CATALOG[source][0]), data, 0o755)
 
 
+def reconcile_grant(path, previous, approved):
+    current = read_file(path).decode()
+    if current == approved:
+        return False
+    require(current == previous, 'GRANT_DRIFT')
+    fd, temporary = tempfile.mkstemp(prefix='.dao-grant-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w') as stream:
+            os.fchmod(stream.fileno(), 0o440)
+            os.fchown(stream.fileno(), 0, 0)
+            stream.write(approved)
+            stream.flush()
+            os.fsync(stream.fileno())
+        check = subprocess.run(['/usr/sbin/visudo', '-cf', temporary],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                               timeout=15, check=False)
+        require(check.returncode == 0, 'GRANT_VALIDATION_FAILED')
+        os.replace(temporary, path)
+        sync_directory(path.parent)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return True
+
+
+def reconcile_oce_grants():
+    changed = []
+    if reconcile_grant(OCE_PRIVATE_SUDOERS, OLD_OCE_PRIVATE_GRANT, NEW_OCE_PRIVATE_GRANT):
+        changed.append('oce-private-provision')
+    if reconcile_grant(DAO_ADMIN_SUDOERS, OLD_DAO_ADMIN_GRANT, NEW_DAO_ADMIN_GRANT):
+        changed.append('oce-gateway-apply')
+    return changed
+
+
 def verify_controller(expected):
     result = subprocess.run(['/usr/bin/python3', '-I', CATALOG['ops/dao-ops-admin.py'][0], 'status'],
                             capture_output=True, text=True, timeout=15)
@@ -319,7 +369,8 @@ def remove_journal():
 def upgrade(ledger):
     old, new, report = prepare(ledger)
     if not report['changed']:
-        return {'ops_upgrade': 'unchanged', **report}
+        grants = reconcile_oce_grants()
+        return {'ops_upgrade': 'unchanged', 'grants_updated': grants, **report}
     target = 'rev-' + report['sha']
     if (STATE / target).exists():
         require(load_snapshot(target) == new, 'VERSION_HASH_MISMATCH')
@@ -337,7 +388,7 @@ def upgrade(ledger):
         write_json(STATE / 'state.json', ledger)
         remove_journal()
         raise Halt('UPGRADE_ROLLED_BACK')
-    return {'ops_upgrade': 'complete', **report}
+    return {'ops_upgrade': 'complete', 'grants_updated': [], **report}
 
 
 def rollback(ledger):
@@ -376,9 +427,12 @@ def status():
     ledger = load_ledger()
     current = load_snapshot(ledger['current'])
     live = installed_files()
+    grants_current = (read_file(OCE_PRIVATE_SUDOERS).decode() == NEW_OCE_PRIVATE_GRANT
+                      and read_file(DAO_ADMIN_SUDOERS).decode() == NEW_DAO_ADMIN_GRANT)
     return {'ops_schema': 1, 'current': ledger['current'], 'previous': ledger['previous'],
             'installed_match': live == current, 'managed_files': sorted(current),
-            'pending_transaction': (STATE / 'transaction.json').exists(), 'secrets_read': False}
+            'pending_transaction': (STATE / 'transaction.json').exists(), 'secrets_read': False,
+            'oce_mutation_grants_current': grants_current}
 
 
 def bootstrap():
