@@ -4,26 +4,6 @@
   ],
   "missions": [
     {
-      "issue": 89,
-      "agent": "DAO Pilot 3",
-      "role": "PILOT",
-      "watchdog": false
-    },
-    {
-      "issue": 91,
-      "agent": "DAO OPT 20",
-      "role": "OPT",
-      "watchdog": true,
-      "threshold_minutes": 90
-    },
-    {
-      "issue": 83,
-      "agent": "DAO DEV 2",
-      "role": "DEV",
-      "watchdog": true,
-      "threshold_minutes": 90
-    },
-    {
       "issue": 58,
       "agent": "DAO DEV 20",
       "role": "DEV",
@@ -31,15 +11,48 @@
       "threshold_minutes": 90
     },
     {
-      "issue": 93,
-      "agent": "DAO Pilot 3",
+      "issue": 61,
+      "agent": "DAO Pilot 4",
       "role": "PILOT",
       "watchdog": false
+    },
+    {
+      "issue": 64,
+      "agent": "DAO Chat 20",
+      "role": "DEV",
+      "watchdog": true,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 83,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
     },
     {
       "issue": 85,
       "agent": "OPT",
       "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 89,
+      "agent": "DAO Pilot 4",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 91,
+      "agent": "DAO OPT 20",
+      "role": "OPT",
+      "watchdog": false,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 93,
+      "agent": "DAO Pilot 4",
+      "role": "PILOT",
       "watchdog": false
     },
     {
@@ -52,7 +65,8 @@
       "issue": 115,
       "agent": "OPT",
       "role": "OPT",
-      "watchdog": false
+      "watchdog": true,
+      "threshold_minutes": 90
     },
     {
       "issue": 116,
@@ -61,16 +75,24 @@
       "watchdog": false
     },
     {
-      "issue": 61,
-      "agent": "DAO DEV 1",
-      "role": "DEV",
-      "watchdog": false
-    },
-    {
       "issue": 120,
       "agent": "DAO OPT 20",
       "role": "OPT",
       "watchdog": false
+    },
+    {
+      "issue": 124,
+      "agent": "DAO OPT 20",
+      "role": "OPT",
+      "watchdog": true,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 125,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": true,
+      "threshold_minutes": 90
     }
   ]
 }
