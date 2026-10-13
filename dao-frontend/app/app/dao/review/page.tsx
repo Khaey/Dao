@@ -17,6 +17,7 @@ export default function DaoReview() {
   const [comments, setComments] = useState<Record<string, string>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [mine,setMine]=useState(false);
+  const [viewerId, setViewerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -59,6 +60,7 @@ export default function DaoReview() {
     const supabase = supabaseBrowser();
     const { data: userResult } = await supabase.auth.getUser();
     if (!userResult.user) { setAllowed(false); setLoading(false); return; }
+    setViewerId(userResult.user.id);
     const roleResult = await supabase.from('user_roles').select('role').eq('user_id', userResult.user.id);
     const roles = (roleResult.data ?? []).map(row => row.role as AppRole);
     if (!isDaoStaff(roles)) { setAllowed(false); setLoading(false); return; }
@@ -84,13 +86,14 @@ export default function DaoReview() {
     await load(false);
   }
 
+  const visibleRows = rows.filter(row => !mine || (!!viewerId && row.reviewer_id === viewerId));
   if (loading) return <p>Chargement…</p>;
   if (allowed === false) return <Card><h1 className="text-xl font-bold">Accès réservé</h1><p className="mt-2 text-sm text-black/60">La revue est réservée aux rôles D.A.O autorisés.</p></Card>;
   return <section className="mx-auto max-w-4xl space-y-6">
     <div><p className="text-sm font-semibold text-teal">Espace DAO</p><h1 className="mt-1 text-3xl font-bold">Revues en attente</h1></div>
     {message && <p role="status" className="text-sm text-teal">{message}</p>}
     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mine} onChange={e=>setMine(e.target.checked)} />Mes revues</label>
-    {rows.length === 0 ? <Card>Aucune revue en attente.</Card> : rows.filter(row=>!mine||row.can_manage).map(row => <Card key={row.id}>
+    {visibleRows.length === 0 ? <Card>{mine ? 'Aucune revue ne vous est attribuée.' : 'Aucune revue en attente.'}</Card> : visibleRows.map(row => <Card key={row.id}>
       <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-semibold"><Link href={`/app/dao/projects/${row.project_id}`}>{row.title}</Link></h2><p className="mt-2 text-sm">Pris en charge par : {row.reviewer_name||'À prendre en charge'}</p><p className="mt-1 whitespace-pre-wrap text-sm text-black/55">{row.description}</p><p className="mt-2 text-xs text-black/40">Version du dossier {row.version_no} · {row.lots.length} lot{row.lots.length > 1 ? 's' : ''}</p></div><Badge>{statusLabel[row.status]||row.status}</Badge></div>
       <div className="mt-5 rounded-xl bg-sand/70 p-4" aria-label="Lots examinés">
         <h3 className="font-semibold">Lots de cette version</h3>
