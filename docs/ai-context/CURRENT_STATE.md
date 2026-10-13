@@ -21,8 +21,10 @@ SUCCESS, **54 E2E**. Re-vérifier ces valeurs dès reprise.
   chantier Artisan TEST PASS. **OPT 20 #124** a le GO pour le flux tri-rôle et
   UX-115-01/02/03, distinct de OPT ; #120 Telegram et #112 PRO sont livrées.
 - **DEV 20 OCE #58 : audit Cloudflare complet PASS** (run 38324790506), mais
-  **aucun** contact VPS/tunnel démarré/écriture de configuration ; prochaines
-  actions root/VPS sont des autorisations et preuves séparées.
+  le propriétaire a ensuite autorisé le provisionnement VPS, le démarrage du
+  tunnel et `gateway-host apply`. Le lot en cours ajoute les deux verbes root
+  exacts, le flux GitHub sans terminal et le contrôle de dérive des grants ;
+  les preuves live restent à collecter après fusion/CI/admission.
 - **Paramètres #126 : backlog/cadrage seulement**, pas de code/GO S1 ; #64
   Back-office reste séparé ; OPS #91 passive ; E2E optimisation #85 en pause.
 
