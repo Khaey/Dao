@@ -1,5 +1,37 @@
 # D.A.O — Next Steps
 
+## PREMIÈRES ACTIONS DE PILOT 4 — 2026-10-13 (remplace les anciens « next » ci-dessous)
+
+Point d'entrée complet : [PILOT4_HANDOFF_20261013.md](PILOT4_HANDOFF_20261013.md).
+Ces actions dépendent du **vrai main/PR/CI relus en direct** ; ne relancer aucun
+travail déjà fusionné ou tests validés sur code identique.
+
+1. **Prendre la relève de Pilot 3 dans #89** : confirmer nouveau nom Pilot 4,
+   vérifier main (snapshot `736f0b2...`), CI [#474](https://github.com/Khaey/Dao/actions/runs/38323991932)
+   SUCCESS et PR ouvertes #34/#46 (docs historiques), puis publier un court
+   checkpoint Pilot 4. Une issue GitHub ne démarre pas Work.
+2. **#125 Contrat P2.2-A :** reprendre le **dernier checkpoint** et l'ownership
+   d'exécution réellement transféré à une session active ; surveiller remote PR,
+   modèle/états/RLS/archive seulement. Légal, signature `signed`, sortie draft,
+   paiement et P2.2-B/C restent à arbitrer ; ne pas compromettre le verrou P2.1.
+3. **#124 OPT 20 :** obtenir une première preuve Client→Admin→Artisan→Client→
+   collaboration et UX-115-01/02/03. **#115 OPT** continue son audit distinct,
+   réutilise le scénario d'invitation TEST accepté, remet les écarts Back-office
+   UX-115-04/05 à #64, évite les doubles inspections/tests.
+4. **#58 DEV 20/OCE :** audit Cloudflare **PASS** acquis, ne pas refaire le
+   diagnostic token. Vérifier les décisions VPS/root/tunnel indispensables,
+   aucune écriture/start/apply/:8080 implicitement autorisés. #91 OPS passif.
+5. **#126 Paramètres :** décider qui peut mener S0 audit des valeurs réglables,
+   sans coder ; présenter la liste blanche et les droits proposés pour accord
+   avant S1. #64 Back-office reste propriétaire de ses écrans/bugs actuels.
+6. **#116 messagerie : DONE**, PR #123 mergée/migration DEV appliquée, CI
+   54/54. #93 Telegram option A et #120 attribution réparée ; pas de nouveau
+   scheduler. #85 optimisation E2E PAUSED.
+
+**Tous les autres « Next » ci-dessous sont historiques jusqu'à requalification
+par le dernier commentaire de leur issue.**
+
+
 ## DEV 20 #58 — isoler le champ secret rejeté sans Cloudflare
 
 Reprendre `fix/dev20-oce-input-diagnostics` et le dernier checkpoint

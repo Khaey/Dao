@@ -1,5 +1,9 @@
 # D.A.O — AI context entry point
 
+For **Pilot 4 handoff**, begin with [PILOT4_HANDOFF_20261013.md](PILOT4_HANDOFF_20261013.md),
+then verify the owner issue, remote main, active PRs and relevant CI. This is
+an explicitly dated snapshot; live GitHub takes precedence.
+
 Start with the owner issue's latest meaningful checkpoint, root `AGENTS.md`,
 `AUTONOMOUS_EXECUTION.md` and this index. Read **task-relevant** documents
 and code sections at verified remote main, not every long historical file by
@@ -13,6 +17,7 @@ historical checkpoints.
 | --- | --- |
 | [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) | All-agent ownership and quota-aware execution, validation, concurrency and VPS rules |
 | [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md) | Common checkpoints and safe recovery for every agent; WIP publication, quota/crash limits and short restart checklist (#87) |
+| **[PILOT4_HANDOFF_20261013.md](PILOT4_HANDOFF_20261013.md)** | **Pilot 3 → Pilot 4: authoritative dated handoff index for agents, issues, decisions, priorities, access and caveats; verify live state** |
 | [CURRENT_STATE.md](CURRENT_STATE.md) | Latest dated verified snapshot followed by historical evidence |
 | [NEXT_STEPS.md](NEXT_STEPS.md) | Current OPT next actions and clearly marked historical DEV checkpoint |
 | [OPTIMIZATION_BACKLOG.md](OPTIMIZATION_BACKLOG.md) | Measured baseline and ranked technical experiments; no implementation claim |
