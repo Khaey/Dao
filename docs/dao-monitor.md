@@ -39,7 +39,43 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
 - Les six autres états déclenchent des alertes immédiates Telegram.
 - Les commentaires libres historiques ne déclenchent pas de faux états.
 - Les auteurs sont vérifiés contre la liste d'identités autorisées.
-- Toute nouvelle mission/agent se déclare par PR révisée dans le registre.
+- Toute nouvelle mission/agent se déclare par PR révisée dans le registre. Une\n  fusion sur main déclenche automatiquement une annonce Telegram de l'agent\n  et de son issue, sans exposition de secrets.
+
+## Inscription obligatoire des nouveaux agents (Pilot 4)
+
+**À effectuer lors de la création d'un agent, avant ses premières PR métier :**
+
+1. Définir son nom officiel unique (par exemple `DAO Chat 20`), son mode
+   Chat/Work, sa mission canonique GitHub et son owner Pilot.
+2. Ajouter l'association `issue / agent / role` dans
+   `.github/dao-monitor-agents.json` au sein d'une petite PR de registre,
+   distincte des travaux des autres agents. Mettre `watchdog: true` uniquement
+   pour une mission réellement suivie : cela ne déclenche une surveillance
+   qu'après un checkpoint structuré `ACTIVE`.
+3. Faire valider/fusionner la PR avec les tests du Monitor. Le push sur `main`
+   qui modifie le registre déclenche automatiquement **une notification Telegram**
+   regroupant les nouveaux agents/associations (`DAOAlertsbot`). Le script lit
+   les deux révisions exactes de GitHub : il n'envoie pas de message en cas de
+   modification sans nouvel agent/mission.
+4. Vérifier l'exécution GitHub Actions de `DAO Monitor` et la réception du
+   message sur le canal existant. Sans succès prouvé, l'inscription est
+   **en attente**, même si le fichier est fusionné.
+5. Tout renommage ou transfert d'issue doit mettre à jour le registre ; les
+   missions terminées sont conservées pour l'attribution historique, mais leur
+   `watchdog` doit être désactivé.
+
+**Limite fondamentale :** ChatGPT Chat/Work ne fournit pas au dépôt GitHub
+d'événement de création de conversation. Aucune détection automatique d'une
+nouvelle session ChatGPT n'est promise. Le déclencheur fiable est
+**l'enregistrement GitHub**, pas la création de l'onglet ChatGPT. Cette
+intégration permet de router les alertes vers le **canal Telegram D.A.O
+existant** ; elle n'ajoute pas un utilisateur humain à un groupe Telegram
+et ne crée pas de nouveaux bots ou de nouveaux tokens.
+
+**Référentiel actualisé :** `#64 → DAO Chat 20`, `#124 → DAO OPT 20`,
+`#125 → DAO DEV 2`, `#89/#93 → DAO Pilot 4`. `#61` est suivi en cadrage
+par Pilot 4 ; `#83` et `#91` restent historiques/passifs. Aucune émission
+rétroactive des anciennes alertes ni création artificielle de checkpoint ACTIVE.
 
 ## Alertes automatiques
 
@@ -93,11 +129,10 @@ ne permet pas de distinguer les agents.
   Les logs exposent seulement l'attribution résolue et le résultat Telegram,
   jamais le corps de PR, le token ou le destinataire.
 
-Le registre ajoute les missions confirmées #112, #115, #116, #61 et #120, et
-utilise le nom officiel `OPT`, distinct de `DAO OPT 20`. Ces nouvelles entrées
-servent au routage avec `watchdog: false` ; aucun suivi d'inactivité supplémentaire
-ni état ACTIVE n'est créé. #64 reste hors registre faute de nom d'agent canonique
-distinct suffisamment confirmé pour ce lot. Ses travaux ne sont pas repris.
+Le registre couvre désormais aussi #64 (DAO Chat 20), #124 (DAO OPT 20),
+#125 (DAO DEV 2) et la reprise Pilot 4 sur #89/#93. `OPT` reste distinct de
+`DAO OPT 20`. Les historiques #83/#91 restent présents mais ne lancent plus
+de watchdog. Aucun état ACTIVE ni nouvelle session ChatGPT n'est créé.
 
 Les fixtures conservent les corps GitHub complets de #107/#108/#117/#118/#119
 et les événements CI exacts de #117/#118/#119. #117 se résout vers #112 ; les
