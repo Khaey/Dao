@@ -125,7 +125,8 @@ class MaintenanceTests(unittest.TestCase):
 
     def test_unchanged_upgrade_creates_no_transaction(self):
         with self.candidate(self.old), patch.object(admin.subprocess, 'run',
-                return_value=types.SimpleNamespace(returncode=0)):
+                return_value=types.SimpleNamespace(returncode=0)), \
+                patch.object(admin.os, 'fchown'):
             result = admin.upgrade(self.ledger)
         self.assertEqual(result['ops_upgrade'], 'unchanged')
         self.assertEqual(result['grants_updated'], ['oce-private-provision', 'oce-gateway-apply'])
