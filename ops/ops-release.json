@@ -17,8 +17,8 @@
       "size": 21784
     },
     "ops/oce-cloudflare.py": {
-      "sha256": "2aa45c24ca1ffc1b880e8830997bfb641fc8cb59cedbb086194211786ea1dce4",
-      "size": 8822
+      "sha256": "c1b9fae365738088c5a6071f758d870fb446e6126708254a3e746ffcc8977ee0",
+      "size": 8882
     },
     "ops/oce-v1-egress-guard.py": {
       "sha256": "cca5cb0b9d901a4a4b1f1992f7f234e0ef1ba3243e806a95793a9d70d54ef20b",
