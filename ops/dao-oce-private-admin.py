@@ -98,6 +98,7 @@ def provision(cf):
 
 
 def main():
+    stage = 'entry'
     try:
         if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] not in ('provision', 'audit', 'probe', 'start', 'stop', 'status'):
             raise ValueError('Unsupported operation')
@@ -109,6 +110,7 @@ def main():
         with open(ROOT / '.lock', 'a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             op = sys.argv[1]
+            stage = op
             if op == 'stop':
                 systemctl('stop')
                 print('{"tunnel_stopped":true,"public_8080_changed":false}')
@@ -117,25 +119,34 @@ def main():
                 print(json.dumps({'service_active': systemctl('is-active', False).returncode == 0,
                                   'public_8080_changed': False}))
                 return 0
+            stage = 'load_cloudflare_helper'
             spec = importlib.util.spec_from_file_location('oce_cf', '/usr/local/libexec/dao-oce-cloudflare.py')
             cf = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(cf)
             if op == 'provision':
+                stage = 'provision'
                 provision(cf)
                 return 0
+            stage = 'manifest'
             m = cf.validate_manifest(json.loads(private_file(ROOT / 'approved.json')))
             if op == 'probe':
                 # Run without cookies as the actual D.A.O Unix identity.
+                stage = 'probe'
                 subprocess.run(['/usr/sbin/runuser', '-u', 'dao', '--', '/usr/bin/python3',
                                 '/usr/local/libexec/dao-oce-cloudflare.py', 'probe', m['team_name']], check=True, timeout=110)
                 return 0
+            stage = 'api_token'
             token = private_file(ROOT / 'api-token')
+            stage = 'audit'
             result = cf.audit(m, lambda p: cf.api_get(p, token))
             if op == 'start':
                 # Local binding only; CF verifies the actual secret when connecting.
+                stage = 'tunnel_token'
                 cf.validate_tunnel_token(private_file(ROOT / 'tunnel-token'), m)
+                stage = 'systemctl_start'
                 systemctl('start')
                 try:
+                    stage = 'ready'
                     ready = False
                     for _ in range(15):
                         try:
@@ -145,9 +156,12 @@ def main():
                                 break
                         except Exception:
                             time.sleep(1)
+                    stage = 'service_active'
                     cf.require(ready and systemctl('is-active', False).returncode == 0)
+                    stage = 'tunnel_health'
                     live = cf.api_get('/accounts/' + m['account_id'] + '/cfd_tunnel/' + m['tunnel_id'], token)
                     cf.require(live.get('status') == 'healthy')
+                    stage = 'access_probe'
                     cf.probe(m['team_name'])
                 except Exception:
                     systemctl('stop', False)
@@ -158,7 +172,7 @@ def main():
     except Exception:
         if os.geteuid() == 0 and len(sys.argv) == 2 and sys.argv[1] == 'start':
             systemctl('stop', False)
-        print('OCE_PRIVATE_OPERATION_FAILED (details withheld)', file=sys.stderr)
+        print(json.dumps({'error': 'OCE_PRIVATE_OPERATION_FAILED', 'stage': stage, 'public_8080_changed': False}, sort_keys=True), file=sys.stderr)
         return 1
     finally:
         signal.alarm(0)
