@@ -23,6 +23,63 @@ Permanent DEV TEST accounts are allowed for targeted validation; they do not
 replace isolated CI users. See [../platform-operations.md](../platform-operations.md)
 for scripts, DEV operations and the fixture reset boundary.
 
+## 0A. DECISION DAO PILOT 4 — no routine confirmation requests (2026-10-13)
+
+**Default for ALL current and future DAO agents: DECIDE AND CONTINUE within
+the authorized canonical owner issue.** Checkpoints are evidence, **never
+approval gates**. The owner explicitly wants uninterrupted progress, with
+the fewest possible "confirme", "valide", "go", "je continue ?" or repeated
+requests to acknowledge a completed GitHub comment. Do not stop to obtain a
+second approval for an action already within an existing GO. A ChatGPT session
+may still require a new user turn to resume; publishing a GitHub comment
+cannot restart or keep a Work/Chat session running.
+
+**Execute autonomously when already covered by the assigned GO:**
+- create/inspect/update an owned GitHub issue checkpoint, branch, commit, PR,
+  tests and CI; fix proven implementation errors; reconcile with main;
+- resume immediately after a successful phase from the documented next step;
+  complete approved review, deployment or merge when the exact-HEAD CI,
+  required checks, repository rules and scope-specific authorization pass;
+- choose ordinary, safe, reversible technical implementation details, copy
+  text, labels, validation messages and test sequencing without asking Pilot;
+- use existing approved synthetic DEV TEST records and distinct test users
+  for **already-authorized** E2E/manual acceptance flows, with authentic actor
+  permissions and no reset of shared DEV. Do not treat a PASS checkpoint as a
+  request to confirm or replay it.
+
+**Classify each contemplated action before asking anyone:**
+1. `ROUTINE / ALREADY APPROVED` -> execute, then one concise checkpoint.
+2. `CROSS-OWNER` -> notify the affected owner through the canonical GitHub
+   issues and hand off the action; work on other independent tasks. No
+   duplicated modifications or races on a shared TEST fixture.
+3. `NEW OWNER DECISION` -> present a safe, concrete recommendation and the
+   smallest necessary question **to Pilot**, not a generic "je peux
+   continuer ?" to the user. Continue any independent approved work.
+4. `SAFETY / EXTERNAL APPROVAL GATE` -> stop *only the affected action*.
+   Existing provider/UI consent, protected GitHub environment approvals,
+   approvals for privileged VPS/root, Cloudflare tunnel activation,
+   `gateway-host apply`, production/real-client mutations, legal
+   signatures, actual financial transfers, secrets, changes to Auth/RLS
+   guarantees or business rules, and destructive operations are **not**
+   silently approved by this policy. Do not bypass native confirmation
+   controls or invent an approval.
+
+**For the concrete #115 / #124 situation:** the OPT #115 checkpoint confirms
+the synthetic project's first lot was created; it is *not* a DAO submission.
+Issue #124 explicitly grants OPT 20 a full Client -> Admin -> Artisan ->
+Client test including DAO submission on authorized synthetic data. OPT #115
+should record the existing PASS and let OPT 20 own the subsequent
+cross-role/mutating test step, coordinating through issues; neither agent
+must ask the owner to "confirm" an already-authorized test submission.
+Never submit a real dossier, send a new external message to a real person
+or impersonate a separate reviewer.
+
+**Messages to the owner:** report only DONE, BLOCKED, important failures,
+true new business/security decisions, and a final concise outcome with
+GitHub links. Do not send an extra confirmation request after "checkpoint
+published". Routine progress belongs in GitHub/Telegram according to the
+existing monitoring policy.
+
 ## 1. Resume from remote evidence
 
 1. Identify the official repository `Khaey/Dao`, local path (if any), branch,
