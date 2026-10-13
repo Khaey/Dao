@@ -63,7 +63,7 @@
     },
     {
       "issue": 115,
-      "agent": "OPT",
+      "agent": "DAO OPT 2",
       "role": "OPT",
       "watchdog": false
     },
