@@ -4,12 +4,30 @@ import { createProjectWithMainLot, login } from './support/flow';
 import { actorCommand, adminRows } from './support/collaboration';
 import { recordE2EValue } from './support/state';
 
-test('Back-office : prise en charge, nouvelle version et sous-lots visibles côté client',async({page,browser,e2eClient,e2eReviewer,e2eOtherReviewer},info)=>{
- expect(e2eClient).toBeTruthy();expect(e2eReviewer).toBeTruthy();expect(e2eOtherReviewer).toBeTruthy();await login(page,e2eClient!);const project=await createProjectWithMainLot(page,info,'bo-review','Périmètre client original','Lot BO original');await page.goto(`/app/projects/${project.projectId}/review`);await page.getByRole('button',{name:'Soumettre pour revue DAO'}).click();
+test('Back-office : prise en charge, nouvelle version et sous-lots visibles côté client',async({page,browser,e2eClient,e2eReviewer,e2eOtherReviewer,e2eAdmin},info)=>{
+ expect(e2eClient).toBeTruthy();expect(e2eReviewer).toBeTruthy();expect(e2eOtherReviewer).toBeTruthy();expect(e2eAdmin).toBeTruthy();await login(page,e2eClient!);const project=await createProjectWithMainLot(page,info,'bo-review','Périmètre client original','Lot BO original');await page.goto(`/app/projects/${project.projectId}/review`);await page.getByRole('button',{name:'Soumettre pour revue DAO'}).click();
  const rc=await browser.newContext(),reviewer=await rc.newPage();await login(reviewer,e2eReviewer!);await reviewer.goto(`/app/dao/projects/${project.projectId}`);await reviewer.getByRole('button',{name:'Prendre en charge',exact:true}).click();await expect(reviewer.getByText('Revue prise en charge.',{exact:true})).toBeVisible();
- const oc=await browser.newContext(),other=await oc.newPage();await login(other,e2eOtherReviewer!);await other.goto(`/app/dao/projects/${project.projectId}`);await expect(other.getByText(/Lecture seule : ce dossier/)).toBeVisible();await expect(other.getByRole('button',{name:'Modifier le dossier'})).toHaveCount(0);const forged=await actorCommand(other,e2eOtherReviewer!,'/api/dao/backoffice',{action:'claim',input:{project_id:project.projectId},idempotency_key:randomUUID()});expect(forged.status()).toBe(403);await oc.close();
+ const oc=await browser.newContext(),other=await oc.newPage();await login(other,e2eOtherReviewer!);await other.goto(`/app/dao/projects/${project.projectId}`);await expect(other.getByText(/Lecture seule : ce dossier/)).toBeVisible();await expect(other.getByRole('button',{name:'Modifier le dossier'})).toHaveCount(0);const forged=await actorCommand(other,e2eOtherReviewer!,'/api/dao/backoffice',{action:'claim',input:{project_id:project.projectId},idempotency_key:randomUUID()});expect(forged.status()).toBe(403);
+ await other.goto('/app/dao/review');
+ await expect(other.getByRole('link',{name:project.title,exact:true})).toBeVisible();
+ await other.getByRole('checkbox',{name:'Mes revues'}).check();
+ await expect(other.getByRole('link',{name:project.title,exact:true})).toHaveCount(0);
+ await expect(other.getByText('Aucune revue ne vous est attribuée.',{exact:true})).toBeVisible();
+ await oc.close();
  const assignedName=(await adminRows('profiles',`user_id=eq.${e2eReviewer!.id}&select=display_name`))[0].display_name;
  await expect(reviewer.getByText(`Pris en charge par : ${assignedName}`,{exact:true})).toBeVisible();
+ await reviewer.goto('/app/dao/review');
+ await reviewer.getByRole('checkbox',{name:'Mes revues'}).check();
+ await expect(reviewer.getByRole('link',{name:project.title,exact:true})).toBeVisible();
+ await reviewer.goto(`/app/dao/projects/${project.projectId}`);
+ const ac=await browser.newContext(),admin=await ac.newPage();
+ await login(admin,e2eAdmin!);
+ await admin.goto('/app/dao/review');
+ await expect(admin.getByRole('link',{name:project.title,exact:true})).toBeVisible();
+ await admin.getByRole('checkbox',{name:'Mes revues'}).check();
+ await expect(admin.getByRole('link',{name:project.title,exact:true})).toHaveCount(0);
+ await expect(admin.getByText('Aucune revue ne vous est attribuée.',{exact:true})).toBeVisible();
+ await ac.close();
  await reviewer.getByRole('button',{name:'Modifier le dossier'}).click();
  await reviewer.getByLabel('Titre',{exact:true}).fill('Modification non enregistrée');
  await reviewer.getByRole('button',{name:'Ajouter un lot',exact:true}).click();
