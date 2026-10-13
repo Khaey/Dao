@@ -13,6 +13,8 @@ import time
 
 ROOT = Path('/etc/dao-oce-cloudflare')
 SERVICE = 'dao-oce-cloudflared.service'
+TUNNEL_ID = '0a42e8b3-1f74-4b3b-8440-e54efe20145a'
+MAX_PROVISION_PAYLOAD = 24 * 1024
 
 
 def private_file(path):
@@ -31,9 +33,73 @@ def deadline(signum, frame):
     raise TimeoutError("Bounded private operation deadline")
 
 
+def strict_json(raw):
+    def pairs(items):
+        value = {}
+        for key, item in items:
+            if key in value:
+                raise ValueError('Duplicate JSON key')
+            value[key] = item
+        return value
+    return json.loads(raw, object_pairs_hook=pairs)
+
+
+def provision(cf):
+    raw = sys.stdin.read(MAX_PROVISION_PAYLOAD + 1)
+    cf.require(len(raw) <= MAX_PROVISION_PAYLOAD)
+    values = strict_json(raw)
+    cf.require(isinstance(values, dict) and set(values) == {
+        'api_token', 'tunnel_token', 'approved_emails'})
+    token = values['api_token']
+    tunnel_token = values['tunnel_token']
+    approved = values['approved_emails']
+    cf.require(all(isinstance(value, str) for value in values.values()))
+    cf.require(0 < len(token) <= 4096 and all(33 <= ord(char) <= 126 for char in token))
+    cf.require(0 < len(tunnel_token) <= 4096 and 0 < len(approved) <= 16384)
+    emails = [email.strip().lower() for email in approved.split(',')]
+
+    zones = cf.api_get('/zones?name=logiclab.fr&per_page=50', token)
+    cf.require(len(zones) == 1 and zones[0].get('name') == 'logiclab.fr')
+    account = zones[0].get('account', {}).get('id')
+    zone_id = zones[0].get('id')
+    base = '/accounts/' + account
+    apps = cf.api_get(base + '/access/apps?per_page=100', token)
+    selected = [app for app in apps if app.get('domain') == cf.HOST]
+    cf.require(len(selected) == 1)
+    organization = cf.api_get(base + '/access/organizations', token)
+    domain = organization.get('auth_domain')
+    cf.require(isinstance(domain, str) and domain.endswith('.cloudflareaccess.com'))
+    manifest = cf.validate_manifest({
+        'account_id': account, 'zone_id': zone_id, 'tunnel_id': TUNNEL_ID,
+        'application_id': selected[0].get('id'),
+        'team_name': domain.removesuffix('.cloudflareaccess.com'), 'emails': emails,
+    })
+    cf.validate_tunnel_token(tunnel_token, manifest)
+    result = cf.audit(manifest, lambda path: cf.api_get(path, token))
+
+    names = ('approved.json', 'api-token', 'tunnel-token')
+    cf.require(all(not (ROOT / name).exists() and not (ROOT / name).is_symlink() for name in names))
+    created = []
+    try:
+        for name, value in zip(names, (json.dumps(manifest), token, tunnel_token)):
+            fd = os.open(ROOT / name, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+            created.append(ROOT / name)
+            with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+                stream.write(value + '\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+    except BaseException:
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise
+    print(json.dumps({'provisioning': 'complete',
+                      'configuration_verified': result.get('configuration_verified') is True,
+                      'configuration_written': True, 'tunnel_started': False}, sort_keys=True))
+
+
 def main():
     try:
-        if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] not in ('audit', 'probe', 'start', 'stop', 'status'):
+        if os.geteuid() != 0 or len(sys.argv) != 2 or sys.argv[1] not in ('provision', 'audit', 'probe', 'start', 'stop', 'status'):
             raise ValueError('Unsupported operation')
         signal.signal(signal.SIGALRM, deadline)
         signal.alarm(180)
@@ -54,6 +120,9 @@ def main():
             spec = importlib.util.spec_from_file_location('oce_cf', '/usr/local/libexec/dao-oce-cloudflare.py')
             cf = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(cf)
+            if op == 'provision':
+                provision(cf)
+                return 0
             m = cf.validate_manifest(json.loads(private_file(ROOT / 'approved.json')))
             if op == 'probe':
                 # Run without cookies as the actual D.A.O Unix identity.

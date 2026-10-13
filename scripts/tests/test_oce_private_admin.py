@@ -1,12 +1,17 @@
 import base64
 import importlib.util
+import io
 import json
 from pathlib import Path
+import tempfile
 import types
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
+fixture_spec = importlib.util.spec_from_file_location('private_admin_fixture', ROOT / 'scripts/tests/test_oce_cloudflare.py')
+fixture_module = importlib.util.module_from_spec(fixture_spec)
+fixture_spec.loader.exec_module(fixture_module)
 spec = importlib.util.spec_from_file_location('private_admin', ROOT / 'ops/dao-oce-private-admin.py')
 a = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(a)
@@ -22,6 +27,42 @@ class Lock:
 
 
 class AdminBoundaries(unittest.TestCase):
+    def test_provision_workflow_is_owner_main_issue_58_and_streams_to_fixed_helper(self):
+        workflow = (ROOT / '.github/workflows/oce-private-provision.yml').read_text()
+        self.assertIn("github.event.issue.number == 58", workflow)
+        self.assertIn("github.event.comment.body == '/dao-oce provision'", workflow)
+        self.assertIn("github.event.comment.author_association == 'OWNER'", workflow)
+        self.assertIn("github.ref == 'refs/heads/main'", workflow)
+        self.assertIn('sudo -n /usr/local/sbin/dao-oce-private-admin provision', workflow)
+        self.assertNotIn('workflow_dispatch:', workflow)
+
+    def test_provision_stream_audits_then_writes_root_only_files_without_echo(self):
+        fixture = fixture_module.PrivateDemoTests()
+        fixture.setUp()
+        manifest, data = fixture.m, fixture.data
+        data['/zones?name=logiclab.fr&per_page=50'] = [{
+            'name': 'logiclab.fr', 'id': manifest['zone_id'],
+            'account': {'id': manifest['account_id']}}]
+        tunnel_token = base64.b64encode(json.dumps({
+            'a': manifest['account_id'], 't': manifest['tunnel_id'],
+            's': base64.b64encode(bytes(32)).decode(),
+        }).encode()).decode()
+        payload = json.dumps({'api_token': 'private-api-token', 'tunnel_token': tunnel_token,
+                              'approved_emails': ','.join(manifest['emails'])})
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(a, 'ROOT', Path(directory)), \
+             patch.object(a, 'TUNNEL_ID', manifest['tunnel_id']), \
+             patch.object(fixture_module.cf, 'api_get', side_effect=lambda path, token: data[path]), \
+             patch.object(a.sys, 'stdin', io.StringIO(payload)), \
+             patch('sys.stdout', new_callable=io.StringIO) as output:
+            a.provision(fixture_module.cf)
+            rendered = output.getvalue()
+            self.assertTrue(json.loads(rendered)['configuration_written'])
+            self.assertNotIn('private-api-token', rendered)
+            self.assertNotIn(manifest['emails'][0], rendered)
+            for name in ('approved.json', 'api-token', 'tunnel-token'):
+                self.assertEqual((Path(directory) / name).stat().st_mode & 0o777, 0o600)
+
     def invoke(self, operation, foreign=False, probe_fails=False, healthy=True):
         cf_spec = importlib.util.spec_from_file_location('test_cf', ROOT / 'ops/oce-cloudflare.py')
         cf = importlib.util.module_from_spec(cf_spec)
