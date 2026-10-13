@@ -7,6 +7,10 @@ on:
   workflow_run:
     workflows: ["DAO CI and DEV deploy"]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - ".github/dao-monitor-agents.json"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
@@ -26,6 +30,7 @@ jobs:
   notify:
     if: >-
       github.event_name == 'issue_comment' ||
+      github.event_name == 'push' ||
       github.event_name == 'workflow_run' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.action == 'closed')
