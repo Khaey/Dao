@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """D.A.O Monitor: trusted GitHub events -> outbound Telegram; no VPS needed."""
+import base64
 import datetime as dt
 import json
 import os
@@ -26,6 +27,54 @@ BASE = f"https://github.com/{REPO}"
 def configuration():
     with CONFIG.open(encoding="utf-8") as handle:
         return json.load(handle)
+
+
+
+def registration_alert(previous, current):
+    """Describe only reviewed registry additions/owner transfers, never free-form claims."""
+    old = {(entry["issue"], entry["agent"]) for entry in previous.get("missions", [])}
+    additions = {}
+    for entry in current.get("missions", []):
+        issue, agent = entry.get("issue"), entry.get("agent")
+        if (not isinstance(issue, int) or isinstance(issue, bool) or issue < 1
+                or not isinstance(agent, str) or not re.fullmatch(r"[A-Za-z0-9 À-ÿ_-]{2,50}", agent)):
+            continue
+        if (issue, agent) not in old:
+            additions.setdefault(agent, []).append(issue)
+    if not additions:
+        return None
+    lines = ["👋 DAO Monitor — nouveaux agents / missions enregistrés"]
+    for agent in sorted(additions):
+        missions = ", ".join(f"#{n}" for n in sorted(set(additions[agent])))
+        lines.append(f"👤 {agent} — missions {missions}")
+    lines.append("✅ Le routage des futures alertes GitHub est configuré.")
+    return "\n".join(lines)
+
+
+def github_registry_at(sha):
+    """Read an immutable registry revision, not an untrusted PR or moving main."""
+    if not isinstance(sha, str) or not re.fullmatch(r"[a-f0-9]{40}", sha):
+        raise RuntimeError("Invalid registry revision")
+    record = github_api("GET", f"contents/.github/dao-monitor-agents.json?ref={sha}")
+    if record.get("encoding") != "base64":
+        raise RuntimeError("Registry content is not base64")
+    return json.loads(base64.b64decode(record["content"], validate=False).decode("utf-8"))
+
+
+def onboarding_push(event):
+    """GitHub main-only config push produces a single Telegram enrollment message."""
+    if event.get("ref") != "refs/heads/main" or event.get("deleted"):
+        return
+    before, after = event.get("before"), event.get("after")
+    if before == after:
+        return
+    previous = github_registry_at(before)
+    current = github_registry_at(after)
+    message = registration_alert(previous, current)
+    if message:
+        telegram(message)
+    else:
+        print("DAO Monitor: no new mission assignments in registry update.")
 
 
 def clean(value, maxlen=150):
@@ -336,6 +385,9 @@ def main():
         return
     with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as handle:
         event = json.load(handle)
+    if event_name == "push":
+        onboarding_push(event)
+        return
     related_pr = None
     if event_name == "workflow_run":
         run = event.get("workflow_run", {})
