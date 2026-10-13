@@ -7,6 +7,12 @@ il ne contacte pas le VPS et n'écrit aucune configuration. Les helpers root
 installés, sudoers, services et exposition de `:8080` ne sont pas modifiés.
 Le démarrage du tunnel et `gateway-host apply` restent des mandats distincts.
 
+Après audit complet réussi et mandat propriétaire, le workflow distinct
+**OCE private root provision** accepte uniquement `/dao-oce provision` sur
+l'issue #58. Il transmet les trois secrets protégés dans le flux SSH au helper
+root fixe, sans fichier de payload dans le transport, refait le même audit puis
+crée les trois fichiers root 0600 une seule fois.
+
 ## Déclenchement fixe
 
 Le propriétaire `Khaey` publie un **nouveau** commentaire sur l'issue #58 dont

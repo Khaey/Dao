@@ -1,0 +1,51 @@
+name: OCE private root provision
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dao-dev-operations
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    if: >-
+      github.repository == 'Khaey/Dao' && github.ref == 'refs/heads/main' &&
+      github.actor == 'Khaey' && github.event.action == 'created' &&
+      github.event.issue.number == 58 && !github.event.issue.pull_request &&
+      github.event.comment.user.login == 'Khaey' &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.event.comment.body == '/dao-oce provision'
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 6
+    steps:
+      - name: Provision through fixed root helper
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          OCE_CLOUDFLARE_API_TOKEN: ${{ secrets.OCE_CLOUDFLARE_API_TOKEN }}
+          OCE_CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.OCE_CLOUDFLARE_TUNNEL_TOKEN }}
+          OCE_CLOUDFLARE_APPROVED_EMAILS: ${{ secrets.OCE_CLOUDFLARE_APPROVED_EMAILS }}
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          envs: OCE_CLOUDFLARE_API_TOKEN,OCE_CLOUDFLARE_TUNNEL_TOKEN,OCE_CLOUDFLARE_APPROVED_EMAILS
+          timeout: 30s
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            umask 077
+            python3 -I - <<'PY' | sudo -n /usr/local/sbin/dao-oce-private-admin provision
+            import json, os, sys
+            names = ('OCE_CLOUDFLARE_API_TOKEN', 'OCE_CLOUDFLARE_TUNNEL_TOKEN',
+                     'OCE_CLOUDFLARE_APPROVED_EMAILS')
+            values = [os.environ.pop(name, '') for name in names]
+            if not all(values):
+                raise SystemExit('Required protected input missing; values withheld')
+            json.dump(dict(zip(('api_token', 'tunnel_token', 'approved_emails'), values)), sys.stdout)
+            PY
