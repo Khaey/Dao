@@ -36,6 +36,39 @@ class DevAdminOceAuditTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue()), report)
         self.assertNotIn('private-value', output.getvalue())
 
+    def test_gateway_failure_reasons_are_closed_and_bounded(self):
+        for reason in ('oce health timeout', 'gateway service not ready',
+                       'gateway activation failed and rollback incomplete'):
+            self.assertEqual(admin.gateway_failure_reason(json.dumps(
+                {'oce_gateway_host_error': reason})), reason)
+        for raw in (
+            'private-value', 'x' * 4097, '', 'null', '[]',
+            '{"oce_gateway_host_error": "private-value"}',
+            '{"oce_gateway_host_error": ["private-value"]}',
+            '{"oce_gateway_host_error": "oce health timeout", "secret": "private-value"}',
+            '{"oce_gateway_host_error": "oce health timeout"} trailing-private-value',
+        ):
+            with self.subTest(raw=raw[:80]):
+                self.assertEqual(admin.gateway_failure_reason(raw), 'unclassified')
+
+    def test_gateway_failure_keeps_failure_and_never_forwards_raw_output(self):
+        for operation in (admin.oce_gateway_plan, admin.oce_gateway_apply):
+            for reason in ('oce health timeout', 'private-value'):
+                with self.subTest(operation=operation.__name__, reason=reason), \
+                     patch.object(admin.Path, 'is_file', return_value=True), \
+                     patch.object(admin.os, 'access', return_value=True), \
+                     patch.object(admin.subprocess, 'run', return_value=types.SimpleNamespace(
+                         returncode=1, stdout='private-value', stderr=json.dumps(
+                             {'oce_gateway_host_error': reason}))), \
+                     patch('sys.stdout', new_callable=io.StringIO) as output:
+                    with self.assertRaises(ValueError):
+                        operation()
+                report = json.loads(output.getvalue())
+                self.assertEqual(report['reason'], reason if reason != 'private-value'
+                                 else 'unclassified')
+                self.assertIn('failed', report.values())
+                self.assertNotIn('private-value', output.getvalue())
+
     def test_select_oce_container_prefers_named_match(self):
         rows = [
             {"ID": "aaaaaaaaaaaa", "Image": "other:latest", "Names": "proxy", "Ports": "0.0.0.0:8080->80/tcp"},
