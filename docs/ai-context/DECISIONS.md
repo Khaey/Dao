@@ -1,3 +1,17 @@
+> **Pilot 4 / décisions récentes (2026-10-13)** —
+> [Passation complète](PILOT4_HANDOFF_20261013.md),
+> [D1–D10 Contrat #61](https://github.com/Khaey/Dao/issues/61#issuecomment-6136048098),
+> [GO P2.2-A #125](https://github.com/Khaey/Dao/issues/125),
+> [Paramètres #126](https://github.com/Khaey/Dao/issues/126).
+> D1–D10 sont **validées comme principes** (1 contrat par award, tripartite,
+> snapshots/millimes/versions et archive privée) ; les signataires DAO,
+> preuves juridiques, règles fiscales/délais, clôture d'un draft bloquant et
+> lecture d'archive après suspension sont **non tranchés**. **P2.2-A uniquement**,
+> aucune signature réelle ni état signed productif. #126 est un **cadrage**,
+> la liste blanche de paramètres et la sécurité ne sont pas encore approuvées.
+> Les décisions historiques ci-dessous demeurent, mais l'état produit live
+> exige toujours lecture du dernier commentaire d'issue et du vrai main.
+
 # D.A.O — Decisions
 
 ## D-044 — Messagerie privée liée aux memberships actifs (#116)
