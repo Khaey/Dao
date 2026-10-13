@@ -1,6 +1,9 @@
-# Tables MVP — 43 tables applicatives
+# Tables applicatives — 59 tables
 
-Catalogue vérifié contre l’historique DEV jusqu’à `20260926092748_enforce_draft_withdrawal_and_approved_publication.sql`. Les façades RPC publiques et les fonctions `dao_private` ne sont pas des tables. Supabase Auth et Storage restent des services gérés séparément.
+Catalogue vérifié par le contrat de schéma frais jusqu'à
+`20261013014522_contract_v1_foundation.sql`. Les façades RPC publiques et les
+fonctions `dao_private` ne sont pas des tables. Supabase Auth et Storage restent
+des services gérés séparément.
 
 1. `governorates`
 2. `delegations`
@@ -45,5 +48,21 @@ Catalogue vérifié contre l’historique DEV jusqu’à `20260926092748_enforce
 41. `portfolio_projects`
 42. `portfolio_assets`
 43. `bid_documents`
+44. `project_members`
+45. `project_invitations`
+46. `award_cancellations`
+47. `bid_item_results`
+48. `account_states`
+49. `review_assignments`
+50. `request_sub_lots`
+51. `request_sub_lot_versions`
+52. `publication_lot_withdrawals`
+53. `notification_outbox`
+54. `staff_invitation_requests`
+55. `contractor_profile_details`
+56. `contractor_files`
+57. `contract_items`
+58. `contract_events`
+59. `contract_archives`
 
 Auth et Storage sont gérés par Supabase et ne sont pas recomptés.

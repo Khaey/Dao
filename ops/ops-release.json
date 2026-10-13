@@ -9,16 +9,16 @@
       "size": 32622
     },
     "ops/dao-oce-private-admin.py": {
-      "sha256": "1ca75d7ed7cb9f8e8d1eb72759a44053db5af649be3d62b7e9ac699f4cf54f85",
-      "size": 7208
+      "sha256": "2a60457e82ff8333ddffc89d1cc29a612640c1fba8d7041f29609b72c1a3bfe6",
+      "size": 7770
     },
     "ops/dao-ops-admin.py": {
       "sha256": "3a681e9cfa067e756c62183619ea716c340cf200bcf3c67e1eba0bf3ca1d37dd",
       "size": 21784
     },
     "ops/oce-cloudflare.py": {
-      "sha256": "2aa45c24ca1ffc1b880e8830997bfb641fc8cb59cedbb086194211786ea1dce4",
-      "size": 8822
+      "sha256": "c1b9fae365738088c5a6071f758d870fb446e6126708254a3e746ffcc8977ee0",
+      "size": 8882
     },
     "ops/oce-v1-egress-guard.py": {
       "sha256": "cca5cb0b9d901a4a4b1f1992f7f234e0ef1ba3243e806a95793a9d70d54ef20b",

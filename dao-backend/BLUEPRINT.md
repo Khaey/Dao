@@ -69,6 +69,15 @@ Historique DEV présent jusqu’à `20260926092748_enforce_draft_withdrawal_and_
 - PGlite avec replay complet sans stub RLS : 96/96 ;
 - le test Supabase réel est restreint au stack local jetable et attend la disponibilité d’un runtime Docker-compatible.
 
+## Fondation Contrat V1 (P2.2-A)
+
+Le schéma prépare désormais, côté service uniquement, un contrat non engageant
+par `award`. `contract_items` fige les lots et montants, les trois parties sont
+créées atomiquement et une version JSON SHA-256 devient la référence courante.
+Versions, parties, lignes, événements et archives sont immuables. La lecture est
+limitée aux parties actives et aux admins D.A.O actifs. Aucun parcours API/UI,
+transition engageante, signature, PDF ou paiement n'est livré dans ce lot.
+
 ## Hors MVP / Phase 2
 
 Paiement/escrow, ledger, signature électronique, contrats exécutoires, garanties et litiges complets, sous-traitance, OCE et IA avancée.
