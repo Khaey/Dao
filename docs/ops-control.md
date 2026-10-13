@@ -33,6 +33,7 @@ portent sur le mandat et les préconditions, pas sur des clés individuelles.
 | DEV/OPT chargé de récupération DEV | `restart`, `env-sync` | Accord sur la mutation partagée ; sudoers DEV existants ; env-sync : trois clés protégées disponibles | Run + smoke/status ; sync idempotent ou restauration de l'env précédente |
 | OPT responsable maintenance, autres agents sous mandat explicite | `ops-status`, `ops-preflight`, `ops-upgrade`, `ops-rollback` | Bootstrap OPS ; upgrade : main/CI/admission explicite ; services concernés inactifs ; aucune dérive installée | Run + version actuelle/précédente, fichiers changés, CI et commentaire d'admission ; rollback : restauration vérifiée |
 | DEV/OPT en lecture OCE | `oce-integration-inventory`, `oce-gateway-plan`, `backup-status`, `oce-status` | Helpers installés ; backup-status nécessite bootstrap OPS et état de backup existant | Métadonnées expurgées ; aucun nouveau backup/restore ou basculement |
+| DEV 20 sous mandat explicite #58 | `oce-gateway-apply` | Audit Cloudflare et tunnel prêts, plan gateway favorable, autorisation de fermer le lien public | Rapport fermé du helper, rollback intégré en cas d'échec |
 | DEV 20, successeurs explicitement affectés à #58 | `oce-audit`, `oce-probe`, `oce-start`, `oce-stop` | Helper privé et provisionnement #58 ; start exige mandat de démarrage et audit favorable | Run du helper privé ; les secrets et la configuration restent privés |
 
 `oce-audit` désigne ici **l'audit Access/Tunnel du helper privé**, comme le
@@ -175,7 +176,12 @@ Il ne charge ni script ni manifeste depuis `/opt/dao/current`.
 Le catalogue fermé dans `ops/dao-ops-admin.py` couvre les neuf fichiers Python
 gérés. Seuls les fichiers **déjà installés** sont maintenus ; les fichiers
 absents sont signalés, jamais installés implicitement. Il n'installe pas de
-binaire cloudflared, unité systemd, sudoers additionnel, configuration ou secret.
+binaire cloudflared, unité systemd, configuration ou secret.
+Après installation du contrôleur revu, un second `ops-upgrade` sans changement
+de code réconcilie uniquement les deux fichiers sudoers déjà installés avec les
+octets attendus : ajout de `dao-oce-private-admin provision` et
+`dao-dev-admin oce-gateway-apply`. Toute dérive bloque l'écriture ; `visudo`
+valide le fichier temporaire avant remplacement atomique.
 Il ne démarre aucun service. Toute modification des sources du catalogue doit
 mettre à jour `ops/ops-release.json` avec `python3 scripts/build-ops-release.py`
 dans la même PR ; un test vérifie ce manifeste.
@@ -276,10 +282,12 @@ et, pour l'audit complet, la liste privée indépendante d'e-mails approuvés.
 GET uniquement, aucun contact VPS ni écriture root. Ce chemin reste distinct
 des 18 opérations communes et de la maintenance code-only : aucun nouveau
 grant root, provisioning implicite ou détournement de env-sync/audit/status.
-Le provisionnement initial depuis GitHub nécessite encore une capacité root
-distincte revue/installée ; ne pas redemander les anciens blocs terminal ou
-le bootstrap OPS terminé. Un secret déjà provisionné n'est pas redemandé à
-chaque Work ; une CI verte ne prouve ni sa présence ni Access/Tunnel READY.
+Le provisionnement initial passe par le workflow main-only
+`OCE private root provision`, déclenché uniquement par le commentaire exact
+`/dao-oce provision` du propriétaire sur #58. Les trois secrets protégés sont
+transmis dans le flux SSH au helper root fixe, validés par l'audit complet puis
+écrits une seule fois en root:root 0600. Aucun fichier de secret n'est créé dans
+le transport `/opt/dao`. Un secret déjà provisionné n'est pas redemandé.
 
 ## Qualification et reprise
 

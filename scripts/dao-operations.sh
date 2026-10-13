@@ -104,6 +104,7 @@ case "$operation" in
   log-summary) sudo -n /usr/local/sbin/dao-dev-admin log-summary ;;
   oce-integration-inventory) sudo -n /usr/local/sbin/dao-dev-admin oce-integration-inventory ;;
   oce-gateway-plan) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan ;;
+  oce-gateway-apply) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-apply ;;
   diagnostics) python3 dao-ops-diagnostics.py ;;
   ops-status) sudo -n /usr/local/sbin/dao-ops-admin status ;;
   ops-preflight) sudo -n /usr/local/sbin/dao-ops-admin preflight ;;

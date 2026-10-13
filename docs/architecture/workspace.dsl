@@ -63,9 +63,9 @@ model {
 
   demoOwner = person "Propriétaire / invité OCE" "Identité Access nommément approuvée, indépendante des rôles D.A.O."
   oceDemo = softwareSystem "Démo OCE indépendante" "Runtime OCE existant ; comptes démo conservés ; aucune dépendance produit D.A.O." "External"
-  ocePrivateAccess = softwareSystem "Accès privé démo OCE" "Préparé #58, non activé : Access OTP, e-mails exacts et Tunnel avec validation JWT Access." "External,Planned"
-  demoOwner -> ocePrivateAccess "Cible de recette propriétaire/invités ; non activée"
-  ocePrivateAccess -> oceDemo "Cible : Tunnel vers loopback:8080 ; sans bascule du port public" "Planned"
+  ocePrivateAccess = softwareSystem "Accès privé démo OCE" "Access OTP, e-mails exacts et Tunnel avec validation JWT Access ; activation bornée par #58." "External"
+  demoOwner -> ocePrivateAccess "Accède après challenge OTP et policy nominative"
+  ocePrivateAccess -> oceDemo "Tunnel vers loopback:8080 ; passerelle privée après activation autorisée"
 
   resend = softwareSystem "Resend" "Transport des emails transactionnels." "External"
 
@@ -81,10 +81,10 @@ model {
   rootMaintenance = softwareSystem "Maintenance root OPS" "Catalogue installé #91, admission main/CI/SHA et snapshots root ; cycle upgrade/rollback du contrôleur qualifié live sur une évolution réelle." "External"
   workAgents -> github "Commentaires owner exacts #91 ou Actions main selon mandat"
   workAgents -> github "Commentaires owner exacts #58 pour contrôle Cloudflare sur runner selon mandat"
-  githubDevEnv -> github "Fournit les deux jetons OCE et la liste approuvée privée à la seule étape de contrôle #58"
+  githubDevEnv -> github "Fournit les deux jetons OCE et la liste approuvée aux workflows bornés de contrôle/provisionnement #58"
   github -> cloudflareApi "GET main-only sous owner/dev ; aucun transfert VPS, credential écrit ou tunnel démarré"
   github -> rootMaintenance "Scripts de contrôle non-root main-only, indépendants du lien release ; maintenance exige CI verte et admission du SHA"
-  rootMaintenance -> vps "Maintient et restaure le code des neuf copies root ; aucun secret/service/réseau modifié"
+  rootMaintenance -> vps "Maintient le code root et les grants exacts ; provisionne/start/apply uniquement par verbes fixes autorisés"
 
   client -> dao.web.shell "Utilise l'espace client"
   contractor -> dao.web.shell "Utilise l'espace artisan"
@@ -206,8 +206,8 @@ views {
     autoLayout tb
   }
 
-  systemLandscape "OceCloudflareChecks" "Contrôles Cloudflare #58 sur runner ; provisionnement root et activation restent séparés." {
-    include workAgents github githubDevEnv cloudflareApi
+  systemLandscape "OceCloudflareChecks" "Contrôle, provisionnement et activation OCE #58 par workflows et verbes root bornés." {
+    include workAgents github githubDevEnv cloudflareApi rootMaintenance vps ocePrivateAccess oceDemo demoOwner
     autoLayout tb
   }
 

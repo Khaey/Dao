@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 import { Badge, Card } from '../../../../components/ui';
+import { publicationStatusLabel, publicationVisibilityLabel } from '../../../../lib/utils';
 import { readBackoffice } from '../../../../lib/backoffice';
 import WithdrawLot from '../../../../components/backoffice/WithdrawLot';
 import PublicationOffersPanel from './PublicationOffersPanel';
@@ -54,7 +55,7 @@ export default function PublicationDetail() {
       <p className="text-sm font-semibold text-teal">DAO publié</p>
       <h1 className="mt-1 text-3xl font-bold">{publication.safe_title}</h1>
       <p className="mt-2 text-black/60">{publication.safe_description}</p>
-      <div className="mt-3 flex gap-2"><Badge>{publication.visibility}</Badge><Badge>{publication.status}</Badge></div>
+      <div className="mt-3 flex gap-2"><Badge>{publicationVisibilityLabel[publication.visibility] ?? publication.visibility}</Badge><Badge>{publicationStatusLabel[publication.status] ?? publication.status}</Badge></div>
     </div>
     <Card>
       <h2 className="font-semibold">Lots proposés</h2>

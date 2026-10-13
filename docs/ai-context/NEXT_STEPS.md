@@ -29,9 +29,10 @@ travail déjà fusionné ou tests validés sur code identique.
    collaboration et UX-115-01/02/03. **#115 OPT** continue son audit distinct,
    réutilise le scénario d'invitation TEST accepté, remet les écarts Back-office
    UX-115-04/05 à #64, évite les doubles inspections/tests.
-4. **#58 DEV 20/OCE :** audit Cloudflare **PASS** acquis, ne pas refaire le
-   diagnostic token. Vérifier les décisions VPS/root/tunnel indispensables,
-   aucune écriture/start/apply/:8080 implicitement autorisés. #91 OPS passif.
+4. **#58 DEV 20/OCE :** audit Cloudflare **PASS** acquis et mandat VPS/start/
+   apply accordé. Livrer le chemin root borné, admettre le SHA vert via #91,
+   réconcilier les grants exacts, provisionner, démarrer/prober puis appliquer
+   la passerelle seulement après les contrôles live favorables.
 5. **#126 Paramètres :** décider qui peut mener S0 audit des valeurs réglables,
    sans coder ; présenter la liste blanche et les droits proposés pour accord
    avant S1. #64 Back-office reste propriétaire de ses écrans/bugs actuels.
