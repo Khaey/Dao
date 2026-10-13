@@ -49,7 +49,7 @@ model {
 
       staffAdmin = component "Équipe D.A.O & permissions" "Invitation Auth standard, rôles cumulables, suspension et dernier Admin actif." "Next.js / RPC / Auth"
       settings = component "Paramétrage avancé" "Configuration clients/artisans/workflows/pays; hors V1." "Futur" "Planned"
-      contracts = component "Contrats & exécution" "Contrat, jalons, versements, réception, réserves, avenants, résiliation, garantie." "P2/P3 futur" "Planned"
+      contracts = component "Contrat V1" "Fondation non engageante par award : snapshot immuable, trois parties, versions SHA-256 et audit ; aucune signature ou finance." "PostgreSQL / RPC privé"
       subcontract = component "Sous-traitance entreprise" "Entreprise titulaire pouvant publier certains lots aux sous-traitants." "P3 futur" "Planned"
       sessionPolicy = component "Politique de session" "Timeout/re-auth plus strict pour staff/admin; politique à définir." "Futur sécurité" "Planned"
     }
@@ -121,7 +121,7 @@ model {
   contractor -> dao.web.invitations "Consulte sa boîte et accepte/refuse une invitation"
   contractor -> dao.web.collaboration "Travaille sur un chantier accepté"
   contractor -> dao.web.messaging "Échange avec le client confirmé"
-  contractor -> dao.web.contracts "Participe à l’exécution" "Futur"
+  contractor -> dao.web.contracts "Lit le contrat dont il est partie ; aucune action engageante"
 
   reviewer -> dao.web.manager "Pilote les opérations"
   reviewer -> dao.web.managerReview "Traite les revues"
@@ -146,7 +146,7 @@ model {
   dao.web.bids -> dao.web.compare "Alimente la comparaison"
   dao.web.bids -> dao.web.awards "Alimente l'attribution"
   dao.web.compare -> dao.web.awards "Prépare l'attribution"
-  dao.web.awards -> dao.web.contracts "Déclenche le cycle contractuel" "Futur"
+  dao.web.awards -> dao.web.contracts "Alimente une préparation technique réservée au service"
   dao.web.contracts -> dao.web.subcontract "Permet la sous-traitance contrôlée" "Futur"
 
   dao.web.manager -> dao.web.managerReview "Expose les files de revue"

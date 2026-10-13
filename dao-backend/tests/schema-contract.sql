@@ -7,12 +7,12 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
     'bid_documents','bid_group_items','bid_groups','bid_items','bid_versions','bids',
-    'command_receipts','contract_parties','contract_versions',
+    'command_receipts','contract_archives','contract_events','contract_items','contract_parties','contract_versions',
     'contractor_profiles','contractor_service_areas','contractor_trades','contractor_profile_details','contractor_files',
     'contracts','conversation_participants','conversations','delegations',
     'document_grants','documents','governorates','localities','messages',
@@ -114,6 +114,7 @@ BEGIN
       'public.project_invitation_registration_context(text)',
       'public.respond_project_invitation(text,boolean)',
       'public.update_project_tracking(uuid,text,text)',
+      'public.prepare_contract_foundation(uuid,uuid,uuid,text,uuid)',
       'public.project_team(uuid)',
       'public.add_project_request(uuid,uuid,text,text)',
       'public.withdraw_project_request(uuid)',

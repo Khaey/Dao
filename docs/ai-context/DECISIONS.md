@@ -678,3 +678,16 @@ de `github-actions[bot]` de type Bot. Cela corrige l'usurpation de marqueur et
 les collisions d'identifiants sans changer seuil, fréquence, registre ni états.
 Aucun nouvel envoi de recette, faux BLOCKED/DONE, rattrapage historique, ou
 privilège n'est nécessaire. CI/fusion/preuves dans l'issue canonique #93.
+
+## Contrat V1 P2.2-A — décisions DAO Pilot (#125, 2026-10-13)
+
+Un contrat correspond à un award et fige ses lignes au moment de la préparation.
+Les parties sont client, contractor et D.A.O, sans identité juridique D.A.O
+inventée. Le total est la somme exacte des `agreed_millimes`; les versions sont
+immuables, hashées et accompagnées d'événements/archives append-only.
+
+Le vocabulaire cible est `draft`, `review`, `ready`, `awaiting_signatures`,
+`signed`, mais P2.2-A n'autorise que la préparation service-side d'un `draft`
+marqué non engageant. Aucune API/UI utilisateur, transition, signature, preuve
+de consentement, PDF ou opération financière n'est autorisée avant les décisions
+juridiques restantes. Lecture limitée aux parties actives et admins D.A.O actifs.

@@ -13,13 +13,14 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
   async function command(db:any,name:string,args:any){const result=await db.rpc(name,args);assert.ifError(result.error);return result.data;}
   async function denied(db:any,name:string,args:any,code?:string){const result=await db.rpc(name,args);assert.ok(result.error);if(code)assert.equal(result.error.code,code);}
   const users:any={};
-  for(const role of ['client','other','pro','competitor']){
+  for(const role of ['client','other','pro','competitor','dao']){
     const email=`award-${role}-${randomUUID()}@example.invalid`,password='P2!'+randomUUID();
     const created=await admin.auth.admin.createUser({email,password,email_confirm:true});assert.ifError(created.error);
     const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});assert.ifError((await db.auth.signInWithPassword({email,password})).error);
-    await command(db,'initialize_my_account',{p_display_name:role,p_phone_e164:null,p_account_type:['client','other'].includes(role)?'client':'contractor',p_business_name:['pro','competitor'].includes(role)?role:null});
+    await command(db,'initialize_my_account',{p_display_name:role,p_phone_e164:null,p_account_type:['pro','competitor'].includes(role)?'contractor':'client',p_business_name:['pro','competitor'].includes(role)?role:null});
     users[role]={db,id:created.data.user!.id};
     if(['pro','competitor'].includes(role)){const update=await admin.from('contractor_profiles').update({verification_status:'verified'}).eq('user_id',created.data.user!.id);assert.ifError(update.error);}
+    if(role==='dao')assert.ifError((await admin.from('user_roles').insert({user_id:created.data.user!.id,role:'dao_admin'})).error);
   }
   const gov=(await admin.from('governorates').select('id').eq('code','E2E_TEST').single()).data!.id;
   const trade=(await admin.from('trades').select('id').eq('code','plumbing').single()).data!.id;
@@ -80,5 +81,29 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
     const active=await admin.from('award_items').select('id').eq('project_id',f.project).eq('active',true);assert.ifError(active.error);assert.equal(active.data!.length,race[0].error?1:2);
     if(race[0].error){const lot=await admin.from('project_requests').select('status').eq('id',f.lots[1].id).single();assert.equal(lot.data!.status,'open');}
     else await denied(users.pro.db,'create_bid_draft',{p_publication_id:f.pub},'23514');
+  });
+  await t.test('contract foundation snapshots one award atomically and remains private and immutable',async()=>{
+    const f=await fixture(true);await rpc('pro','submit_bid_version',{p_version_id:f.offers.pro.version});
+    const awarded=await rpc('client','award_bid_group_atomic',{p_idempotency_key:randomUUID(),p_group_id:f.offers.pro.group});
+    const award=(await admin.from('award_items').select('award_id').eq('id',awarded.items[0].award_item_id).single()).data!;
+    const args={p_actor_id:users.dao.id,p_award_id:award.award_id,p_dao_user_id:users.dao.id,p_dao_legal_name:'D.A.O TEST',p_idempotency_key:randomUUID()};
+    assert.ok((await users.dao.db.rpc('prepare_contract_foundation',args)).error,'authenticated callers stay denied');
+    const prepared=await admin.rpc('prepare_contract_foundation',args);assert.ifError(prepared.error);
+    const replay=await admin.rpc('prepare_contract_foundation',args);assert.ifError(replay.error);assert.deepEqual(replay.data,prepared.data);
+    assert.equal(prepared.data.item_count,2);assert.equal(prepared.data.total_millimes,2002);assert.equal(prepared.data.non_engaging,true);
+    for(const role of ['client','pro','dao']){const visible=await users[role].db.from('contracts').select('id,status,total_millimes').eq('id',prepared.data.contract_id);assert.ifError(visible.error);assert.equal(visible.data!.length,1);}
+    for(const role of ['other','competitor']){const hidden=await users[role].db.from('contracts').select('id').eq('id',prepared.data.contract_id);assert.ifError(hidden.error);assert.equal(hidden.data!.length,0);}
+    const items=await users.pro.db.from('contract_items').select('agreed_millimes,title,duration_days').eq('contract_id',prepared.data.contract_id);assert.ifError(items.error);assert.equal(items.data!.length,2);
+    const version=await users.client.db.from('contract_versions').select('id,content,content_hash').eq('id',prepared.data.version_id).single();assert.ifError(version.error);assert.equal(version.data!.content.non_engaging,true);assert.match(version.data!.content_hash,/^[0-9a-f]{64}$/);
+    assert.ok((await admin.from('contract_versions').update({content:{forged:true}}).eq('id',prepared.data.version_id)).error);
+    assert.ok((await admin.from('contract_items').delete().eq('contract_id',prepared.data.contract_id)).error);
+    assert.ok((await admin.from('contracts').update({status:'signed'}).eq('id',prepared.data.contract_id)).error);
+    await denied(users.client.db,'cancel_award_item_atomic',cancelArgs(awarded.items[0].award_item_id),'23514');
+    const racing=await fixture();await rpc('pro','submit_bid_version',{p_version_id:racing.offers.pro.version});
+    const selected=await rpc('client','award_bid_item_atomic',awardArgs(racing.offers.pro.items[0].id));
+    const selectedRow=(await admin.from('award_items').select('award_id').eq('id',selected.award_item_id).single()).data!;
+    const raceArgs={...args,p_award_id:selectedRow.award_id,p_idempotency_key:randomUUID()};
+    const race=await Promise.all([admin.rpc('prepare_contract_foundation',raceArgs),users.client.db.rpc('cancel_award_item_atomic',cancelArgs(selected.award_item_id))]);
+    assert.equal(race.filter(result=>!result.error).length,1,'prepare and cancel cannot both commit');
   });
 });

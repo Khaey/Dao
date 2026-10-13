@@ -1,5 +1,16 @@
 # D.A.O — Next Steps
 
+## DEV 2 — livrer la fondation Contrat V1 #125
+
+Publier `feat/contract-v1-foundation` en PR draft avec `Owner issue: #125`,
+obtenir la CI complète sur le HEAD exact puis fusionner seulement verte après
+un dernier contrôle de `main`. Vérifier ensuite le déploiement main, appliquer
+la migration une seule fois sur DEV après lecture du ledger et exécuter les
+advisors Supabase. Ne pas exposer la préparation dans l'API/UI et ne pas ouvrir
+les états engageants : P2.2-B/C attend les décisions juridiques listées dans
+[le design Contrat V1](../product/contract-v1-design.md). Ne toucher ni #58,
+ni #64, ni #116, ni #124.
+
 ## PREMIÈRES ACTIONS DE PILOT 4 — 2026-10-13 (remplace les anciens « next » ci-dessous)
 
 Point d'entrée complet : [PILOT4_HANDOFF_20261013.md](PILOT4_HANDOFF_20261013.md).
