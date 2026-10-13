@@ -1,8 +1,8 @@
 {
   "files": {
     "ops/dao-dev-admin.py": {
-      "sha256": "4728249993f4288c1737d2529ecae9f63e36ca4c50f437e4760ca942f7653441",
-      "size": 22526
+      "sha256": "a4ef79c42fe871f1edb4a1011ac1ae0e3dabcb8f58939aab54ed148d337981b6",
+      "size": 24652
     },
     "ops/dao-oce-backup.py": {
       "sha256": "f7547796feb2a28252668684be2560af2e67ae9f24a162b156b7bd9f006b3ec4",
