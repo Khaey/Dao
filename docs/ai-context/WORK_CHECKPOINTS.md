@@ -13,6 +13,26 @@ Local edits, local commits, chat messages and a prepared-but-unpublished API
 commit are not a remote backup. A checkpoint comment describes a backup; it
 does not save the code itself.
 
+## 0A. Checkpoint is not a request for permission (Pilot 4)
+
+After publishing a checkpoint, **continue with the next authorized action**,
+without asking the user to confirm publication, approve the report or repeat
+"go". Post one useful checkpoint per meaningful phase, not an approval prompt
+for each small step. A single issue comment, branch/PR publication or green CI
+does not require a separate user confirmation when the owner issue already
+grants the next step.
+
+If the next step crosses another agent's assignment or changes a shared DEV
+TEST fixture, coordinate ownership through the issues first; do not create two
+parallel implementations or mutate the same test object concurrently.
+A native provider action requiring an explicit confirmation remains an actual
+permission gate and must never be circumvented. Only genuinely missing
+business/legal/security/privileged infrastructure authorizations should be
+escalated to Pilot; safe independent work continues.
+
+For detailed rules and the synthetic DAO #115/#124 example, use
+[AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md), section 0A.
+
 ## 1. Find the owner before starting
 
 Read the current owner issue and **latest relevant checkpoint** (not every
