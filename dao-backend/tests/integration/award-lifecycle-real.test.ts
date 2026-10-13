@@ -113,11 +113,29 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
     assert.ok((await admin.from('contract_items').delete().eq('contract_id',prepared.data.contract_id)).error);
     assert.ok((await admin.from('contracts').update({status:'signed'}).eq('id',prepared.data.contract_id)).error);
     await denied(users.client.db,'cancel_award_item_atomic',cancelArgs(awarded.items[0].award_item_id),'23514');
+    const forbiddenLegalStart=await admin.rpc('start_contract_acceptance',{p_actor_id:users.dao.id,p_contract_id:prepared.data.contract_id,p_signature_mode:'trusted_simple',p_legal_effect_enabled:true,p_idempotency_key:randomUUID()});
+    assert.ok(forbiddenLegalStart.error,'P2.2-B must reject legal activation');
+    const startArgs={p_actor_id:users.dao.id,p_contract_id:prepared.data.contract_id,p_signature_mode:'trusted_simple',p_legal_effect_enabled:false,p_idempotency_key:randomUUID()};
+    assert.ok((await users.dao.db.rpc('start_contract_acceptance',startArgs)).error,'acceptance orchestration stays service-only');
+    const started=await admin.rpc('start_contract_acceptance',startArgs);assert.ifError(started.error);assert.equal(started.data.status,'awaiting_signatures');assert.equal(started.data.legal_effect_enabled,false);
+    const evidence='a'.repeat(64),acceptedAt=new Date().toISOString();
+    const accept=(actor:string)=>({p_actor_id:actor,p_contract_id:prepared.data.contract_id,p_contract_version_id:prepared.data.version_id,p_method:'trusted_simple',p_evidence_hash:evidence,p_provider_reference:null,p_evidence_metadata:{channel:'test'},p_accepted_at:acceptedAt,p_idempotency_key:randomUUID()});
+    await denied(admin,'record_contract_acceptance',accept(users.other.id),'42501');
+    const clientAcceptance=await admin.rpc('record_contract_acceptance',accept(users.client.id));assert.ifError(clientAcceptance.error);assert.equal(clientAcceptance.data.party_role,'client');
+    await denied(admin,'validate_contract_acceptance',{p_actor_id:users.dao.id,p_contract_id:prepared.data.contract_id,p_reason:'Contrôle TEST',p_idempotency_key:randomUUID()},'23514');
+    const contractorAcceptance=await admin.rpc('record_contract_acceptance',accept(users.pro.id));assert.ifError(contractorAcceptance.error);assert.equal(contractorAcceptance.data.party_role,'contractor');
+    const proof=await users.client.db.from('contract_acceptances').select('party_role,method,evidence_hash').eq('contract_id',prepared.data.contract_id);assert.ifError(proof.error);assert.equal(proof.data!.length,2);
+    const validated=await admin.rpc('validate_contract_acceptance',{p_actor_id:users.dao.id,p_contract_id:prepared.data.contract_id,p_reason:'Contrôle TEST',p_idempotency_key:randomUUID()});assert.ifError(validated.error);assert.equal(validated.data.status,'ready');assert.equal(validated.data.legal_effect_enabled,false);
+    await denied(admin,'cancel_contract_draft',{p_actor_id:users.dao.id,p_contract_id:prepared.data.contract_id,p_reason:'Trop tard',p_idempotency_key:randomUUID()},'23514');
     const racing=await fixture();await rpc('pro','submit_bid_version',{p_version_id:racing.offers.pro.version});
     const selected=await rpc('client','award_bid_item_atomic',awardArgs(racing.offers.pro.items[0].id));
     const selectedRow=(await admin.from('award_items').select('award_id').eq('id',selected.award_item_id).single()).data!;
     const raceArgs={...args,p_award_id:selectedRow.award_id,p_idempotency_key:randomUUID()};
     const race=await Promise.all([admin.rpc('prepare_contract_foundation',raceArgs),users.client.db.rpc('cancel_award_item_atomic',cancelArgs(selected.award_item_id))]);
     assert.equal(race.filter(result=>!result.error).length,1,'prepare and cancel cannot both commit');
+    if(!race[0].error){
+      const cancelled=await admin.rpc('cancel_contract_draft',{p_actor_id:users.dao.id,p_contract_id:race[0].data.contract_id,p_reason:'Abandon motivé TEST',p_idempotency_key:randomUUID()});assert.ifError(cancelled.error);assert.equal(cancelled.data.status,'cancelled');
+      assert.ok((await admin.from('contract_events').delete().eq('contract_id',race[0].data.contract_id)).error);
+    }
   });
 });
