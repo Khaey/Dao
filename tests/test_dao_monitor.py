@@ -1,4 +1,5 @@
 """Offline unit tests: no network and no Telegram token required."""
+import base64
 import datetime as dt
 import copy
 import contextlib
@@ -443,6 +444,75 @@ class AttributionTests(unittest.TestCase):
             self.assertIn("Agent : DAO OPT 20 — mission #112", delivery.call_args.args[0])
             self.assertIn("Agent : DAO OPT 20 — mission #112", output.getvalue())
             self.assertNotIn(self.prs[117]["body"], output.getvalue())
+
+
+
+class AgentOnboardingTests(unittest.TestCase):
+    def test_new_agent_and_transfer_are_announced_once(self):
+        before = {"missions": [{"issue": 64, "agent": "DAO DEV 1"},
+                               {"issue": 58, "agent": "DAO DEV 20"}]}
+        after = {"missions": [{"issue": 64, "agent": "DAO Chat 20"},
+                              {"issue": 58, "agent": "DAO DEV 20"},
+                              {"issue": 125, "agent": "DAO DEV 2"}]}
+        message = dm.registration_alert(before, after)
+        self.assertIn("DAO Chat 20 — missions #64", message)
+        self.assertIn("DAO DEV 2 — missions #125", message)
+        self.assertNotIn("DAO DEV 20 — missions", message)
+        self.assertIsNone(dm.registration_alert(after, after))
+
+    def test_renamed_pilot_and_passive_missions(self):
+        old = {"missions": [{"issue": 89, "agent": "DAO Pilot 3"}]}
+        new = {"missions": [{"issue": 89, "agent": "DAO Pilot 4"},
+                            {"issue": 93, "agent": "DAO Pilot 4"}]}
+        alert = dm.registration_alert(old, new)
+        self.assertIn("DAO Pilot 4 — missions #89, #93", alert)
+
+    def test_onboarding_reads_exact_commits_no_telegram_secrets(self):
+        sha_before, sha_after = "1" * 40, "2" * 40
+        old = {"missions": [{"issue": 58, "agent": "DAO DEV 20"}]}
+        new = {"missions": [{"issue": 58, "agent": "DAO DEV 20"},
+                            {"issue": 64, "agent": "DAO Chat 20"}]}
+        def read_registry(method, endpoint, body=None):
+            self.assertEqual(method, "GET")
+            self.assertTrue(endpoint.endswith("?ref=" + sha_before)
+                            or endpoint.endswith("?ref=" + sha_after))
+            data = old if endpoint.endswith(sha_before) else new
+            return {"encoding": "base64",
+                    "content": base64.b64encode(json.dumps(data).encode()).decode()}
+        with (patch.object(dm, "github_api", side_effect=read_registry),
+              patch.object(dm, "telegram", return_value=True) as send):
+            dm.onboarding_push({"ref": "refs/heads/main", "before": sha_before,
+                                "after": sha_after, "deleted": False})
+            send.assert_called_once()
+            self.assertIn("DAO Chat 20", send.call_args.args[0])
+
+    def test_untrusted_branch_or_deleted_push_never_qualifies(self):
+        with (patch.object(dm, "github_api") as github,
+              patch.object(dm, "telegram") as send):
+            dm.onboarding_push({"ref": "refs/heads/feature", "before": "1" * 40,
+                                "after": "2" * 40})
+            dm.onboarding_push({"ref": "refs/heads/main", "before": "1" * 40,
+                                "after": "2" * 40, "deleted": True})
+            dm.onboarding_push({"ref": "refs/heads/main", "before": "1" * 40,
+                                "after": "1" * 40})
+            github.assert_not_called()
+            send.assert_not_called()
+
+    def test_invalid_registry_entries_do_not_publish_untrusted_fields(self):
+        data = {"missions": [{"issue": 0, "agent": "bad"},
+                             {"issue": 64, "agent": "<script>"},
+                             {"issue": 125, "agent": "DAO DEV 2"}]}
+        message = dm.registration_alert({"missions": []}, data)
+        self.assertNotIn("<script>", message)
+        self.assertIn("#125", message)
+
+    def test_current_active_assignments_are_registered(self):
+        config = dm.configuration()
+        expected = {64: "DAO Chat 20", 124: "DAO OPT 20",
+                    125: "DAO DEV 2", 89: "DAO Pilot 4", 93: "DAO Pilot 4"}
+        for issue, name in expected.items():
+            with self.subTest(issue=issue):
+                self.assertEqual(dm.mission_for(issue, config)["agent"], name)
 
 
 if __name__ == "__main__":
