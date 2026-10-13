@@ -36,7 +36,12 @@ test('Back-office : prise en charge, nouvelle version et sous-lots visibles côt
  await reviewer.getByRole('link',{name:'Ouvrir le chantier complet',exact:true}).click();
  await expect(reviewer.getByRole('heading',{name:project.title+' staff',exact:true})).toBeVisible();
  await expect(reviewer.getByRole('button',{name:'Documents',exact:true})).toBeVisible();
- await reviewer.goto(`/app/dao/publications/new?project_id=${project.projectId}`);await reviewer.getByRole('button',{name:'Publier le DAO'}).click();await expect(reviewer).toHaveURL(/\/app\/publications\//);recordE2EValue(info,'publications',reviewer.url().split('/').pop()!);await expect(reviewer.getByText('Passage et essais des réseaux',{exact:true})).toBeVisible();await rc.close();
+ await reviewer.goto(`/app/dao/publications/new?project_id=${project.projectId}`);await reviewer.getByRole('button',{name:'Publier le DAO'}).click();await expect(reviewer).toHaveURL(/\/app\/publications\//);recordE2EValue(info,'publications',reviewer.url().split('/').pop()!);await expect(reviewer.getByText('Passage et essais des réseaux',{exact:true})).toBeVisible();
+ await expect(reviewer.getByText('Public',{exact:true})).toBeVisible();
+ await expect(reviewer.getByText('Publié',{exact:true})).toBeVisible();
+ await reviewer.goto('/app/dao/publications');
+ await expect(reviewer.getByLabel('Filtrer les publications').locator('option[value="superseded"]')).toHaveText('Remplacée');
+ await rc.close();
 });
 
 test('Back-office : attribution assistée et retrait motivé conservent offre et publication',async({page,browser,e2eClient,e2eReviewer,e2eArtisan},info)=>{
