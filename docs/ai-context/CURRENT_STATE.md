@@ -1,5 +1,35 @@
 # D.A.O — Current State
 
+## ENTRÉE PRIORITAIRE — PILOT 4 (2026-10-13, snapshot vérifié)
+
+**Lire en priorité [PILOT4_HANDOFF_20261013.md](PILOT4_HANDOFF_20261013.md),
+puis le dernier checkpoint réel de l'issue propriétaire.** Les longues rubriques
+ci-dessous sont une chronologie : leurs anciens intitulés « reste à faire » ou
+« en cours » ne correspondent pas toujours à l'état actuel. Le vrai main vérifié
+au point de passation est `736f0b2262a14e42b48f3dd46dd98342b4dc2df0` ;
+[CI/deploy #474](https://github.com/Khaey/Dao/actions/runs/38323991932)
+SUCCESS, **54 E2E**. Re-vérifier ces valeurs dès reprise.
+
+- **Messagerie DEV 2 #116 / PR #123 est TERMINÉE et déployée**, migration
+  `20261012235451` appliquée une fois (ne pas traiter les sections anciennes
+  « CI pending » comme actuelles).
+- **Contrat P2.2-A #125 : GO donné** avec D1–D10 conditionnellement validées en
+  #61 ; le dernier commentaire #125 indique une **reprise d'exécution transférée
+  à une session active**, sans PR distante prouvée à ce checkpoint ; ne pas
+  assigner une seconde exécution concurrente par erreur.
+- **OPT #115** continue les constats/recettes, notamment acceptation Client du
+  chantier Artisan TEST PASS. **OPT 20 #124** a le GO pour le flux tri-rôle et
+  UX-115-01/02/03, distinct de OPT ; #120 Telegram et #112 PRO sont livrées.
+- **DEV 20 OCE #58 : audit Cloudflare complet PASS** (run 38324790506), mais
+  **aucun** contact VPS/tunnel démarré/écriture de configuration ; prochaines
+  actions root/VPS sont des autorisations et preuves séparées.
+- **Paramètres #126 : backlog/cadrage seulement**, pas de code/GO S1 ; #64
+  Back-office reste séparé ; OPS #91 passive ; E2E optimisation #85 en pause.
+
+**Ce préambule et la passation supersèdent les états historiques obsolètes, mais
+jamais les nouvelles preuves postérieures sur GitHub.**
+
+
 ## DEV 20 #58 — diagnostic local du format des secrets (2026-10-13)
 
 Après remplacement/recopie déclarés dans `dev`, les contrôles #100/38320641520
