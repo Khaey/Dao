@@ -41,9 +41,19 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
   }
   const awardArgs=(id:string,key=randomUUID())=>({p_idempotency_key:key,p_bid_item_id:id});
   const cancelArgs=(id:string,key=randomUUID())=>({p_idempotency_key:key,p_award_item_id:id,p_reason:'withdrawal',p_comment:null});
-  async function daoAdmin(enabled:boolean){
-    const query=enabled?admin.from('user_roles').insert({user_id:users.dao.id,role:'dao_admin'}):admin.from('user_roles').delete().eq('user_id',users.dao.id).eq('role','dao_admin');
-    assert.ifError((await query).error);
+  async function grantDaoAdminAfterGlobalInvariantRace(){
+    // The Backoffice integration suite exercises the global last-admin invariant
+    // concurrently. Wait until its two-admin race has settled before adding this
+    // independent contract actor, so fixtures do not alter each other's counts.
+    const started=Date.now();
+    while(true){
+      const roles=await admin.from('user_roles').select('user_id').eq('role','dao_admin');assert.ifError(roles.error);
+      if(roles.data!.length===1){await new Promise(resolve=>setTimeout(resolve,100));break;}
+      if(roles.data!.length===0&&Date.now()-started>500)break;
+      assert.ok(Date.now()-started<5000,'global admin invariant race did not settle');
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+    assert.ifError((await admin.from('user_roles').insert({user_id:users.dao.id,role:'dao_admin'})).error);
   }
   await t.test('racing commands select one winner; results preserve confidentiality and audit',async()=>{
     const f=await fixture();for(const role of ['pro','competitor'])await rpc(role,'submit_bid_version',{p_version_id:f.offers[role].version});
@@ -91,10 +101,9 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
     const award=(await admin.from('award_items').select('award_id').eq('id',awarded.items[0].award_item_id).single()).data!;
     const args={p_actor_id:users.dao.id,p_award_id:award.award_id,p_dao_user_id:users.dao.id,p_dao_legal_name:'D.A.O TEST',p_idempotency_key:randomUUID()};
     assert.ok((await users.dao.db.rpc('prepare_contract_foundation',args)).error,'authenticated callers stay denied');
-    await daoAdmin(true);
+    await grantDaoAdminAfterGlobalInvariantRace();
     const prepared=await admin.rpc('prepare_contract_foundation',args);assert.ifError(prepared.error);
     const replay=await admin.rpc('prepare_contract_foundation',args);assert.ifError(replay.error);assert.deepEqual(replay.data,prepared.data);
-    await daoAdmin(false);
     assert.equal(prepared.data.item_count,2);assert.equal(prepared.data.total_millimes,2002);assert.equal(prepared.data.non_engaging,true);
     for(const role of ['client','pro','dao']){const visible=await users[role].db.from('contracts').select('id,status,total_millimes').eq('id',prepared.data.contract_id);assert.ifError(visible.error);assert.equal(visible.data!.length,1);}
     for(const role of ['other','competitor']){const hidden=await users[role].db.from('contracts').select('id').eq('id',prepared.data.contract_id);assert.ifError(hidden.error);assert.equal(hidden.data!.length,0);}
@@ -108,9 +117,7 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
     const selected=await rpc('client','award_bid_item_atomic',awardArgs(racing.offers.pro.items[0].id));
     const selectedRow=(await admin.from('award_items').select('award_id').eq('id',selected.award_item_id).single()).data!;
     const raceArgs={...args,p_award_id:selectedRow.award_id,p_idempotency_key:randomUUID()};
-    await daoAdmin(true);
     const race=await Promise.all([admin.rpc('prepare_contract_foundation',raceArgs),users.client.db.rpc('cancel_award_item_atomic',cancelArgs(selected.award_item_id))]);
-    await daoAdmin(false);
     assert.equal(race.filter(result=>!result.error).length,1,'prepare and cancel cannot both commit');
   });
 });
