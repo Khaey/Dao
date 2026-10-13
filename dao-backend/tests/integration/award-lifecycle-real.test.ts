@@ -43,13 +43,14 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
   const cancelArgs=(id:string,key=randomUUID())=>({p_idempotency_key:key,p_award_item_id:id,p_reason:'withdrawal',p_comment:null});
   async function grantDaoAdminAfterGlobalInvariantRace(){
     // The Backoffice integration suite exercises the global last-admin invariant
-    // concurrently. Wait until its two-admin race has settled before adding this
-    // independent contract actor, so fixtures do not alter each other's counts.
+    // concurrently. Its two named fixtures let us distinguish the initial single
+    // admin from the post-race survivor before adding this independent actor.
     const started=Date.now();
     while(true){
       const roles=await admin.from('user_roles').select('user_id').eq('role','dao_admin');assert.ifError(roles.error);
-      if(roles.data!.length===1){await new Promise(resolve=>setTimeout(resolve,100));break;}
-      if(roles.data!.length===0&&Date.now()-started>500)break;
+      const fixtures=await admin.from('profiles').select('user_id').in('display_name',['BO admin','BO admin2']);assert.ifError(fixtures.error);
+      if(fixtures.data!.length===2&&roles.data!.length===1){await new Promise(resolve=>setTimeout(resolve,100));break;}
+      if(fixtures.data!.length===0&&Date.now()-started>1500)break;
       assert.ok(Date.now()-started<5000,'global admin invariant race did not settle');
       await new Promise(resolve=>setTimeout(resolve,25));
     }
