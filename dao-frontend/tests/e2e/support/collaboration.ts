@@ -14,6 +14,11 @@ export async function adminRows<T = any>(table: string, query: string): Promise<
   if (!response.ok) throw new Error(`Collaboration fixture read failed (${response.status})`);
   return response.json();
 }
+export async function addLocalRole(userId: string, role: 'client' | 'contractor' | 'dao_reviewer' | 'dao_admin') {
+  const { url, secret } = localConfig();
+  const response = await fetch(`${url}/rest/v1/user_roles`, { method: 'POST', headers: { apikey: secret, Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ user_id: userId, role }) });
+  if (!response.ok) throw new Error(`Local role fixture failed (${response.status})`);
+}
 export async function approveDocument(id: string) {
   const { url, secret } = localConfig();
   const response = await fetch(`${url}/rest/v1/documents?id=eq.${id}`, { method: 'PATCH', headers: { apikey: secret, Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'approved' }) });
