@@ -117,8 +117,10 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | env-sync | Manual recovery operation; normal main deploys now run the same three-key sync automatically before release activation | One-time admin helper installation plus Resend secrets |
 | log-summary | Last hour priority counts, at most 200 journal entries; no message bodies | One-time admin helper installation |
 | oce-audit | Private Access/Tunnel audit through dao-oce-private-admin; the existing runtime audit remains in its specialized workflow | Installed private helper and provisioning #58 |
+| provision | One-time root 0600 Cloudflare configuration through the protected issue #58 workflow | Full runner audit passed and exact sudo grant installed |
 | oce-integration-inventory | Fixed OCE DB/Compose/storage/network metadata for #58; anonymous peers and no credential/path values | Reinstall reviewed admin helper once as root; available in DAO DEV operations on main |
-| oce-gateway-plan | Fixed read-only gateway host plan; no service start, bind change or demo-access change | One-time reviewed admin-helper refresh grants this exact operation; then GitHub Actions only |
+| oce-gateway-plan | Fixed read-only gateway host plan; no service start, bind change or demo-access change | Installed helper |
+| oce-gateway-apply | Close public `:8080`, activate the fixed gateway and egress guard, verify both bypass denials | Explicit #58 authorization, successful private tunnel and favorable plan |
 
 Example with a credential authorized for Actions dispatch:
 

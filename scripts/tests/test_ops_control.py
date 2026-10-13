@@ -8,6 +8,7 @@ import re
 import stat
 import subprocess
 import tempfile
+import types
 import unittest
 import urllib.error
 from unittest.mock import patch
@@ -68,9 +69,18 @@ class MaintenanceTests(unittest.TestCase):
         self.state.mkdir(mode=0o700)
         installed = self.root / 'installed'
         installed.mkdir()
+        grants = self.root / 'grants'
+        grants.mkdir()
+        oce_grant = grants / 'dao-oce-private'
+        dao_grant = grants / 'dao-admin'
+        oce_grant.write_text(admin.OLD_OCE_PRIVATE_GRANT)
+        dao_grant.write_text(admin.OLD_DAO_ADMIN_GRANT)
+        oce_grant.chmod(0o440)
+        dao_grant.chmod(0o440)
         sources = ('ops/dao-ops-admin.py', 'ops/dao-dev-admin.py', 'ops/oce-cloudflare.py')
         catalog = {s: (str(installed / Path(s).name), 'dao-oce-cloudflared.service' if 'cloudflare' in s else None) for s in sources}
-        self.patcher = patch.multiple(admin, STATE=self.state, ANCHOR=self.root, OWNER=os.getuid(), CATALOG=catalog, LOCKS=())
+        self.patcher = patch.multiple(admin, STATE=self.state, ANCHOR=self.root, OWNER=os.getuid(), CATALOG=catalog,
+                                      LOCKS=(), OCE_PRIVATE_SUDOERS=oce_grant, DAO_ADMIN_SUDOERS=dao_grant)
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
         self.old = {s: b'# fictional installed code\nvalue=1\n' for s in catalog}
@@ -114,10 +124,25 @@ class MaintenanceTests(unittest.TestCase):
         self.assertFalse((self.state / 'transaction.json').exists())
 
     def test_unchanged_upgrade_creates_no_transaction(self):
-        with self.candidate(self.old):
-            self.assertEqual(admin.upgrade(self.ledger)['ops_upgrade'], 'unchanged')
+        with self.candidate(self.old), patch.object(admin.subprocess, 'run',
+                return_value=types.SimpleNamespace(returncode=0)):
+            result = admin.upgrade(self.ledger)
+        self.assertEqual(result['ops_upgrade'], 'unchanged')
+        self.assertEqual(result['grants_updated'], ['oce-private-provision', 'oce-gateway-apply'])
+        self.assertEqual(admin.OCE_PRIVATE_SUDOERS.read_text(), admin.NEW_OCE_PRIVATE_GRANT)
+        self.assertEqual(admin.DAO_ADMIN_SUDOERS.read_text(), admin.NEW_DAO_ADMIN_GRANT)
         self.assertEqual(admin.load_ledger(), self.ledger)
         self.assertFalse((self.state / 'transaction.json').exists())
+
+    def test_grant_drift_is_refused_without_replacement(self):
+        admin.OCE_PRIVATE_SUDOERS.chmod(0o640)
+        admin.OCE_PRIVATE_SUDOERS.write_text('unexpected local grant\n')
+        admin.OCE_PRIVATE_SUDOERS.chmod(0o440)
+        with self.candidate(self.old), patch.object(admin.subprocess, 'run') as run, \
+                self.assertRaisesRegex(admin.Halt, 'GRANT_DRIFT'):
+            admin.upgrade(self.ledger)
+        run.assert_not_called()
+        self.assertEqual(admin.OCE_PRIVATE_SUDOERS.read_text(), 'unexpected local grant\n')
 
     def test_failed_post_install_validation_restores_every_file_and_state(self):
         def reject(_):

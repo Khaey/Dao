@@ -1,6 +1,10 @@
 import importlib.util
+import io
+import json
 from pathlib import Path
+import types
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     "dao_dev_admin",
@@ -11,6 +15,27 @@ spec.loader.exec_module(admin)
 
 
 class DevAdminOceAuditTests(unittest.TestCase):
+    def test_gateway_apply_uses_fixed_acknowledgement_and_closed_output(self):
+        report = {
+            'gateway_host': 'complete', 'oce_loopback_only': True,
+            'immutable_runtime_pin_preserved': True, 'dao_loopback_bypass_denied': True,
+            'dao_container_bypass_denied': True, 'gateway_socket_ready': True,
+            'gateway_ready': True, 'demo_access_preserved': True,
+            'egress_guard_active': True, 'compose_env_not_readable_by_dao': True,
+            'dao_docker_socket_access': False,
+        }
+        with patch.object(admin.Path, 'is_file', return_value=True), \
+             patch.object(admin.os, 'access', return_value=True), \
+             patch.object(admin.subprocess, 'run', return_value=types.SimpleNamespace(
+                 returncode=0, stdout=json.dumps(report), stderr='private-value')) as run, \
+             patch('sys.stdout', new_callable=io.StringIO) as output:
+            admin.oce_gateway_apply()
+        self.assertEqual(run.call_args.args[0], [
+            '/usr/local/sbin/dao-oce-gateway-host', 'apply',
+            '--acknowledge-public-demo-link-closes'])
+        self.assertEqual(json.loads(output.getvalue()), report)
+        self.assertNotIn('private-value', output.getvalue())
+
     def test_select_oce_container_prefers_named_match(self):
         rows = [
             {"ID": "aaaaaaaaaaaa", "Image": "other:latest", "Names": "proxy", "Ports": "0.0.0.0:8080->80/tcp"},
