@@ -313,7 +313,7 @@ class AttributionTests(unittest.TestCase):
 
     def test_registered_canonical_owners_and_unique_issues(self):
         expected = {112: "DAO OPT 20", 115: "OPT", 116: "DAO DEV 2",
-                    61: "DAO DEV 1", 120: "DAO OPT 20", 85: "OPT"}
+                    61: "DAO Pilot 4", 120: "DAO OPT 20", 85: "OPT"}
         issues = [m["issue"] for m in self.config["missions"]]
         self.assertEqual(len(issues), len(set(issues)))
         self.assertEqual(self.config["allowed_comment_authors"], ["Khaey"])
