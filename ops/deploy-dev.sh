@@ -31,7 +31,13 @@ DEPENDENCIES_ROOT="$APP_ROOT/dependencies"
 GIT_PATH="$(command -v git)"
 NPM_PATH="$(command -v npm)"
 NODE_PATH="$(command -v node)"
+DEPLOY_GITHUB_KEY="$HOME/.ssh/dao_github_readonly"
+DEPLOY_GITHUB_KNOWN_HOSTS="$HOME/.ssh/known_hosts"
+DEPLOY_REPOSITORY_URL="git@github.com:Khaey/Dao.git"
 for tool in "$GIT_PATH" "$NPM_PATH" "$NODE_PATH"; do [ -x "$tool" ] || { echo "Missing executable: $tool" >&2; exit 1; }; done
+[ -f "$DEPLOY_GITHUB_KEY" ] && [ ! -L "$DEPLOY_GITHUB_KEY" ] && [ -r "$DEPLOY_GITHUB_KEY" ] || { echo "Missing private-repository deploy key" >&2; exit 1; }
+[ -f "$DEPLOY_GITHUB_KNOWN_HOSTS" ] && [ ! -L "$DEPLOY_GITHUB_KNOWN_HOSTS" ] && [ -r "$DEPLOY_GITHUB_KNOWN_HOSTS" ] || { echo "Missing GitHub SSH host key" >&2; exit 1; }
+export GIT_SSH_COMMAND="ssh -i $DEPLOY_GITHUB_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$DEPLOY_GITHUB_KNOWN_HOSTS"
 
 [ -r "$ENV_FILE" ] || { echo "Missing readable environment file: $ENV_FILE" >&2; exit 1; }
 set -a
@@ -206,7 +212,7 @@ trap 'handle_error 130' INT
 trap 'handle_error 143' TERM
 
 measure git_init "$GIT_PATH" init "$STAGING"
-measure git_remote_add "$GIT_PATH" -C "$STAGING" remote add origin https://github.com/Khaey/Dao.git
+measure git_remote_add "$GIT_PATH" -C "$STAGING" remote add origin "$DEPLOY_REPOSITORY_URL"
 measure git_fetch "$GIT_PATH" -C "$STAGING" fetch origin main
 measure git_checkout "$GIT_PATH" -C "$STAGING" checkout --detach "$REVISION"
 test "$("$GIT_PATH" -C "$STAGING" rev-parse HEAD)" = "$REVISION"
@@ -246,7 +252,7 @@ else
 fi
 
 # Never activate a queued old revision over a newer main.
-latest_main="$("$GIT_PATH" ls-remote https://github.com/Khaey/Dao.git refs/heads/main | awk '{print $1}')"
+latest_main="$("$GIT_PATH" ls-remote "$DEPLOY_REPOSITORY_URL" refs/heads/main | awk '{print $1}')"
 [[ "$latest_main" =~ ^[0-9a-f]{40}$ ]] || { echo "Unable to verify current main" >&2; false; }
 if [ "$latest_main" != "$REVISION" ]; then
   echo "DEPLOY_SKIPPED reason=main_advanced sha=$REVISION"
