@@ -87,7 +87,7 @@ class MonitorTests(unittest.TestCase):
 
     def test_pr_owner_title_disambiguates_incidental_references(self):
         pr = {"title": "OPS #91 — opérations", "body": "Ne touche pas #58 ou #83"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 20", 91))
+        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 21", 91))
 
     def test_pr_owner_explicit_refs(self):
         pr = {"title": "fix(artisan): profil", "body": "Hors #58. Refs #83."}
@@ -106,7 +106,7 @@ class MonitorTests(unittest.TestCase):
     def test_unregistered_title_allows_canonical_owner_link(self):
         pr = {"title": "docs: preuve PR #103 CI #424",
               "body": "https://github.com/Khaey/Dao/issues/91"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 20", 91))
+        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 21", 91))
 
     def test_pr104_quoted_refs_are_examples_not_owners(self):
         pr = {"title": "fix(monitor): identifier OPT 20 sur les PR #102/#103 et CI",
@@ -142,14 +142,14 @@ class MonitorTests(unittest.TestCase):
               "body": ("Aucun changement d'OCE #58. "
                        "Suivi : https://github.com/Khaey/Dao/issues/91#issuecomment-6077429398 "
                        "Réfs #91.")}
-        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 20", 91))
+        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 21", 91))
 
     def test_real_pr103_direct_issue_link_with_other_references(self):
         pr = {"title": "docs(ops): conserver la preuve live du transport de récupération",
               "body": ("Livré par #102, indépendant de #58. CI #423 et #424. "
                        "Preuves de reprise : [issue #91]"
                        "(https://github.com/Khaey/Dao/issues/91).")}
-        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 20", 91))
+        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 21", 91))
 
     def test_conflicting_canonical_issue_links_not_attributed(self):
         pr = {"title": "maintenance",
@@ -160,7 +160,7 @@ class MonitorTests(unittest.TestCase):
     def test_explicit_refs_disambiguates_other_issue_links(self):
         pr = {"title": "changes",
               "body": ("https://github.com/Khaey/Dao/issues/58. Réfs #91")}
-        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 20", 91))
+        self.assertEqual(self.owner(pr, self.config), ("DAO OPT 21", 91))
 
     def test_ci_for_real_pr102_and_pr103(self):
         for number, sha, title, body in (
@@ -176,7 +176,7 @@ class MonitorTests(unittest.TestCase):
                   "base": {"ref": "main"}, "merge_commit_sha": sha}
             matched = dm.associated_merged_pr([pr], sha)
             self.assertEqual(self.owner_line(matched, self.config),
-                             "👤 Agent : DAO OPT 20 — mission #91")
+                             "👤 Agent : DAO OPT 21 — mission #91")
 
     def test_pr_owner_unique_body_reference(self):
         pr = {"title": "fix(monitor): secrets", "body": "Correction ciblée de #93"}
@@ -193,7 +193,7 @@ class MonitorTests(unittest.TestCase):
             "title": "OPS #91 — opérations", "body": "Ne touche pas #58",
             "html_url": "https://github.com/Khaey/Dao/pull/96"}}
         event["pull_request"] = self.trusted_pr(event["pull_request"])
-        self.assertIn("Agent : DAO OPT 20 — mission #91",
+        self.assertIn("Agent : DAO OPT 21 — mission #91",
                       dm.classify("pull_request", event, self.config))
 
     def test_ci_exact_merge_sha_shows_owner(self):
