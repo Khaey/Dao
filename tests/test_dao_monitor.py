@@ -96,12 +96,12 @@ class MonitorTests(unittest.TestCase):
     def test_real_pr104_title_pr_numbers_do_not_hide_owner(self):
         pr = {"title": "fix(monitor): identifier OPT 20 sur les PR #102/#103 et CI",
               "body": "Corrige les notifications PR #102/#103 et CI #422/#424. Refs #93"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 5", 93))
         sha = "e0b2dbe7be35ad4b40720f9761caa97336b64f6e"
         merged = dict(pr, merge_commit_sha=sha, merged_at="2026-10-09T09:25:09Z",
                       base={"ref": "main"})
         self.assertEqual(self.owner_line(dm.associated_merged_pr([merged], sha), self.config),
-                         "👤 Agent : DAO Pilot 4 — mission #93")
+                         "👤 Agent : DAO Pilot 5 — mission #93")
 
     def test_unregistered_title_allows_canonical_owner_link(self):
         pr = {"title": "docs: preuve PR #103 CI #424",
@@ -116,11 +116,11 @@ class MonitorTests(unittest.TestCase):
                        "directs vers l'issue `.../issues/91`.\n\n"
                        "- Reconnaît `Refs #N` **et** `Réfs #N` (français).\n"
                        "- Ajoute 5 tests de régression, priorité de `Réfs #91`.\n\nRefs #93")}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 5", 93))
 
     def test_fenced_example_does_not_override_real_owner(self):
         pr = {"body": "```text\nRefs #91\nhttps://github.com/Khaey/Dao/issues/58\n```\nRefs #93"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 5", 93))
 
     def test_example_alone_cannot_assign_owner(self):
         self.assertEqual(self.owner({"body": "Example: `Refs #91`"}, self.config), (None, None))
@@ -180,7 +180,7 @@ class MonitorTests(unittest.TestCase):
 
     def test_pr_owner_unique_body_reference(self):
         pr = {"title": "fix(monitor): secrets", "body": "Correction ciblée de #93"}
-        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 4", 93))
+        self.assertEqual(self.owner(pr, self.config), ("DAO Pilot 5", 93))
 
     def test_pr_owner_ambiguous_falls_back(self):
         pr = {"title": "maintenance", "body": "Impacte #83 et #58"}
@@ -325,7 +325,7 @@ class AttributionTests(unittest.TestCase):
                                  (agent, issue))
 
     def test_complete_real_pr_bodies_preserve_107_108_and_repair_117(self):
-        expected = {107: ("DAO Pilot 4", 93), 108: ("DAO Pilot 4", 93),
+        expected = {107: ("DAO Pilot 5", 93), 108: ("DAO Pilot 5", 93),
                     117: ("DAO OPT 20", 112), 118: (None, None), 119: (None, None)}
         for number, owner in expected.items():
             with self.subTest(pr=number):
