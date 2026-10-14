@@ -98,7 +98,7 @@ class Github:
             raise RuntimeError("GitHub HTTP %s" % exc.code) from None
         except URLError:
             raise RuntimeError("GitHub connection failure") from None
-        time.sleep(.08)
+        time.sleep(.85)  # Protect GitHub's secondary mutation rate limits
         return result
 
     def graphql(self, query, **variables):
