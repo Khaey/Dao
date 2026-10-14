@@ -42,17 +42,8 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
   const awardArgs=(id:string,key=randomUUID())=>({p_idempotency_key:key,p_bid_item_id:id});
   const cancelArgs=(id:string,key=randomUUID())=>({p_idempotency_key:key,p_award_item_id:id,p_reason:'withdrawal',p_comment:null});
   async function grantDaoAdminAfterGlobalInvariantRace(){
-    // The Backoffice integration suite exercises the global last-admin invariant
-    // concurrently. Its two named fixtures let us distinguish the initial single
-    // admin from the post-race survivor before adding this independent actor.
-    const started=Date.now();
-    while(true){
-      const roles=await admin.from('user_roles').select('user_id').eq('role','dao_admin');assert.ifError(roles.error);
-      const fixtures=await admin.from('profiles').select('user_id').in('display_name',['BO admin','BO admin2']);assert.ifError(fixtures.error);
-      if(fixtures.data!.length===2&&roles.data!.length===1){await new Promise(resolve=>setTimeout(resolve,250));break;}
-      assert.ok(Date.now()-started<30000,'global admin invariant race did not settle');
-      await new Promise(resolve=>setTimeout(resolve,25));
-    }
+    // This suite runs before the Backoffice suite in the shared database. The
+    // latter temporarily isolates external admins while testing its invariant.
     assert.ifError((await admin.from('user_roles').insert({user_id:users.dao.id,role:'dao_admin'})).error);
   }
   await t.test('racing commands select one winner; results preserve confidentiality and audit',async()=>{
