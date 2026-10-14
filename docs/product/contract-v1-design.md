@@ -75,8 +75,35 @@ elle ne conserve jamais un code OTP en clair. Dans P2.2-B, l'activation de
 l'effet juridique est refusée par la base : le contrôle final conduit à
 `ready`, et non à `signed`.
 
-P2.2-C devra choisir puis intégrer un prestataire de confiance (NGSign et
-DigiGO/TUNTRUST restent des candidats), produire le document définitif et
-définir les conditions d'activation juridique après preuve d'homologation et
-validation juridique. Aucun paiement ni démarrage des travaux n'est déclenché
-par P2.2-B.
+Le choix d'un prestataire de confiance (NGSign et DigiGO/TUNTRUST restent des
+candidats), le document juridique définitif et l'activation de l'effet juridique
+restent un lot séparé, après preuve d'homologation et validation juridique.
+Aucun paiement ni démarrage des travaux n'est déclenché par P2.2-B.
+
+## P2.2-C — propositions d'avenant non engageantes
+
+DAO Pilot a validé le 15 octobre 2026 le périmètre suivant dans #174 :
+
+- seul le Client partie au contrat peut initier une proposition ;
+- la proposition peut clarifier le périmètre sans changer les lots, proposer un
+  delta de montant en millimes et proposer une date/durée ;
+- le Client et le Prestataire donnent chacun leur accord sur la même version,
+  puis D.A.O effectue le contrôle final ;
+- chaque partie peut refuser avec un motif et D.A.O peut annuler avec un motif
+  avant son contrôle final ; aucune expiration automatique n'est ajoutée ;
+- le résultat reste `non_engaging` et `legal_effect_enabled=false`.
+
+Une proposition est un objet distinct. Elle référence la version contractuelle
+de base et son hash, possède sa propre version canonique/hashée, ses accords et
+ses événements append-only. Sa validation ne modifie jamais le contrat initial,
+son total, ses lots, l'attribution ou les dates exécutoires. Un ajout/retrait de
+lot, un changement de partie, une réattribution, des taxes/frais/acomptes, un
+paiement, un jalon, une réception, une garantie ou une résiliation restent hors
+périmètre.
+
+Les commandes sont réservées au service : la base vérifie néanmoins l'identité
+du Client initiateur, les parties exactes, les comptes actifs et l'administrateur
+D.A.O. Les parties et l'administrateur D.A.O actif peuvent lire ; les simples
+membres du chantier, concurrents, tiers, anonymes et comptes suspendus restent
+isolés. Aucun écran utilisateur ni document présenté comme signé ou applicable
+n'est livré par cette fondation.
