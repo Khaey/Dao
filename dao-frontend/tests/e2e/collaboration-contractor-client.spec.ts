@@ -50,4 +50,8 @@ test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et
   await expect(row).toContainText('Travaux terminés');
   await expect(row).not.toContainText('Client à confirmer');
   expect((await adminRows('user_roles', `user_id=eq.${e2eArtisan!.id}&select=role`)).map(row => row.role)).toEqual(['contractor']);
+  await page.goto(`/app/projects/${project.projectId}`);
+  await expect(page.getByRole('button',{name:'Contacter le client',exact:true})).toBeVisible();
+  await expect(page.getByLabel(/^Professionnel de /)).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/Écrire à /})).toHaveCount(0);
 });
