@@ -6,6 +6,7 @@ RUN_ID="${2:?GitHub run ID required}"
 RUN_ATTEMPT="${3:?GitHub run attempt required}"
 ARTIFACT_DIR="${4:-}"
 ENV_PAYLOAD="${5:-}"
+REPO_READ_TOKEN_FILE="${6:-}"
 [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || { echo "Expected a full commit SHA" >&2; exit 2; }
 [[ "$RUN_ID" =~ ^[0-9]+$ && "$RUN_ATTEMPT" =~ ^[0-9]+$ ]] || { echo "Invalid GitHub run identifier" >&2; exit 2; }
 
@@ -20,6 +21,11 @@ if [ -n "$ENV_PAYLOAD" ]; then
   [ -f "$ENV_PAYLOAD" ] || { echo "Missing private environment payload" >&2; exit 2; }
   [ ! -L "$ENV_PAYLOAD" ] || { echo "Private environment payload cannot be a symlink" >&2; exit 2; }
   test -x /usr/local/sbin/dao-dev-admin || { echo "DEV environment helper is not installed" >&2; exit 2; }
+  [ "$REPO_READ_TOKEN_FILE" = "${ENV_PAYLOAD%/*}/github-read-token" ] || { echo "Protected GitHub read token path required for private deploy" >&2; exit 2; }
+fi
+if [ -n "$REPO_READ_TOKEN_FILE" ]; then
+  [ -n "$ENV_PAYLOAD" ] || { echo "GitHub read token requires a private DEV payload" >&2; exit 2; }
+  [ -f "$REPO_READ_TOKEN_FILE" ] && [ -s "$REPO_READ_TOKEN_FILE" ] && [ -r "$REPO_READ_TOKEN_FILE" ] && [ ! -L "$REPO_READ_TOKEN_FILE" ] || { echo "Protected GitHub read token must be a readable regular file" >&2; exit 2; }
 fi
 # Serialize direct SSH and Actions deployments on the host as well.
 exec 9>"$APP_ROOT/.deploy.lock"
@@ -128,9 +134,12 @@ CURRENT_SWITCHED=0
 RELEASE_PREPARED=0
 ENV_SYNC_CHANGED=0
 ENV_SYNC_UNVERIFIED=0
+GIT_ASKPASS_SCRIPT=""
 handle_error() {
   local status=${1:-$?}
   trap - ERR HUP INT TERM
+  if [ -n "$GIT_ASKPASS_SCRIPT" ]; then rm -f -- "$GIT_ASKPASS_SCRIPT" >/dev/null 2>&1 || :; fi
+  if [ -n "$REPO_READ_TOKEN_FILE" ]; then rm -f -- "$REPO_READ_TOKEN_FILE" >/dev/null 2>&1 || :; fi
   local rollback_release=0
   local release_state=unchanged env_state=unchanged restart_state=not_needed
   local readiness_state=not_checked cleanup_state=complete outcome=not_needed
@@ -205,9 +214,23 @@ trap 'handle_error 129' HUP
 trap 'handle_error 130' INT
 trap 'handle_error 143' TERM
 
+if [ -n "$REPO_READ_TOKEN_FILE" ]; then
+  GIT_ASKPASS_SCRIPT="${REPO_READ_TOKEN_FILE%/*}/dao-git-askpass.sh"
+  ( umask 077; cat > "$GIT_ASKPASS_SCRIPT" <<'DAO_GIT_ASKPASS'
+#!/bin/sh
+case "$1" in
+  *Username*) printf '%s\n' 'x-access-token' ;;
+  *Password*) cat -- "$DAO_GIT_READ_TOKEN_FILE" ;;
+  *) exit 1 ;;
+esac
+DAO_GIT_ASKPASS
+  )
+  chmod 0700 "$GIT_ASKPASS_SCRIPT"
+  export GIT_ASKPASS="$GIT_ASKPASS_SCRIPT" DAO_GIT_READ_TOKEN_FILE="$REPO_READ_TOKEN_FILE" GIT_TERMINAL_PROMPT=0
+fi
 measure git_init "$GIT_PATH" init "$STAGING"
 measure git_remote_add "$GIT_PATH" -C "$STAGING" remote add origin https://github.com/Khaey/Dao.git
-measure git_fetch "$GIT_PATH" -C "$STAGING" fetch origin main
+measure git_fetch "$GIT_PATH" -c credential.helper= -C "$STAGING" fetch origin main
 measure git_checkout "$GIT_PATH" -C "$STAGING" checkout --detach "$REVISION"
 test "$("$GIT_PATH" -C "$STAGING" rev-parse HEAD)" = "$REVISION"
 
@@ -246,7 +269,12 @@ else
 fi
 
 # Never activate a queued old revision over a newer main.
-latest_main="$("$GIT_PATH" ls-remote https://github.com/Khaey/Dao.git refs/heads/main | awk '{print $1}')"
+latest_main="$("$GIT_PATH" -c credential.helper= ls-remote https://github.com/Khaey/Dao.git refs/heads/main | awk '{print $1}')"
+if [ -n "$GIT_ASKPASS_SCRIPT" ]; then
+  rm -f -- "$GIT_ASKPASS_SCRIPT" "$REPO_READ_TOKEN_FILE"
+  unset GIT_ASKPASS DAO_GIT_READ_TOKEN_FILE
+  GIT_ASKPASS_SCRIPT=""
+fi
 [[ "$latest_main" =~ ^[0-9a-f]{40}$ ]] || { echo "Unable to verify current main" >&2; false; }
 if [ "$latest_main" != "$REVISION" ]; then
   echo "DEPLOY_SKIPPED reason=main_advanced sha=$REVISION"

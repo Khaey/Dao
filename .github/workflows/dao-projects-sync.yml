@@ -1,0 +1,49 @@
+name: DAO Projects Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview field updates without changing GitHub Project
+        type: boolean
+        default: false
+        required: false
+  issues:
+    types: [opened, closed, reopened, edited]
+  pull_request_target:
+    types: [opened, reopened, closed, synchronize, ready_for_review, converted_to_draft]
+  schedule:
+    - cron: '17 */3 * * *'
+
+concurrency:
+  group: dao-projects-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  synchronize:
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 15
+    steps:
+      - name: Checkout trusted main only
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Verify project sync logic offline
+        run: python3 -m unittest discover -s tests -p test_dao_project_sync.py -v
+      - name: Update user-owned Project #3
+        env:
+          DAO_PROJECTS_TOKEN: ${{ secrets.DAO_PROJECTS_TOKEN }}
+          DAO_PROJECTS_DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          if [ "$DAO_PROJECTS_DRY_RUN" = 'true' ]; then
+            python3 scripts/dao_project_sync.py --dry-run
+          else
+            python3 scripts/dao_project_sync.py
+          fi
