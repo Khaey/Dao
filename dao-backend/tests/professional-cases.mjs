@@ -36,7 +36,7 @@ export async function professionalCases(db, check) {
   await check('PRO rejects non-HTTPS/contact injection and legal media public consent',async()=>{
     for(const website_url of ['javascript:alert(1)','http://example.com','https://example.com/<script>']) await deny(()=>cmd('pro','details',{website_url}),'23514');
     await deny(()=>cmd('pro','details',{social_links:['javascript:alert(1)']}),'22023');
-    await deny(()=>cmd('pro','details',{professional_phone:'<script>'}),'23514');
+    await deny(()=>cmd('pro','details',{professional_phone:'<script>'}),'22023');
     await deny(()=>cmd('pro','file_create',{kind:'professional',purpose:'tax',public_consent:true,object_path:`professional/${cp}/tax.pdf`,original_name:'tax.pdf',mime_type:'application/pdf',size_bytes:100}),'23514');
   });
   await check('PRO reviewer cannot publish identity, stale review rejected, public projection excludes legal fields',async()=>{
