@@ -18,7 +18,7 @@
     },
     {
       "issue": 64,
-      "agent": "DAO Chat 20",
+      "agent": "DAO Chat 21",
       "role": "DEV",
       "watchdog": true,
       "threshold_minutes": 90
@@ -44,7 +44,7 @@
     },
     {
       "issue": 91,
-      "agent": "DAO OPT 20",
+      "agent": "DAO OPT 21",
       "role": "OPT",
       "watchdog": false,
       "threshold_minutes": 90
@@ -93,10 +93,24 @@
       "threshold_minutes": 90
     },
     {
+      "issue": 126,
+      "agent": "DAO OPT 21",
+      "role": "OPT",
+      "watchdog": false,
+      "threshold_minutes": 90
+    },
+    {
       "issue": 137,
       "agent": "DAO Chat 20",
       "role": "DEV",
       "watchdog": true,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 146,
+      "agent": "DAO Chat 1",
+      "role": "DEV",
+      "watchdog": false,
       "threshold_minutes": 90
     },
     {
@@ -108,6 +122,13 @@
     {
       "issue": 156,
       "agent": "DAO Chat 1",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 161,
+      "agent": "DAO Chat 21",
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
