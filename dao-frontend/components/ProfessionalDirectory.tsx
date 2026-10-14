@@ -1,15 +1,19 @@
 'use client';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useEffect,useState } from 'react';
 import { Badge,Card,Input } from './ui';
 import { professionalRead,professionalStatus } from '../lib/professionals';
 export default function ProfessionalDirectory({review=false}:{review?:boolean}) {
-  const params = useSearchParams();
-  const projectId = params.get('project_id');
-  const requestId = params.get('request_id');
-  const context = !review && projectId && requestId && /^[0-9a-f-]{36}$/i.test(projectId) && /^[0-9a-f-]{36}$/i.test(requestId)
-    ? `?project_id=${encodeURIComponent(projectId)}&request_id=${encodeURIComponent(requestId)}` : '';
+  const [context,setContext] = useState('');
+  useEffect(() => {
+    if (review) return;
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('project_id');
+    const requestId = params.get('request_id');
+    if (projectId && requestId && /^[0-9a-f-]{36}$/i.test(projectId) && /^[0-9a-f-]{36}$/i.test(requestId)) {
+      setContext(`?project_id=${encodeURIComponent(projectId)}&request_id=${encodeURIComponent(requestId)}`);
+    }
+  }, [review]);
   const [rows,setRows]=useState<any[]|null>(null),[query,setQuery]=useState(''),[error,setError]=useState('');
   useEffect(()=>{void professionalRead({view:'directory',review:String(review)}).then(setRows).catch(e=>setError(e.message));},[review]);
   const visible=(rows||[]).filter(r=>`${r.name} ${r.city||''}`.toLowerCase().includes(query.toLowerCase()));
