@@ -510,6 +510,7 @@ class AgentOnboardingTests(unittest.TestCase):
         config = dm.configuration()
         expected = {64: "DAO Chat 20", 115: "DAO OPT 2", 124: "DAO OPT 20",
                     125: "DAO DEV 2", 137: "DAO Chat 20", 156: "DAO Chat 1",
+                    161: "DAO Chat 20",
                     89: "DAO Pilot 4", 93: "DAO Pilot 5", 154: "DAO Pilot 5"}
         for issue, name in expected.items():
             with self.subTest(issue=issue):
