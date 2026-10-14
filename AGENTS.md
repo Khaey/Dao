@@ -1,9 +1,11 @@
 # D.A.O — instructions for every Work/Codex session
 
-**Pilot transition / coordination:** on taking over as DAO Pilot 4 or later,
-read [the 2026-10-13 Pilot 4 handoff](docs/ai-context/PILOT4_HANDOFF_20261013.md)
-first, then verify live main/PR/CI and the latest owner issues. The dated handoff
-is a snapshot, not a replacement for live evidence. Do not infer that a
+**Pilot transition / coordination:** on taking over as **DAO Pilot 5 or later**,
+start with [issue #154](https://github.com/Khaey/Dao/issues/154) and
+[the 2026-10-14 Pilot 5 handoff](docs/ai-context/PILOT5_HANDOFF_20261014.md),
+then verify live main, PRs, CI, and latest canonical owner checkpoints.
+The older [Pilot 4 handoff](docs/ai-context/PILOT4_HANDOFF_20261013.md)
+is historical; dated snapshots never supersede live evidence. Do not infer that a
 GitHub comment launches a ChatGPT Work session.
 
 Before changing this repository, read the **current owner issue and last
