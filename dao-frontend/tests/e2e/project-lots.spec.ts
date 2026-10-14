@@ -58,6 +58,7 @@ test('Client : vue d’ensemble distingue statut DAO, travaux et accès privé',
   test.skip(!e2eClient, 'E2E Supabase credentials are not available');
   await login(page, e2eClient!);
   await createProjectWithMainLot(page, testInfo, 'stages', 'Travaux à préparer.');
+  await page.getByRole('button', { name: 'Vue d’ensemble' }).click();
   await expect(page.getByText('Dossier DAO', { exact: true })).toBeVisible();
   await expect(page.getByText('Avancement des travaux', { exact: true })).toBeVisible();
   const privateDetails = page.locator('details').filter({ hasText: 'Coordonnées privées / Accès chantier' });
