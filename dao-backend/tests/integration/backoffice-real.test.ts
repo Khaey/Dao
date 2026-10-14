@@ -1,3 +1,5 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -21,7 +23,7 @@ test('Backoffice V2 real JWT, isolation and independent transaction races',async
   const allAdmins=await admin.from('user_roles').select('user_id').eq('role','dao_admin');assert.ifError(allAdmins.error);
   const external=allAdmins.data!.filter(row=>![users.admin.id,users.admin2.id].includes(row.user_id));
   try{
-   for(const row of external)assert.ifError((await admin.from('user_roles').delete().eq('user_id',row.user_id).eq('role','dao_admin')).error);
+   for(const row of external)await cmd('admin','role',{user_id:row.user_id,role:'dao_admin',enabled:false});
    const results=await Promise.all([['admin','admin2'],['admin2','admin']].map(([actor,target])=>users[actor].db.rpc('backoffice_command',{p_action:'role',p_input:{user_id:users[target].id,role:'dao_admin',enabled:false},p_key:randomUUID()})));
    assert.equal(results.filter(r=>!r.error).length,1);const active=(await admin.from('user_roles').select('user_id').eq('role','dao_admin')).data!;assert.equal(active.length,1);
    const remaining=active[0].user_id===users.admin.id?'admin':'admin2';assert.equal((await users[remaining].db.rpc('backoffice_command',{p_action:'role',p_input:{user_id:users[remaining].id,role:'dao_admin',enabled:false},p_key:randomUUID()})).error!.code,'23514');users.activeAdmin=users[remaining];
