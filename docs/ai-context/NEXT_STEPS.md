@@ -1,5 +1,13 @@
 # D.A.O — Next Steps
 
+## OPT 2 — suivi mobile / Gestionnaire, #115
+
+Reprendre le dernier checkpoint [#115](https://github.com/Khaey/Dao/issues/115) pour
+les preuves CI et livraison de `chore/opt2-115-mobile-navigation`. Les tests de
+navigation utilisent uniquement la stack locale jetable ; la recette Gestionnaire
+DEV requiert l’activation du compte TEST invité et sa session distincte. Conserver
+les acquis Admin/Client et ne pas rejouer la prise en charge du chantier TEST.
+
 ## DEV 2 — livrer la fondation Contrat V1 #125
 
 Publier `feat/contract-v1-foundation` en PR draft avec `Owner issue: #125`,
