@@ -4,7 +4,7 @@
 
 The intended FULL Playwright target is the disposable Supabase CLI stack on a fresh GitHub-hosted runner. The job is configured to start PostgreSQL, Auth, Kong, PostgREST, and Storage; replay every migration in `dao-backend/supabase/migrations`; and load E2E-only territory rows from `dao-backend/supabase/seed.sql`. Storage object files live in the runner's local Storage container. The runner and its containers are discarded after the job, so Auth users, database rows, Storage metadata, and object files do not carry over to another campaign.
 
-The app receives URL and keys read from that local stack at runtime. `verify-supabase-target.mjs` and the Playwright fixtures both require the exact endpoint `http://127.0.0.1:54321`; no DEV or production Supabase secrets are attached to the E2E job. Playwright runs the desktop and mobile projects with two workers. Worker state records resource IDs for leak accounting, while `cleanup-e2e.mjs` removes only those local tracking files. Submitted offers and immutable history remain intact until the disposable runner is discarded.
+The app receives URL and keys read from that local stack at runtime. `verify-supabase-target.mjs` and the Playwright fixtures both require the exact endpoint `http://127.0.0.1:54321`; no DEV or production Supabase secrets are attached to the E2E job. Playwright runs the complete desktop and mobile projects with two workers by default; `PLAYWRIGHT_WORKERS` remains available for controlled comparisons. Worker state records resource IDs for leak accounting, while `cleanup-e2e.mjs` removes only those local tracking files. Submitted offers and immutable history remain intact until the disposable runner is discarded.
 
 The first isolated run (#136) reached the fifth migration and failed in 58 seconds because the repository migration chain does not define `public.rls_auto_enable()`. It did not reach database reset verification or Playwright, so successful stack/reset/full-E2E timings are not yet available. As the before-isolation baseline, run #135's DEV Playwright step took 5m32s (the E2E job took 6m25s including setup and cleanup); that run failed during cleanup and must not be repeated against DEV.
 
@@ -26,3 +26,10 @@ No new FULL E2E run may target shared DEV. CI E2E uses the disposable local stac
 ## DEV migration state
 
 Read-only Supabase checks found migration `20260926092748_enforce_draft_withdrawal_and_approved_publication` present exactly once. Both `publish_project` and `withdraw_project_request` are available on DEV, and catalog codes `general_contractor`, `plumbing`, and `electrical` are active. The migration was not reapplied during this E2E isolation work.
+
+
+## 58-test concurrency correction (2026-10-14)
+
+Main run #540 passed backend and frontend verification but the FULL E2E job failed twice with four workers. The first attempt produced unrelated loading/navigation timeouts across five scenarios; the targeted retry failed in two different scenarios, including a page left on `Chargement du DAO…`. The same 58-test revision had passed on PR #143. This changing failure surface identifies runner/application saturation rather than one deterministic product regression.
+
+The CI default is therefore restored to two workers for the expanded 58-test desktop/mobile campaign. Test count, projects, assertions, disposable Supabase target, migration replay and deployment gate are unchanged. Four workers remain opt-in through `PLAYWRIGHT_WORKERS` for measured experiments.
