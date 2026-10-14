@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
@@ -44,7 +44,7 @@ export default function RoleNav() {
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -67,6 +67,7 @@ export default function RoleNav() {
       }
     };
     desktop.addEventListener('change', closeOnDesktop);
+    closeOnDesktop();
     document.addEventListener('keydown', onKeyDown);
     return () => {
       desktop.removeEventListener('change', closeOnDesktop);
