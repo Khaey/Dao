@@ -42,6 +42,9 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   await expect(missingRow.getByRole('link', { name: 'Trouver un professionnel' })).toBeVisible();
   await expect(page.getByLabel('Professionnel de Lot principal E2E')).toHaveValue(members[0].id);
   await missingRow.getByRole('link', { name: 'Trouver un professionnel' }).click();
+  await expect(page.getByRole('heading', { name: 'Professionnels vérifiés' })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/app/professionals\\?project_id=${project.projectId}&request_id=`));
+  await page.goto(`/app/projects/${project.projectId}/review`);
   await expect(page.getByRole('button', { name: 'Soumettre pour revue DAO' })).toBeEnabled();
   expect(await adminRows('publications', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();

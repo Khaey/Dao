@@ -31,6 +31,7 @@ test('Documents privés : dépôt, consultation, retrait et confidentialité', a
   await expect(page.getByText('plan-e2e.pdf', { exact: true })).not.toBeVisible();
 
   await page.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await page.getByText('Coordonnées privées / Accès chantier — ouvrir').click();
   await expect(page.getByRole('heading', { name: 'Informations privées et confidentielles' })).toBeVisible();
   await expect(page.getByText('Réservées aux participants disposant d’une autorisation explicite. Jamais visibles sur le marketplace.', { exact: true })).toBeVisible();
   await page.getByLabel('Adresse exacte').fill('12 rue de Sahloul, Sousse');
@@ -40,6 +41,7 @@ test('Documents privés : dépôt, consultation, retrait et confidentialité', a
   await page.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(page.getByRole('status')).toContainText('Coordonnées privées enregistrées.');
   await page.reload();
+  await page.getByText('Coordonnées privées / Accès chantier — ouvrir').click();
   await expect(page.getByRole('heading', { name: 'Informations privées et confidentielles' })).toBeVisible();
   await expect(page.getByLabel('Adresse exacte')).toHaveValue('12 rue de Sahloul, Sousse');
   await expect(page.getByLabel('Instructions d’accès')).toHaveValue('Appeler avant l’arrivée.');

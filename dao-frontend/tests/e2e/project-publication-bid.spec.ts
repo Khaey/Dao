@@ -16,6 +16,7 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await page.getByRole('button', { name: 'Enregistrer les modifications' }).click();
   await expect(page.getByText('v2', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await page.getByText('Coordonnées privées / Accès chantier — ouvrir').click();
   await page.getByLabel('Adresse exacte').fill('12 rue de Sahloul, Sousse');
   await page.getByLabel('Instructions d’accès').fill('Appeler avant l’arrivée.');
   await page.getByLabel('Téléphone privé').fill('+21620123456');
