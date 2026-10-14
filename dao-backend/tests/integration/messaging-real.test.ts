@@ -17,6 +17,10 @@ test('messaging: live memberships, idempotence, notifications and revocation',as
  const opened=await owner.db.rpc('open_project_conversation',openArgs);assert.ifError(opened.error);const replay=await pro.db.rpc('open_project_conversation',openArgs);assert.ifError(replay.error);assert.equal(replay.data,opened.data);
  for(const db of [other.db,staff.db]){const denied=await db.rpc('open_project_conversation',openArgs);assert.ok(denied.error);assert.equal(denied.error.code,'42501');}
  const competitor=await other.db.rpc('open_project_conversation',{p_project_id:project.data!.id,p_contractor_id:otherCp.data!.id});assert.ok(competitor.error);
+ const dualRole=await admin.from('user_roles').insert({user_id:owner.id,role:'contractor'});assert.ifError(dualRole.error);
+ const selfProfile=await admin.from('contractor_profiles').insert({user_id:owner.id,business_name:'Double rôle test',verification_status:'verified',contractor_type:'artisan',public_identity_status:'approved'}).select('id').single();assert.ifError(selfProfile.error);
+ const self=await owner.db.rpc('open_project_conversation',{p_project_id:project.data!.id,p_contractor_id:selfProfile.data!.id});assert.ok(self.error);assert.equal(self.error.code,'42501');
+
  const direct=await pro.db.from('messages').insert({conversation_id:opened.data,author_id:owner.id,body:'usurpation'});assert.ok(direct.error);
  const key=randomUUID(),sendArgs={p_conversation_id:opened.data,p_body:' Bonjour chantier ',p_idempotency_key:key};const sent=await owner.db.rpc('send_conversation_message',sendArgs);assert.ifError(sent.error);const sentAgain=await owner.db.rpc('send_conversation_message',sendArgs);assert.ifError(sentAgain.error);assert.equal(sentAgain.data.id,sent.data.id);
  const stored=await admin.from('messages').select('id,author_id,body').eq('conversation_id',opened.data);assert.ifError(stored.error);assert.deepEqual(stored.data,[{id:sent.data.id,author_id:owner.id,body:'Bonjour chantier'}]);
