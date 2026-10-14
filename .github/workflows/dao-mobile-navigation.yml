@@ -1,0 +1,167 @@
+name: DAO mobile navigation
+
+# Supplemental UI proof only. The complete DAO CI remains the merge/deploy gate.
+# A separate fresh runner prevents unrelated integration fixtures from blocking
+# navigation verification; existing security tests are still required in ci.yml.
+on:
+  pull_request:
+    paths:
+      - 'dao-frontend/app/app/RoleNav.tsx'
+      - 'dao-frontend/app/app/layout.tsx'
+      - 'dao-frontend/tests/e2e/workspace-navigation.spec.ts'
+      - '.github/workflows/dao-mobile-navigation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dao-mobile-navigation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  navigation:
+    name: Navigation Gestionnaire sur Supabase locale isolée
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DAO_PUBLIC_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+      DAO_E2E_STATE_DIR: /tmp/dao-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dao-frontend/package-lock.json
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v1.6.1
+        with:
+          version: 2.118.0
+      - name: Initialize complete validation timing summary
+        run: |
+          {
+            echo "### Mobile navigation validation timings"
+            echo
+            echo "| Stage | Duration |"
+            echo "| --- | ---: |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Install backend dependencies for integration
+        working-directory: dao-backend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install for integration" npm ci --no-audit --no-fund
+      - name: Install frontend dependencies
+        working-directory: dao-frontend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install for E2E" npm ci --no-audit --no-fund
+      - name: Stop any previous local stack and start from a fresh database
+        working-directory: dao-backend
+        run: |
+          supabase stop --no-backup || true
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,postgres-meta
+      - name: Verify fresh migration ledger and schema contract
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh migration list + schema contract" bash -euo pipefail -c '
+            supabase migration list --local
+            contract_sql="$(cat tests/schema-contract.sql)"
+            supabase db query --local -o csv "$contract_sql"
+          '
+      - name: Reset and replay all repository migrations and seed
+        working-directory: dao-backend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Supabase reset + complete migration replay + seed" supabase db reset --local
+      - name: Verify reset migration ledger and schema contract
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Post-reset migration list + schema contract" bash -euo pipefail -c '
+            supabase migration list --local
+            contract_sql="$(cat tests/schema-contract.sql)"
+            supabase db query --local -o csv "$contract_sql"
+          '
+      - name: Export disposable local Supabase credentials for integration and E2E
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          status_env="$(supabase status -o env)"
+          get_status_value() {
+            local key="$1"
+            local value
+            value="$(printf '%s\n' "$status_env" | sed -n "s/^${key}=//p" | head -n 1)"
+            value="${value#\"}"
+            value="${value%\"}"
+            if [ -z "$value" ]; then
+              echo "Missing $key in local Supabase status" >&2
+              return 1
+            fi
+            printf '%s' "$value"
+          }
+          api_url="$(get_status_value API_URL)"
+          anon_key="$(get_status_value ANON_KEY)"
+          service_role_key="$(get_status_value SERVICE_ROLE_KEY)"
+          if [ "$api_url" != "http://127.0.0.1:54321" ]; then
+            echo "Refusing validation target outside the disposable local Supabase stack" >&2
+            exit 1
+          fi
+          echo "::add-mask::$service_role_key"
+          {
+            printf 'DAO_SUPABASE_URL=%s\n' "$api_url"
+            printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$api_url"
+            printf 'DAO_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
+            printf 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' "$anon_key"
+            printf 'DAO_SUPABASE_SECRET_KEY=%s\n' "$service_role_key"
+          } >> "$GITHUB_ENV"
+      - name: Guard isolated navigation target
+        working-directory: dao-frontend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL E2E local-target guard" node tests/e2e/verify-supabase-target.mjs
+      - name: Build E2E frontend and install Playwright browser in parallel
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          (
+            cd dao-frontend
+            bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend E2E build with local Supabase config" npm run build
+          ) &
+          build_pid=$!
+
+          (
+            cd dao-frontend
+            bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright browser and system dependencies" npx playwright install --with-deps chromium
+          ) &
+          browser_pid=$!
+
+          status=0
+          wait "$build_pid" || status=1
+          wait "$browser_pid" || status=1
+          exit "$status"
+      - name: Discover the expected 60 Playwright tests
+        working-directory: dao-frontend
+        shell: bash
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright test discovery" bash -euo pipefail -c '
+            npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
+          '
+          grep -Eq 'Total: 60 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
+      - name: Run targeted workspace navigation on desktop and mobile
+        working-directory: dao-frontend
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Workspace navigation on desktop + mobile" npm run test:e2e -- tests/e2e/workspace-navigation.spec.ts --reporter=line
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-navigation-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dao-frontend/test-results
+            dao-frontend/playwright-report
+          if-no-files-found: ignore
+          retention-days: 1
+      - name: Cleanup disposable E2E data
+        if: always()
+        working-directory: dao-frontend
+        run: node tests/e2e/cleanup-e2e.mjs
+
+      - name: Stop disposable navigation stack
+        if: always()
+        working-directory: dao-backend
+        run: supabase stop --no-backup
