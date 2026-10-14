@@ -45,7 +45,7 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await expect(reviewHeading).toHaveCount(0);
 
   await page.goto(`/app/projects/${project.projectId}`);
-  const correctionLabel = page.getByText('Corrections demandées', { exact: true });
+  const correctionLabel = page.locator('p').filter({ hasText: /^Corrections demandées$/ });
   await expect(correctionLabel).toHaveCount(1);
   await expect(correctionLabel).toBeVisible();
   await expect(page.getByText('À corriger : précisez le périmètre du lot.')).toBeVisible();
