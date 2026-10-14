@@ -50,10 +50,7 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
       const roles=await admin.from('user_roles').select('user_id').eq('role','dao_admin');assert.ifError(roles.error);
       const fixtures=await admin.from('profiles').select('user_id').in('display_name',['BO admin','BO admin2']);assert.ifError(fixtures.error);
       if(fixtures.data!.length===2&&roles.data!.length===1){await new Promise(resolve=>setTimeout(resolve,250));break;}
-      // Standalone execution has no BO fixtures. In the shared CI campaign,
-      // allow the slower concurrent suite enough time to create both of them.
-      if(fixtures.data!.length===0&&Date.now()-started>5000)break;
-      assert.ok(Date.now()-started<8000,'global admin invariant race did not settle');
+      assert.ok(Date.now()-started<30000,'global admin invariant race did not settle');
       await new Promise(resolve=>setTimeout(resolve,25));
     }
     assert.ifError((await admin.from('user_roles').insert({user_id:users.dao.id,role:'dao_admin'})).error);
