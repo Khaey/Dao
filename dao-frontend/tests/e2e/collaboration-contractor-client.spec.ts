@@ -1,6 +1,6 @@
 import { test, expect } from './support/fixtures';
 import { login } from './support/flow';
-import { acceptWithLogin, addLocalRole, adminRows, createCollaborative, signOut } from './support/collaboration';
+import { acceptWithLogin, adminRows, createCollaborative, signOut } from './support/collaboration';
 
 test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et dashboard adapté', async ({ page, e2eArtisan, e2eClient }, info) => {
   test.skip(!e2eClient || !e2eArtisan, 'Disposable E2E credentials are not available');
@@ -53,31 +53,18 @@ test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et
   expect((await adminRows('user_roles', `user_id=eq.${e2eArtisan!.id}&select=role`)).map(row => row.role)).toEqual(['contractor']);
 });
 
-test('Compte double rôle : Mes chantiers suit l’espace actif et précise le rôle du chantier', async ({ page, e2eArtisan }) => {
-  test.skip(!e2eArtisan, 'Disposable E2E contractor is unavailable');
-  if (process.env.DAO_SUPABASE_URL !== 'http://127.0.0.1:54321' || !process.env.DAO_SUPABASE_SECRET_KEY) {
-    throw new Error('Role test must run against disposable local Supabase only');
-  }
-  await addLocalRole(e2eArtisan!.id, 'client');
-  try {
-    await login(page, e2eArtisan!);
+test('Compte double rôle : Mes chantiers suit l’espace actif et précise le rôle du chantier', async ({ page, e2eDualRole }) => {
+  test.skip(!e2eDualRole, 'Disposable dual-role E2E account is unavailable');
+  await login(page, e2eDualRole!);
+  await page.goto('/app/projects');
+  const mobile = (page.viewportSize()?.width ?? 1440) < 1024;
+  const chooseWorkspace = async (name: 'Artisan' | 'Client') => {
+    if (mobile) await page.getByRole('button', { name: 'Ouvrir le menu', exact: true }).click();
+    await page.getByRole('button', { name, exact: true }).click();
     await page.goto('/app/projects');
-    const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
-    if (await menu.isVisible()) await menu.click();
-    await page.getByRole('button', { name: 'Artisan', exact: true }).click();
-    await page.goto('/app/projects');
-    await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true })).toBeVisible();
-
-    if (await menu.isVisible()) await menu.click();
-    await page.getByRole('button', { name: 'Client', exact: true }).click();
-    await page.goto('/app/projects');
-    await expect(page.getByRole('link', { name: 'Nouveau chantier', exact: true })).toBeVisible();
-  } finally {
-    const url = process.env.DAO_SUPABASE_URL;
-    const secret = process.env.DAO_SUPABASE_SECRET_KEY;
-    const response = await fetch(`${url}/rest/v1/user_roles?user_id=eq.${e2eArtisan!.id}&role=eq.client`, {
-      method: 'DELETE', headers: { apikey: secret!, Authorization: `Bearer ${secret}` },
-    });
-    if (!response.ok) throw new Error('Unable to restore disposable E2E role fixture');
-  }
+  };
+  await chooseWorkspace('Artisan');
+  await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true })).toBeVisible();
+  await chooseWorkspace('Client');
+  await expect(page.getByRole('link', { name: 'Nouveau chantier', exact: true })).toBeVisible();
 });
