@@ -91,6 +91,10 @@ export async function createCollaborative(page: Page, info: TestInfo, contractor
   return { projectId, title, link, recipientName };
 }
 export async function signOut(page: Page) {
+  if (await page.evaluate(() => window.matchMedia('(max-width: 1023px)').matches)) {
+    await page.getByRole('button', { name: 'Ouvrir le menu', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Menu de navigation' })).toBeVisible();
+  }
   await page.getByRole('button', { name: 'Déconnexion', exact: true }).click();
   await expect(page).toHaveURL(/\/auth\/login/);
 }
