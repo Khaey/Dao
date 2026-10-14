@@ -508,9 +508,11 @@ class AgentOnboardingTests(unittest.TestCase):
 
     def test_current_active_assignments_are_registered(self):
         config = dm.configuration()
-        expected = {64: "DAO Chat 20", 115: "DAO OPT 2", 124: "DAO OPT 20",
-                    125: "DAO DEV 2", 137: "DAO Chat 20", 156: "DAO Chat 1",
-                    89: "DAO Pilot 4", 93: "DAO Pilot 5", 154: "DAO Pilot 5"}
+        expected = {64: "DAO Chat 21", 91: "DAO OPT 21", 115: "DAO OPT 2",
+                    124: "DAO OPT 20", 125: "DAO DEV 2", 126: "DAO OPT 21",
+                    137: "DAO Chat 20", 146: "DAO Chat 1", 156: "DAO Chat 1",
+                    161: "DAO Chat 21", 89: "DAO Pilot 4", 93: "DAO Pilot 5",
+                    154: "DAO Pilot 5"}
         for issue, name in expected.items():
             with self.subTest(issue=issue):
                 self.assertEqual(dm.mission_for(issue, config)["agent"], name)
