@@ -47,7 +47,27 @@ test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et
   await page.goto('/app/projects');
   const row = page.locator(`[data-testid="project-row-${project.projectId}"]:visible`);
   await expect(row).toContainText(project.title);
+  await expect(row).toContainText('Mon rôle : Artisan / Entreprise');
   await expect(row).toContainText('Travaux terminés');
   await expect(row).not.toContainText('Client à confirmer');
   expect((await adminRows('user_roles', `user_id=eq.${e2eArtisan!.id}&select=role`)).map(row => row.role)).toEqual(['contractor']);
+});
+
+test('Compte double rôle : Mes chantiers suit l’espace actif et précise le rôle du chantier', async ({ page, e2eDualRole }) => {
+  test.skip(!e2eDualRole, 'Disposable dual-role E2E account is unavailable');
+  await login(page, e2eDualRole!);
+  await page.goto('/app/projects');
+  const mobile = (page.viewportSize()?.width ?? 1440) < 1024;
+  const chooseWorkspace = async (name: 'Artisan' | 'Client') => {
+    if (mobile) await page.getByRole('button', { name: 'Ouvrir le menu', exact: true }).click();
+    await page.getByRole('button', { name, exact: true }).click();
+    // Await the successful set_my_workspace RPC and consequent /app navigation before reloading.
+    // A premature goto can abort the pending write on slower mobile browsers.
+    await expect(page).toHaveURL(/\/app$/);
+    await page.goto('/app/projects');
+  };
+  await chooseWorkspace('Artisan');
+  await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true })).toBeVisible();
+  await chooseWorkspace('Client');
+  await expect(page.getByRole('link', { name: 'Nouveau chantier', exact: true })).toBeVisible();
 });
