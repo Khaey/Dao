@@ -6,7 +6,7 @@ const focusDark = 'focus-visible:outline focus-visible:outline-2 focus-visible:o
 
 const clientBenefits = [
   { title: 'Un projet structuré en lots', text: 'Décrivez vos travaux et découpez-les par lot de travaux : chaque corps de métier répond sur un périmètre précis.' },
-  { title: 'Des offres comparables', text: 'Les professionnels répondent au même cadre. Vous comparez les offres lot par lot, sur des bases identiques.' },
+  { title: 'Des offres comparables', text: 'Les professionnels répondent au même cadre. Vous comparez les offres sur des bases identiques, avec le détail des lots concernés.' },
   { title: 'Une attribution maîtrisée', text: 'Vous décidez lot par lot : vous gardez la main sur le choix des professionnels pour chaque partie du chantier.' },
   { title: 'Un suivi partagé', text: 'Le projet, ses documents et la messagerie de chantier sont réunis dans un espace commun avec les intervenants retenus.' },
 ];
@@ -14,13 +14,13 @@ const clientBenefits = [
 const proBenefits = [
   { title: 'Un profil professionnel', text: 'Présentez votre activité et vos métiers. La soumission d’offres est ouverte après vérification de votre profil par D.A.O.' },
   { title: 'Des projets cadrés', text: 'Consultez des projets décrits par lots et répondez sur le périmètre qui correspond à votre métier.' },
-  { title: 'Une offre par lot', text: 'Soumettez votre offre sur chaque lot qui vous concerne, sans devoir répondre à l’ensemble du chantier.' },
+  { title: 'Une offre sur un ou plusieurs lots', text: 'Soumettez une offre couvrant un seul lot ou plusieurs lots, selon votre savoir-faire, sans devoir répondre à l’ensemble du chantier.' },
   { title: 'Un chantier suivi ensemble', text: 'Une fois retenu, vous échangez avec le maître d’ouvrage dans l’espace partagé et la messagerie de chantier.' },
 ];
 
 const steps = [
   { title: 'Décrire', text: 'Le maître d’ouvrage crée son projet et le découpe en lots de travaux.' },
-  { title: 'Recevoir des offres', text: 'Les professionnels vérifiés répondent lot par lot.' },
+  { title: 'Recevoir des offres', text: 'Les professionnels vérifiés répondent sur un ou plusieurs lots.' },
   { title: 'Comparer et attribuer', text: 'Les offres sont comparées et l’attribution se fait par lot.' },
   { title: 'Suivre le chantier', text: 'Un espace partagé et une messagerie réunissent les intervenants du projet.' },
 ];
@@ -98,7 +98,7 @@ export default function Home() {
         <section id="professionnels" aria-labelledby="titre-pros" className="scroll-mt-20 bg-ink text-white">
           <div className="mx-auto max-w-6xl px-5 py-16 md:px-6 md:py-20">
             <p className="text-sm font-semibold uppercase tracking-[.2em] text-clay">Pour les artisans et entreprises</p>
-            <h2 id="titre-pros" className="mt-3 max-w-2xl text-3xl font-bold leading-tight md:text-4xl">Répondez aux projets de votre métier, lot par lot.</h2>
+            <h2 id="titre-pros" className="mt-3 max-w-2xl text-3xl font-bold leading-tight md:text-4xl">Répondez aux projets qui correspondent à votre métier.</h2>
             <ul className="mt-10 grid gap-5 sm:grid-cols-2">
               {proBenefits.map(item => (
                 <li key={item.title} className="rounded-2xl border border-white/15 bg-white/5 p-6">

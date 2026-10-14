@@ -24,9 +24,15 @@ test('accueil : navigation, sections distinctes et étapes', async ({ page }) =>
   await expect(header.getByRole('link', { name: 'Se connecter' })).toHaveAttribute('href', '/auth/login');
   await expect(header.getByRole('link', { name: 'Créer un compte' })).toHaveAttribute('href', '/auth/register');
   await expect(page.getByRole('heading', { level: 2, name: /Préparez, comparez et décidez/ })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: /Répondez aux projets de votre métier/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: /Répondez aux projets qui correspondent à votre métier/ })).toBeVisible();
   await expect(page.getByRole('list').filter({ has: page.getByRole('heading', { level: 3, name: 'Suivre le chantier' }) }).getByRole('listitem')).toHaveCount(4);
   await expect(page.getByRole('link', { name: 'Mot de passe oublié' })).toHaveAttribute('href', '/auth/forgot-password');
+});
+
+test('accueil : une offre peut couvrir un ou plusieurs lots', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 3, name: 'Une offre sur un ou plusieurs lots' })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('Une offre par lot');
 });
 
 test('accueil : aucune allégation sur des fonctions non livrées', async ({ page }) => {
