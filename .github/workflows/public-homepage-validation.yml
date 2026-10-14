@@ -1,0 +1,69 @@
+name: DAO public homepage validation
+
+# Contrôle isolé (#146) : build + Playwright ciblé sur la page publique.
+# Sans secrets, sans Supabase, sans fixtures. Ne remplace JAMAIS la CI complète (ci.yml).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dao-frontend/app/page.tsx'
+      - 'dao-frontend/tests/public/**'
+      - 'dao-frontend/playwright.public.config.ts'
+      - '.github/workflows/public-homepage-validation.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dao-frontend/app/page.tsx'
+      - 'dao-frontend/tests/public/**'
+      - 'dao-frontend/playwright.public.config.ts'
+      - '.github/workflows/public-homepage-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dao-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  homepage:
+    name: Public homepage isolated Playwright check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-validation.invalid
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-validation-publishable-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dao-frontend/package-lock.json
+      - name: Install backend runtime dependencies for Next.js API routes
+        working-directory: dao-backend
+        run: npm ci --omit=dev --no-audit --no-fund
+      - name: Install frontend dependencies
+        working-directory: dao-frontend
+        run: npm ci --no-audit --no-fund
+      - name: Build frontend
+        working-directory: dao-frontend
+        run: npm run build
+      - name: Install Playwright browser
+        working-directory: dao-frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run public homepage Playwright check (desktop and mobile)
+        working-directory: dao-frontend
+        run: npx playwright test -c playwright.public.config.ts --reporter=line
+      - name: Upload screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-homepage-${{ github.run_id }}
+          path: |
+            dao-frontend/test-results
+            dao-frontend/playwright-report
+          if-no-files-found: ignore
+          retention-days: 3
