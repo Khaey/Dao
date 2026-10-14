@@ -1,5 +1,6 @@
 import { test, expect } from './support/fixtures';
-import { createProjectWithMainLot, login } from './support/flow';
+import { createProjectWithMainLot, dateOffset, login } from './support/flow';
+import { actorCommand } from './support/collaboration';
 
 test('Lots : version, duplication, retrait et historique', async ({ page, e2eClient }, testInfo) => {
   test.skip(!e2eClient, 'E2E Supabase credentials are not available');
@@ -9,6 +10,14 @@ test('Lots : version, duplication, retrait et historique', async ({ page, e2eCli
 
   const originalRow = page.locator('tr').filter({ hasText: project.lotTitle });
   await expect(originalRow).toHaveCount(1);
+  for (const [title, label] of [['Modifier', 'Modifier le lot'], ['Dupliquer', 'Dupliquer le lot'], ['Retirer', 'Retirer le lot']]) {
+    const action = originalRow.getByTitle(title);
+    await expect(action).toHaveAttribute('aria-label', label);
+    const bounds = await action.boundingBox();
+    expect(bounds, `${label} doit être un bouton compact`).not.toBeNull();
+    expect(bounds!.height).toBeLessThanOrEqual(48);
+    expect(bounds!.width).toBeLessThanOrEqual(48);
+  }
   await originalRow.getByTitle('Modifier').click();
   await page.getByLabel('Intitulé du lot').fill('Lot plomberie E2E version 2');
   await page.getByRole('button', { name: 'Enregistrer les modifications' }).click();
@@ -52,6 +61,18 @@ test('Client : recherche depuis un lot conserve le chantier, sans déclencher la
   await link.click();
   await expect(page.getByRole('heading', { name: 'Professionnels vérifiés' })).toBeVisible();
   await expect(page.getByText('Sélectionnez une fiche pour ce lot.')).toBeVisible();
+  // A deterministic empty directory verifies the public wording, not the live fixture's moderation state.
+  await page.route('**/api/professionals?*', async route => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get('view') === 'directory') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [] }) });
+    } else await route.continue();
+  });
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Aucun professionnel disponible pour le moment' })).toBeVisible();
+  await expect(page.getByText('Aucun professionnel actuellement publiable')).toHaveCount(0);
+  await page.getByLabel('Rechercher par nom ou ville').fill('Introuvable');
+  await expect(page.getByRole('heading', { name: 'Aucun résultat pour votre recherche' })).toBeVisible();
 });
 
 test('Client : vue d’ensemble distingue statut DAO, travaux et accès privé', async ({ page, e2eClient }, testInfo) => {
@@ -65,4 +86,31 @@ test('Client : vue d’ensemble distingue statut DAO, travaux et accès privé',
   await expect(privateDetails).not.toHaveAttribute('open', '');
   await privateDetails.locator('summary').click();
   await expect(privateDetails.getByLabel('Adresse exacte')).toBeVisible();
+
+  // Regression #175: empty desired dates cannot produce a reviewable DAO.
+  const projectId = new URL(page.url()).pathname.split('/').pop()!;
+  await page.getByRole('button', { name: 'Modifier le projet' }).click();
+  await page.getByLabel('Début souhaité du projet').fill('');
+  await page.getByLabel('Fin souhaitée du projet').fill('');
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Projet mis à jour.');
+  await page.getByRole('button', { name: 'DAO', exact: true }).click();
+  await expect(page.getByText('Dates souhaitées', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Revoir le DAO' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Compléter les dates' }).first()).toBeVisible();
+  const denied = await actorCommand(page, e2eClient!, '/api/projects/review', { project_id: projectId });
+  expect(denied.ok(), 'The server must refuse a direct submission without dates').toBeFalsy();
+  await page.goto(`/app/projects/${projectId}/review`);
+  await expect(page.getByRole('heading', { name: 'Dates souhaitées à compléter avant la soumission.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Soumettre pour revue DAO' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Renseigner les dates' }).click();
+  await expect(page.getByLabel('Début souhaité du projet')).toBeVisible();
+  await page.getByLabel('Début souhaité du projet').fill(dateOffset(30));
+  await page.getByLabel('Fin souhaitée du projet').fill(dateOffset(60));
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Projet mis à jour.');
+  await page.getByRole('button', { name: 'DAO', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Revoir le DAO' }).first()).toBeVisible();
+  await page.getByRole('link', { name: 'Revoir le DAO' }).first().click();
+  await expect(page.getByRole('button', { name: 'Soumettre pour revue DAO' })).toBeEnabled();
 });
