@@ -132,6 +132,8 @@ class DeploymentTests(unittest.TestCase):
             git = '''#!/usr/bin/env python3
 import os, pathlib, sys
 a=sys.argv[1:]
+# Production disables persistent credential helpers for private-repo reads.
+if a[:2]==['-c','credential.helper=']: a=a[2:]
 if a[0]=='init': pathlib.Path(a[1]).mkdir(parents=True)
 elif a[0]=='ls-remote': print(os.environ['MOCK_MAIN'] + '\\trefs/heads/main')
 elif a[:1]==['-C']:
@@ -193,15 +195,19 @@ os.execv('/usr/bin/''' + name + "', ['" + name + "', *a])\n"
             if env_sync:
                 payload.parent.mkdir(parents=True)
                 payload.write_text('{"RESEND_API_KEY":"new_key_value","DAO_EMAIL_FROM":"D.A.O <test@example.invalid>","DAO_PUBLIC_URL":"https://dao-dev.logiclab.fr"}\n')
+            if env_sync:
+                (payload.parent / 'github-read-token').write_text('fictional-github-token\n')
             admin_path = tmp / 'dao-dev-admin'
             admin_path.write_text('#!/bin/sh\nexit 0\n')
             admin_path.chmod(0o755)
             calls = tmp / 'calls'
             args = ['bash', str(path), revision, '1', '1', str(artifact)]
             if env_sync:
-                args.append(str(payload))
+                args.extend([str(payload), str(payload.parent / 'github-read-token')])
             result = subprocess.run(args, env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': str(primary_status) if smoke_failure else '0', 'MOCK_RECOVERY_SMOKE': '7' if recovery_failure=='http' else '0', 'MOCK_RECOVERY_FAILURE': recovery_failure or '', 'MOCK_RESTARTS': str(tmp / 'restarts'), 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_PLAN_GRANT': '1' if gateway_plan_grant else '0', 'MOCK_PLAN_FAILURE': '1' if gateway_plan_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
-            result.resource_state = {'current_exists': (app / 'current').exists(),
+            result.resource_state = {'git_token_exists': (payload.parent / 'github-read-token').exists(),
+                                     'askpass_exists': (payload.parent / 'dao-git-askpass.sh').exists(),
+                                     'current_exists': (app / 'current').exists(),
                                      'candidate_exists': (app / 'releases' / (revision+'-1-1')).exists(),
                                      'rollback_link_exists': (app / '.current-rollback-1-1').is_symlink()}
             call_log = calls.read_text() if calls.exists() else ''
@@ -247,6 +253,14 @@ os.execv('/usr/bin/''' + name + "', ['" + name + "', *a])\n"
         self.assertIn('DEPLOY_SKIPPED reason=main_advanced', result.stdout)
         self.assertEqual(active, 'previous')
         self.assertEqual(calls, 0)
+
+    def test_ephemeral_repo_credential_is_removed_before_release_activation(self):
+        result, active, calls, _ = self.deploy(env_sync=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(active, 'a' * 40 + '-1-1')
+        self.assertFalse(result.resource_state['git_token_exists'])
+        self.assertFalse(result.resource_state['askpass_exists'])
+        self.assertNotIn('fictional-github-token', result.stdout + result.stderr)
 
     def test_environment_sync_rolls_back_with_failed_readiness(self):
         result, active, calls, call_log = self.deploy(smoke_failure=True, env_sync=True)

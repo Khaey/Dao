@@ -69,6 +69,19 @@ Issue #64 approves Option A: assigned staff prepares immutable new versions and 
 
 > Decisions already made. Agents should not reopen them without new evidence or an explicit product request.
 
+## D-042 — P2.2-B configurable, avec effet juridique techniquement bloqué
+
+DAO Pilot a approuvé LogicLab Tunisie comme porteur D.A.O pour le lancement
+tunisien. Client et prestataire acceptent d'abord la même version immuable,
+puis un administrateur D.A.O actif la valide. L'annulation avant validation
+est réservée à D.A.O, motivée et append-only. P2.2-B conserve la preuve d'un
+accord vérifié sans l'appeler signature qualifiée. L'effet juridique est
+techniquement impossible dans P2.2-B jusqu'à revue juridique tunisienne et
+preuve d'homologation du prestataire retenu. NGSign et DigiGO/TUNTRUST restent
+des candidats non sélectionnés pour P2.2-C. Le mode neutre est figé par contrat
+afin qu'une configuration future puisse choisir désactivé, signature simple de
+confiance, qualifiée ou hybride. Aucun seuil n'est défini.
+
 ## D-041 — OCE V1 uses an approved bounded private gateway
 
 DAO Pilot approved this control in issue #58 on 2026-10-07. A dedicated
