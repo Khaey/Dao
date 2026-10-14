@@ -111,6 +111,13 @@
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 160,
+      "agent": "DAO Chat 20",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
     }
   ]
 }
