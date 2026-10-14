@@ -6,8 +6,8 @@ import { projectApi, Team } from '../lib/collaboration';
 import InvitationEmailButton, { PreparedInvitation } from './InvitationEmailButton';
 
 const invitationLabels: Record<string, string> = { pending: 'En attente de confirmation', accepted: 'Acceptée', declined: 'Refusée', revoked: 'Révoquée', expired: 'Expirée' };
-export default function ProjectTeam({ projectId, team, needsClient, archived, lots, onChange }: { projectId: string; team: Team; needsClient: boolean; archived: boolean; lots: { id: string; title: string }[]; onChange: (team: Team) => void }) {
-  const [recipientName, setRecipientName] = useState(''); const [email, setEmail] = useState(''); const [requestId, setRequestId] = useState(''); const [privateAccess, setPrivateAccess] = useState(false);
+export default function ProjectTeam({ projectId, team, needsClient, archived, lots, onChange, initialLotId }: { projectId: string; team: Team; needsClient: boolean; archived: boolean; lots: { id: string; title: string }[]; onChange: (team: Team) => void; initialLotId?: string }) {
+  const [recipientName, setRecipientName] = useState(''); const [email, setEmail] = useState(''); const [requestId, setRequestId] = useState(() => lots.some(lot => lot.id === initialLotId) ? initialLotId! : ''); const [privateAccess, setPrivateAccess] = useState(false);
   const [link, setLink] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const [copied, setCopied] = useState(false);
   const [invitation, setInvitation] = useState<PreparedInvitation | null>(null);
   const canInvite = !archived && (team.is_client || (needsClient && team.can_prepare));

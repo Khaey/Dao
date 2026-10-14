@@ -7,6 +7,7 @@ test('Documents partagés et coordonnées privées : autorisation explicite puis
   await login(page, e2eClient!);
   const project = await createCollaborative(page, info, false, e2eArtisan!.email);
   await page.getByRole('button', { name: 'Vue d’ensemble' }).click();
+  await page.getByText('Coordonnées privées / Accès chantier — ouvrir').click();
   await page.getByLabel('Adresse exacte').fill('Adresse confidentielle E2E collaboration');
   await page.locator('form').filter({ has: page.getByLabel('Adresse exacte') }).getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Coordonnées privées enregistrées.');
@@ -22,6 +23,7 @@ test('Documents partagés et coordonnées privées : autorisation explicite puis
   expect(Boolean(shared && privateDocument)).toBeTruthy();
   await signOut(page);
   await acceptWithLogin(page, project.link, e2eArtisan!);
+  await page.getByText('Coordonnées privées / Accès chantier — ouvrir').click();
   await expect(page.getByLabel('Adresse exacte')).toHaveCount(0);
   await expect(page.getByText('Vous n’avez pas accès aux coordonnées privées de ce chantier.')).toBeVisible();
   await page.getByRole('button', { name: 'Documents', exact: true }).click();
@@ -50,6 +52,7 @@ test('Documents partagés et coordonnées privées : autorisation explicite puis
   await signOut(page);
   await login(page, e2eArtisan!);
   await page.goto(`/app/projects/${project.projectId}`);
+  await page.getByText('Coordonnées privées / Accès chantier — ouvrir').click();
   await expect(page.getByLabel('Adresse exacte')).toHaveValue('Adresse confidentielle E2E collaboration');
   await expect(page.getByLabel('Adresse exacte')).toHaveAttribute('readonly', '');
   await signOut(page);

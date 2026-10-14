@@ -6,7 +6,7 @@ export function normalizeInternationalPhone(input:unknown,field='Numéro'):strin
   if(!raw)return '';
   const opens=(raw.match(/\(/g)||[]).length,closes=(raw.match(/\)/g)||[]).length;
   if(!/^\+[0-9\s().-]+$/.test(raw)||/\(\s*0\s*\)/.test(raw)||opens!==closes)
-    throw new Error(`${field} : utilisez +indicatif puis le numéro, sans extension ni zéro de tronc entre parenthèses.`);
+    throw new Error(`${field} : utilisez + et l’indicatif pays, puis le numéro, sans extension ni zéro de tronc entre parenthèses.`);
   const normalized=raw.replace(/[\s().-]/g,'');
   if(!/^\+[1-9][0-9]{6,14}$/.test(normalized))
     throw new Error(`${field} : format international invalide (7 à 15 chiffres après +, indicatif inclus).`);
