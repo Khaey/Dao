@@ -50,6 +50,20 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     await publish();assert.equal((await publicProfile()).professional_phone,'+21620000003');
     const anon=createClient(url,key,{auth:{persistSession:false}});assert.ok((await anon.rpc('professional_dossier',{p_id:cp.id})).error);
   });
+  await t.test('international contact validation, owner API and DB constraint remain aligned',async()=>{
+    const formatted=await api('pro','details',{professional_phone:'+33 (6) 12-34-56-78',whatsapp_phone:'+225 07.07.07.07.07'});
+    assert.equal(formatted.status,200);
+    assert.equal((await dossier()).details.professional_phone,'+33612345678');
+    assert.equal((await dossier()).details.whatsapp_phone,'+2250707070707');
+    await cmd('pro','details',{professional_phone:'+216 20 000 003'});
+    assert.equal((await dossier()).details.professional_phone,'+21620000003');
+    const invalidApi=await api('pro','details',{professional_phone:'0033 6 12 34 56 78'});
+    assert.equal(invalidApi.status,400);
+    const msg=(await invalidApi.json()).error;assert.match(msg,/numéro international|indicatif pays/i);assert.equal(msg.includes('contractor_profile_details'),false);
+    assert.equal((await users.pro.db.rpc('professional_command',{p_action:'details',p_input:{whatsapp_phone:'33 (0)6'}})).error?.code,'22023');
+    assert.equal((await users.other.db.rpc('professional_command',{p_action:'details',p_input:{professional_phone:'+226 70 12 34 56'}})).error?.code,'42501');
+    await publish();
+  });
   await t.test('real signed upload, server byte inspection, no direct Storage, revision race',async()=>{
     project=await cmd('pro','portfolio_save',{title:'Projet PRO',description:'Réalisé',trade_id:trades[0].id,publication_consent:true});
     photo=await upload({kind:'portfolio',portfolio_project_id:project.id,asset_kind:'before',mime_type:'image/png',public_consent:true},png);

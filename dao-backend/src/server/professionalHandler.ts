@@ -2,6 +2,20 @@ import { createHash, randomUUID } from 'node:crypto';
 
 const maxBytes=20*1024*1024;
 const allowed=['image/jpeg','image/png','image/webp','application/pdf'];
+// Applies the same E.164 format as the form before calling the privileged RPC.
+export function normalizeProfessionalPhone(input:unknown,field:string):string {
+  if(typeof input!=='string') invalid(`${field} : numéro international invalide.`);
+  const raw=(input as string).trim();
+  if(!raw)return '';
+  const opens=(raw.match(/\(/g)||[]).length,closes=(raw.match(/\)/g)||[]).length;
+  if(!/^\+[0-9\s().-]+$/.test(raw)||/\(\s*0\s*\)/.test(raw)||opens!==closes)
+    invalid(`${field} : commencez par +indicatif pays, sans extension ni zéro de tronc.`);
+  const result=raw.replace(/[\s().-]/g,'');
+  if(!/^\+[1-9][0-9]{6,14}$/.test(result))
+    invalid(`${field} : numéro international invalide (7 à 15 chiffres).`);
+  return result;
+}
+
 function invalid(message:string):never { throw {code:'22023',message}; }
 export function inspectProfessionalBytes(bytes:Uint8Array,mime:string,size:number) {
   if(bytes.length!==size || bytes.length<1 || bytes.length>maxBytes) invalid('Taille du fichier incohérente ou supérieure à 20 Mo');
@@ -81,6 +95,12 @@ export function createProfessionalHandler(db:any,resolveActor:(header:string|nul
         if(current.revision!==file.revision) throw {code:'42501',message:'Fichier modifié ou retiré'};
         const name=String(file.original_name||'document').replace(/[^a-zA-Z0-9._-]/g,'-');
         return new Response(Buffer.from(bytes),{headers:{'Content-Type':file.mime_type,'Content-Disposition':`${file.mime_type==='application/pdf'?'attachment':'inline'}; filename="${name}"`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+      }
+      if(body.action==='details') {
+        for(const field of ['professional_phone','whatsapp_phone']) {
+          if(Object.prototype.hasOwnProperty.call(input,field))
+            input[field]=normalizeProfessionalPhone(input[field],field==='professional_phone'?'Téléphone professionnel':'WhatsApp professionnel');
+        }
       }
       return Response.json({data:await rpc('professional_command',{p_action:body.action,p_input:input})});
     } catch(error:any) {
