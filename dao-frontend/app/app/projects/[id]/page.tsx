@@ -35,6 +35,10 @@ export default function ProjectDetail() {
       const lotId = params.get('request_id');
       if (lotId && /^[0-9a-f-]{36}$/i.test(lotId)) setInvitationLotId(lotId);
     }
+    if (params.get('tab') === 'overview' && params.get('edit') === 'project') {
+      setActiveTab('overview');
+      setProjectEdit(true);
+    }
   }, []);
   const [project, setProject] = useState<any>(); const [projectVersions, setProjectVersions] = useState<any[]>([]); const [projectVersion, setProjectVersion] = useState<any>(); const [requests, setRequests] = useState<RequestView[]>([]); const [trades, setTrades] = useState<Trade[]>([]); const [reviews, setReviews] = useState<any[]>([]); const [documents, setDocuments] = useState<any[]>([]); const [aiProposals, setAiProposals] = useState<any[]>([]); const [location, setLocation] = useState(''); const [privateForm, setPrivateForm] = useState<any>({}); const [projectForm, setProjectForm] = useState<any>({});
   const [showLotForm, setShowLotForm] = useState(false); const [trade, setTrade] = useState(''); const [title, setTitle] = useState(''); const [scope, setScope] = useState(''); const [budget, setBudget] = useState(''); const [editingRequestId, setEditingRequestId] = useState<string | null>(null); const [historyRequestId, setHistoryRequestId] = useState<string | null>(null); const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null); const [projectEdit, setProjectEdit] = useState(false); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [uploading, setUploading] = useState(false); const [error, setError] = useState(''); const [success, setSuccess] = useState('');
