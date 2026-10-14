@@ -64,7 +64,54 @@ test('Back-office : prise en charge, nouvelle version et sous-lots visibles côt
 
 test('Back-office : attribution assistée et retrait motivé conservent offre et publication',async({page,browser,e2eClient,e2eReviewer,e2eArtisan},info)=>{
  expect(e2eClient).toBeTruthy();expect(e2eReviewer).toBeTruthy();expect(e2eArtisan).toBeTruthy();await login(page,e2eClient!);const project=await createProjectWithMainLot(page,info,'bo-withdraw','Travaux publiés','Lot BO retrait');await page.goto(`/app/projects/${project.projectId}/review`);await page.getByRole('button',{name:'Soumettre pour revue DAO'}).click();const rc=await browser.newContext(),staff=await rc.newPage();await login(staff,e2eReviewer!);await staff.goto(`/app/dao/projects/${project.projectId}`);await staff.getByRole('button',{name:'Prendre en charge',exact:true}).click();await expect(staff.getByRole('button',{name:'Approuver',exact:true})).toBeVisible();await staff.getByRole('button',{name:'Approuver',exact:true}).click();await expect(staff.getByRole('status')).toContainText('Dossier approuvé');await staff.goto(`/app/dao/publications/new?project_id=${project.projectId}`);await staff.getByRole('button',{name:'Publier le DAO'}).click();await expect(staff).toHaveURL(/\/app\/publications\//);const pub=staff.url().split('/').pop()!;recordE2EValue(info,'publications',pub);
- const ac=await browser.newContext(),artisan=await ac.newPage();await login(artisan,e2eArtisan!);await artisan.goto(`/app/artisan/publications/${pub}`);await artisan.getByLabel('Prix proposé (TND)').fill('1000.001');await artisan.getByLabel('Délai (jours)').fill('10');await artisan.getByLabel('Proposition technique / inclusions').fill('Offre BO immuable');await artisan.getByRole('button',{name:'Soumettre l’offre'}).click();await expect(artisan.getByRole('heading',{name:'Offre envoyée'})).toBeVisible();const before=await adminRows('bid_items',`project_id=eq.${project.projectId}&select=id,price_millimes,inclusions`);
+ const ac=await browser.newContext(),artisan=await ac.newPage();await login(artisan,e2eArtisan!);
+ await artisan.goto('/app/artisan');
+ const card=artisan.locator(`a[href="/app/artisan/publications/${pub}"]`);
+ await expect(card.getByText('À répondre',{exact:true})).toBeVisible();
+ // Simulate the authoritative RPC reporting no eligible lots while the publication header stays published.
+ // The listing must not advertise an actionable DAO in this case.
+ const availabilityEndpoint='**/rest/v1/rpc/publication_lot_availability';
+ await artisan.route(availabilityEndpoint,async route=>{
+   if(route.request().postDataJSON()?.p_publication_id===pub)await route.fulfill({status:200,contentType:'application/json',body:'[]'});
+   else await route.continue();
+ });
+ await artisan.reload();
+ await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
+ await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
+ await artisan.unroute(availabilityEndpoint);
+ // Closed lot on a still published DAO: the authoritative RPC rejects new offers.
+ await artisan.route(availabilityEndpoint,async route=>{
+   if(route.request().postDataJSON()?.p_publication_id===pub)await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{accepts_offers:false,status:'closed'}])});
+   else await route.continue();
+ });
+ await artisan.reload();
+ await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
+ await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
+ await artisan.unroute(availabilityEndpoint);
+ // Simulate an expired deadline without changing the stored fixture.
+ const publicationEndpoint='**/rest/v1/publications*';
+ await artisan.route(publicationEndpoint,async route=>{
+   const response=await route.fetch();
+   const body=await response.json();
+   const expired=(row:any)=>row.id===pub?{...row,submission_deadline:new Date(Date.now()-86_400_000).toISOString()}:row;
+   await route.fulfill({response,body:JSON.stringify(Array.isArray(body)?body.map(expired):expired(body))});
+ });
+ await artisan.reload();
+ await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
+ await artisan.unroute(publicationEndpoint);
+ // An unverified professional can consult, but cannot respond even to an open DAO.
+ const profileEndpoint='**/rest/v1/contractor_profiles*';
+ await artisan.route(profileEndpoint,async route=>{
+   const response=await route.fetch();
+   const body=await response.json();
+   const pending=(row:any)=>({...row,verification_status:'pending'});
+   await route.fulfill({response,body:JSON.stringify(Array.isArray(body)?body.map(pending):pending(body))});
+ });
+ await artisan.reload();
+ await expect(card.getByText('Consultation uniquement',{exact:true})).toBeVisible();
+ await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
+ await artisan.unroute(profileEndpoint);
+ await artisan.goto(`/app/artisan/publications/${pub}`);await artisan.getByLabel('Prix proposé (TND)').fill('1000.001');await artisan.getByLabel('Délai (jours)').fill('10');await artisan.getByLabel('Proposition technique / inclusions').fill('Offre BO immuable');await artisan.getByRole('button',{name:'Soumettre l’offre'}).click();await expect(artisan.getByRole('heading',{name:'Offre envoyée'})).toBeVisible();const before=await adminRows('bid_items',`project_id=eq.${project.projectId}&select=id,price_millimes,inclusions`);
  await staff.reload();await expect(staff.getByText(/Actions pour le compte du client/)).toBeVisible();await staff.getByLabel('Contexte de la demande du client').fill('Demande du client de comparer et attribuer cette offre');await staff.getByRole('button',{name:'Attribuer cette offre'}).click();await staff.getByRole('button',{name:'Confirmer l’attribution'}).click();await expect(staff.getByText('Lot attribué',{exact:true})).toBeVisible();await staff.getByRole('button',{name:'Retirer de la publication'}).click();let withdrawal=staff.getByRole('dialog',{name:'Retirer un lot'});await withdrawal.getByLabel('Motif',{exact:true}).selectOption('correction');await withdrawal.getByRole('button',{name:'Confirmer le retrait'}).click();await expect(withdrawal.getByRole('alert')).toContainText('Annuler d’abord');await withdrawal.getByRole('button',{name:'Annuler',exact:true}).click();await staff.getByRole('button',{name:'Annuler l’attribution',exact:true}).click();const cancellation=staff.getByRole('group',{name:'Annulation de l’attribution'});await cancellation.getByLabel('Motif d’annulation').selectOption('award_error');await cancellation.getByRole('button',{name:'Confirmer l’annulation'}).click();await expect(staff.getByRole('button',{name:'Attribuer cette offre'})).toBeVisible();
  await staff.getByRole('button',{name:'Retirer de la publication'}).click();withdrawal=staff.getByRole('dialog',{name:'Retirer un lot'});await withdrawal.getByLabel('Motif',{exact:true}).selectOption('other');await expect(withdrawal.getByRole('button',{name:'Confirmer le retrait'})).toBeDisabled();await withdrawal.getByLabel('Commentaire obligatoire').fill('Corriger le périmètre');await withdrawal.getByRole('button',{name:'Confirmer le retrait'}).click();await expect(staff.getByText('Retiré de la publication',{exact:true})).toBeVisible();
  await staff.goto(`/app/dao/projects/${project.projectId}`);
