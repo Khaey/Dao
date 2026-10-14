@@ -153,7 +153,10 @@ await test('client can withdraw an open request while the project version is dra
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[0].request]);eq(request.rows[0].status,'withdrawn');
  const link=await db.query('select id from public.project_version_requests where project_version_id=$1 and request_version_id=$2',[withdrawalProjectVersion,withdrawalRequests[0].requestVersion]);eq(link.rows.length,0);
 }));
-await test('project review submission still requires and preserves an open request',()=>as('clientA',async()=>{
+await test('project review submission requires both dates and preserves an open request',()=>as('clientA',async()=>{
+ await denied(`select public.submit_project_for_review('${withdrawalProject}')`,'23514');
+ const draft=await db.query('select status from public.project_versions where id=$1',[withdrawalProjectVersion]);eq(draft.rows[0].status,'draft');
+ await db.query('update public.project_versions set desired_start_date=current_date+30,desired_end_date=current_date+60 where id=$1',[withdrawalProjectVersion]);
  const submitted=await db.query('select (public.submit_project_for_review($1)).status as status',[withdrawalProject]);eq(submitted.rows[0].status,'client_review');
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
 }));
