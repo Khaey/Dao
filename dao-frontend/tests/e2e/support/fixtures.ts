@@ -30,6 +30,7 @@ type WorkerFixtures = {
   e2eAdmin: E2EUser | null;
   e2eArtisan: E2EUser | null;
   e2eSecondArtisan: E2EUser | null;
+  e2eDualRole: E2EUser | null;
   e2eUxClient: E2EUser | null;
   e2eUxAdmin: E2EUser | null;
 };
@@ -124,6 +125,17 @@ async function createUser(worker: WorkerInfo, role: Role): Promise<E2EUser | nul
   return { id: user.id, email, password };
 }
 
+async function createDualRoleUser(worker: WorkerInfo): Promise<E2EUser | null> {
+  const user = await createUser(worker, 'contractor');
+  if (!user) return null;
+  await api('/rest/v1/user_roles', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify([{ user_id: user.id, role: 'client' }]),
+  });
+  return user;
+}
+
 export const test = base.extend<{}, WorkerFixtures>({
   e2eClient: [async ({}, use, worker) => use(await createUser(worker, 'client')), { scope: 'worker' }],
   e2eOtherClient: [async ({}, use, worker) => use(await createUser(worker, 'client')), { scope: 'worker' }],
@@ -132,6 +144,7 @@ export const test = base.extend<{}, WorkerFixtures>({
   e2eAdmin: [async ({}, use, worker) => use(await createUser(worker, 'dao_admin')), { scope: 'worker' }],
   e2eArtisan: [async ({}, use, worker) => use(await createUser(worker, 'contractor')), { scope: 'worker' }],
   e2eSecondArtisan: [async ({}, use, worker) => use(await createUser(worker, 'contractor')), { scope: 'worker' }],
+  e2eDualRole: [async ({}, use, worker) => use(await createDualRoleUser(worker)), { scope: 'worker' }],
   e2eUxClient: [async ({}, use, worker) => use(await createUser(worker, 'client')), { scope: 'worker' }],
   e2eUxAdmin: [async ({}, use, worker) => use(await createUser(worker, 'dao_admin')), { scope: 'worker' }],
 });
