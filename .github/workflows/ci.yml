@@ -336,6 +336,7 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           DAO_EMAIL_FROM: ${{ secrets.DAO_EMAIL_FROM }}
+          DAO_GITHUB_DEPLOY_KEY: ${{ secrets.DAO_GITHUB_DEPLOY_KEY }}
         run: |
           set -euo pipefail
           umask 077
@@ -352,26 +353,33 @@ jobs:
               'DAO_EMAIL_FROM': os.environ.get('DAO_EMAIL_FROM', ''),
               'DAO_PUBLIC_URL': 'https://dao-dev.logiclab.fr',
           }
-          if not values['RESEND_API_KEY'] or not values['DAO_EMAIL_FROM']:
+          deploy_key = os.environ.get('DAO_GITHUB_DEPLOY_KEY', '')
+          if not values['RESEND_API_KEY'] or not values['DAO_EMAIL_FROM'] or not deploy_key:
               raise SystemExit('Missing protected DEV environment configuration')
           path.parent.mkdir(parents=True)
           with path.open('x', encoding='utf-8') as stream:
               json.dump(values, stream, separators=(',', ':'))
               stream.write('\n')
           path.chmod(0o600)
+          key_path = path.parent / 'dao-github-deploy-key'
+          with key_path.open('x', encoding='utf-8') as stream:
+              stream.write(deploy_key.rstrip('\n') + '\n')
+          key_path.chmod(0o600)
           PY
           test "$(stat -c '%a' "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-env.json")" = 600
+          test "$(stat -c '%a' "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-github-deploy-key")" = 600
       - name: Make private environment payload readable to SCP container
         run: |
           chmod 0755 ops-incoming "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           chmod 0644 "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-env.json"
+          chmod 0644 "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-github-deploy-key"
       - name: Transfer verified package and protected environment payload to DEV host
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
           host: 137.74.168.122
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
-          source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/dao-env.json
+          source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/dao-env.json,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/dao-github-deploy-key
           target: /opt/dao
           overwrite: true
           timeout: 30s
@@ -389,11 +397,24 @@ jobs:
             package="/opt/dao/dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz"
             env_payload_dir="/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}"
             env_payload="$env_payload_dir/dao-env.json"
+            deploy_key_payload="$env_payload_dir/dao-github-deploy-key"
             payload="$run_dir/payload"
             cleanup() { rm -rf -- "$run_dir" "$package" "$env_payload_dir"; }
             trap cleanup EXIT
             test -s "$package"
             test -s "$env_payload"
+            test -s "$deploy_key_payload"
+            install -d -m 0700 "$HOME/.ssh"
+            install -m 0600 "$deploy_key_payload" "$HOME/.ssh/dao_github_readonly"
+            test "$(ssh-keygen -lf "$HOME/.ssh/dao_github_readonly" | awk '{print $2}')" = "SHA256:RTr2ijR8pxz5nqa6S8GPjMI9A/zWUXwHfA4jv7mbhrQ"
+            if ! ssh-keygen -F github.com -f "$HOME/.ssh/known_hosts" >/dev/null 2>&1; then
+              known_hosts_tmp="$(mktemp)"
+              ssh-keyscan -t ed25519 github.com > "$known_hosts_tmp" 2>/dev/null
+              test -s "$known_hosts_tmp"
+              cat "$known_hosts_tmp" >> "$HOME/.ssh/known_hosts"
+              rm -f -- "$known_hosts_tmp"
+              chmod 0600 "$HOME/.ssh/known_hosts"
+            fi
             mkdir -p "$payload"
             if tar -tzf "$package" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
               echo "Deployment package contains an unsafe path" >&2
