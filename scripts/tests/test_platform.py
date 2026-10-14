@@ -182,6 +182,12 @@ os.execv('/usr/bin/''' + name + "', ['" + name + "', *a])\n"
             for name, value in commands.items():
                 (binary / name).write_text(value)
                 (binary / name).chmod(0o755)
+            ssh_dir = tmp / '.ssh'
+            ssh_dir.mkdir(mode=0o700)
+            (ssh_dir / 'dao_github_readonly').write_text('fictional-test-private-key\n')
+            (ssh_dir / 'dao_github_readonly').chmod(0o600)
+            (ssh_dir / 'known_hosts').write_text('github.com ssh-ed25519 fictional-test-host-key\n')
+            (ssh_dir / 'known_hosts').chmod(0o600)
             script = (ROOT / 'ops/deploy-dev.sh').read_text().replace('APP_ROOT=/opt/dao', 'APP_ROOT=' + str(app)).replace('ENV_FILE=/etc/dao/dao-dev.env', 'ENV_FILE=' + str(env_file)).replace('/usr/local/sbin/dao-dev-admin', '"$MOCK_ADMIN"')
             path = tmp / 'deploy.sh'
             path.write_text(script)
@@ -200,7 +206,7 @@ os.execv('/usr/bin/''' + name + "', ['" + name + "', *a])\n"
             args = ['bash', str(path), revision, '1', '1', str(artifact)]
             if env_sync:
                 args.append(str(payload))
-            result = subprocess.run(args, env={**os.environ, 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': str(primary_status) if smoke_failure else '0', 'MOCK_RECOVERY_SMOKE': '7' if recovery_failure=='http' else '0', 'MOCK_RECOVERY_FAILURE': recovery_failure or '', 'MOCK_RESTARTS': str(tmp / 'restarts'), 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_PLAN_GRANT': '1' if gateway_plan_grant else '0', 'MOCK_PLAN_FAILURE': '1' if gateway_plan_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
+            result = subprocess.run(args, env={**os.environ, 'HOME': str(tmp), 'PATH': str(binary) + ':' + os.environ['PATH'], 'MOCK_ADMIN': str(admin_path), 'MOCK_MAIN': 'b' * 40 if stale else revision, 'MOCK_REV': revision, 'MOCK_SMOKE': str(primary_status) if smoke_failure else '0', 'MOCK_RECOVERY_SMOKE': '7' if recovery_failure=='http' else '0', 'MOCK_RECOVERY_FAILURE': recovery_failure or '', 'MOCK_RESTARTS': str(tmp / 'restarts'), 'MOCK_ENV_SYNC_FAILURE': '1' if env_sync_failure else '0', 'MOCK_PLAN_GRANT': '1' if gateway_plan_grant else '0', 'MOCK_PLAN_FAILURE': '1' if gateway_plan_failure else '0', 'MOCK_CALLS': str(calls)}, capture_output=True, text=True, timeout=15)
             result.resource_state = {'current_exists': (app / 'current').exists(),
                                      'candidate_exists': (app / 'releases' / (revision+'-1-1')).exists(),
                                      'rollback_link_exists': (app / '.current-rollback-1-1').is_symlink()}
