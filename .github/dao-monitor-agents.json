@@ -68,6 +68,12 @@
       "watchdog": false
     },
     {
+      "issue": 146,
+      "agent": "DAO CLAUDE 1",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
       "issue": 116,
       "agent": "DAO DEV 2",
       "role": "DEV",
