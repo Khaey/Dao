@@ -92,7 +92,7 @@ test('Client : vue d’ensemble distingue statut DAO, travaux et accès privé',
   await page.getByRole('button', { name: 'Modifier le projet' }).click();
   await page.getByLabel('Début souhaité du projet').fill('');
   await page.getByLabel('Fin souhaitée du projet').fill('');
-  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await page.locator('form').filter({ has: page.getByLabel('Titre du projet') }).getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Projet mis à jour.');
   await page.getByRole('button', { name: 'DAO', exact: true }).click();
   await expect(page.getByText('Dates souhaitées', { exact: true })).toBeVisible();
@@ -107,7 +107,7 @@ test('Client : vue d’ensemble distingue statut DAO, travaux et accès privé',
   await expect(page.getByLabel('Début souhaité du projet')).toBeVisible();
   await page.getByLabel('Début souhaité du projet').fill(dateOffset(30));
   await page.getByLabel('Fin souhaitée du projet').fill(dateOffset(60));
-  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await page.locator('form').filter({ has: page.getByLabel('Titre du projet') }).getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Projet mis à jour.');
   await page.getByRole('button', { name: 'DAO', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Revoir le DAO' }).first()).toBeVisible();
