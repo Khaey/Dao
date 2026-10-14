@@ -71,7 +71,8 @@ test('Compte double rôle : Mes chantiers suit l’espace actif et précise le r
     await page.goto('/app/projects');
   };
   await chooseWorkspace('Artisan');
-  await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true })).toBeVisible();
+  // Both the primary CTA and the empty-state card may expose this link; either visible instance proves the workspace label.
+  await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true }).first()).toBeVisible();
   await chooseWorkspace('Client');
-  await expect(page.getByRole('link', { name: 'Nouveau chantier', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Nouveau chantier', exact: true }).first()).toBeVisible();
 });
