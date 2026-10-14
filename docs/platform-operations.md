@@ -264,3 +264,10 @@ helper root borné et workflow protégé. Préparation seulement ; aucune
 activation constatée, aucun changement de `:8080` ni `gateway-host apply`.
 La configuration Cloudflare, le bootstrap root et la recette authentifiée
 restent les prochains prérequis ; ils ne sont pas réputés exécutés.
+
+
+## Private GitHub repository deployment access (2026-10-14)
+
+The repository is private. DEV deployment therefore fetches and checks `main` over SSH with the dedicated `DAO DEV VPS read-only` deploy key. GitHub grants this key pull access to `Khaey/Dao` only; write access is disabled. Its private half is stored only as the protected `dev` Environment secret `DAO_GITHUB_DEPLOY_KEY` and as `~dao/.ssh/dao_github_readonly` on the DEV host with mode `0600`.
+
+The main-only deployment transfers the key through the same run/attempt-scoped private staging boundary as the environment payload, verifies its fixed SHA-256 fingerprint before installation, and removes the staging copy on every exit path. Git uses `IdentitiesOnly`, strict host checking and the dedicated key. No personal token, repository write permission or public fallback is allowed.
