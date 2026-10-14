@@ -284,7 +284,7 @@ jobs:
           wait "$build_pid" || status=1
           wait "$browser_pid" || status=1
           exit "$status"
-      - name: Discover the expected 60 Playwright tests
+      - name: Discover the expected 58 Playwright tests
         working-directory: dao-frontend
         shell: bash
         run: |
@@ -336,6 +336,7 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           DAO_EMAIL_FROM: ${{ secrets.DAO_EMAIL_FROM }}
+          DAO_REPO_READ_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           umask 077
@@ -352,6 +353,9 @@ jobs:
               'DAO_EMAIL_FROM': os.environ.get('DAO_EMAIL_FROM', ''),
               'DAO_PUBLIC_URL': 'https://dao-dev.logiclab.fr',
           }
+          token = os.environ.get('DAO_REPO_READ_TOKEN', '')
+          if not token:
+              raise SystemExit('Missing ephemeral GitHub repository read token')
           if not values['RESEND_API_KEY'] or not values['DAO_EMAIL_FROM']:
               raise SystemExit('Missing protected DEV environment configuration')
           path.parent.mkdir(parents=True)
@@ -359,19 +363,26 @@ jobs:
               json.dump(values, stream, separators=(',', ':'))
               stream.write('\n')
           path.chmod(0o600)
+          token_file = path.parent / 'github-read-token'
+          with token_file.open('x', encoding='utf-8') as stream:
+              stream.write(token)
+              stream.write('\n')
+          token_file.chmod(0o600)
           PY
           test "$(stat -c '%a' "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-env.json")" = 600
+          test "$(stat -c '%a' "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/github-read-token")" = 600
       - name: Make private environment payload readable to SCP container
         run: |
           chmod 0755 ops-incoming "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           chmod 0644 "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-env.json"
+          chmod 0644 "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/github-read-token"
       - name: Transfer verified package and protected environment payload to DEV host
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
           host: 137.74.168.122
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
-          source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/dao-env.json
+          source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/dao-env.json,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/github-read-token
           target: /opt/dao
           overwrite: true
           timeout: 30s
@@ -389,11 +400,15 @@ jobs:
             package="/opt/dao/dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz"
             env_payload_dir="/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}"
             env_payload="$env_payload_dir/dao-env.json"
+            git_token_file="$env_payload_dir/github-read-token"
             payload="$run_dir/payload"
             cleanup() { rm -rf -- "$run_dir" "$package" "$env_payload_dir"; }
             trap cleanup EXIT
             test -s "$package"
             test -s "$env_payload"
+            test -s "$git_token_file"
+            test -f "$git_token_file" && test ! -L "$git_token_file"
+            chmod 0600 "$env_payload" "$git_token_file"
             mkdir -p "$payload"
             if tar -tzf "$package" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
               echo "Deployment package contains an unsafe path" >&2
@@ -407,7 +422,7 @@ jobs:
             test -s "$payload/.next/BUILD_ID"
             test -f "$payload/ops/deploy-dev.sh"
             chmod 0750 "$payload/ops/deploy-dev.sh"
-            bash "$payload/ops/deploy-dev.sh" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.run_attempt }}" "$payload" "$env_payload"
+            bash "$payload/ops/deploy-dev.sh" "${{ github.sha }}" "${{ github.run_id }}" "${{ github.run_attempt }}" "$payload" "$env_payload" "$git_token_file"
       - name: Remove private DEV environment payload from host
         if: always()
         continue-on-error: true
