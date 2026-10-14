@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createProfessionalHandler,inspectProfessionalBytes } from '../src/server/professionalHandler.js';
+import { createProfessionalHandler,inspectProfessionalBytes,normalizeProfessionalPhone } from '../src/server/professionalHandler.js';
 const png=Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]);
 const request=(action:string,input:any)=>new Request('https://dao.invalid/api/professionals',{method:'POST',headers:{Authorization:'Bearer test','Content-Type':'application/json'},body:JSON.stringify({action,input})});
 test('PRO inspector rejects spoofed formats, size mismatches, active PDFs and SVG',()=>{
@@ -38,4 +38,25 @@ test('PRO finalize computes hash on the server; a tampered approved object is re
   assert.equal(confirmation.input.p_actor,'owner');assert.equal(confirmation.input.p_sha256,createHash('sha256').update(png).digest('hex'));
   Object.assign(file,{status:'approved',content_sha256:'a'.repeat(64),revision:2});
   assert.equal((await handler(request('download',{kind:'professional',id:'logo'}))).status,403);
+});
+
+test('PRO contact phones normalize global E.164 safely and reject ambiguous national input',async()=>{
+  for(const [raw,expected] of [
+    ['+216 20 000 003','+21620000003'],
+    ['+33 (6) 12-34-56-78','+33612345678'],
+    ['+225 07.07.07.07.07','+2250707070707'],
+    ['+226 70 12 34 56','+22670123456'],
+    ['+1 (202) 555-0101','+12025550101'],
+    ['', ''],
+  ]) assert.equal(normalizeProfessionalPhone(raw,'Téléphone'),expected);
+  for(const raw of ['20 000 003','0033 6 12 34 56 78','+33 (0)6 12 34 56 78','+12','+1234567890123456','+33 ext 12','+33 <script>','+33 (6 12']) {
+    assert.throws(()=>normalizeProfessionalPhone(raw,'Téléphone'));
+  }
+  let captured:any;
+  const handler=createProfessionalHandler({rpc:async (_name:string,params:any)=>{captured=params;return {data:{id:'ok'}};}},async()=>({id:'owner'}),()=>{throw Error('Unexpected admin Storage');});
+  assert.equal((await handler(request('details',{professional_phone:'+33 (6) 12-34-56-78',whatsapp_phone:'+225 07.07.07.07.07'}))).status,200);
+  assert.equal(captured.p_input.professional_phone,'+33612345678');
+  assert.equal(captured.p_input.whatsapp_phone,'+2250707070707');
+  assert.equal((await handler(request('details',{professional_phone:'0033-612'}))).status,400);
+  assert.equal((await handler(request('details',{whatsapp_phone:'+1 extension 22'}))).status,400);
 });
