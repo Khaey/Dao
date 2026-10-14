@@ -51,7 +51,7 @@
     },
     {
       "issue": 93,
-      "agent": "DAO Pilot 4",
+      "agent": "DAO Pilot 5",
       "role": "PILOT",
       "watchdog": false
     },
@@ -91,6 +91,19 @@
       "role": "DEV",
       "watchdog": true,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 137,
+      "agent": "DAO Chat 20",
+      "role": "DEV",
+      "watchdog": true,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 154,
+      "agent": "DAO Pilot 5",
+      "role": "PILOT",
+      "watchdog": false
     }
   ]
 }
