@@ -97,9 +97,9 @@ class MaintenanceTests(unittest.TestCase):
     def candidate(self, data=None, verify=None):
         files = data or self.new
         def fetch(url, limit=0):
-            if url.endswith('ops/ops-release.json'):
+            if '/contents/ops/ops-release.json?' in url:
                 return json.dumps(admin.manifest(files)).encode()
-            return files[url.split('/' + self.approval['sha'] + '/', 1)[1]]
+            return files[url.split('/contents/', 1)[1].split('?ref=', 1)[0]]
         with patch.object(admin, 'admission', return_value=self.approval), \
              patch.object(admin, 'fetch', side_effect=fetch), \
              patch.object(admin, 'main_sha', return_value=self.approval['sha']), \
@@ -118,10 +118,19 @@ class MaintenanceTests(unittest.TestCase):
         for destination, _ in admin.CATALOG.values():
             self.assertEqual(stat.S_IMODE(Path(destination).stat().st_mode), 0o755)
         self.assertEqual(stat.S_IMODE((self.state / 'state.json').stat().st_mode), 0o600)
-        admin.rollback(ledger)
+        with patch.object(admin, 'github_token', side_effect=AssertionError('credential read')) as credential:
+            admin.rollback(ledger)
+        credential.assert_not_called()
         self.assertEqual(admin.installed_files(), self.old)
         self.assertIsNone(admin.load_ledger()['previous'])
         self.assertFalse((self.state / 'transaction.json').exists())
+
+    def test_status_remains_available_without_a_github_credential(self):
+        with patch.object(admin, 'github_token', side_effect=AssertionError('credential read')) as credential:
+            result = admin.status()
+        credential.assert_not_called()
+        self.assertTrue(result['installed_match'])
+        self.assertFalse(result['secrets_read'])
 
     def test_unchanged_upgrade_creates_no_transaction(self):
         with self.candidate(self.old), patch.object(admin.subprocess, 'run',
@@ -663,6 +672,11 @@ class TransportTests(unittest.TestCase):
 
 
 class RedactionTests(unittest.TestCase):
+    def setUp(self):
+        token = patch.object(admin, 'github_token', return_value='github_pat_' + 'fictional' * 5)
+        token.start()
+        self.addCleanup(token.stop)
+
     def test_github_http_failure_exposes_only_a_bounded_status_code(self):
         url = admin.API + '/git/ref/heads/main'
         for code, expected in [(403, 'GITHUB_HTTP_403'), (429, 'GITHUB_HTTP_429'),

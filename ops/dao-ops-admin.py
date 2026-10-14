@@ -1,7 +1,8 @@
 #!/usr/bin/python3 -I
 """Root-installed maintenance of a fixed catalog, admitted through GitHub #91.
 
-No caller paths, shell, credentials, service restart or checkout execution.
+No caller paths, shell, caller credentials, service restart or checkout execution.
+Network reads use a separately provisioned root-only repository read token.
 Existing helpers/configuration are not installed or provisioned by this tool.
 """
 import ast
@@ -26,7 +27,8 @@ STATE = Path('/var/lib/dao-ops')
 ANCHOR = Path('/')
 OWNER = 0
 API = 'https://api.github.com/repos/Khaey/Dao'
-RAW = 'https://raw.githubusercontent.com/Khaey/Dao'
+GITHUB_TOKEN = Path('/etc/dao-ops/github-read-token')
+MAX_TOKEN = 256
 SHA = re.compile(r'[0-9a-f]{40}')
 BUNDLE = re.compile(r'bootstrap|rev-[0-9a-f]{40}')
 CATALOG = {
@@ -224,11 +226,55 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise Halt('GITHUB_REDIRECT_REJECTED')
 
 
-def fetch(url, limit=2 * 1024 * 1024):
-    require(url.startswith(API + '/') or url.startswith(RAW + '/'), 'UNTRUSTED_SOURCE')
-    request = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'DAO-OPS/1'})
+def github_token():
+    """Read only the fixed root credential; never snapshot, cache or report it."""
     try:
-        with urllib.request.build_opener(NoRedirect()).open(request, timeout=15) as response:
+        safe(GITHUB_TOKEN.parent, directory=True)
+        require(stat.S_IMODE(GITHUB_TOKEN.parent.stat().st_mode) == 0o700,
+                'GITHUB_TOKEN_UNSAFE')
+        safe(GITHUB_TOKEN)
+        fd = os.open(GITHUB_TOKEN, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as stream:
+            meta = os.fstat(stream.fileno())
+            require(stat.S_ISREG(meta.st_mode) and meta.st_uid == OWNER
+                    and stat.S_IMODE(meta.st_mode) == 0o600 and meta.st_nlink == 1
+                    and 0 < meta.st_size <= MAX_TOKEN, 'GITHUB_TOKEN_UNSAFE')
+            raw = stream.read(MAX_TOKEN + 1)
+    except FileNotFoundError:
+        raise Halt('GITHUB_TOKEN_MISSING') from None
+    except (OSError, Halt):
+        raise Halt('GITHUB_TOKEN_UNSAFE') from None
+    # One optional final LF; reject whitespace/header injection and classic PATs.
+    # Format is not proof of repository selection or read-only permissions.
+    require(len(raw) <= MAX_TOKEN and re.fullmatch(rb'github_pat_[A-Za-z0-9_]{20,240}\n?', raw),
+            'GITHUB_TOKEN_INVALID')
+    return raw.decode('ascii').removesuffix('\n')
+
+
+def github_media_type(url):
+    """Validate the entire fixed-repository endpoint before reading a credential."""
+    require(isinstance(url, str) and url.startswith(API + '/'), 'UNTRUSTED_SOURCE')
+    path = url[len(API):]
+    if path in {'/git/ref/heads/main', '/issues/91'} or re.fullmatch(
+        r'/actions/runs\?branch=main&event=push&head_sha=[0-9a-f]{40}&per_page=100', path
+    ) or re.fullmatch(r'/issues/91/comments\?per_page=100&page=[1-9][0-9]{0,3}', path):
+        return 'application/vnd.github+json'
+    match = re.fullmatch(r'/contents/(ops/[a-z0-9.-]+)\?ref=[0-9a-f]{40}', path)
+    require(match is not None and match[1] in {*CATALOG, 'ops/ops-release.json'}, 'UNTRUSTED_SOURCE')
+    return 'application/vnd.github.raw+json'
+
+
+def fetch(url, limit=2 * 1024 * 1024):
+    media_type = github_media_type(url)
+    request = urllib.request.Request(url, method='GET', headers={
+        'Accept': media_type, 'User-Agent': 'DAO-OPS/1',
+        'Authorization': 'Bearer ' + github_token(),
+        'X-GitHub-Api-Version': '2022-11-28',
+    })
+    try:
+        # Do not send credentials via environment-selected proxies or redirects.
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+        with opener.open(request, timeout=15) as response:
             require(response.status == 200, 'GITHUB_UNAVAILABLE')
             data = response.read(limit + 1)
     except urllib.error.HTTPError as exc:
@@ -283,11 +329,13 @@ def admission():
 
 
 def release_files(approval, active):
-    base = RAW + '/' + approval['sha'] + '/'
-    value = validate_manifest(strict_json(fetch(base + 'ops/ops-release.json')))
+    require(isinstance(approval.get('sha'), str) and SHA.fullmatch(approval['sha']), 'MAIN_UNVERIFIED')
+    def content(source, limit=MAX_FILE):
+        return fetch(API + '/contents/' + source + '?ref=' + approval['sha'], limit)
+    value = validate_manifest(strict_json(content('ops/ops-release.json')))
     files = {}
     for source in active:
-        data = fetch(base + source, MAX_FILE)
+        data = content(source)
         row = value['files'][source]
         require(len(data) == row['size'] and digest(data) == row['sha256'], 'RELEASE_HASH_MISMATCH')
         ast.parse(data, filename=source)  # Parse only; never execute downloaded code.

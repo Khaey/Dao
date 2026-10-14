@@ -130,6 +130,11 @@ catalogue, grant, verbe, workflow, DB ou topologie C4 n'est changé par ce lot.
 
 ## Maintenance des copies root
 
+Pour un dépôt privé, voir [l'accès GitHub authentifié et l'amorçage séparé](ops-private-repository.md).
+Le support source ne signifie pas que le contrôleur root installé sait déjà
+l'utiliser. Le checkpoint #91 distingue la préparation, la revue d'amorçage et
+l'installation effective ; aucun élargissement de sudo n'est prévu.
+
 ### Récupération sans lien de release active
 
 Le workflow transporte depuis son checkout main quatre scripts publics fixes
