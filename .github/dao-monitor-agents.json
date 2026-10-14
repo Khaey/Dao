@@ -100,6 +100,13 @@
       "threshold_minutes": 90
     },
     {
+      "issue": 146,
+      "agent": "DAO Chat 1",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
+    },
+    {
       "issue": 154,
       "agent": "DAO Pilot 5",
       "role": "PILOT",
