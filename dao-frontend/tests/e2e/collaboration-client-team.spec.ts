@@ -22,6 +22,8 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'Mes chantiers doit tenir dans la largeur de l’écran').toBe(0);
   await signOut(page);
   await login(page, e2eClient!);
+  await page.goto('/app/projects');
+  await expect(page.locator(`[data-testid="project-row-${project.projectId}"]:visible`)).toContainText('Mon rôle : Client');
   await page.goto(`/app/projects/${project.projectId}`);
   await page.getByRole('button', { name: /^Lots/ }).click();
   const members = await adminRows('project_members', `project_id=eq.${project.projectId}&user_id=eq.${e2eArtisan!.id}&select=id`);
