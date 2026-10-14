@@ -1,4 +1,4 @@
-# Contrat V1 — fondation non engageante
+# Contrat V1 — fondation et acceptation contrôlée
 
 Décisions validées par DAO Pilot pour le lot P2.2-A, suivi dans
 [#125](https://github.com/Khaey/Dao/issues/125). Cette tranche pose le modèle,
@@ -47,7 +47,36 @@ ni PDF exécutoire, ni paiement, ni mouvement financier.
 
 ## Lots suivants bloqués par décision
 
-P2.2-B/C devront définir la sortie contrôlée du brouillon, l'identité juridique
-exacte de D.A.O, le contenu contractuel obligatoire, les acteurs habilités,
-l'acceptation et le niveau de preuve. Rien dans cette fondation ne vaut accord
-des parties ou autorisation de démarrer les travaux.
+## P2.2-B — acceptation paramétrable et neutre
+
+DAO Pilot a validé le 13 octobre 2026 les règles suivantes :
+
+- D.A.O est portée par **LogicLab Tunisie** pour le lancement tunisien ; son
+  représentant habilité reste une donnée contrôlée, jamais une identité déduite ;
+- une version immuable reçoit séparément l'accord du client et du prestataire,
+  puis un administrateur D.A.O effectue le contrôle final ;
+- l'abandon avant validation est réservé à D.A.O, exige un motif et conserve
+  tout l'historique ;
+- une acceptation simple produit un dossier de preuve technique, mais n'est
+  jamais présentée comme une signature qualifiée ;
+- l'effet juridique est techniquement bloqué jusqu'à validation des clauses,
+  de l'homologation et du fournisseur par un juriste tunisien.
+
+Le mode est figé par contrat (`disabled`, `trusted_simple`, `qualified`,
+`hybrid`) sans imposer de fournisseur. Il pourra être alimenté plus tard par
+des paramètres de pays, type de chantier ou seuil.
+P2.2-B n'invente aucun seuil. Seul le service de confiance peut ouvrir le cycle,
+enregistrer une preuve déjà vérifiée, valider ou annuler : aucun RPC authentifié
+ne peut déclarer lui-même qu'une preuve est correcte.
+
+`contract_acceptances` rattache l'accord à la version et à son acteur. La base
+conserve une empreinte SHA-256 de la preuve et des métadonnées non secrètes ;
+elle ne conserve jamais un code OTP en clair. Dans P2.2-B, l'activation de
+l'effet juridique est refusée par la base : le contrôle final conduit à
+`ready`, et non à `signed`.
+
+P2.2-C devra choisir puis intégrer un prestataire de confiance (NGSign et
+DigiGO/TUNTRUST restent des candidats), produire le document définitif et
+définir les conditions d'activation juridique après preuve d'homologation et
+validation juridique. Aucun paiement ni démarrage des travaux n'est déclenché
+par P2.2-B.
