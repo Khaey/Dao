@@ -704,3 +704,8 @@ Le vocabulaire cible est `draft`, `review`, `ready`, `awaiting_signatures`,
 marqué non engageant. Aucune API/UI utilisateur, transition, signature, preuve
 de consentement, PDF ou opération financière n'est autorisée avant les décisions
 juridiques restantes. Lecture limitée aux parties actives et admins D.A.O actifs.
+
+
+## Private repository — DEV deployment uses one read-only deploy key (2026-10-14)
+
+After `Khaey/Dao` became private, main run #542 proved the full 58-test CI but the DEV host could no longer fetch the repository over unauthenticated HTTPS. The deployment credential is a repository-scoped GitHub deploy key with write access disabled. Its private half stays in the protected `dev` Environment and on the DEV host as a mode-0600 key for the `dao` account. Deployment verifies the expected fingerprint, uses strict SSH host checking and keeps stale-main rejection. No personal access token, broader GitHub identity or public repository fallback is introduced.
