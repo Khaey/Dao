@@ -17,17 +17,18 @@ test('Mon espace affiche le profil, permet de se déconnecter et de récupérer 
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
 
   const contractId = '11111111-1111-4111-8111-111111111111';
+  const tnd = (millimes: number) => new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(millimes / 1000);
   const contract = { id: contractId, project_id: 'project', status: 'ready', total_millimes: 1250000, created_at: '2026-10-13T00:00:00Z', validated_at: '2026-10-14T00:00:00Z', legal_effect_enabled: false, non_engaging: true, parties: [{ role: 'client', legal_name: 'Client E2E' }, { role: 'contractor', legal_name: 'Atelier E2E' }, { role: 'dao', legal_name: 'LogicLab Tunisie' }], item_count: 1, amendment_count: 1 };
   await page.route(/\/api\/contracts$/, route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: [contract] }) }));
   await page.route(new RegExp(`/api/contracts/${contractId}$`), route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { contract: { ...contract, award_id: 'award', current_version_id: 'version', signature_mode: 'trusted_simple', cancellation_reason: null }, version: { id: 'version', version_no: 1, content_hash: 'a'.repeat(64), created_at: contract.created_at }, items: [{ id: 'item', agreed_millimes: 1250000, title: 'Lot électricité', scope: 'Pose et raccordement', duration_days: 5, inclusions: 'Main-d’œuvre', exclusions: null }], parties: contract.parties, acceptances: [{ party_role: 'client', method: 'trusted_simple', accepted_at: '2026-10-13T12:00:00Z' }], events: [{ id: 'event', event_type: 'status_changed', from_status: 'review', to_status: 'ready', reason: 'Contrôle D.A.O', created_at: '2026-10-14T00:00:00Z' }], archives: [], amendments: [{ id: 'amendment', status: 'accepted', created_at: '2026-10-14T00:00:00Z', validated_at: '2026-10-14T02:00:00Z', validation_reason: 'Contrôle D.A.O', rejected_at: null, rejection_reason: null, cancelled_at: null, cancellation_reason: null, non_engaging: true, proposal: { version_no: 1, content_hash: 'b'.repeat(64), reason: 'Évolution', scope_clarification: 'Clarification sans nouveau lot', amount_delta_millimes: 50000, base_total_millimes: 1250000, proposed_total_millimes: 1300000, planned_start_date: '2027-01-15', duration_days: 7, non_engaging: true }, acceptances: [{ party_role: 'client', method: 'trusted_simple', accepted_at: '2026-10-14T01:00:00Z' }], events: [] }] } }) }));
   await page.goto('/app/contracts');
   await expect(page.getByRole('heading', { name: 'Mes contrats' })).toBeVisible();
   await expect(page.getByText('Non signé — aucun effet juridique', { exact: true })).toBeVisible();
-  await expect(page.getByText(/1.*250.*TND/).first()).toBeVisible();
+  await expect(page.getByText(tnd(1250000), { exact: true })).toBeVisible();
   await page.getByRole('link', { name: /Dossier contractuel — en préparation/ }).click();
   await expect(page.getByRole('heading', { name: 'Dossier contractuel — en préparation' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Proposition d’avenant — non engageante' })).toBeVisible();
-  await expect(page.getByText(/1.*300.*TND/).first()).toBeVisible();
+  await expect(page.getByText(tnd(1300000), { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /signer|accepter|modifier/i })).toHaveCount(0);
   await expect(page.locator('main')).toHaveCSS('overflow-x', /^(visible|clip|hidden)$/);
 
