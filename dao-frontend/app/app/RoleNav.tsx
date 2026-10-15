@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText } from 'lucide-react';
+import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 
@@ -118,6 +118,10 @@ export default function RoleNav() {
     </Link>;
   });
   const account = <div className="shrink-0 border-t border-black/5 pt-3">
+    <Link href="/app/settings" onClick={() => setOpen(false)} aria-current={active('/app/settings') ? 'page' : undefined}
+      className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition', active('/app/settings') ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
+      <Settings size={18} className="shrink-0" aria-hidden="true" />Paramètres
+    </Link>
     <Link href="/app/profile" onClick={() => setOpen(false)} className="flex min-w-0 items-center gap-3 rounded-xl p-3 hover:bg-sand">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">{email.slice(0, 1).toUpperCase() || 'D'}</span>
       <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">Mon compte</span><span className="block truncate text-xs text-black/45">{email}</span></span>
