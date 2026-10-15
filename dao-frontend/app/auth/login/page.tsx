@@ -86,14 +86,14 @@ export default function Login() {
             <form onSubmit={submit} className="space-y-5 rounded-[1.75rem] border border-ink/10 bg-white p-6 shadow-[0_20px_60px_rgba(23,32,42,.07)] sm:p-8">
               <div>
                 <label htmlFor="dao-login-email" className="mb-2 block text-sm font-semibold text-ink">Adresse e-mail</label>
-                <Input id="dao-login-email" type="email" autoComplete="email" placeholder="vous@exemple.com" value={email} onChange={e => setEmail(e.target.value)} required className="min-h-12" />
+                <Input id="dao-login-email" type="email" autoComplete="email" placeholder="Votre email" value={email} onChange={e => setEmail(e.target.value)} required className="min-h-12" />
               </div>
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <label htmlFor="dao-login-password" className="text-sm font-semibold text-ink">Mot de passe</label>
                   <Link className={`rounded-sm text-xs font-semibold text-teal hover:underline ${focus}`} href="/auth/forgot-password">Mot de passe oublié ?</Link>
                 </div>
-                <Input id="dao-login-password" type="password" autoComplete="current-password" placeholder="Votre mot de passe" value={password} onChange={e => setPassword(e.target.value)} required className="min-h-12" />
+                <Input id="dao-login-password" type="password" autoComplete="current-password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} required className="min-h-12" />
               </div>
               {error && <p role="alert" aria-live="polite" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
               <Button className="min-h-12 w-full text-base">Se connecter <span aria-hidden="true" className="ml-2">→</span></Button>
