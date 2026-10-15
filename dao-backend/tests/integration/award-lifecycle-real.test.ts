@@ -141,7 +141,8 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
     assert.ifError((await admin.from('user_roles').insert({user_id:users.client.id,role:'contractor'})).error);
     assert.ifError((await admin.from('user_roles').insert({user_id:users.other.id,role:'dao_reviewer'})).error);
     const anonymous=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
-    const anonymousRead=await anonymous.from('contracts').select('id').eq('id',prepared.data.contract_id);assert.ifError(anonymousRead.error);assert.equal(anonymousRead.data!.length,0);
+    const anonymousRead=await anonymous.from('contracts').select('id').eq('id',prepared.data.contract_id);
+    if(anonymousRead.error)assert.equal(anonymousRead.error.code,'42501');else assert.equal(anonymousRead.data!.length,0);
     for(const role of ['client','pro','dao']){
       const reader=new ContractReadService(users[role].db);const list=await reader.list();assert.ok(list.some((row:any)=>row.id===prepared.data.contract_id));
       const detail:any=await reader.detail(prepared.data.contract_id);assert.equal(detail.contract.legal_effect_enabled,false);assert.equal(detail.amendments[0].proposal.non_engaging,true);assert.equal(detail.amendments[0].proposal.amount_delta_millimes,500);
