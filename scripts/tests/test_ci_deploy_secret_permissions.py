@@ -12,6 +12,17 @@ WORKFLOW = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "ci.y
 
 
 class DeploymentSecretPermissionsTest(unittest.TestCase):
+    @staticmethod
+    def workflow_step(workflow, name):
+        match = re.search(
+            rf"^      - name: {re.escape(name)}\n.*?(?=^      - name:|^  [a-zA-Z0-9_-]+:|\Z)",
+            workflow,
+            flags=re.MULTILINE | re.DOTALL,
+        )
+        if match is None:
+            raise AssertionError(f"Missing workflow step: {name}")
+        return match.group(0)
+
     def test_sensitive_files_are_not_made_world_readable(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         sensitive_names = ("dao-env.json", "github-read-token")
@@ -42,6 +53,37 @@ class DeploymentSecretPermissionsTest(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Remove private DEV environment payload from host", workflow)
         self.assertIn("if: always()", workflow)
+
+    def test_private_payload_is_created_only_on_host_with_private_modes(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        step = self.workflow_step(
+            workflow, "Transfer protected DEV environment payload over SSH"
+        )
+        self.assertRegex(
+            step, r"uses: appleboy/ssh-action@[0-9a-f]{40}(?:\s|$)"
+        )
+        self.assertIn(
+            "envs: RESEND_API_KEY,DAO_EMAIL_FROM,DAO_REPO_READ_TOKEN", step
+        )
+        self.assertIn("umask 077", step)
+        self.assertIn('mkdir -m 0700 "$payload_dir"', step)
+        self.assertIn("os.open(path, flags, 0o600)", step)
+        self.assertIn("debug: false", step)
+        self.assertIn("capture_stdout: false", step)
+
+    def test_private_payload_transfer_does_not_log_secret_variables(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        step = self.workflow_step(
+            workflow, "Transfer protected DEV environment payload over SSH"
+        )
+        self.assertNotRegex(step, r"\bset\s+-[^\n]*x")
+        for variable in ("RESEND_API_KEY", "DAO_EMAIL_FROM", "DAO_REPO_READ_TOKEN"):
+            with self.subTest(variable=variable):
+                self.assertNotRegex(
+                    step,
+                    rf"\b(?:echo|printf)\b[^\n]*\${{{variable}}}|"
+                    rf"\b(?:echo|printf)\b[^\n]*\${variable}\b",
+                )
 
 
 if __name__ == "__main__":

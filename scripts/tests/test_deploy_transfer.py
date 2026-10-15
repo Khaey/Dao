@@ -1,4 +1,4 @@
-"""Exercise CI's private staging and tar layout without secrets, Docker or SSH."""
+"""Exercise CI's private host staging and public tar layout without real SSH."""
 import json
 import os
 from pathlib import Path
@@ -39,59 +39,66 @@ class DeployTransferTests(unittest.TestCase):
         self.assertNotIn('fictional-github-token', result.stdout + result.stderr)
         return result
 
-    def prepare(self, runner):
-        result = self.shell(step_script('Prepare protected DEV environment payload'), runner)
+    def prepare(self, host, attempt='2'):
+        script = render(
+            step_script('Transfer protected DEV environment payload over SSH', 'script'),
+            attempt=attempt,
+        ).replace('/opt/dao', str(host))
+        result = self.shell(script, host)
         self.assertEqual(result.returncode, 0, result.stderr)
-        token = runner / 'ops-incoming/123-2/github-read-token'
+        token = host / f'ops-incoming/123-{attempt}/github-read-token'
         self.assertEqual(token.stat().st_mode & 0o777, 0o600)
         self.assertEqual(token.read_text(), 'fictional-github-token\n')
-        return runner / 'ops-incoming/123-2/dao-env.json'
+        return host / f'ops-incoming/123-{attempt}/dao-env.json'
 
     def test_private_creation_and_run_attempt_isolation(self):
         with tempfile.TemporaryDirectory() as directory:
-            runner = Path(directory)
-            payload = self.prepare(runner)
+            host = Path(directory)
+            payload = self.prepare(host)
             self.assertEqual(payload.stat().st_mode & 0o777, 0o600)
             self.assertEqual(set(json.loads(payload.read_text())), {'RESEND_API_KEY', 'DAO_EMAIL_FROM', 'DAO_PUBLIC_URL'})
-            result = self.shell(step_script('Prepare protected DEV environment payload'), runner, GITHUB_RUN_ATTEMPT='3')
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((runner / 'ops-incoming/123-3/dao-env.json').exists())
-            self.assertFalse((runner / 'dao-env.json').exists())
-            self.assertFalse((runner / 'github-read-token').exists())
+            self.prepare(host, attempt='3')
+            self.assertTrue((host / 'ops-incoming/123-3/dao-env.json').exists())
+            self.assertFalse((host / 'dao-env.json').exists())
+            self.assertFalse((host / 'github-read-token').exists())
             # Always-cleanup must remove only this attempt, including after a failed SCP.
-            cleanup = STEPS['Remove private DEV environment payload from runner']
+            cleanup = STEPS['Remove private DEV environment payload from host']
             self.assertIn('if: always()', cleanup)
-            result = self.shell(cleanup.split('        run: ', 1)[1], runner)
+            script = render(step_script(
+                'Remove private DEV environment payload from host', 'script'
+            )).replace('/opt/dao', str(host))
+            result = self.shell(script, host)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(payload.parent.exists())
-            self.assertTrue((runner / 'ops-incoming/123-3/dao-env.json').exists())
+            self.assertTrue((host / 'ops-incoming/123-3/dao-env.json').exists())
 
     def test_missing_configuration_creates_no_private_payload(self):
         with tempfile.TemporaryDirectory() as directory:
-            runner = Path(directory)
-            result = self.shell(step_script('Prepare protected DEV environment payload'), runner, RESEND_API_KEY='')
+            host = Path(directory)
+            script = render(
+                step_script('Transfer protected DEV environment payload over SSH', 'script')
+            ).replace('/opt/dao', str(host))
+            result = self.shell(script, host, RESEND_API_KEY='')
             self.assertNotEqual(result.returncode, 0)
-            self.assertEqual(list(runner.rglob('dao-env.json')), [])
+            self.assertEqual(list(host.rglob('dao-env.json')), [])
 
     def test_missing_repo_token_creates_no_private_payload(self):
         with tempfile.TemporaryDirectory() as directory:
-            runner = Path(directory)
-            result = self.shell(step_script('Prepare protected DEV environment payload'), runner, DAO_REPO_READ_TOKEN='')
+            host = Path(directory)
+            script = render(
+                step_script('Transfer protected DEV environment payload over SSH', 'script')
+            ).replace('/opt/dao', str(host))
+            result = self.shell(script, host, DAO_REPO_READ_TOKEN='')
             self.assertNotEqual(result.returncode, 0)
-            self.assertFalse((runner / 'ops-incoming').exists())
+            self.assertFalse((host / 'ops-incoming').exists())
 
-    def test_one_archive_preserves_package_bytes_and_both_host_destinations(self):
+    def test_scp_archive_contains_only_the_verified_package(self):
         with tempfile.TemporaryDirectory() as directory:
             tmp = Path(directory)
             runner, host = tmp / 'runner', tmp / 'host'
             runner.mkdir()
             host.mkdir()
-            payload = self.prepare(runner)
-            readable = self.shell(step_script('Make private environment payload readable to SCP container'), runner)
-            self.assertEqual(readable.returncode, 0, readable.stderr)
-            self.assertEqual(payload.stat().st_mode & 0o777, 0o644)
-            self.assertEqual((payload.parent / 'github-read-token').stat().st_mode & 0o777, 0o644)
-            self.assertTrue(all(parent.stat().st_mode & 0o111 == 0o111 for parent in [payload.parent, payload.parent.parent]))
+            payload = self.prepare(host)
             package = runner / 'dao-deploy-package-123-2.tar.gz'
             package.write_bytes(b'opaque verified build artifact\n')
             transfers = [block for block in STEPS.values() if 'uses: appleboy/scp-action@' in block]
@@ -104,10 +111,10 @@ class DeployTransferTests(unittest.TestCase):
             archive = tmp / 'transport.tar.gz'
             subprocess.run(['tar', '-zcf', str(archive), *sources], cwd=runner, check=True, capture_output=True)
             with tarfile.open(archive) as stream:
-                self.assertEqual(set(stream.getnames()), {package.name, 'ops-incoming/123-2/dao-env.json', 'ops-incoming/123-2/github-read-token'})
+                self.assertEqual(set(stream.getnames()), {package.name})
             subprocess.run(['tar', '-zxf', str(archive), '--overwrite', '-C', str(host)], check=True, capture_output=True)
             self.assertEqual((host / package.name).read_bytes(), package.read_bytes())
-            self.assertEqual((host / 'ops-incoming/123-2/dao-env.json').read_bytes(), payload.read_bytes())
+            self.assertEqual(payload.stat().st_mode & 0o777, 0o600)
             self.assertEqual((host / 'ops-incoming/123-2/github-read-token').read_text(), 'fictional-github-token\n')
             self.assertFalse((host / 'dao-env.json').exists())
 

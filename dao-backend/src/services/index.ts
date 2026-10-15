@@ -7,5 +7,6 @@ export { NotificationService } from './NotificationService.js';
 export { AIService } from './AIService.js';
 export { ProfileService } from './ProfileService.js';
 export { MessageService } from './MessageService.js';
+export { ContractReadService } from './ContractReadService.js';
 export { requireActor } from '../server/auth.js';
 export * from '../server/actions.js';

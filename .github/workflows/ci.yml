@@ -332,63 +332,84 @@ jobs:
           test -s "$stable_package"
           cp "$stable_package" "$run_package"
           test -s "$run_package"
-      - name: Prepare protected DEV environment payload
+      - name: Transfer protected DEV environment payload over SSH
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           DAO_EMAIL_FROM: ${{ secrets.DAO_EMAIL_FROM }}
           DAO_REPO_READ_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          umask 077
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
+        with:
+          host: 137.74.168.122
+          username: dao
+          key: ${{ secrets.DEV_SSH_KEY }}
+          envs: RESEND_API_KEY,DAO_EMAIL_FROM,DAO_REPO_READ_TOKEN
+          debug: false
+          capture_stdout: false
+          script: |
+            set -Eeuo pipefail
+            umask 077
+            payload_root="/opt/dao/ops-incoming"
+            payload_dir="$payload_root/${{ github.run_id }}-${{ github.run_attempt }}"
+            cleanup() { rm -rf -- "$payload_dir"; }
+            trap cleanup ERR HUP INT TERM
+            test -n "$RESEND_API_KEY"
+            test -n "$DAO_EMAIL_FROM"
+            test -n "$DAO_REPO_READ_TOKEN"
+            if [ -e "$payload_root" ] || [ -L "$payload_root" ]; then
+              test -d "$payload_root" && test ! -L "$payload_root"
+            fi
+            install -d -m 0700 "$payload_root"
+            rm -rf -- "$payload_dir"
+            mkdir -m 0700 "$payload_dir"
+            export DAO_ENV_PAYLOAD="$payload_dir/dao-env.json"
+            export DAO_GIT_TOKEN_FILE="$payload_dir/github-read-token"
+            python3 - <<'PY'
+            import json
+            import os
 
-          # Relative paths let one SCP upload retain both VPS destinations.
-          # This private JSON is never added to the verified build artifact.
-          path = Path('ops-incoming') / f"{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}" / 'dao-env.json'
-          values = {
-              'RESEND_API_KEY': os.environ.get('RESEND_API_KEY', ''),
-              'DAO_EMAIL_FROM': os.environ.get('DAO_EMAIL_FROM', ''),
-              'DAO_PUBLIC_URL': 'https://dao-dev.logiclab.fr',
-          }
-          token = os.environ.get('DAO_REPO_READ_TOKEN', '')
-          if not token:
-              raise SystemExit('Missing ephemeral GitHub repository read token')
-          if not values['RESEND_API_KEY'] or not values['DAO_EMAIL_FROM']:
-              raise SystemExit('Missing protected DEV environment configuration')
-          path.parent.mkdir(parents=True)
-          with path.open('x', encoding='utf-8') as stream:
-              json.dump(values, stream, separators=(',', ':'))
-              stream.write('\n')
-          path.chmod(0o600)
-          token_file = path.parent / 'github-read-token'
-          with token_file.open('x', encoding='utf-8') as stream:
-              stream.write(token)
-              stream.write('\n')
-          token_file.chmod(0o600)
-          PY
-          test "$(stat -c '%a' "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-env.json")" = 600
-          test "$(stat -c '%a' "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/github-read-token")" = 600
-      - name: Make private environment payload readable to SCP container
-        run: |
-          chmod 0755 ops-incoming "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          chmod 0644 "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/dao-env.json"
-          chmod 0644 "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/github-read-token"
-      - name: Transfer verified package and protected environment payload to DEV host
+            def write_private(path, value):
+                flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                if hasattr(os, 'O_NOFOLLOW'):
+                    flags |= os.O_NOFOLLOW
+                descriptor = os.open(path, flags, 0o600)
+                with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
+                    stream.write(value)
+
+            values = {
+                'RESEND_API_KEY': os.environ['RESEND_API_KEY'],
+                'DAO_EMAIL_FROM': os.environ['DAO_EMAIL_FROM'],
+                'DAO_PUBLIC_URL': 'https://dao-dev.logiclab.fr',
+            }
+            write_private(
+                os.environ['DAO_ENV_PAYLOAD'],
+                json.dumps(values, separators=(',', ':')) + '\n',
+            )
+            write_private(
+                os.environ['DAO_GIT_TOKEN_FILE'],
+                os.environ['DAO_REPO_READ_TOKEN'] + '\n',
+            )
+            PY
+            unset RESEND_API_KEY DAO_EMAIL_FROM DAO_REPO_READ_TOKEN
+            test -f "$DAO_ENV_PAYLOAD" && test ! -L "$DAO_ENV_PAYLOAD"
+            test -f "$DAO_GIT_TOKEN_FILE" && test ! -L "$DAO_GIT_TOKEN_FILE"
+            test "$(stat -c '%a' "$payload_dir")" = 700
+            test "$(stat -c '%a' "$DAO_ENV_PAYLOAD")" = 600
+            test "$(stat -c '%a' "$DAO_GIT_TOKEN_FILE")" = 600
+            trap - ERR HUP INT TERM
+            echo "Protected DEV environment payload transferred"
+      - name: Transfer verified package to DEV host
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
           host: 137.74.168.122
           username: dao
           key: ${{ secrets.DEV_SSH_KEY }}
-          source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/dao-env.json,ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/github-read-token
+          source: dao-deploy-package-${{ github.run_id }}-${{ github.run_attempt }}.tar.gz
           target: /opt/dao
           overwrite: true
           timeout: 30s
           command_timeout: 10m
       - name: Deploy verified revision over SSH
-        uses: appleboy/ssh-action@v1.2.2
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
           host: 137.74.168.122
           username: dao
@@ -426,7 +447,7 @@ jobs:
       - name: Remove private DEV environment payload from host
         if: always()
         continue-on-error: true
-        uses: appleboy/ssh-action@v1.2.2
+        uses: appleboy/ssh-action@2ead5e36573f08b82fbfce1504f1a4b05a647c6f # v1.2.2
         with:
           host: 137.74.168.122
           username: dao
@@ -435,10 +456,6 @@ jobs:
             set -euo pipefail
             rm -rf -- "/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}"
             echo "Private DEV environment payload cleanup attempted"
-      - name: Remove private DEV environment payload from runner
-        if: always()
-        run: rm -rf -- "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-
   ci-timing-summary:
     if: always()
     needs: [backend-verify, frontend-build, full-e2e, deploy-dev]
@@ -501,8 +518,8 @@ jobs:
             frontend-build|Build frontend
             frontend-build|Package frontend build and release script
             deploy-dev|Download the DEV-configured build artifact
-            deploy-dev|Prepare protected DEV environment payload
-            deploy-dev|Transfer verified package and protected environment payload to DEV host
+            deploy-dev|Transfer protected DEV environment payload over SSH
+            deploy-dev|Transfer verified package to DEV host
             deploy-dev|Deploy verified revision over SSH
           TIMED_STEPS
           fi
