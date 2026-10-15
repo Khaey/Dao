@@ -84,6 +84,15 @@ test('autonomous Supabase integration', async () => {
     const linkedBudget=await admin.from('project_request_versions').select('id,budget_millimes').eq('request_id',createdRequestWithBudget.data.id).single(); assert.ifError(linkedBudget.error); assert.ok(linkedBudget.data?.id); assert.equal(Number(linkedBudget.data?.budget_millimes),requestedBudget);
     const versionLinkBudget=await admin.from('project_version_requests').select('id').eq('project_id',createdProject.data.id).eq('project_version_id',createdVersion.data.id).eq('request_version_id',linkedBudget.data.id).single(); assert.ifError(versionLinkBudget.error); assert.ok(versionLinkBudget.data?.id);
 
+    const withoutDates=await client.rpc('submit_project_for_review',{p_project_id:createdProject.data.id});
+    assert.equal(withoutDates.error?.code,'23514','draft must not submit without desired dates');
+    const stayedDraft=await admin.from('project_versions').select('status').eq('id',createdVersion.data.id).single();
+    assert.ifError(stayedDraft.error); assert.equal(stayedDraft.data?.status,'draft');
+    const dated=await admin.from('project_versions').update({
+      desired_start_date:new Date(Date.now()+30*86400000).toISOString().slice(0,10),
+      desired_end_date:new Date(Date.now()+60*86400000).toISOString().slice(0,10),
+    }).eq('id',createdVersion.data.id);
+    assert.ifError(dated.error);
     const submittedForReview=await client.rpc('submit_project_for_review',{p_project_id:createdProject.data.id});
     assert.ifError(submittedForReview.error); assert.equal(submittedForReview.data?.status,'client_review');
     const transitionedVersion=await admin.from('project_versions').select('status').eq('id',createdVersion.data.id).single(); assert.ifError(transitionedVersion.error); assert.equal(transitionedVersion.data?.status,'client_review');
