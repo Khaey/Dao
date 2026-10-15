@@ -85,6 +85,13 @@ append-only, sans mutation du contrat, de l'award, des lots, du montant ou des
 dates exécutoires. Les commandes restent réservées au service et revérifient les
 parties, les comptes actifs et l'administrateur D.A.O.
 
+P2.2-D expose ces données avec `GET /api/contracts` et
+`GET /api/contracts/:id`. Les deux routes utilisent uniquement le client
+Supabase JWT-scoped et la RLS existante. Leur projection retire les hashes de
+preuve, références fournisseur, métadonnées internes et chemins Storage. Les
+écrans `/app/contracts` et `/app/contracts/[id]` restent strictement en lecture
+seule et séparent le contrat de référence des avenants non engageants.
+
 ## Hors MVP / Phase 2
 
 Paiement/escrow, ledger, signature électronique, contrats exécutoires, garanties et litiges complets, sous-traitance, OCE et IA avancée.
