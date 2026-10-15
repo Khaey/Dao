@@ -1,5 +1,5 @@
 import { test, expect } from './support/fixtures';
-import { login } from './support/flow';
+import { dateOffset, login } from './support/flow';
 import { recordE2EValue } from './support/state';
 import { acceptWithLogin, adminRows, createCollaborative, signOut } from './support/collaboration';
 
@@ -46,6 +46,22 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   await missingRow.getByRole('link', { name: 'Trouver un professionnel' }).click();
   await expect(page.getByRole('heading', { name: 'Professionnels vérifiés' })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/app/professionals\\?project_id=${project.projectId}&request_id=`));
+  // An already staffed collaborative chantier must still provide the mandatory
+  // desired dates before review; validate them through the real Client UI.
+  const startDate = dateOffset(30);
+  const endDate = dateOffset(60);
+  await page.goto(`/app/projects/${project.projectId}`);
+  await page.getByRole('button', { name: 'Modifier le projet' }).click();
+  await page.getByLabel('Début souhaité du projet').fill(startDate);
+  await page.getByLabel('Fin souhaitée du projet').fill(endDate);
+  await page.locator('form').filter({ has: page.getByLabel('Titre du projet') })
+    .getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Projet mis à jour.');
+  const datedVersion = await adminRows('project_versions', `project_id=eq.${project.projectId}&select=desired_start_date,desired_end_date&order=version_no.desc&limit=1`);
+  expect(datedVersion).toEqual([expect.objectContaining({
+    desired_start_date: startDate,
+    desired_end_date: endDate,
+  })]);
   await page.goto(`/app/projects/${project.projectId}/review`);
   await expect(page.getByRole('button', { name: 'Soumettre pour revue DAO' })).toBeEnabled();
   expect(await adminRows('publications', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
