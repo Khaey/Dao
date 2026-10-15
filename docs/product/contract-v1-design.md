@@ -107,3 +107,24 @@ D.A.O. Les parties et l'administrateur D.A.O actif peuvent lire ; les simples
 membres du chantier, concurrents, tiers, anonymes et comptes suspendus restent
 isolés. Aucun écran utilisateur ni document présenté comme signé ou applicable
 n'est livré par cette fondation.
+
+## P2.2-D — consultation privée en lecture seule
+
+Le lot #178 expose les fondations P2.2-A/B/C sans ajouter de commande métier.
+Deux routes authentifiées permettent de lister les contrats visibles et de
+consulter un dossier précis. Elles utilisent exclusivement le client Supabase
+portant le JWT de l'utilisateur : la RLS existante reste l'autorité, sans
+`service_role`, sans droit dérivé d'une simple participation au chantier et
+sans élargissement Gestionnaire.
+
+La réponse serveur est une projection explicite. Elle montre le montant et les
+lots de référence, les parties, la version/hash, les statuts, accords techniques
+et événements autorisés. Elle ne renvoie jamais les hashes de preuve, références
+fournisseur, métadonnées internes ou chemins Storage. Un UUID non visible est
+traité comme introuvable afin de ne pas révéler l'existence d'un contrat.
+
+L'interface `/app/contracts` et `/app/contracts/[id]` est responsive et
+strictement en lecture seule. Elle sépare le montant contractuel de référence
+des deltas/totaux/dates proposés par les avenants et affiche en permanence
+« Non signé — aucun effet juridique » et « Proposition d'avenant — non
+engageante ». Aucun bouton ne crée, accepte, refuse, annule, modifie ou signe.

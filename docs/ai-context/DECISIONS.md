@@ -717,3 +717,16 @@ L'avenant reste une proposition technique distincte et append-only, liée à la
 version/hash de base. Il demeure non engageant, ne modifie ni contrat, award,
 lots, parties, montant ou dates exécutoires, et n'active aucune signature,
 fiscalité, finance, exécution, réception, garantie ou résiliation.
+
+## Contrat V1 P2.2-D — consultation privée (#178, 2026-10-15)
+
+Les parties contractuelles actives et l'administrateur D.A.O actif peuvent
+consulter leurs contrats et propositions d'avenant via une API JWT/RLS et une
+interface responsive en lecture seule. Une participation au chantier, un rôle
+Gestionnaire sans habilitation admin, un compte suspendu, un concurrent, un
+tiers ou un anonyme ne donne aucun accès.
+
+La projection exclut les preuves brutes, références fournisseur, métadonnées
+internes et chemins Storage. L'interface distingue le contrat de référence des
+propositions d'avenant et les qualifie explicitement de non signés et non
+engageants. Elle n'expose aucune action de mutation, acceptation ou signature.
