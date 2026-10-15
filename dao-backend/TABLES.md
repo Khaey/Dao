@@ -1,7 +1,7 @@
-# Tables applicatives — 59 tables
+# Tables applicatives — 64 tables
 
 Catalogue vérifié par le contrat de schéma frais jusqu'à
-`20261013014522_contract_v1_foundation.sql`. Les façades RPC publiques et les
+`20261014230755_contract_v1_non_binding_amendments.sql`. Les façades RPC publiques et les
 fonctions `dao_private` ne sont pas des tables. Supabase Auth et Storage restent
 des services gérés séparément.
 
@@ -64,5 +64,10 @@ des services gérés séparément.
 57. `contract_items`
 58. `contract_events`
 59. `contract_archives`
+60. `contract_acceptances`
+61. `contract_amendments`
+62. `contract_amendment_versions`
+63. `contract_amendment_acceptances`
+64. `contract_amendment_events`
 
 Auth et Storage sont gérés par Supabase et ne sont pas recomptés.

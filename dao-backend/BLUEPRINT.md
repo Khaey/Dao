@@ -78,6 +78,13 @@ Versions, parties, lignes, événements et archives sont immuables. La lecture e
 limitée aux parties actives et aux admins D.A.O actifs. Aucun parcours API/UI,
 transition engageante, signature, PDF ou paiement n'est livré dans ce lot.
 
+P2.2-B conserve des preuves d'accord Client/Prestataire et le contrôle D.A.O,
+avec effet juridique techniquement bloqué. P2.2-C ajoute des propositions
+d'avenant séparées et non engageantes : version/hash, accords et événements
+append-only, sans mutation du contrat, de l'award, des lots, du montant ou des
+dates exécutoires. Les commandes restent réservées au service et revérifient les
+parties, les comptes actifs et l'administrateur D.A.O.
+
 ## Hors MVP / Phase 2
 
 Paiement/escrow, ledger, signature électronique, contrats exécutoires, garanties et litiges complets, sous-traitance, OCE et IA avancée.

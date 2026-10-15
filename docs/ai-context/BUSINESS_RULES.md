@@ -23,6 +23,22 @@ The current assigned-review/version/sublot/withdrawal/assisted-award and notific
 - Aucun consentement, signature, PDF exécutoire, paiement ou mouvement financier
   n'est introduit. Voir [le design canonique](../product/contract-v1-design.md).
 
+## Contrat V1 — avenants simples non engageants P2.2-C (#174)
+
+- Seul le Client partie au contrat initie une proposition d'avenant.
+- Une proposition peut clarifier le périmètre sans changer les lots, proposer un
+  delta de montant en millimes et proposer une date/durée.
+- Le Client et le Prestataire acceptent la même version immuable, puis D.A.O la
+  contrôle. Chaque partie peut refuser avec motif ; D.A.O peut annuler avec motif
+  avant son contrôle final. Il n'existe pas d'expiration automatique en V1.
+- Proposition, version/hash, accords et événements sont distincts du contrat et
+  append-only. Ils restent `non_engaging` avec effet juridique bloqué.
+- Une validation technique ne modifie jamais le contrat initial, l'attribution,
+  ses lots, ses parties, son montant ni ses dates exécutoires.
+- Ajout/retrait de lot, changement de partie, réattribution, fiscalité, paiement,
+  jalon, réception, garantie, résiliation, PDF exécutoire et signature juridique
+  restent hors périmètre.
+
 ## Messagerie privée de chantier V1 — #116
 
 - Un fil texte existe par chantier confirmé et professionnel accepté. Le client

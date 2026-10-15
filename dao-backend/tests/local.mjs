@@ -51,7 +51,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,60);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,64);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -77,7 +77,7 @@ const rev=await insert('project_reviews',{project_version_id:V,actor_id:U.client
 const run=await insert('ai_runs',{project_id:P,status:'succeeded',provider:'test'});const proposal=await insert('ai_proposals',{run_id:run,trade_id:trade,proposed_scope:'Test',status:'proposed'});
 const requests=[];for(let i=0;i<4;i++){const r=await insert('project_requests',{project_id:P});const rv=await insert('project_request_versions',{request_id:r,project_id:P,version_no:1,trade_id:trade,title:'Test '+i,scope:'Test'});requests.push({r,rv});}
 const withdrawalProject=await insert('projects',{client_id:U.clientA});
-const withdrawalProjectVersion=await insert('project_versions',{project_id:withdrawalProject,version_no:1,title:'Withdrawal test',description:'Test',governorate_id:gov,status:'draft'});
+const withdrawalProjectVersion=await insert('project_versions',{project_id:withdrawalProject,version_no:1,title:'Withdrawal test',description:'Test',governorate_id:gov,status:'draft',desired_start_date:new Date(Date.now()+30*86400000).toISOString().slice(0,10),desired_end_date:new Date(Date.now()+60*86400000).toISOString().slice(0,10)});
 const withdrawalRequests=[];
 for(let i=0;i<2;i++){
  const request=await insert('project_requests',{project_id:withdrawalProject});
@@ -85,6 +85,11 @@ for(let i=0;i<2;i++){
  await insert('project_version_requests',{project_id:withdrawalProject,project_version_id:withdrawalProjectVersion,request_version_id:requestVersion});
  withdrawalRequests.push({request,requestVersion});
 }
+const incompleteReviewProject=await insert('projects',{client_id:U.clientA});
+const incompleteReviewVersion=await insert('project_versions',{project_id:incompleteReviewProject,version_no:1,title:'Incomplete review',description:'Test',governorate_id:gov,status:'draft'});
+const incompleteReviewRequest=await insert('project_requests',{project_id:incompleteReviewProject});
+const incompleteReviewRequestVersion=await insert('project_request_versions',{project_id:incompleteReviewProject,request_id:incompleteReviewRequest,version_no:1,trade_id:trade,title:'Incomplete dates lot',scope:'Test'});
+await insert('project_version_requests',{project_id:incompleteReviewProject,project_version_id:incompleteReviewVersion,request_version_id:incompleteReviewRequestVersion});
 const staleDraftProject=await insert('projects',{client_id:U.clientA});
 const staleDraftVersion=await insert('project_versions',{project_id:staleDraftProject,version_no:1,title:'Old draft',description:'Test',governorate_id:gov,status:'draft'});
 await insert('project_versions',{project_id:staleDraftProject,version_no:2,title:'Current review',description:'Test',governorate_id:gov,status:'client_review'});
@@ -153,7 +158,9 @@ await test('client can withdraw an open request while the project version is dra
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[0].request]);eq(request.rows[0].status,'withdrawn');
  const link=await db.query('select id from public.project_version_requests where project_version_id=$1 and request_version_id=$2',[withdrawalProjectVersion,withdrawalRequests[0].requestVersion]);eq(link.rows.length,0);
 }));
-await test('project review submission still requires and preserves an open request',()=>as('clientA',async()=>{
+await test('project review submission requires both dates and preserves an open request',()=>as('clientA',async()=>{
+ await denied(`select public.submit_project_for_review('${incompleteReviewProject}')`,'23514');
+ const draft=await db.query('select status from public.project_versions where id=$1',[incompleteReviewVersion]);eq(draft.rows[0].status,'draft');
  const submitted=await db.query('select (public.submit_project_for_review($1)).status as status',[withdrawalProject]);eq(submitted.rows[0].status,'client_review');
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
 }));
