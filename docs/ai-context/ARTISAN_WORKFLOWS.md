@@ -1,57 +1,66 @@
 # D.A.O — Espace Artisan / Entreprise
 
-## DEV 2 #83 — lot validé
+## DEV 2 #83 — livré
 
-Après le premier lot livré par la PR #84, DAO Pilot a validé trois règles :
+L’audit demandé sur le vrai `main` a été suivi dans
+[#83](https://github.com/Khaey/Dao/issues/83). Le premier lot de correctifs a été
+livré par la PR [#84](https://github.com/Khaey/Dao/pull/84), puis les décisions
+DAO Pilot ont été livrées par la PR
+[#109](https://github.com/Khaey/Dao/pull/109).
 
-- seuls l'identité, l'activité et les métiers relancent la vérification D.A.O ;
-- un compte Client + Artisan revient dans le dernier espace explicitement utilisé ;
-- le lot suivant comprend la vue globale Mes offres, le retrait d'une offre
-  soumise et la boîte Mes invitations.
+Le lot #83 est terminé. Ne pas recréer ses routes, sa migration ni ses RPC.
+Le Back-office #64 et OCE #58 sont restés hors périmètre.
 
-La branche `feat/artisan-workflows-v2`, issue
-[#83](https://github.com/Khaey/Dao/issues/83), PR
-[#109](https://github.com/Khaey/Dao/pull/109), implémente ces décisions. Elle a
-été réconciliée avec le main réel `54bc4dc74404a76c3c3a0c7bc6c4edeae3801e39`
-sans reprendre ni modifier le Back-office #64 ou OCE #58.
+## Décisions appliquées
+
+- Seuls les changements d’identité, d’activité et de métiers relancent la
+  vérification D.A.O.
+- Un compte Client + Artisan revient dans le dernier espace explicitement
+  utilisé.
+- L’espace Artisan comprend une vue globale « Mes offres », le retrait contrôlé
+  d’une offre soumise non attribuée et la boîte « Mes invitations ».
 
 ## Comportements livrés
 
-- Profil professionnel éditable. Le nom public, la présentation, l'expérience
-  et la disponibilité conservent le statut ; l'identité, le type d'activité et
-  les métiers font repasser un profil vérifié ou rejeté à `pending`. Une
-  suspension reste suspendue.
-- Navigation Client / Artisan persistée côté serveur pour les comptes à double
-  rôle. `/app` restaure cet espace puis filtre le tableau de bord correspondant.
-- Mes invitations liste les invitations du compte Auth confirmé, sans exposer
-  leur jeton, et permet l'acceptation ou le refus via une commande contrôlée.
-- Mes offres fournit une vue globale par publication avec statut, résultat et
-  historique. Une offre soumise courante et non attribuée peut être retirée ;
-  son contenu reste conservé et audité, puis une nouvelle version peut être créée.
+- Le tableau de bord Artisan présente les chantiers clients et les accès directs
+  à « DAO disponibles », « Mes offres » et « Mes invitations ».
+- Le profil professionnel est consultable et éditable. Une modification de la
+  présentation, de l’expérience ou de la disponibilité conserve le statut.
+  L’identité, le type d’activité ou les métiers font repasser un profil vérifié
+  ou rejeté à `pending`. Une suspension reste suspendue.
+- La navigation Client / Artisan est persistée côté serveur ; `/app` restaure
+  le dernier espace et filtre le tableau de bord correspondant.
+- « Mes chantiers » utilise les memberships autorisés et adapte son état vide au
+  rôle Artisan.
+- « DAO disponibles » reste consultable selon les règles de publication. Un
+  professionnel non vérifié voit la raison du blocage et ne reçoit pas un faux
+  formulaire d’offre actif.
+- Les brouillons d’offre conservent exactement leurs lots sélectionnés et ne
+  sont plus présentés comme des offres envoyées.
+- « Mes invitations » liste les invitations associées à l’adresse Auth
+  confirmée, sans exposer leur jeton, et permet l’acceptation ou le refus par
+  commande contrôlée.
+- « Mes offres » centralise versions, états et résultats. Une offre soumise
+  courante, non attribuée, peut être retirée sans effacer son contenu ni son
+  historique.
 
-La migration `20261009103053_artisan_workflows_v2.sql` contient les colonnes,
-contraintes et RPC nécessaires. Les commandes sensibles résolvent l'acteur par
-`auth.uid()`, les droits `anon` sont révoqués et aucune clé privilégiée n'est
-exposée dans le navigateur.
+## Garanties techniques
 
-## Vérifications
+La migration `20261009103053_artisan_workflows_v2.sql` porte les colonnes,
+contraintes et RPC du second lot. Les commandes sensibles résolvent l’acteur par
+`auth.uid()`, les droits anonymes sont refusés, les opérations sont auditées et
+aucune clé privilégiée n’est exposée au navigateur.
 
-- services backend : 64/64 ;
-- reconstruction PGlite et contrat de migration : 138/138 ;
-- modèle collaboration : 15/15 et 24/24 ;
-- build Next.js : 60 routes ;
-- inventaire Playwright : 48 tests dans 16 fichiers.
-
-La première CI de PR #438 a confirmé backend, build, schéma/replay et intégration
-Supabase réelle. Son FULL E2E a échoué parce que l'aide de connexion attendait
-encore uniquement `/app/projects` ou `/app/dao`; le nouveau comportement validé
-arrive sur `/app`. Le helper accepte désormais ces trois destinations. La fusion
-reste conditionnée à une CI verte sur le HEAD exact, puis à l'application unique
-de la migration DEV et à la validation du déploiement main.
+Les preuves de CI, fusion, application unique de la migration DEV et déploiement
+sont conservées dans #83 et #109. La messagerie chantier ultérieure a été livrée
+séparément par #116 / PR #123.
 
 ## Reprise
 
-Lire d'abord la PR #109, l'issue #83 et le main réel. Ne pas recréer le premier
-lot de la PR #84. Ne pas intervenir sur #64 ou #58. Si la PR est fusionnée avec
-CI main, migration DEV et smoke documentés, ce lot est terminé ; sinon reprendre
-uniquement à la première preuve manquante.
+Avant tout nouveau travail Artisan :
+
+1. vérifier le `main`, les PR ouvertes et la dernière CI ;
+2. relire #83/#109 et le présent document ;
+3. traiter uniquement un défaut encore reproductible ;
+4. demander DAO Pilot seulement si la correction exige une nouvelle règle métier ;
+5. ne pas intervenir sur #64, #58, #112 ou les lots appartenant à un autre owner.
