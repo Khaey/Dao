@@ -1,9 +1,9 @@
 # D.A.O — AI context entry point
 
-For **Pilot 5 handoff**, begin with [issue #154](https://github.com/Khaey/Dao/issues/154)
-and [PILOT5_HANDOFF_20261014.md](PILOT5_HANDOFF_20261014.md), then verify
-remote main, active PRs, live CI and latest owner comments. Earlier Pilot 4
-handoff remains a dated historical source; live GitHub always takes precedence.
+For **Pilot 6 handoff**, begin with [issue #180](https://github.com/Khaey/Dao/issues/180)
+and [PILOT6_HANDOFF_20261015.md](PILOT6_HANDOFF_20261015.md), then verify
+remote main, active PRs, live CI/deploy and latest owner comments. Issue #154
+and prior dated Pilot handoffs remain historical; live GitHub takes precedence.
 
 Start with the owner issue's latest meaningful checkpoint, root `AGENTS.md`,
 `AUTONOMOUS_EXECUTION.md` and this index. Read **task-relevant** documents
@@ -18,7 +18,8 @@ historical checkpoints.
 | --- | --- |
 | [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) | All-agent ownership and quota-aware execution, validation, concurrency and VPS rules |
 | [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md) | Common checkpoints and safe recovery for every agent; WIP publication, quota/crash limits and short restart checklist (#87) |
-| **[PILOT5_HANDOFF_20261014.md](PILOT5_HANDOFF_20261014.md)** | **Pilot 4 → Pilot 5: dated handoff, live SHA/CI/PRs, agent owners, commercial context and first actions; issue #154 is canonical** |
+| **[PILOT6_HANDOFF_20261015.md](PILOT6_HANDOFF_20261015.md)** | **Pilot 5 → Pilot 6: snapshot, real regressions, open gates, OCE, active owner assignments; issue #180 is canonical** |
+| [PILOT5_HANDOFF_20261014.md](PILOT5_HANDOFF_20261014.md) | Historical Pilot 4 → Pilot 5 checkpoint; see #154 and newer #180 for current priorities |
 | [PILOT4_HANDOFF_20261013.md](PILOT4_HANDOFF_20261013.md) | Pilot 3 → Pilot 4: historical dated handoff, validate against live GitHub |
 | [CURRENT_STATE.md](CURRENT_STATE.md) | Latest dated verified snapshot followed by historical evidence |
 | [NEXT_STEPS.md](NEXT_STEPS.md) | Current OPT next actions and clearly marked historical DEV checkpoint |

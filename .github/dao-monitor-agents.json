@@ -51,7 +51,7 @@
     },
     {
       "issue": 93,
-      "agent": "DAO Pilot 5",
+      "agent": "DAO Pilot 6",
       "role": "PILOT",
       "watchdog": false
     },
@@ -130,6 +130,13 @@
       "issue": 178,
       "agent": "DAO DEV 2",
       "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 180,
+      "agent": "DAO Pilot 6",
+      "role": "PILOT",
       "watchdog": false,
       "threshold_minutes": 90
     }

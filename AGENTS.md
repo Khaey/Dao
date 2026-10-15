@@ -1,12 +1,12 @@
 # D.A.O — instructions for every Work/Codex session
 
-**Pilot transition / coordination:** on taking over as **DAO Pilot 5 or later**,
-start with [issue #154](https://github.com/Khaey/Dao/issues/154) and
-[the 2026-10-14 Pilot 5 handoff](docs/ai-context/PILOT5_HANDOFF_20261014.md),
-then verify live main, PRs, CI, and latest canonical owner checkpoints.
-The older [Pilot 4 handoff](docs/ai-context/PILOT4_HANDOFF_20261013.md)
-is historical; dated snapshots never supersede live evidence. Do not infer that a
-GitHub comment launches a ChatGPT Work session.
+**Pilot transition / coordination:** from **DAO Pilot 6** onward, start with
+[canonical issue #180](https://github.com/Khaey/Dao/issues/180) and
+[the dated Pilot 6 handoff](docs/ai-context/PILOT6_HANDOFF_20261015.md),
+then verify live main, PRs, CI/deploy and the latest owner checkpoints.
+[Issue #154](https://github.com/Khaey/Dao/issues/154) and
+[Pilot 5 handoff](docs/ai-context/PILOT5_HANDOFF_20261014.md) are historical.
+An issue/comment/registry does not launch a ChatGPT Work session.
 
 Before changing this repository, read the **current owner issue and last
 meaningful checkpoint**, `docs/ai-context/AUTONOMOUS_EXECUTION.md` and the
