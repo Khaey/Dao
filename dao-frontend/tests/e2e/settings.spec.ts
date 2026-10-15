@@ -6,6 +6,7 @@ import { signOut } from './support/collaboration';
 
 async function openSettings(page: Page) {
   const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
+  await expect(menu.or(page.getByRole('link', { name: 'Paramètres', exact: true })).filter({ visible: true })).toBeVisible();
   if (await menu.isVisible()) await menu.click();
   await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/app\/settings$/);
@@ -53,6 +54,7 @@ test('Paramètres double rôle : compte commun après bascule', async ({ page, e
   await checkSettings(page, e2eDualRole, true, false);
   await login(page, e2eDualRole!);
   const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
+  await expect(menu.or(page.getByRole('link', { name: 'Paramètres', exact: true })).filter({ visible: true })).toBeVisible();
   if (await menu.isVisible()) await menu.click();
   await page.getByRole('button', { name: 'Artisan', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/app$/);
@@ -75,9 +77,12 @@ test('Paramètres : changement de mot de passe existant et reconnexion', async (
   await page.getByLabel('Confirmer le mot de passe', { exact: true }).fill(nextPassword);
   await page.getByRole('button', { name: 'Changer le mot de passe', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Mot de passe mis à jour.');
-  // Keep the worker fixture consistent for subsequent existing scenarios.
-  user.password = nextPassword;
   await signOut(page);
-  await login(page, user);
+  await login(page, { ...user, password: nextPassword });
   await openSettings(page);
+  await page.getByRole('main').getByRole('link', { name: /Sécurité du compte/ }).click();
+  await page.getByLabel('Nouveau mot de passe', { exact: true }).fill(user.password);
+  await page.getByLabel('Confirmer le mot de passe', { exact: true }).fill(user.password);
+  await page.getByRole('button', { name: 'Changer le mot de passe', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Mot de passe mis à jour.');
 });
