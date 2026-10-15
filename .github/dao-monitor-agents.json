@@ -63,7 +63,7 @@
     },
     {
       "issue": 115,
-      "agent": "DAO OPT 2",
+      "agent": "DAO OPT 3",
       "role": "OPT",
       "watchdog": false
     },
@@ -125,6 +125,12 @@
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 165,
+      "agent": "DAO OPT 3",
+      "role": "OPT",
+      "watchdog": false
     }
   ]
 }
