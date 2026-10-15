@@ -16,7 +16,7 @@ export default function Login() {
   const r = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = '');
+  const [error, setError] = useState('');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
