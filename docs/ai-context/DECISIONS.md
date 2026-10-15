@@ -704,3 +704,16 @@ Le vocabulaire cible est `draft`, `review`, `ready`, `awaiting_signatures`,
 marqué non engageant. Aucune API/UI utilisateur, transition, signature, preuve
 de consentement, PDF ou opération financière n'est autorisée avant les décisions
 juridiques restantes. Lecture limitée aux parties actives et admins D.A.O actifs.
+
+## Contrat V1 P2.2-C — avenants simples non engageants (#174, 2026-10-15)
+
+Seul le Client contractuel initie. La V1 autorise une clarification descriptive
+sans changement de lot, un delta de montant en millimes et des dates/durées
+proposées. Client et Prestataire acceptent la même version, puis D.A.O contrôle ;
+un refus de partie et une annulation D.A.O exigent un motif, sans expiration
+automatique.
+
+L'avenant reste une proposition technique distincte et append-only, liée à la
+version/hash de base. Il demeure non engageant, ne modifie ni contrat, award,
+lots, parties, montant ou dates exécutoires, et n'active aucune signature,
+fiscalité, finance, exécution, réception, garantie ou résiliation.
