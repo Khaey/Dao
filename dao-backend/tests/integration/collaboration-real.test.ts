@@ -131,6 +131,14 @@ test('collaboration: real Auth/JWT, atomic confirmation and RLS/Storage boundari
   await command(member.db,'respond_project_invitation',{p_token:memberInvite.token,p_accept:true});
   const membership=await admin.from('project_members').select('id').eq('project_id',project.id).eq('user_id',member.id).single();assert.ifError(membership.error);
   const principalAssignment=await admin.from('project_requests').select('contractor_member_id').eq('id',lot.id).single();assert.ifError(principalAssignment.error);assert.equal(principalAssignment.data!.contractor_member_id,membership.data!.id);
+  await t.test('only the confirmed Client may assign or remove a lot contractor',async()=> {
+    for(const db of [pro.db,member.db,unrelated.db])
+      await denied(db,'assign_project_request_member',{p_request_id:lot.id,p_member_id:null},'42501');
+    const unchanged=await admin.from('project_requests').select('contractor_member_id').eq('id',lot.id).single();
+    assert.ifError(unchanged.error);
+    assert.equal(unchanged.data!.contractor_member_id,membership.data!.id);
+    await command(owner.db,'assign_project_request_member',{p_request_id:lot.id,p_member_id:membership.data!.id});
+  });
   await t.test('invited contractor can read shared workspace but cannot edit or submit',async()=> {
     const read=await member.db.from('projects').select('id').eq('id',project.id);assert.ifError(read.error);assert.equal(read.data!.length,1);
     const otherRead=await unrelated.db.from('projects').select('id').eq('id',project.id);assert.ifError(otherRead.error);assert.equal(otherRead.data!.length,0);
