@@ -149,9 +149,9 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
       assert.equal(JSON.stringify(detail).includes(evidence),false,'raw evidence hashes stay private');
     }
     for(const role of ['other','competitor']){const reader=new ContractReadService(users[role].db);assert.equal((await reader.list()).some((row:any)=>row.id===prepared.data.contract_id),false);await assert.rejects(()=>reader.detail(prepared.data.contract_id),(error:any)=>error.code==='NOT_FOUND');}
-    assert.ifError((await admin.from('account_states').upsert({user_id:users.pro.id,status:'suspended'})).error);
+    await rpc('dao','backoffice_command',{p_action:'account',p_input:{user_id:users.pro.id,status:'suspended',reason:'Test lecture contrats'},p_key:randomUUID()});
     const suspendedReader=new ContractReadService(users.pro.db);assert.equal((await suspendedReader.list()).some((row:any)=>row.id===prepared.data.contract_id),false);await assert.rejects(()=>suspendedReader.detail(prepared.data.contract_id),(error:any)=>error.code==='NOT_FOUND');
-    assert.ifError((await admin.from('account_states').delete().eq('user_id',users.pro.id)).error);
+    await rpc('dao','backoffice_command',{p_action:'account',p_input:{user_id:users.pro.id,status:'active'},p_key:randomUUID()});
     const unchangedContract=await admin.from('contracts').select('status,total_millimes,current_version_id,legal_effect_enabled').eq('id',prepared.data.contract_id).single();assert.ifError(unchangedContract.error);assert.deepEqual(unchangedContract.data,{status:'ready',total_millimes:2002,current_version_id:prepared.data.version_id,legal_effect_enabled:false});
     assert.ok((await admin.from('contract_amendment_acceptances').delete().eq('amendment_id',proposed.data.amendment_id)).error);
     const rejectedProposal=await admin.rpc('propose_contract_amendment',{...proposalArgs,p_scope_clarification:'Autre clarification',p_amount_delta_millimes:null,p_planned_start_date:null,p_duration_days:null,p_idempotency_key:randomUUID()});assert.ifError(rejectedProposal.error);
