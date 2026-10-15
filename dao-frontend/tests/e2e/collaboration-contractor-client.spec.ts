@@ -51,6 +51,10 @@ test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et
   await expect(row).toContainText('Travaux terminés');
   await expect(row).not.toContainText('Client à confirmer');
   expect((await adminRows('user_roles', `user_id=eq.${e2eArtisan!.id}&select=role`)).map(row => row.role)).toEqual(['contractor']);
+  await page.goto(`/app/projects/${project.projectId}`);
+  await expect(page.getByRole('button',{name:'Contacter le client',exact:true})).toBeVisible();
+  await expect(page.getByLabel(/^Professionnel de /)).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/Écrire à /})).toHaveCount(0);
 });
 
 test('Compte double rôle : Mes chantiers suit l’espace actif et précise le rôle du chantier', async ({ page, e2eDualRole }) => {
@@ -67,7 +71,8 @@ test('Compte double rôle : Mes chantiers suit l’espace actif et précise le r
     await page.goto('/app/projects');
   };
   await chooseWorkspace('Artisan');
-  await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true })).toBeVisible();
+  // Both the primary CTA and the empty-state card may expose this link; either visible instance proves the workspace label.
+  await expect(page.getByRole('link', { name: 'Ajouter un chantier client', exact: true }).first()).toBeVisible();
   await chooseWorkspace('Client');
-  await expect(page.getByRole('link', { name: 'Nouveau chantier', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Nouveau chantier', exact: true }).first()).toBeVisible();
 });
