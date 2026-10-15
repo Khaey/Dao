@@ -14,6 +14,12 @@ export function createDaoApi(
   }
 
   return {
+    async listContracts(request: Request) {
+      return run(() => actor(request).then(() => services.contracts.list()));
+    },
+    async contractDetail(request: Request, contractId: string) {
+      return run(() => actor(request).then(() => services.contracts.detail(contractId)));
+    },
     async listConversations(request: Request) {
       return run(() => actor(request).then(() => services.messages.listConversations()));
     },
@@ -160,6 +166,7 @@ async function run(operation: () => Promise<unknown>) {
     let status = 500;
     if (code === 'UNAUTHENTICATED') status = 401;
     else if (code === 'FORBIDDEN' || code === '42501' || code === 'PGRST116') status = 403;
+    else if (code === 'NOT_FOUND') status = 404;
     else if (code === 'BAD_REQUEST' || code === '22023' || code === 'INVALID_MIME' || code === 'INVALID_SIZE' || code === 'INVALID_PATH') status = 400;
     else if (['23505', '23514', 'P0001', 'BID_DRAFT_METADATA_UNSUPPORTED'].includes(code)) status = 409;
     return Response.json({ error: error?.message ?? 'Request failed', code }, { status });
