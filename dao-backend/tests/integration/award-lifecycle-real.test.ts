@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { ContractReadService } from '../../src/services/ContractReadService.js';
 
 test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurrency',async t=>{
   const url=process.env.DAO_SUPABASE_URL!;
@@ -136,6 +137,20 @@ test('P2.1 real JWT/RLS, award/cancel/reassign and independent-session concurren
     assert.ifError((await admin.rpc('record_contract_amendment_acceptance',amendmentAccept(users.pro.id))).error);
     const amendmentProofs=await users.client.db.from('contract_amendment_acceptances').select('party_role,evidence_hash').eq('amendment_id',proposed.data.amendment_id);assert.ifError(amendmentProofs.error);assert.equal(amendmentProofs.data!.length,2);
     const acceptedAmendment=await admin.rpc('validate_contract_amendment',{p_actor_id:users.dao.id,p_amendment_id:proposed.data.amendment_id,p_reason:'Contrôle D.A.O TEST',p_idempotency_key:randomUUID()});assert.ifError(acceptedAmendment.error);assert.equal(acceptedAmendment.data.status,'accepted');assert.equal(acceptedAmendment.data.legal_effect_enabled,false);
+    const member=await admin.from('project_members').insert({project_id:f.project,user_id:users.other.id,participation_role:'contractor'});assert.ifError(member.error);
+    assert.ifError((await admin.from('user_roles').insert({user_id:users.client.id,role:'contractor'})).error);
+    assert.ifError((await admin.from('user_roles').insert({user_id:users.other.id,role:'dao_reviewer'})).error);
+    const anonymous=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+    const anonymousRead=await anonymous.from('contracts').select('id').eq('id',prepared.data.contract_id);assert.ifError(anonymousRead.error);assert.equal(anonymousRead.data!.length,0);
+    for(const role of ['client','pro','dao']){
+      const reader=new ContractReadService(users[role].db);const list=await reader.list();assert.ok(list.some((row:any)=>row.id===prepared.data.contract_id));
+      const detail:any=await reader.detail(prepared.data.contract_id);assert.equal(detail.contract.legal_effect_enabled,false);assert.equal(detail.amendments[0].proposal.non_engaging,true);assert.equal(detail.amendments[0].proposal.amount_delta_millimes,500);
+      assert.equal(JSON.stringify(detail).includes(evidence),false,'raw evidence hashes stay private');
+    }
+    for(const role of ['other','competitor']){const reader=new ContractReadService(users[role].db);assert.equal((await reader.list()).some((row:any)=>row.id===prepared.data.contract_id),false);await assert.rejects(()=>reader.detail(prepared.data.contract_id),(error:any)=>error.code==='NOT_FOUND');}
+    assert.ifError((await admin.from('account_states').upsert({user_id:users.pro.id,status:'suspended'})).error);
+    const suspendedReader=new ContractReadService(users.pro.db);assert.equal((await suspendedReader.list()).some((row:any)=>row.id===prepared.data.contract_id),false);await assert.rejects(()=>suspendedReader.detail(prepared.data.contract_id),(error:any)=>error.code==='NOT_FOUND');
+    assert.ifError((await admin.from('account_states').delete().eq('user_id',users.pro.id)).error);
     const unchangedContract=await admin.from('contracts').select('status,total_millimes,current_version_id,legal_effect_enabled').eq('id',prepared.data.contract_id).single();assert.ifError(unchangedContract.error);assert.deepEqual(unchangedContract.data,{status:'ready',total_millimes:2002,current_version_id:prepared.data.version_id,legal_effect_enabled:false});
     assert.ok((await admin.from('contract_amendment_acceptances').delete().eq('amendment_id',proposed.data.amendment_id)).error);
     const rejectedProposal=await admin.rpc('propose_contract_amendment',{...proposalArgs,p_scope_clarification:'Autre clarification',p_amount_delta_millimes:null,p_planned_start_date:null,p_duration_days:null,p_idempotency_key:randomUUID()});assert.ifError(rejectedProposal.error);
