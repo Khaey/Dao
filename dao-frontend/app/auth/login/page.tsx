@@ -9,7 +9,6 @@ import { invitationReturn } from '../../../lib/collaboration';
 import { isStaffOnly, type AppRole } from '../../../lib/roles';
 
 const focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal';
-const focusDark = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
 export default function Login() {
   const [returnTo, setReturnTo] = useState<string | null>(null);
