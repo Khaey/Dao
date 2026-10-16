@@ -35,7 +35,14 @@ def owner_issue(body):
 
 def priority(item):
     found = re.search(r"(?<!\w)P([0-3])(?![\w.])", item.get("title") or "", re.I)
-    return "P" + found.group(1) if found else None
+    if found:
+        return "P" + found.group(1)
+    for label in item.get("labels") or []:
+        name = label if isinstance(label, str) else label.get("name", "")
+        tagged = re.search(r"(?<!\w)P([0-3])(?!\w)", name, re.I)
+        if tagged:
+            return "P" + tagged.group(1)
+    return "Non définie"
 
 
 def domain(item):
@@ -50,17 +57,17 @@ def domain(item):
         ("Pilotage", ("pilot ", "passation", "handoff")),
         ("Produit/UX", ("ux", "paramètre", "settings", "accueil", "e2e")),
     )
-    return next((g for g, words in groups if any(w in name for w in words)), None)
+    return next((g for g, words in groups if any(w in name for w in words)), "Autre")
 
 
 def status(item, open_linked_pr=False):
     if item.get("pull_request"):
         if item.get("merged_at"):
             return "Done"
-        return "In Progress" if item.get("state") == "open" else None
+        return "In Progress" if item.get("state") == "open" else "Todo"
     if item.get("state") == "closed":
         return "Done"
-    return "In Progress" if open_linked_pr else None
+    return "In Progress" if open_linked_pr else "Todo"
 
 
 def evidence(item):
@@ -175,6 +182,9 @@ def get_project(g, login, number):
     fields = {f["name"]: f for f in project["fields"]["nodes"] if f and f.get("name")}
     if "Status" not in fields:
         raise RuntimeError("Project Status field is missing")
+    for required in ("Agent", "Priorité", "Domaine"):
+        if required in fields and not fields[required].get("options"):
+            raise RuntimeError(f"Project field {required} is not a selectable field")
     return project["id"], fields
 
 
@@ -187,11 +197,13 @@ def create_fields(g, project_id, fields):
                                      "dataType": "SINGLE_SELECT", "singleSelectOptions": opts})
     # GitHub does not append missing options automatically to existing fields.
     # Preserve every existing option ID to avoid clearing assignments.
-    field = fields.get("Agent")
-    if field:
+    for field_name, expected in OPTIONS.items():
+        field = fields.get(field_name)
+        if not field:
+            continue
         existing = field.get("options") or []
         known = {option["name"].casefold() for option in existing}
-        missing = [name for name in OPTIONS["Agent"] if name.casefold() not in known]
+        missing = [name for name in expected if name.casefold() not in known]
         if missing:
             options = [
                 {"id": option["id"], "name": option["name"],
