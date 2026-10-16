@@ -1,55 +1,72 @@
 # Espace Artisan / Entreprise — audit DEV 2
 
 Date de reprise : 2026-10-09  
+Dernière revalidation documentaire : 2026-10-15  
 Issue de suivi : [#83](https://github.com/Khaey/Dao/issues/83)  
-Branches : `feat/artisan-space-completion`, puis `feat/artisan-workflows-v2`
-Base du lot 2 : `efe86f584343e06553157c4a121f3c270cac8cbb`
+Branches historiques : `feat/artisan-space-completion`, puis `feat/artisan-workflows-v2`
 
 ## Périmètre vérifié
 
-L'audit part du `main` GitHub réel, des PR ouvertes et de `docs/ai-context/*`. Il couvre le tableau de bord Artisan / Entreprise, le profil professionnel, Mes chantiers, les DAO disponibles, les invitations et les offres. Les travaux Back-office #64 et OCE #58 sont exclus.
+L’audit est parti du `main` GitHub réel, des PR ouvertes et de
+`docs/ai-context/*`. Il couvre le tableau de bord Artisan / Entreprise, le
+profil professionnel, Mes chantiers, les DAO disponibles, les invitations et
+les offres. Les travaux Back-office #64 et OCE #58 sont exclus.
 
-## Fonctionnel déjà livré
+## Fonctionnel déjà livré avant les correctifs
 
-- L'inscription Artisan / Entreprise crée un `contractor_profile` en attente de vérification.
+- L’inscription Artisan / Entreprise crée un `contractor_profile` en attente de
+  vérification.
 - Le tableau de bord et la navigation dédiés au rôle contractor existent.
-- Mes chantiers utilise les droits de membre ; un artisan invité accède au chantier partagé.
-- Les invitations de collaboration disposent du cycle création, lien jetable, acceptation et envoi email déjà livré.
+- Mes chantiers utilise les droits de membre ; un artisan invité accède au
+  chantier partagé.
+- Les invitations de collaboration disposent du cycle création, lien jetable,
+  acceptation et envoi email.
 - Les DAO publiés sont filtrés par les règles RLS du marketplace.
-- Les offres gèrent brouillon, offre partielle, offre groupée, soumission, nouvelle version et résultat d'attribution.
-- Les commandes serveur d'offre refusent déjà un contractor qui n'est pas `verified`.
+- Les offres gèrent brouillon, offre partielle, offre groupée, soumission,
+  nouvelle version et résultat d’attribution.
+- Les commandes serveur refusent déjà une offre d’un contractor non vérifié.
 
-## Problèmes prouvés et correction
+## Problèmes prouvés et corrections livrées
 
-| Zone | Constat sur `main` | Correction DEV 2 |
+| Zone | Constat initial | Correction DEV 2 |
 | --- | --- | --- |
-| Profil professionnel | Les données existent mais Mon compte n'affiche que le nom et le téléphone. | Affichage en lecture seule de l'activité, du nom public, du type, des métiers, de l'expérience, de la présentation, de la disponibilité et des statuts. |
-| DAO disponibles | Un profil en attente, rejeté ou suspendu voit le formulaire d'offre alors que le backend refuse ensuite la commande. | Consultation conservée, formulaire masqué et motif de blocage explicite ; comportement aligné sur la règle serveur existante. |
-| Cartes DAO | Tout enregistrement d'offre, y compris un brouillon, est présenté comme « Offre envoyée ». | Libellé distinct par statut, dont « Brouillon ». |
-| Offre multi-lots | La reprise d'un brouillon sélectionne tous les lots ouverts au lieu des seuls lots enregistrés. | Restauration des sélections à partir des `bid_items` du brouillon ou de la version chargée. |
-| Mes chantiers | L'état vide parle uniquement de création de chantier, formulation orientée client. | Message contractor : ajout par le client ou entrée par invitation. |
+| Profil professionnel | Les données existaient mais Mon compte n’affichait que le nom et le téléphone. | Affichage puis édition contrôlée de l’activité, du nom public, du type, des métiers, de l’expérience, de la présentation et de la disponibilité. |
+| DAO disponibles | Un profil en attente, rejeté ou suspendu voyait le formulaire d’offre avant le refus serveur. | Consultation conservée, formulaire masqué et motif de blocage explicite, aligné sur la règle serveur. |
+| Cartes DAO | Un brouillon était présenté comme « Offre envoyée ». | Libellé distinct selon le statut réel. |
+| Offre multi-lots | La reprise d’un brouillon sélectionnait tous les lots ouverts. | Restauration depuis les seuls `bid_items` de la version chargée. |
+| Mes chantiers | L’état vide était uniquement orienté Client. | Message Artisan : ajout par le client ou entrée par invitation. |
+| Double rôle | Le compte ouvrait systématiquement l’espace Client. | Dernier espace Client / Artisan conservé côté serveur. |
+| Invitations | Le traitement dépendait uniquement du lien reçu. | Boîte « Mes invitations » avec historique, acceptation et refus authentifiés. |
+| Offres | Pas de vue globale ni de retrait d’une soumission. | « Mes offres » et retrait d’une version soumise non attribuée, avec historique immuable. |
 
-Les scénarios E2E existants sont renforcés sans augmenter leur nombre : profil contractor en attente, distinction du brouillon et restauration d'une sélection multi-lots. Aucun changement Auth, RLS, SQL, migration ou architecture n'est introduit.
-
-## Décisions DAO Pilot et lot 2
+## Décisions DAO Pilot appliquées
 
 - Identité, activité et métiers sont les seuls changements qui relancent la
-  vérification. Le lot 2 active l'édition contrôlée et conserve les suspensions.
-- Un double rôle ouvre le dernier espace explicitement utilisé ; les listes du
-  tableau de bord sont filtrées selon cet espace.
-- « Mes invitations » liste l'historique et permet accepter/refuser après
-  contrôle de l'adresse Auth confirmée, sans reconstruire ni exposer le token.
+  vérification. Les suspensions restent suspendues.
+- Un double rôle ouvre le dernier espace explicitement utilisé.
+- « Mes invitations » liste l’historique et permet accepter/refuser après
+  contrôle de l’adresse Auth confirmée, sans reconstruire ni exposer le jeton.
 - « Mes offres » centralise toutes les versions et leurs résultats. Une offre
-  soumise non attribuée peut être retirée entièrement, sans effacer son contenu.
+  soumise non attribuée peut être retirée entièrement sans effacer son contenu.
 
-Les commandes restent atomiques, auditables et RPC-only pour l'acteur
+Les commandes restent atomiques, auditables et RPC-only pour l’acteur
 authentifié. Une offre attribuée ne peut pas être retirée par ce parcours.
 
-## Validation
+## Livraison et non-régression
 
-- `git diff --check`
-- `npx tsc --noEmit`
-- `npm run build` — 60 routes
-- `npx playwright test --list` — 48 tests, desktop et mobile
+- PR [#84](https://github.com/Khaey/Dao/pull/84) : correctifs d’interface et de
+  reprise de brouillon.
+- PR [#109](https://github.com/Khaey/Dao/pull/109) : décisions du second lot,
+  migration `20261009103053_artisan_workflows_v2.sql`, RPC, UI, tests et
+  documentation.
+- Issue #83 : **fermée comme terminée** après CI, fusion, migration DEV et
+  déploiement documentés.
+- Revalidation du 2026-10-15 sur le `main` : les routes et accès
+  `/app`, `/app/projects`, `/app/artisan`,
+  `/app/artisan/offers`, `/app/artisan/profile` et
+  `/app/invitations` sont toujours présents. Aucun des correctifs #83 n’a à
+  être recréé.
 
-La preuve de CI exacte, de PR et de fusion est tenue dans l'issue #83.
+Une prochaine intervention DEV 2 doit partir d’un défaut encore reproductible
+ou d’un nouveau GO produit. Une simple formulation historique « reste à faire »
+ne constitue pas une preuve de régression.
