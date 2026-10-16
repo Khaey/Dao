@@ -17,19 +17,22 @@ class ProjectSyncTests(unittest.TestCase):
     def test_repository_status_not_equal_dev_deploy(self):
         self.assertEqual(sync.status({"pull_request":True,"state":"closed","merged_at":"now"}), "Done")
         self.assertEqual(sync.status({"pull_request":True,"state":"open"}), "In Progress")
-        self.assertIsNone(sync.status({"pull_request":True,"state":"closed","merged_at":None}))
+        self.assertEqual(sync.status({"pull_request":True,"state":"closed","merged_at":None}), "Todo")
         self.assertEqual(sync.status({"state":"closed"}), "Done")
         self.assertEqual(sync.status({"state":"open"}, True), "In Progress")
-        self.assertIsNone(sync.status({"state":"open"}, False))
+        self.assertEqual(sync.status({"state":"open"}, False), "Todo")
         self.assertIn("non attesté", sync.evidence({"pull_request":True,"state":"closed","merged_at":"now"}))
         self.assertIn("non livrée", sync.evidence({"pull_request":True,"state":"closed"}))
 
     def test_priority_and_domain_bounded(self):
         self.assertEqual(sync.priority({"title":"P1 — corriger la validation"}), "P1")
-        self.assertIsNone(sync.priority({"title":"Bug sans priorité"}))
+        self.assertEqual(sync.priority({"title":"Bug sans priorité"}), "Non définie")
         self.assertEqual(sync.domain({"title":"DAO Monitor Telegram"}), "Monitoring")
         self.assertEqual(sync.domain({"title":"Back-office Gestionnaire"}), "Gestionnaire")
-        self.assertIsNone(sync.domain({"title":"Divers"}))
+        self.assertEqual(sync.domain({"title":"Divers"}), "Autre")
+
+    def test_priority_from_issue_label(self):
+        self.assertEqual(sync.priority({"title": "Work", "labels": [{"name": "P1"}]}), "P1")
 
     def test_known_agents_present(self):
         self.assertIn("DAO Chat 1", sync.OPTIONS["Agent"])
