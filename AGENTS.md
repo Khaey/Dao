@@ -8,6 +8,36 @@ The older [Pilot 4 handoff](docs/ai-context/PILOT4_HANDOFF_20261013.md)
 is historical; dated snapshots never supersede live evidence. Do not infer that a
 GitHub comment launches a ChatGPT Work session.
 
+## AUTONOMY DEFAULT — ALL AGENTS (owner decision, 2026-10-16)
+
+**ONE CANONICAL OWNER ISSUE = STANDING GO TO EXECUTE END-TO-END.**
+Applies equally to every current/future DAO ChatGPT and Claude agent:
+Pilot, CoPilot, DEV, OPT, Chat, COP, DOW, TOW and their successors.
+Inside the owned scope, DO NOT ask the owner to approve ordinary steps.
+Execute preflight, implementation, targeted tests, fixes, branch/commits,
+PR, required CI, review/reconciliation and an **already-authorized** merge;
+verify normal post-merge DEV CI/deploy when applicable. Reuse exact-SHA
+evidence and continue from published checkpoints. A checkpoint is NOT an
+approval request. Stop asking “GO?”, “je continue ?”, or “je peux faire ?”.
+
+If there is an overlap or missing *technical* decision, coordinate with
+the affected owner/Pilot in GitHub first and continue independent tasks;
+do not unnecessarily route such questions to the owner. Choose safe,
+reversible implementation details yourself.
+
+**Only escalate a genuinely NEW decision or privileged external gate**:
+real production/customer changes, VPS/root/OPS/OCE operations beyond
+pre-approved runbooks, secrets/credentials, financial spending, destructive
+data/schema operations, legal signing, repository visibility/protection
+changes, weakened Auth/RLS/business guarantees, or bypassing mandatory CI.
+Never bypass provider confirmations, repository protections or real review
+requirements. A current explicit scoped authorization overrides an old
+generic restriction but cannot override platform protections.
+
+**Report:** concise DONE / BLOCKED / genuinely necessary decision with
+issue/PR/CI proof. GitHub comments do not launch dormant agents.
+Full policy: docs/ai-context/AUTONOMOUS_EXECUTION.md.
+
 Before changing this repository, read the **current owner issue and last
 meaningful checkpoint**, `docs/ai-context/AUTONOMOUS_EXECUTION.md` and the
 `docs/ai-context/README.md` index. Verify actual GitHub main, the relevant

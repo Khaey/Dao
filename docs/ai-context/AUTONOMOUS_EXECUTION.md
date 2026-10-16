@@ -80,6 +80,26 @@ GitHub links. Do not send an extra confirmation request after "checkpoint
 published". Routine progress belongs in GitHub/Telegram according to the
 existing monitoring policy.
 
+## 0B. Owner directive — universal autonomy, 2026-10-16
+
+This is an explicit renewed standing authorization **for ALL existing and
+future D.A.O agents**, not only Claude. The canonical owner issue grants
+routine implementation through complete delivery in that issue; do not
+ask the user for another GO at every checkpoint, test, commit or PR.
+It covers choosing ordinary reversible solutions, refactoring and performance
+work inside scope, resolving CI failures, and merging owned non-sensitive PRs
+when scope, exact-HEAD checks and repository protections permit. Verify the
+normal DEV deployment outcome after an authorized merge rather than assuming
+the PR CI proved deployment. Avoid repetitive confirmations from Pilot too.
+
+A question is appropriate only when a NEW business decision, sensitive
+capability, cross-owner reallocation or external permission is genuinely
+required. Ask only the smallest blocking question; perform other safe work
+while waiting. Preserve actual required security reviews, deploy approvals,
+Auth/RLS, business/contract, OPS/root/OCE and destructive/money safeguards.
+No rule here can grant a tool permission or bypass a provider confirmation.
+Never pretend a GitHub comment wakes a ChatGPT or Claude session.
+
 ## 1. Resume from remote evidence
 
 1. Identify the official repository `Khaey/Dao`, local path (if any), branch,
