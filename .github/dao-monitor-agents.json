@@ -63,7 +63,7 @@
     },
     {
       "issue": 115,
-      "agent": "DAO OPT 2",
+      "agent": "DAO OPT 3",
       "role": "OPT",
       "watchdog": false
     },
@@ -91,6 +91,12 @@
       "role": "DEV",
       "watchdog": true,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 126,
+      "agent": "DAO OPT 20",
+      "role": "OPT",
+      "watchdog": false
     },
     {
       "issue": 137,
@@ -125,6 +131,24 @@
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 165,
+      "agent": "DAO OPT 3",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 180,
+      "agent": "DAO Pilot 6",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 187,
+      "agent": "DAO DEV 20",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }
