@@ -17,10 +17,10 @@ class ProjectSyncTests(unittest.TestCase):
     def test_repository_status_not_equal_dev_deploy(self):
         self.assertEqual(sync.status({"pull_request":True,"state":"closed","merged_at":"now"}), "Done")
         self.assertEqual(sync.status({"pull_request":True,"state":"open"}), "In Progress")
-        self.assertEqual(sync.status({"pull_request":True,"state":"closed","merged_at":None}), "Todo")
+        self.assertIsNone(sync.status({"pull_request":True,"state":"closed","merged_at":None}))
         self.assertEqual(sync.status({"state":"closed"}), "Done")
         self.assertEqual(sync.status({"state":"open"}, True), "In Progress")
-        self.assertEqual(sync.status({"state":"open"}, False), "Todo")
+        self.assertIsNone(sync.status({"state":"open"}, False))
         self.assertIn("non attesté", sync.evidence({"pull_request":True,"state":"closed","merged_at":"now"}))
         self.assertIn("non livrée", sync.evidence({"pull_request":True,"state":"closed"}))
 
