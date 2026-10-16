@@ -35,6 +35,34 @@ class ProjectSyncTests(unittest.TestCase):
         self.assertIn("DAO Chat 1", sync.OPTIONS["Agent"])
         self.assertIn("DAO Chat 20", sync.OPTIONS["Agent"])
         self.assertIn("DAO Pilot 5", sync.OPTIONS["Agent"])
+        for name in ("DAO OPT 3", "DAO Chat 21", "DAO Pilot 6", "DAO CoPilot 1"):
+            self.assertIn(name, sync.OPTIONS["Agent"])
+
+    def test_missing_agent_option_is_reported(self):
+        class NoCall:
+            def graphql(self, *args, **kwargs):
+                raise AssertionError("Unexpected GraphQL mutation")
+        with self.assertRaisesRegex(RuntimeError, "missing option"):
+            sync.set_field(NoCall(), "project", {"id": "item", "a": None},
+                           {"Agent": {"id": "f", "options": []}},
+                           "Agent", "DAO OPT 3", False)
+
+    def test_field_options_update_preserves_existing_ids(self):
+        class Recorder:
+            def __init__(self):
+                self.calls = []
+            def graphql(self, query, **kwargs):
+                self.calls.append((query, kwargs))
+        g = Recorder()
+        fields = {"Agent": {"id": "agent-field", "options": [
+            {"id": "existing-id", "name": "DAO DEV 20", "color": "BLUE", "description": "DEV"}
+        ]}, "État GitHub": {"id": "e"}}
+        sync.create_fields(g, "project", fields)
+        updates = [kwargs["input"] for query, kwargs in g.calls
+                   if "updateProjectV2Field" in query]
+        self.assertEqual(len(updates), 1)
+        self.assertEqual(updates[0]["singleSelectOptions"][0]["id"], "existing-id")
+        self.assertIn("DAO Chat 21", [x["name"] for x in updates[0]["singleSelectOptions"]])
 
 if __name__ == "__main__":
     unittest.main()
