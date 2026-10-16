@@ -143,6 +143,12 @@
       "agent": "DAO COP",
       "role": "PILOT",
       "watchdog": false
+    },
+    {
+      "issue": 198,
+      "agent": "DAO DOW",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }
