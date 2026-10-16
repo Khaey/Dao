@@ -516,6 +516,28 @@ class AgentOnboardingTests(unittest.TestCase):
                 self.assertEqual(dm.mission_for(issue, config)["agent"], name)
 
 
+
+class ClaudeAgentRegistryTests(unittest.TestCase):
+    """Claude agents are registered on distinct, canonical issues."""
+
+    def test_cop_dow_tow_have_unique_missions(self):
+        config = dm.configuration()
+        expected = {
+            193: ("DAO DOW", "DEV"),
+            194: ("DAO TOW", "OPT"),
+            195: ("DAO COP", "PILOT"),
+        }
+        issues = [item["issue"] for item in config["missions"]]
+        self.assertEqual(len(issues), len(set(issues)))
+        for issue, (agent, role) in expected.items():
+            with self.subTest(issue=issue):
+                mission = dm.mission_for(issue, config)
+                self.assertIsNotNone(mission)
+                self.assertEqual(mission["agent"], agent)
+                self.assertEqual(mission["role"], role)
+                self.assertFalse(mission["watchdog"])
+
+
 if __name__ == "__main__":
     unittest.main()
 

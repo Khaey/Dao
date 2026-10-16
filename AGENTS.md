@@ -1,5 +1,16 @@
 # D.A.O — instructions for every Work/Codex session
 
+## DECISION OWNER / PILOT 6 — AUTONOMIE PAR DEFAUT POUR TOUS (16 octobre 2026)
+
+**Applicable a TOUS les agents actuels et futurs, ChatGPT, Claude/COP/DOW/TOW, DEV, OPT, Pilot et auditeurs.** La mission proprietaire attribuee vaut autorisation continue d'executer les etapes ordinaires de A a Z : preflight utile, branche isolee, implementation, tests cibles, corrections, commits, push, PR, resolution des retours de revue, CI, reconciliation avec main, merge de sa propre PR et verification post-merge/deploiement DEV *si deja autorises par le perimetre, les gates et la politique de release*. **Ne pas redemander « go », « confirme » ni une validation de confort.** Un checkpoint GitHub informe, il ne bloque pas.
+
+**Arret limite a l'action concernee** lorsqu'un gate reste reellement manquant : droits/permission du fournisseur, revue ou check obligatoire, P0 de securite non resolu, mutation production/VPS/root/OPS/OCE non preautorisee, secret ou acces, cout, suppression destructrice, changement de garanties Auth/RLS, changement de regles metier engageant ou de visibilite du depot. Ne jamais contourner ces controles ; poursuivre les travaux independants et presenter une seule question ciblee au responsable de decision. Le Pilot tranche d'abord les decisions techniques ou entre owners, le proprietaire tranche les nouveaux risques/engagements.
+
+**Autonomie ne signifie pas concurrence** : un agent n'edite ni branche ni PR d'un autre owner et ne reprend pas une mission sans transfert. Eviter les tests/CI identiques et les longues demandes d'approbation. Publier un seul checkpoint utile par jalon avec SHA, resultats, blocage reel ou livraison.
+
+**Les instructions ci-dessous et `docs/ai-context/AUTONOMOUS_EXECUTION.md` precisent les invariants.** Une restriction de securite explicite et actuelle garde priorite sur l'autonomie ordinaire. Aucune instruction ni commentaire ne demarre automatiquement une session interrompue.
+
+
 **Pilot transition / coordination:** on taking over as **DAO Pilot 5 or later**,
 start with [issue #154](https://github.com/Khaey/Dao/issues/154) and
 [the 2026-10-14 Pilot 5 handoff](docs/ai-context/PILOT5_HANDOFF_20261014.md),
