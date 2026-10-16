@@ -28,7 +28,7 @@ agents. OPT and OPT 20 are distinct; issue-specific assignments (#115,
 modify another owner's branch or PR without explicit coordination.
 Reconcile changes to main before merge; preserve newly merged tests and docs.
 
-Within the assigned task, continue through targeted checks, commit/push, PR,
+**Autonomy is role-agnostic and applies to EVERY present or future D.A.O agent**,\nregardless of its individual name, model/provider, Chat/Work/Cowork mode,\nor inclusion in an example roster. In a previously authorized canonical mission,\nexecute routine analysis, implementation, targeted tests, own branch/PR, CI\ntriage, and authorized safe merge without repeated owner `GO` prompts.\nCheckpoint reports are evidence, not new permission requests. Only real\nproduct decisions and external/sensitive approval gates need explicit consent.\nSee `docs/ai-context/AUTONOMOUS_EXECUTION.md` for security boundaries.\n\nWithin the assigned task, continue through targeted checks, commit/push, PR,
 green CI and authorized merge without asking again for normal technical steps.
 Do not rerun a successful check for identical code and relevant inputs.
 **For every current and future agent**, use quota-aware execution: resume
