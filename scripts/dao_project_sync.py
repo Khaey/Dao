@@ -64,10 +64,10 @@ def status(item, open_linked_pr=False):
     if item.get("pull_request"):
         if item.get("merged_at"):
             return "Done"
-        return "In Progress" if item.get("state") == "open" else "Todo"
+        return "In Progress" if item.get("state") == "open" else None
     if item.get("state") == "closed":
         return "Done"
-    return "In Progress" if open_linked_pr else "Todo"
+    return "In Progress" if open_linked_pr else None
 
 
 def evidence(item):
@@ -297,7 +297,8 @@ def synchronize(g, owner, number, registry, dry_run):
             changes["added"] += 1
         ref = owner_issue(item.get("body")) if kind == "pr" else n
         values = (
-            ("Status", status(item, kind == "issue" and n in linked), "status"),
+            ("Status", status(item, kind == "issue" and n in linked)
+             or ("Todo" if not row.get("s") else None), "status"),
             ("Agent", owners.get(ref, "Non attribué"), "agent"),
             ("Priorité", priority(item), "priority"),
             ("Domaine", domain(item), "domain"),
