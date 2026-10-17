@@ -5,9 +5,9 @@
   "missions": [
     {
       "issue": 58,
-      "agent": "DAO DEV 20",
+      "agent": "DAO DEV 2",
       "role": "DEV",
-      "watchdog": true,
+      "watchdog": false,
       "threshold_minutes": 90
     },
     {
@@ -18,9 +18,9 @@
     },
     {
       "issue": 64,
-      "agent": "DAO Chat 21",
-      "role": "DEV",
-      "watchdog": true,
+      "agent": "DAO OPT 3",
+      "role": "OPT",
+      "watchdog": false,
       "threshold_minutes": 90
     },
     {
@@ -63,7 +63,7 @@
     },
     {
       "issue": 115,
-      "agent": "DAO OPT 2",
+      "agent": "DAO OPT 3",
       "role": "OPT",
       "watchdog": false
     },
@@ -96,7 +96,7 @@
       "issue": 137,
       "agent": "DAO Chat 20",
       "role": "DEV",
-      "watchdog": true,
+      "watchdog": false,
       "threshold_minutes": 90
     },
     {
@@ -121,10 +121,70 @@
     },
     {
       "issue": 161,
-      "agent": "DAO Chat 21",
+      "agent": "DAO Chat 1",
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 193,
+      "agent": "DAO DOW",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 194,
+      "agent": "DAO TOW",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 195,
+      "agent": "DAO COP",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 198,
+      "agent": "DAO DOW",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 126,
+      "agent": "DAO COP",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 187,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 165,
+      "agent": "DAO OPT 3",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 180,
+      "agent": "DAO Pilot 6",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 203,
+      "agent": "DAO DOW",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 204,
+      "agent": "DAO Pilot 7",
+      "role": "PILOT",
+      "watchdog": false
     }
   ]
 }

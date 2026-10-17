@@ -165,18 +165,24 @@ or RLS change is exposed.
 
 For email configuration sync, define `RESEND_API_KEY` and `DAO_EMAIL_FROM`
 as dev environment secrets. The workflow fixes `DAO_PUBLIC_URL` to the DEV
-URL. The normal main-only `deploy-dev` job creates a private, run-scoped JSON
-payload from those protected secrets, transfers it outside the build artifact,
-and deletes it from the runner and VPS in `always()` cleanup paths. The runner
-stages it at `ops-incoming/<run>-<attempt>/dao-env.json`. One pinned SCP action
-uploads this file together with the unchanged package to `/opt/dao`, retaining
-both relative paths; the JSON is never an uploaded GitHub build artifact.
-This is one SCP action/upload, not a guarantee of one TCP/SSH session inside
-the third-party action. See [issue #85](https://github.com/Khaey/Dao/issues/85)
-for before/after timing and deployment evidence. The runner
-temporarily changes only the payload's mode to `0644` for the pinned SCP
-container, with traversable staging directories; the VPS payload is changed
-to `0600` before root-helper consumption.
+URL. The main-only `deploy-dev` job first verifies the remote host's ED25519
+public key fingerprint against the independently provisioned GitHub environment
+pin and then uses native OpenSSH. The protected environment JSON and transient
+repository read token are generated on the runner in a private 0700 directory
+with owner-only 0600 files, streamed over authenticated SSH, and removed by
+an `always()` runner cleanup. Neither private file enters the application
+build artifact or any third-party SCP container. Only the verified application
+package is transferred separately over the same host-verified OpenSSH channel.
+
+The SSH-side staging validates that `/opt/dao` is an owned, non-symlink,
+non-world-writable directory. It checks that any existing `ops-incoming` (shared with legacy fixed OPS transport, historically `0755`) belongs to the deploying user and is not a symlink, then restricts it to owner-only `0700` **before** creating private files.
+then creates the exact run/attempt directory as `0700` and both private files
+as `0600` with exclusive creation and `O_NOFOLLOW` when supported. A successful
+future staging removes only owned, run-shaped attempt directories older than
+24 hours; it does not follow symlinks or remove unrelated recovery directories.
+The exact current run/attempt is also removed by the deployment trap and the
+workflow's `always()` SSH cleanup. A host/network interruption can still delay
+cleanup until connectivity or a later successful deployment is available.
 The deploy script invokes the installed helper under the existing host lock,
 after stale-main validation and before release activation. The helper preserves
 all non-managed keys and atomically keeps `/etc/dao/dao-dev.env` at `root:dao /
@@ -198,6 +204,49 @@ can fail the operation. See [OPS control](ops-control.md) for exact fields and
 the distinction between private-payload cleanup and workflow transport cleanup.
 Fault tests are fictional; no manual live sync or outage is required to qualify
 this nonroot change, and interruption recovery is not guaranteed.
+
+
+### Verified native DEV SSH transport (security remediation #187)
+
+The DEV deployment path now uses the standard Ubuntu OpenSSH client, not
+third-party runtime-downloaded drone-ssh/drone-scp executables. All connections
+require a strict host-key match against the **independently provisioned**
+protected GitHub environment secret `DEV_SSH_HOST_FINGERPRINT` (SHA256 fingerprint
+of the server's public ED25519 SSH host key, `SHA256:` + 43 base64 characters).
+Obtain the trusted fingerprint from the authenticated VPS provider console or
+another independently authenticated server-admin channel. Do **not** obtain
+its expected value solely from `ssh-keyscan`, first-contact SSH or public logs.
+
+Before protected credentials are read, the runner compares its freshly scanned
+host public key to that existing pin, with `StrictHostKeyChecking yes` and an
+isolated `known_hosts`. Missing/mismatched pins fail closed. The ephemeral
+runner key and 0600 private payload are under a 0700 temporary directory;
+the remote payload remains 0700/0600 and is deleted by the existing cleanup.
+An interrupted host cleanup still requires the documented bounded recovery.
+**Do not merge any PR that triggers DEV deployment before this host pin is
+independently verified and configured in the protected dev environment.**
+
+### First deployment after private-payload transport changes
+
+Treat the first main deployment using a changed secret-transport path as a
+single observed attempt, not a retry loop:
+
+1. Before merge, require the exact-head CI and independent security review.
+   Confirm the previous active release is healthy from existing status evidence.
+2. Observe the normal main deployment once. Do not print environment values,
+   enable SSH debug, download secrets, or add a second ad-hoc transport.
+3. On failure, preserve the original job and read the closed `deploy_recovery`
+   record plus the final host-cleanup step. Never infer success from a green
+   cleanup after a failed deployment.
+4. If recovery is incomplete, use only the fixed read-only `status`, `health`
+   and, when needed, `log-summary` operations before considering an authorized
+   `restart` or `env-sync`. Do not improvise root access or involve OCE.
+5. The deployment script keeps the previous release and environment backup;
+   its reviewed rollback restores each independently and rechecks readiness.
+   Stop on an ambiguous or repeated cause under D-023.
+6. Confirm the exact run/attempt payload directory was removed. A later
+   successful deployment prunes owned attempt directories older than 24 hours;
+   it is not permission for broad deletion under `/opt/dao`.
 
 Raw application logs may contain tokens/user data, so they are not copied to public Actions logs. Detailed log review
 remains a private operator session or a future private, redacted log channel.

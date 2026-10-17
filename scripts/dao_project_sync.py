@@ -18,7 +18,9 @@ API = "https://api.github.com"
 GRAPHQL = API + "/graphql"
 OPTIONS = {
     "Agent": ["DAO Pilot 5", "DAO Chat 1", "DAO Chat 20", "DAO DEV 1", "DAO DEV 2",
-              "DAO DEV 20", "DAO OPT 2", "DAO OPT 20", "DAO AUD 1", "DAO Pilot 4",
+              "DAO DEV 20", "DAO OPT 2", "DAO OPT 3", "DAO OPT 20", "DAO AUD 1", "DAO Pilot 4",
+              "DAO Pilot 6", "DAO Pilot 7", "DAO CoPilot 1", "DAO COP", "DAO DOW",
+              "DAO TOW", "DAO Chat 21",
               "OPT", "Non attribué"],
     "Priorité": ["P0", "P1", "P2", "P3", "Non définie"],
     "Domaine": ["Client", "Artisan", "Gestionnaire", "Contrats", "OPS/Infra",
@@ -34,7 +36,14 @@ def owner_issue(body):
 
 def priority(item):
     found = re.search(r"(?<!\w)P([0-3])(?![\w.])", item.get("title") or "", re.I)
-    return "P" + found.group(1) if found else None
+    if found:
+        return "P" + found.group(1)
+    for label in item.get("labels") or []:
+        name = label if isinstance(label, str) else label.get("name", "")
+        tagged = re.search(r"(?<!\w)P([0-3])(?!\w)", name, re.I)
+        if tagged:
+            return "P" + tagged.group(1)
+    return "Non définie"
 
 
 def domain(item):
@@ -49,7 +58,7 @@ def domain(item):
         ("Pilotage", ("pilot ", "passation", "handoff")),
         ("Produit/UX", ("ux", "paramètre", "settings", "accueil", "e2e")),
     )
-    return next((g for g, words in groups if any(w in name for w in words)), None)
+    return next((g for g, words in groups if any(w in name for w in words)), "Autre")
 
 
 def status(item, open_linked_pr=False):
@@ -128,7 +137,7 @@ query($login:String!,$number:Int!){
   id title
   fields(first:100){nodes{
    ... on ProjectV2Field{id name}
-   ... on ProjectV2SingleSelectField{id name options{id name}}
+   ... on ProjectV2SingleSelectField{id name options{id name color description}}
   }}
  }}
 }"""
@@ -156,6 +165,11 @@ CREATE = """mutation($input:CreateProjectV2FieldInput!){
  }}
 }"""
 ADD = """mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}"""
+UPDATE_FIELD = """mutation($input:UpdateProjectV2FieldInput!){
+ updateProjectV2Field(input:$input){projectV2Field{
+  ... on ProjectV2SingleSelectField{id name options{id name}}
+ }}
+}"""
 SET = """mutation($input:UpdateProjectV2ItemFieldValueInput!){
  updateProjectV2ItemFieldValue(input:$input){projectV2Item{id}}
 }"""
@@ -169,6 +183,9 @@ def get_project(g, login, number):
     fields = {f["name"]: f for f in project["fields"]["nodes"] if f and f.get("name")}
     if "Status" not in fields:
         raise RuntimeError("Project Status field is missing")
+    for required in ("Agent", "Priorité", "Domaine"):
+        if required in fields and not fields[required].get("options"):
+            raise RuntimeError(f"Project field {required} is not a selectable field")
     return project["id"], fields
 
 
@@ -179,6 +196,26 @@ def create_fields(g, project_id, fields):
                     for i, n in enumerate(names)]
             g.graphql(CREATE, input={"projectId": project_id, "name": field_name,
                                      "dataType": "SINGLE_SELECT", "singleSelectOptions": opts})
+    # GitHub does not append missing options automatically to existing fields.
+    # Preserve every existing option ID to avoid clearing assignments.
+    for field_name, expected in OPTIONS.items():
+        field = fields.get(field_name)
+        if not field:
+            continue
+        existing = field.get("options") or []
+        known = {option["name"].casefold() for option in existing}
+        missing = [name for name in expected if name.casefold() not in known]
+        if missing:
+            options = [
+                {"id": option["id"], "name": option["name"],
+                 "color": option.get("color") or "GRAY",
+                 "description": option.get("description") or ""}
+                for option in existing
+            ]
+            options.extend({"name": name, "color": "GRAY", "description": name}
+                           for name in missing)
+            g.graphql(UPDATE_FIELD, input={"fieldId": field["id"],
+                                           "singleSelectOptions": options})
     if "État GitHub" not in fields:
         g.graphql(CREATE, input={"projectId": project_id, "name": "État GitHub",
                                  "dataType": "TEXT"})
@@ -216,7 +253,7 @@ def set_field(g, project, row, fields, key, target, dry_run):
         option = next((opt for opt in fields[key].get("options", [])
                        if opt["name"].lower() == target.lower()), None)
         if option is None:
-            return False
+            raise RuntimeError(f"Project field {key}: missing option for {target!r}")
         value = {"singleSelectOptionId": option["id"]}
     if not dry_run:
         g.graphql(SET, input={"projectId": project, "itemId": row["id"],
@@ -226,6 +263,10 @@ def set_field(g, project, row, fields, key, target, dry_run):
 
 def synchronize(g, owner, number, registry, dry_run):
     owners = {m["issue"]: m["agent"] for m in json.loads(registry.read_text())["missions"]}
+    unknown = sorted({name for name in owners.values()
+                      if name.casefold() not in {opt.casefold() for opt in OPTIONS["Agent"]}})
+    if unknown:
+        raise RuntimeError("Agent registry contains unknown Project options: " + ", ".join(unknown))
     prs = {p["number"]: p for p in g.paged("/repos/" + REPO + "/pulls?state=all")}
     issues = list(g.paged("/repos/" + REPO + "/issues?state=all"))
     content = {("pr" if i.get("pull_request") else "issue", i["number"]): i
@@ -257,8 +298,9 @@ def synchronize(g, owner, number, registry, dry_run):
             changes["added"] += 1
         ref = owner_issue(item.get("body")) if kind == "pr" else n
         values = (
-            ("Status", status(item, kind == "issue" and n in linked), "status"),
-            ("Agent", owners.get(ref), "agent"),
+            ("Status", status(item, kind == "issue" and n in linked)
+             or ("Todo" if not row.get("s") else None), "status"),
+            ("Agent", owners.get(ref, "Non attribué"), "agent"),
             ("Priorité", priority(item), "priority"),
             ("Domaine", domain(item), "domain"),
             ("État GitHub", evidence(item), "evidence"),

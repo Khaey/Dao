@@ -44,6 +44,23 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     assert.equal((await users.other.db.rpc('professional_dossier',{p_id:cp.id})).error!.code,'42501');
     assert.equal((await users.pro.db.from('contractor_profile_details').update({review_status:'approved'}).eq('contractor_id',cp.id)).error!.code,'42501');
   });
+  await t.test('marketplace directory: public card fields only, same publication and access gates',async()=>{
+    const directory=()=>rpc('client','professional_directory',{p_review:false});
+    const card=(await directory()).find((row:any)=>row.id===cp.id);
+    assert.ok(card,'published professional is listed');
+    assert.equal(card.name,'PRO client');assert.equal(card.contractor_type,'company');assert.equal(card.city,'Tunis');
+    assert.equal(card.trades.length,2);assert.equal(card.portfolio_count,0);assert.equal(card.logo_id,null);
+    assert.equal(card.presentation,'Travaux déclarés');
+    // Exactly the documented public card shape: no contact, address, fiscal or file metadata.
+    assert.deepEqual(Object.keys(card).sort(),['areas','availability','available_from','city','contractor_type','governorate','id','logo_id','name','portfolio_count','presentation','review_status','trades','verification_status','years_experience']);
+    const serialized=JSON.stringify(card);
+    for(const secret of ['PRIVATE','contact@example.invalid','+21620000003','example.com','object_path'])assert.equal(serialized.includes(secret),false,secret);
+    // Access gates unchanged: contractors and non-staff cannot read it, clients cannot use the staff view.
+    assert.equal((await users.other.db.rpc('professional_directory',{p_review:false})).error!.code,'42501');
+    assert.equal((await users.client.db.rpc('professional_directory',{p_review:true})).error!.code,'42501');
+    const anon=createClient(url,key,{auth:{persistSession:false}});assert.ok((await anon.rpc('professional_directory',{p_review:false})).error);
+    assert.ok((await rpc('reviewer','professional_directory',{p_review:true})).some((row:any)=>row.id===cp.id));
+  });
   await t.test('web/contact edits moderate content without re-verifying; invalid URLs denied',async()=>{
     assert.ok((await users.pro.db.rpc('professional_command',{p_action:'details',p_input:{website_url:'javascript:alert(1)'}})).error);
     await cmd('pro','details',{show_phone:true});assert.equal((await dossier()).profile.verification_status,'verified');assert.ok((await users.client.db.rpc('professional_public_profile',{p_id:cp.id})).error);
@@ -75,7 +92,8 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     assert.equal((await publicProfile()).portfolio.length,0);await cmd('pro','portfolio_submit',{id:project.id});
     const race=await Promise.all(['reviewer','reviewer2'].map(name=>users[name].db.rpc('professional_command',{p_action:'review_portfolio',p_input:{id:project.id,approve:true,revision:2}})));
     assert.equal(race.filter(r=>!r.error).length,1);assert.equal(race.find(r=>r.error)!.error.code,'23514');
-    assert.equal((await publicProfile()).portfolio[0].assets[0].asset_kind,'before');assert.equal(JSON.stringify(await publicProfile()).includes('object_path'),false);
+    assert.equal((await publicProfile()).portfolio[0].assets[0].asset_kind,'before');
+    assert.equal((await rpc('client','professional_directory',{p_review:false})).find((row:any)=>row.id===cp.id).portfolio_count,1);assert.equal(JSON.stringify(await publicProfile()).includes('object_path'),false);
     const access=await rpc('client','professional_file_access',{p_kind:'portfolio',p_id:photo.id});assert.equal('object_path' in access,false);assert.equal('reviewed_by' in access,false);
     assert.deepEqual((await users.client.db.from('portfolio_assets').select('*').eq('id',photo.id)).data,[]);
   });
