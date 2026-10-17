@@ -1,9 +1,11 @@
-name: Synthetic SSH transport proof
+name: Synthetic native OpenSSH transport proof
 on:
   pull_request:
     paths:
       - '.github/workflows/ci.yml'
       - '.github/workflows/ssh-transport-proof.yml'
+      - 'scripts/prepare-dev-ssh.sh'
+      - 'scripts/stage-dev-private-dir.sh'
       - 'scripts/verify-ssh-env-transport.py'
 permissions:
   contents: read
@@ -15,12 +17,5 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Fetch the exact SSH action under review
-        uses: actions/checkout@v4
-        with:
-          repository: appleboy/ssh-action
-          ref: 2ead5e36573f08b82fbfce1504f1a4b05a647c6f
-          path: .ssh-action-under-test
-          persist-credentials: false
-      - name: Exercise SSH env transport using only synthetic values
-        run: python3 scripts/verify-ssh-env-transport.py .ssh-action-under-test
+      - name: Prove native OpenSSH transport over private loopback
+        run: python3 scripts/verify-ssh-env-transport.py

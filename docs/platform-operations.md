@@ -165,11 +165,14 @@ or RLS change is exposed.
 
 For email configuration sync, define `RESEND_API_KEY` and `DAO_EMAIL_FROM`
 as dev environment secrets. The workflow fixes `DAO_PUBLIC_URL` to the DEV
-URL. The normal main-only `deploy-dev` job sends those protected values through
-the pinned SSH action with debug and stdout capture disabled. No private JSON
-or repository token is created on the runner, included in SCP, or uploaded as
-an artifact. The pinned SCP action transfers only the verified application
-package.
+URL. The main-only `deploy-dev` job first verifies the remote host's ED25519
+public key fingerprint against the independently provisioned GitHub environment
+pin and then uses native OpenSSH. The protected environment JSON and transient
+repository read token are generated on the runner in a private 0700 directory
+with owner-only 0600 files, streamed over authenticated SSH, and removed by
+an `always()` runner cleanup. Neither private file enters the application
+build artifact or any third-party SCP container. Only the verified application
+package is transferred separately over the same host-verified OpenSSH channel.
 
 The SSH-side staging validates that `/opt/dao` is an owned, non-symlink,
 non-world-writable directory. It creates `ops-incoming` as owner-only `0700`,

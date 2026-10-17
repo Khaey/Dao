@@ -1,140 +1,121 @@
-"""Isolated GitHub runner proof, not a DEV deployment or production credential test.
-
-Requires OpenSSH and passwordless sudo on a disposable Linux runner. Uses the
-exact action entrypoint supplied as argv[1]; never imports the runner's secrets
-into that process. No raw SSH logs or keys are printed or uploaded.
-"""
+"""Native OpenSSH loopback transport proof. No DEV, VPS or GitHub secrets used."""
 import hashlib
+import io
 import os
 from pathlib import Path
 import pwd
+import shlex
 import socket
-import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 
 
-def command(args, **kwargs):
-    return subprocess.run(args, capture_output=True, text=True, timeout=120, **kwargs)
-
-
-def checked(args):
-    result = command(args)
+def checked(args, *, input_data=None, env=None):
+    result = subprocess.run(args, input=input_data, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, env=env, timeout=45)
     if result.returncode:
-        raise RuntimeError('Fixture command failed (output withheld): ' + args[0])
+        raise AssertionError("Synthetic fixture command failed: " + args[0])
     return result.stdout
 
 
-def validate_private_parent(directory, uid):
-    """Match StrictModes' owner/write constraints without following symlinks."""
-    directory = Path(directory)
-    assert directory.is_absolute(), 'Fixture parent must be absolute'
-    for parent in (directory, *directory.parents):
-        info = parent.lstat()
-        print(f'Fixture parent metadata: {parent} uid={info.st_uid} mode={stat.S_IMODE(info.st_mode):04o}')
-        assert stat.S_ISDIR(info.st_mode), 'Fixture parent is not a real directory'
-        assert info.st_uid in (0, uid), 'Fixture parent has an unexpected owner'
-        assert not info.st_mode & 0o022, 'Fixture parent is writable by others'
-    assert directory.stat().st_uid == uid, 'Runner home must belong to runner'
-
-
 def main():
-    action = Path(sys.argv[1]).resolve()
-    assert (action / 'entrypoint.sh').is_file()
-    account = pwd.getpwuid(os.getuid())
-    username = account.pw_name
-    assert os.getuid() != 0, 'Run as the disposable runner user, not root'
-    runner_home = Path(account.pw_dir)
-    validate_private_parent(runner_home, os.getuid())
-    with tempfile.TemporaryDirectory(prefix='.dao187-ssh-', dir=runner_home) as directory:
-        root = Path(directory)
-        assert stat.S_IMODE(root.stat().st_mode) == 0o700
-        for name in ('host', 'client'):
-            checked(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(root / name)])
-        validate_private_parent(root, os.getuid())
-        for name, mode in (('client', 0o600), ('client.pub', 0o644)):
-            info = (root / name).lstat()
-            assert stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid()
-            assert stat.S_IMODE(info.st_mode) == mode
-            print(f'Fixture key metadata: {name} uid={info.st_uid} mode={mode:04o}')
-        with socket.socket() as probe:
-            probe.bind(('127.0.0.1', 0))
-            port = probe.getsockname()[1]
-        config = root / 'sshd_config'
-        config.write_text(f'''ListenAddress 127.0.0.1
-Port {port}
-HostKey {root}/host
-PidFile {root}/pid
-AuthorizedKeysFile {root}/client.pub
-StrictModes yes
-PasswordAuthentication no
-KbdInteractiveAuthentication no
-UsePAM yes
-PermitRootLogin no
-AllowUsers {username}
-LogLevel VERBOSE
-''')
-        fingerprint = checked(['ssh-keygen', '-lf', str(root / 'host.pub')]).split()[1]
-        checked(['sudo', '-n', 'mkdir', '-p', '/run/sshd'])
-        checked(['sudo', '-n', '/usr/sbin/sshd', '-t', '-f', str(config)])
-        checked(['sudo', '-n', '/usr/sbin/sshd', '-f', str(config), '-E', str(root / 'server.log')])
+    root_dir = Path(__file__).resolve().parents[1]
+    user = pwd.getpwuid(os.getuid())
+    assert os.getuid() != 0, "Runner fixture must not run as root"
+    with tempfile.TemporaryDirectory(prefix=".dao187-native-", dir=user.pw_dir) as temp:
+        root = Path(temp)
+        for name in ("host", "client", "rogue"):
+            checked(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(root / name)])
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        config = root / "sshd_config"
+        config.write_text(
+            f"ListenAddress 127.0.0.1\nPort {port}\nHostKey {root}/host\n"
+            f"PidFile {root}/pid\nAuthorizedKeysFile {root}/client.pub\n"
+            f"StrictModes yes\nPasswordAuthentication no\n"
+            f"KbdInteractiveAuthentication no\nUsePAM yes\n"
+            f"PermitRootLogin no\nAllowUsers {user.pw_name}\nLogLevel VERBOSE\n"
+        )
+        checked(["sudo", "-n", "mkdir", "-p", "/run/sshd"])
+        checked(["sudo", "-n", "/usr/sbin/sshd", "-t", "-f", str(config)])
+        checked(["sudo", "-n", "/usr/sbin/sshd", "-f", str(config),
+                 "-E", str(root / "server.log")])
         try:
-            value = "DAO187_SYNTHETIC_'_$(false)_QUOTE\nDAO187_SECOND_LINE"
-            expected = hashlib.sha256(value.encode()).hexdigest()
-            # Explicit environment: no GITHUB_TOKEN, DEV credentials, or inherited INPUT_*.
-            env = {
-                'PATH': os.environ['PATH'],
-                'GITHUB_ACTION_PATH': str(action), 'INPUT_HOST': '127.0.0.1',
-                'INPUT_PORT': str(port), 'INPUT_USERNAME': username,
-                'INPUT_KEY_PATH': str(root / 'client'), 'INPUT_FINGERPRINT': fingerprint,
-                'INPUT_ENVS': 'DAO187_TEST', 'INPUT_DEBUG': 'false',
-                'INPUT_CAPTURE_STDOUT': 'false', 'INPUT_TIMEOUT': '10s',
-                'INPUT_COMMAND_TIMEOUT': '15s', 'DAO187_TEST': value,
+            def fingerprint(path):
+                return checked(["ssh-keygen", "-lf", str(path), "-E", "sha256"]).decode().split()[1]
+
+            known_hosts = root / "known_hosts"
+            known_hosts.write_bytes(checked([
+                "ssh-keyscan", "-T", "10", "-t", "ed25519",
+                "-p", str(port), "127.0.0.1",
+            ]))
+            expected = fingerprint(root / "host.pub")
+            assert fingerprint(known_hosts) == expected, "Fixture host pin mismatch"
+            assert fingerprint(root / "rogue.pub") != expected, "Negative host pin not distinct"
+            known_hosts.chmod(0o600)
+            ssh_config = root / "ssh_config"
+            ssh_config.write_text(
+                f"Host dao-fixture\n  HostName 127.0.0.1\n  Port {port}\n"
+                f"  User {user.pw_name}\n  IdentityFile {root}/client\n"
+                f"  UserKnownHostsFile {known_hosts}\n"
+                "  StrictHostKeyChecking yes\n  IdentitiesOnly yes\n"
+                "  BatchMode yes\n  PasswordAuthentication no\n"
+            )
+            ssh_config.chmod(0o600)
+            env = {"PATH": os.environ["PATH"], "HOME": user.pw_dir}
+            ssh = ["ssh", "-F", str(ssh_config), "dao-fixture"]
+            remote_root = root / "host-dir"
+            remote_root.mkdir(mode=0o700)
+            stage = (root_dir / "scripts/stage-dev-private-dir.sh").read_text()
+            stage = stage.replace("/opt/dao", str(remote_root))
+            checked(ssh + ["bash", "-se", "--", "123", "1"],
+                    input_data=stage.encode(), env=env)
+            staging = remote_root / "ops-incoming" / "123-1"
+            assert staging.stat().st_mode & 0o777 == 0o700
+
+            sentinel = "DAO187_SYNTHETIC_PRIVATE_DO_NOT_LOG"
+            private = {
+                "dao-env.json": ("fictional\n" + sentinel).encode(),
+                "github-read-token": b"fictional-token-only\n",
             }
-            script = ("python3 - <<'PY'\nimport hashlib,os\n"
-                      "assert hashlib.sha256(os.environ['DAO187_TEST'].encode()).hexdigest() == '"
-                      + expected + "'\nprint('SYNTHETIC_ROUNDTRIP_PASS')\nPY")
-            for name, remote_script, success in (
-                ('success', script, True),
-                ('remote_failure', script + '\nexit 23', False),
-            ):
-                env['INPUT_SCRIPT'] = remote_script
-                result = command(['bash', str(action / 'entrypoint.sh')], env=env)
-                logs = result.stdout + result.stderr
-                if (result.returncode == 0) != success:
-                    # Fixture-only diagnostics; never forward arbitrary command output.
-                    categories = ('unable to authenticate', 'handshake failed',
-                                  'connection refused', 'fingerprint', 'curl:',
-                                  'unbound variable', 'Permission denied',
-                                  'account is locked', 'bad ownership', 'not allowed')
-                    server_log = checked(['sudo', '-n', 'cat', str(root / 'server.log')])
-                    for category in categories:
-                        if category.lower() in (logs + server_log).lower():
-                            print('Fixture failure category:', category)
-                    print('Fixture exit code:', result.returncode)
-                assert (result.returncode == 0) == success, name + ': wrong exit outcome'
-                assert 'SYNTHETIC_ROUNDTRIP_PASS' in logs, name + ': no receipt proof'
-                assert 'DAO187_SYNTHETIC_' not in logs, name + ': sentinel leak'
-                assert 'DAO187_SECOND_LINE' not in logs, name + ': multiline leak'
-                print(name + ': exact synthetic value received; no sentinel in stdout/stderr; PASS')
-            # Positive control proves the detector would notice a debug disclosure.
-            env['INPUT_DEBUG'] = 'true'
-            env['INPUT_SCRIPT'] = script
-            result = command(['bash', str(action / 'entrypoint.sh')], env=env)
-            assert result.returncode == 0, 'debug control did not complete'
-            assert 'DAO187_SYNTHETIC_' in result.stdout + result.stderr
-            print('debug positive control: disclosure detected; raw synthetic output withheld; PASS')
-            binary = action / 'drone-ssh-1.8.1-linux-amd64'
-            print('Observed binary SHA256:', hashlib.sha256(binary.read_bytes()).hexdigest())
-            print('Scope: wrapper + local SSH transport only; no DEV/VPS or GitHub masking proof')
+            archive = io.BytesIO()
+            with tarfile.open(fileobj=archive, mode="w:gz") as tar:
+                for name, value in private.items():
+                    info = tarfile.TarInfo(name)
+                    info.size = len(value)
+                    info.mode = 0o600
+                    tar.addfile(info, io.BytesIO(value))
+            remote_cmd = ("umask 077; tar -xzf - -C " + shlex.quote(str(staging))
+                          + " --no-same-owner --no-same-permissions")
+            checked(ssh + [remote_cmd], input_data=archive.getvalue(), env=env)
+            for name, value in private.items():
+                target = staging / name
+                assert target.stat().st_mode & 0o777 == 0o600
+                assert hashlib.sha256(target.read_bytes()).digest() == hashlib.sha256(value).digest()
+            print("native SSH transport: strict host pin, full fictional payload and 0700/0600 PASS")
+
+            failure = subprocess.run(ssh + ["exit 23"], env=env,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+            assert failure.returncode == 23
+            assert sentinel.encode() not in failure.stdout + failure.stderr
+            print("native SSH remote failure: nonzero status and no private sentinel PASS")
+
+            leaked = checked(ssh + ["cat " + shlex.quote(str(staging / "dao-env.json"))], env=env)
+            assert sentinel.encode() in leaked  # Detector must recognize deliberately leaked fiction.
+            print("native SSH positive disclosure-control: detector triggered PASS")
+
+            checked(ssh + ["rm -rf -- " + shlex.quote(str(staging))], env=env)
+            assert not staging.exists()
+            print("native SSH run-scoped cleanup PASS")
+            print("Scope: disposable loopback only; DEV host pin and real DEV deployment still require trusted access")
         finally:
-            pid = int((root / 'pid').read_text().strip())
-            assert pid > 1
-            checked(['sudo', '-n', 'kill', '-TERM', str(pid)])
-            # The server log may be root-owned; it contains only fixture diagnostics.
-            checked(['sudo', '-n', 'chown', str(os.getuid()), str(root / 'server.log')])
+            pid = int((root / "pid").read_text().strip())
+            checked(["sudo", "-n", "kill", "-TERM", str(pid)])
+            checked(["sudo", "-n", "chown", str(os.getuid()), str(root / "server.log")])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
