@@ -202,6 +202,27 @@ the distinction between private-payload cleanup and workflow transport cleanup.
 Fault tests are fictional; no manual live sync or outage is required to qualify
 this nonroot change, and interruption recovery is not guaranteed.
 
+
+### Verified native DEV SSH transport (security remediation #187)
+
+The DEV deployment path now uses the standard Ubuntu OpenSSH client, not
+third-party runtime-downloaded drone-ssh/drone-scp executables. All connections
+require a strict host-key match against the **independently provisioned**
+protected GitHub environment secret `DEV_SSH_HOST_FINGERPRINT` (SHA256 fingerprint
+of the server's public ED25519 SSH host key, `SHA256:` + 43 base64 characters).
+Obtain the trusted fingerprint from the authenticated VPS provider console or
+another independently authenticated server-admin channel. Do **not** obtain
+its expected value solely from `ssh-keyscan`, first-contact SSH or public logs.
+
+Before protected credentials are read, the runner compares its freshly scanned
+host public key to that existing pin, with `StrictHostKeyChecking yes` and an
+isolated `known_hosts`. Missing/mismatched pins fail closed. The ephemeral
+runner key and 0600 private payload are under a 0700 temporary directory;
+the remote payload remains 0700/0600 and is deleted by the existing cleanup.
+An interrupted host cleanup still requires the documented bounded recovery.
+**Do not merge any PR that triggers DEV deployment before this host pin is
+independently verified and configured in the protected dev environment.**
+
 ### First deployment after private-payload transport changes
 
 Treat the first main deployment using a changed secret-transport path as a
