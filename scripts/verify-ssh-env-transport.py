@@ -46,10 +46,10 @@ AuthorizedKeysFile {root}/client.pub
 StrictModes yes
 PasswordAuthentication no
 KbdInteractiveAuthentication no
-UsePAM no
+UsePAM yes
 PermitRootLogin no
 AllowUsers {username}
-LogLevel ERROR
+LogLevel VERBOSE
 ''')
         fingerprint = checked(['ssh-keygen', '-lf', str(root / 'host.pub')]).split()[1]
         checked(['sudo', '-n', 'mkdir', '-p', '/run/sshd'])
