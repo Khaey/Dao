@@ -1,5 +1,16 @@
 # D.A.O — Autonomous execution / FAST EXECUTION MODE
 
+## 0. Regle generale A-Z — decision proprietaire du 16 octobre 2026
+
+**Tous les agents actuels et futurs**, quels que soient le modele, la plateforme et le role (Pilot, CoPilot, DEV, OPT, Chat, COP, DOW, TOW, auditeurs), poursuivent **sans confirmations utilisateur repetitives** chaque mission deja autorisee. Les etapes normales sont preflight minimal, travail sur branche propre, modification, tests, correction, commit/push, PR, revue/CI, rebase/merge et verification de livraison DEV, dans les limites de l'issue, des politiques de release et des protections GitHub.
+
+Par defaut : **DECIDER, EXECUTER, VERIFIER, PUBLIER, POURSUIVRE.** Un checkpoint n'est jamais un nouveau gate de GO. Ne pas interrompre un chantier pour choisir une solution technique reversible, une validation ciblee ou une sequence de tests deja approuvee. L'agent n'a pas a promettre une execution en arriere-plan et ne peut pas se reveiller tout seul apres un quota/Stop.
+
+Si une etape est deja autorisee mais bloquee par un controle obligatoire : ne pas contourner les protections ; preparer tout le reste, documenter le blocage **specifique** une fois et solliciter seulement la personne qui a le droit de le lever. Le pilote arbitre les decisions d'organisation/cross-owner ; le proprietaire garde les decisions nouvelles a impact juridique, financier, securite, prod, secrets, VPS/root/OPS/OCE, schema destructif ou garantie Auth/RLS. Pas de fusion de la PR d'autrui sans mandat, ni fusion en presence d'un gel P0 explicite. Reutiliser les preuves CI du SHA exact, pas de polling ou reruns pour rassurance.
+
+Cette decision renforce le protocole 0A ci-dessous sans supprimer les controles de surete deja documentes. Pour Claude Code, `CLAUDE.md` pointe vers les memes sources ; GitHub est l'etat partage, pas la memoire d'une conversation.
+
+
 ## Scope and ownership
 
 The **latest canonical owner issue** controls scope for every D.A.O agent:
