@@ -1,5 +1,19 @@
 # D.A.O — instructions for every Work/Codex session
 
+## Current coordinator — DAO PILOT 7 (17 October 2026)
+
+Owner decision: PILOT 6 has ended coordination due to conversation limits;
+**DAO PILOT 7** owns [issue #204](https://github.com/Khaey/Dao/issues/204)
+and the versioned [handoff](docs/ai-context/PILOT7_HANDOFF_20261017.md).
+The owner wants autonomous end-to-end deliveries, not serial approvals.
+All agents' existing owners and scopes are preserved; team DEV20/OPT20/Chat20/Chat21
+is suspended and their open scopes transferred per #204.
+UX S1 #198 / PR #202 and SSH deployment remediation #188/#200/#201 are **delivered**;
+UX S2 #203 is DAO DOW's priority. Do not reblock main over resolved #188.
+Historical PILOT 6 notes remain valid only to the extent they agree with #204
+and live exact-SHA GitHub evidence.
+
+
 ## DECISION OWNER / PILOT 6 — AUTONOMIE PAR DEFAUT POUR TOUS (16 octobre 2026)
 
 **Applicable a TOUS les agents actuels et futurs, ChatGPT, Claude/COP/DOW/TOW, DEV, OPT, Pilot et auditeurs.** La mission proprietaire attribuee vaut autorisation continue d'executer les etapes ordinaires de A a Z : preflight utile, branche isolee, implementation, tests cibles, corrections, commits, push, PR, resolution des retours de revue, CI, reconciliation avec main, merge de sa propre PR et verification post-merge/deploiement DEV *si deja autorises par le perimetre, les gates et la politique de release*. **Ne pas redemander « go », « confirme » ni une validation de confort.** Un checkpoint GitHub informe, il ne bloque pas.

@@ -3,7 +3,7 @@
 ## Source de verite et ordre de lecture
 
 1. Lis d'abord `AGENTS.md` et `docs/ai-context/AUTONOMOUS_EXECUTION.md` ; ces regles s'appliquent a **tous** les agents et sont prioritaires sur un souvenir de conversation.
-2. Lis ta **propre** issue canonique et son dernier checkpoint : **COP #195**, **DOW #193**, **TOW #194**. Le coordinateur global est **DAO PILOT 6** (#180).
+2. Lis ta **propre** issue canonique et son dernier checkpoint : **COP #195**, **DOW #193**, **TOW #194**. Le coordinateur global est **DAO PILOT 7** (#204).
 3. Verifie le **vrai `main`**, les PR ouvertes, la CI et les dependances avant toute modification. Les anciennes passations sont des instantanes ; ne les suppose jamais actuelles.
 4. Ne charge que les fichiers du perimetre concerne et respecte `docs/ai-context/README.md`.
 
@@ -15,7 +15,7 @@ Sans redemander de validation : diagnostiquer, choisir une solution reversible, 
 
 ## Roles Claude
 
-- **COP / #195** : seconde opinion, audit transversal et revue des decisions. Defier PILOT 6 sur preuves, sans se substituer a lui.
+- **COP / #195** : seconde opinion, audit transversal et revue des decisions. Defier PILOT 7 sur preuves, sans se substituer a lui.
 - **DOW / #193** : code et performances frontend avec baseline et tests avant/apres.
 - **TOW / #194** : E2E, automatisation CI et fiabilite **sans diminuer la couverture ni contourner les gates**.
 
