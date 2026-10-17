@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, BadgeCheck, MapPin, Search, SlidersHorizontal, Users, X } from 'lucide-react';
 import { Badge, Card, Input } from './ui';
 import { professionalBlob, professionalRead, professionalStatus } from '../lib/professionals';
+import { availabilityLabel, availabilityOf, availabilityTones, initials, monogramTone, professionalTypeNames as typeNames } from './professional-display';
 
 type DirectoryRow = {
   id: string;
@@ -28,12 +29,6 @@ type Filters = { trade: string; zone: string; availability: string; type: string
 type SortKey = 'recent' | 'experience' | 'portfolio' | 'name';
 
 const noFilters: Filters = { trade: '', zone: '', availability: '', type: '' };
-const typeNames: Record<string, string> = {
-  artisan: 'Artisan',
-  company: 'Entreprise',
-  general_contractor: 'Entreprise générale',
-  independent_professional: 'Professionnel indépendant',
-};
 const availabilityFilters: Record<string, string> = {
   now: 'Disponible maintenant',
   soon: 'Disponible prochainement',
@@ -45,46 +40,12 @@ const sortNames: Record<SortKey, string> = {
   portfolio: 'Plus de réalisations',
   name: 'Nom (A → Z)',
 };
-const monogramTones = ['bg-teal/10 text-teal', 'bg-clay/10 text-clay', 'bg-ink/[0.06] text-ink', 'bg-amber-100 text-amber-800'];
 const selectBase = 'min-h-11 rounded-xl border border-black/10 bg-white px-3 text-sm font-normal normal-case tracking-normal text-ink outline-none transition focus:border-teal focus:ring-4 focus:ring-teal/10';
 const filterLabelClass = 'space-y-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-black/50';
 const collator = new Intl.Collator('fr', { sensitivity: 'base' });
 
 const list = (values?: string[] | null) => (Array.isArray(values) ? values.filter(Boolean) : []);
-const normalize = (value: string) => value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-const today = () => new Date().toISOString().slice(0, 10);
-
-/** Effective availability: a scheduled date that has passed means available now. */
-function availabilityOf(row: DirectoryRow): 'now' | 'soon' | 'to_discuss' | 'unavailable' {
-  if (row.availability === 'available') return 'now';
-  if (row.availability === 'scheduled') return row.available_from && row.available_from <= today() ? 'now' : 'soon';
-  if (row.availability === 'unavailable') return 'unavailable';
-  return 'to_discuss';
-}
-
-function availabilityLabel(row: DirectoryRow) {
-  const state = availabilityOf(row);
-  if (state === 'now') return 'Disponible';
-  if (state === 'unavailable') return 'Indisponible';
-  if (state === 'soon') {
-    if (!row.available_from) return 'Disponibilité planifiée';
-    const date = new Date(`${row.available_from}T00:00:00`);
-    return `Dès le ${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`;
-  }
-  return 'Disponibilité à discuter';
-}
-
-function initials(name: string) {
-  const words = name.split(/[\s\-'’&.,()/]+/).filter(Boolean);
-  return ((words[0]?.[0] ?? '') + (words[1]?.[0] ?? words[0]?.[1] ?? '')).toUpperCase() || '·';
-}
-
-function hashTone(id: string) {
-  let hash = 0;
-  for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
-  return monogramTones[hash % monogramTones.length];
-}
-
+const normalize = (value: string) => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 // Logos are private files streamed through /api/professionals (access rechecked server-side):
 // load them lazily, at most 4 at a time, once per page.
 const logoCache = new Map<string, Promise<string>>();
@@ -138,17 +99,15 @@ function DirectoryLogo({ id, logoId, name }: { id: string; logoId?: string | nul
   }, [logoId]);
 
   return <div ref={holder} aria-hidden="true"
-    className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/5 text-lg font-bold tracking-tight ${url && !broken ? 'bg-white' : hashTone(id)}`}>
+    className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/5 text-lg font-bold tracking-tight ${url && !broken ? 'bg-white' : monogramTone(id)}`}>
     {url && !broken ? <img src={url} alt="" onError={() => setBroken(true)} className="h-full w-full object-contain p-1.5" /> : initials(name)}
   </div>;
 }
 
 function AvailabilityPill({ row }: { row: DirectoryRow }) {
-  const state = availabilityOf(row);
-  const tone = state === 'now' ? 'bg-emerald-50 text-emerald-800' : state === 'soon' ? 'bg-amber-50 text-amber-800' : 'bg-sand text-black/60';
-  const dot = state === 'now' ? 'bg-emerald-500' : state === 'soon' ? 'bg-amber-500' : 'bg-black/25';
-  return <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>
-    <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dot}`} />{availabilityLabel(row)}
+  const tone = availabilityTones[availabilityOf(row)];
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${tone.pill}`}>
+    <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />{availabilityLabel(row)}
   </span>;
 }
 
