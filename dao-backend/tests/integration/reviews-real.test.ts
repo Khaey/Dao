@@ -4,29 +4,35 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 // #213 R1 — verified Client reviews against the disposable Supabase stack with real JWTs.
-test('reviews: verified eligibility, closed tables, minimal public projection, moderation',async t=>{
+// Surface failures as GitHub annotations (readable through the checks API) in addition to TAP.
+const annotate=(name:string,fn:()=>Promise<void>)=>async()=>{try{await fn();}catch(error:any){console.log(`::error title=reviews-real ${name}::${String(error?.message??error).replace(/\r?\n/g,' ').slice(0,900)}`);throw error;}};
+test('reviews: verified eligibility, closed tables, minimal public projection, moderation',async t0=>{
+  const t={test:(name:string,fn:()=>Promise<void>)=>t0.test(name,annotate(name,fn))};
   const url=process.env.DAO_SUPABASE_URL!,key=process.env.DAO_SUPABASE_PUBLISHABLE_KEY!,secret=process.env.DAO_SUPABASE_SECRET_KEY!;
   assert.equal(url,'http://127.0.0.1:54321','Only disposable Supabase is authorized');assert.ok(key);assert.ok(secret);
   const admin=createClient(url,secret,{auth:{persistSession:false,autoRefreshToken:false}});
   const password='Rev!'+randomUUID();const users:any={};
-  const roles:Record<string,[string,string]>={client:['client','Amira Ben Salem'],client2:['client','Youssef'],outsider:['client','Out Sider'],pro:['contractor','Pro Un'],pro2:['contractor','Pro Deux'],staff:['dao_reviewer','Staff DAO']};
-  for(const [name,[role,display]] of Object.entries(roles)){
-    const email=`rev213-${name}-${randomUUID()}@example.invalid`;const created=await admin.auth.admin.createUser({email,password,email_confirm:true});assert.ifError(created.error);
-    const id=created.data.user!.id;assert.ifError((await admin.from('profiles').insert({user_id:id,display_name:display})).error);assert.ifError((await admin.from('user_roles').insert({user_id:id,role})).error);
-    const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});assert.ifError((await db.auth.signInWithPassword({email,password})).error);
-    users[name]={id,db};
-  }
   async function insert(table:string,row:any){const r=await admin.from(table).insert(row).select('*').single();assert.ifError(r.error);return r.data;}
   const call=(name:string,fn:string,args:any={})=>users[name].db.rpc(fn,args);
   async function ok(name:string,fn:string,args:any={}){const r=await call(name,fn,args);assert.ifError(r.error);return r.data;}
   async function denied(name:string,fn:string,args:any,code='42501'){const r=await call(name,fn,args);assert.ok(r.error,`${name} ${fn} must fail`);assert.equal(r.error.code,code,`${name} ${fn}: ${r.error.message}`);}
-  const cp=await insert('contractor_profiles',{user_id:users.pro.id,business_name:'Société privée avis',public_trade_name:'Atelier Avis',contractor_type:'company',verification_status:'verified',public_identity_status:'approved'});
-  const cp2=await insert('contractor_profiles',{user_id:users.pro2.id,business_name:'Autre pro',contractor_type:'artisan',verification_status:'verified',public_identity_status:'approved'});
-  await insert('contractor_profile_details',{contractor_id:cp.id,review_status:'approved',city:'Tunis'});
-  const gov=(await admin.from('governorates').select('id').limit(1).single()).data!;
-  const project=await insert('projects',{client_id:users.client.id,initiator_id:users.client.id,project_origin:'client_existing_team'});
-  await insert('project_versions',{project_id:project.id,version_no:1,title:'Titre privé du chantier avis',description:'',governorate_id:gov.id});
-  const member=await insert('project_members',{project_id:project.id,user_id:users.pro.id,participation_role:'contractor'});
+  let cp:any,cp2:any,project:any,member:any;
+  await annotate('setup',async()=>{
+    const roles:Record<string,[string,string]>={client:['client','Amira Ben Salem'],client2:['client','Youssef'],outsider:['client','Out Sider'],pro:['contractor','Pro Un'],pro2:['contractor','Pro Deux'],staff:['dao_reviewer','Staff DAO']};
+    for(const [name,[role,display]] of Object.entries(roles)){
+      const email=`rev213-${name}-${randomUUID()}@example.invalid`;const created=await admin.auth.admin.createUser({email,password,email_confirm:true});assert.ifError(created.error);
+      const id=created.data.user!.id;assert.ifError((await admin.from('profiles').insert({user_id:id,display_name:display})).error);assert.ifError((await admin.from('user_roles').insert({user_id:id,role})).error);
+      const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});assert.ifError((await db.auth.signInWithPassword({email,password})).error);
+      users[name]={id,db};
+    }
+    cp=await insert('contractor_profiles',{user_id:users.pro.id,business_name:'Société privée avis',public_trade_name:'Atelier Avis',contractor_type:'company',verification_status:'verified',public_identity_status:'approved'});
+    cp2=await insert('contractor_profiles',{user_id:users.pro2.id,business_name:'Autre pro',contractor_type:'artisan',verification_status:'verified',public_identity_status:'approved'});
+    await insert('contractor_profile_details',{contractor_id:cp.id,review_status:'approved',city:'Tunis'});
+    const gov=(await admin.from('governorates').select('id').limit(1).single()).data!;
+    project=await insert('projects',{client_id:users.client.id,initiator_id:users.client.id,project_origin:'client_existing_team'});
+    await insert('project_versions',{project_id:project.id,version_no:1,title:'Titre privé du chantier avis',description:'',governorate_id:gov.id});
+    member=await insert('project_members',{project_id:project.id,user_id:users.pro.id,participation_role:'contractor'});
+  })();
   const review=(stars:number,comment:string,extra:any={})=>({p_project_id:project.id,p_contractor_id:cp.id,p_input:{rating:stars,comment,...extra}});
   const good='Travail soigné, équipe ponctuelle, chantier laissé propre chaque soir.';
   let reviewId='';
