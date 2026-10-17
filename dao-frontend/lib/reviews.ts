@@ -34,10 +34,23 @@ export const criteriaKeys = Object.keys(criteriaLabels) as Array<keyof ReviewCri
 export const COMMENT_MIN = 30;
 export const COMMENT_MAX = 2000;
 
-/** Same contact-detail rule as dao_private.review_text, checked early for a friendlier message. */
-export function containsContact(text: string) {
-  return /[^\s@]+@[^\s@]+\.[a-z]{2,}/i.test(text) || /\+[0-9][0-9 .()-]{7,}/.test(text)
-    || /(^|[^0-9])[0-9]{8,}([^0-9]|$)/.test(text) || /(https?:\/\/|www\.)/i.test(text);
+/** Mirrors dao_private.contains_contact (server stays authoritative) for an early, friendlier message. */
+export function containsContact(input: string) {
+  const t = input.toLowerCase()
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[\uff10-\uff19]/g, (d) => String(d.charCodeAt(0) - 0xff10))
+    .replace(/[\u00a0\u202f\u2007]/g, ' ').replace(/\uff20/g, '@').replace(/\uff0e/g, '.')
+    .replace(/[\u200b-\u200d\u2060\ufeff\u00ad]/g, '');
+  return /[0-9]{8,}/.test(t)
+    || /(^|[^0-9])[0-9]{2}[ .()_-]*[0-9]{3}[ .()_-]*[0-9]{3}([^0-9]|$)/.test(t)
+    || /(^|[^0-9])[0-9]{2}([ .()_-]+[0-9]{2}){3}([^0-9]|$)/.test(t)
+    || /(\+|(^|[^0-9])00) *[0-9][0-9 .()_-]{6,}/.test(t)
+    || /[^\s@]+ *@ *[^\s@]+\.[a-z]{2,}/.test(t)
+    || /(^|[\s(])@[a-z0-9_.]{3,}/.test(t)
+    || /(https?:|www\.|\barobase\b)/.test(t)
+    || /[a-z0-9-]{2,} *\. *(tn|com|net|org|fr|me|io|info|biz|co|app|site|online|shop|store|pro|tech|link|ly)([^a-z0-9]|$)/.test(t)
+    || /(^|[^a-z0-9])(wa\.me|t\.me|whatsapp|telegram|viber|instagram|facebook|tiktok|snapchat|linkedin|messenger)([^a-z0-9]|$)/.test(t);
 }
 
 const reviewErrors: Record<string, string> = {
