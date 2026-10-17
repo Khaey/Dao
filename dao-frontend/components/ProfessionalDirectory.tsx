@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, BadgeCheck, MapPin, Search, SlidersHorizontal, Users, X } from 'lucide-react';
 import { Badge, Card, Input } from './ui';
+import { Stars } from './reviews/ReviewStars';
+import { formatRating } from '../lib/reviews';
 import { professionalBlob, professionalRead, professionalStatus } from '../lib/professionals';
 import { availabilityLabel, availabilityOf, availabilityTones, initials, monogramTone, professionalTypeNames as typeNames } from './professional-display';
 
@@ -21,14 +23,17 @@ type DirectoryRow = {
   available_from?: string | null;
   logo_id?: string | null;
   portfolio_count?: number | null;
+  rating_average?: number | string | null; // absent until the reviews migration is deployed
+  rating_count?: number | null;
   verification_status?: string | null;
   review_status?: string | null;
 };
 
-type Filters = { trade: string; zone: string; availability: string; type: string };
-type SortKey = 'recent' | 'experience' | 'portfolio' | 'name';
+type Filters = { trade: string; zone: string; availability: string; type: string; rating: string };
+type SortKey = 'recent' | 'rating' | 'experience' | 'portfolio' | 'name';
 
-const noFilters: Filters = { trade: '', zone: '', availability: '', type: '' };
+const noFilters: Filters = { trade: '', zone: '', availability: '', type: '', rating: '' };
+const ratingFilters: Record<string, string> = { '4': '4 ★ et plus', '3': '3 ★ et plus' };
 const availabilityFilters: Record<string, string> = {
   now: 'Disponible maintenant',
   soon: 'Disponible prochainement',
@@ -36,6 +41,7 @@ const availabilityFilters: Record<string, string> = {
 };
 const sortNames: Record<SortKey, string> = {
   recent: 'Plus récents',
+  rating: 'Mieux notés',
   experience: 'Plus d’expérience',
   portfolio: 'Plus de réalisations',
   name: 'Nom (A → Z)',
@@ -133,6 +139,10 @@ function ProfessionalCard({ row, href, review }: { row: DirectoryRow; href: stri
             : <Badge tone={row.verification_status === 'suspended' ? 'red' : 'clay'}>
               {row.verification_status === 'suspended' ? 'Suspendu' : 'Vérification en attente / à corriger'}
             </Badge>}
+          {row.rating_count != null && (row.rating_count > 0
+            ? <p className="flex items-center gap-1.5 text-xs text-black/60"><Stars value={Number(row.rating_average ?? 0)} size={13} />
+              <span className="font-semibold text-ink">{formatRating(row.rating_average)}</span>({row.rating_count} avis)</p>
+            : <p className="text-xs font-medium text-black/45">Nouveau sur D.A.O.</p>)}
         </div>
       </div>
 
@@ -239,17 +249,23 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
       if (filters.zone && row.governorate !== filters.zone && !list(row.areas).includes(filters.zone)) return false;
       if (filters.availability && availabilityOf(row) !== filters.availability) return false;
       if (filters.type && row.contractor_type !== filters.type) return false;
+      if (filters.rating && !((row.rating_count ?? 0) > 0 && Number(row.rating_average) >= Number(filters.rating))) return false;
       return true;
     });
     if (sort === 'experience') result.sort((a, b) => (b.years_experience ?? -1) - (a.years_experience ?? -1));
     if (sort === 'portfolio') result.sort((a, b) => (b.portfolio_count ?? 0) - (a.portfolio_count ?? 0));
     if (sort === 'name') result.sort((a, b) => collator.compare(a.name, b.name));
+    if (sort === 'rating') result.sort((a, b) => ((b.rating_count ?? 0) > 0 ? Number(b.rating_average) : -1) - ((a.rating_count ?? 0) > 0 ? Number(a.rating_average) : -1)
+      || (b.rating_count ?? 0) - (a.rating_count ?? 0));
     return result;
   }, [rows, query, filters, sort]);
 
   const setFilter = (key: keyof Filters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
   const resetAll = () => { setQuery(''); setFilters(noFilters); };
-  const filterLabel = (key: keyof Filters) => key === 'type' ? typeNames[filters.type] : key === 'availability' ? availabilityFilters[filters.availability] : filters[key];
+  const filterLabel = (key: keyof Filters) => key === 'type' ? typeNames[filters.type] : key === 'availability' ? availabilityFilters[filters.availability]
+    : key === 'rating' ? ratingFilters[filters.rating] : filters[key];
+  const hasRatings = (rows ?? []).some((row) => row.rating_count != null);
+  const sortKeys = (Object.keys(sortNames) as SortKey[]).filter((key) => key !== 'rating' || hasRatings);
   const total = rows?.length ?? 0;
 
   return <section className="mx-auto w-full max-w-6xl space-y-6">
@@ -289,7 +305,7 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
         </div>
       </div>
 
-      <div id="directory-filters" className={`${filtersOpen ? 'grid' : 'hidden'} gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4`}>
+      <div id="directory-filters" className={`${filtersOpen ? 'grid' : 'hidden'} gap-3 sm:grid sm:grid-cols-2 ${hasRatings ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
         <label className={filterLabelClass}>
           <span className="block">Métier</span>
           <select className={`${selectBase} w-full`} value={filters.trade} onChange={(event) => setFilter('trade', event.target.value)}>
@@ -318,6 +334,13 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
             {options.types.map((type) => <option key={type} value={type}>{typeNames[type]}</option>)}
           </select>
         </label>
+        {hasRatings && <label className={filterLabelClass}>
+          <span className="block">Note</span>
+          <select className={`${selectBase} w-full`} value={filters.rating} onChange={(event) => setFilter('rating', event.target.value)}>
+            <option value="">Toutes les notes</option>
+            {Object.entries(ratingFilters).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>}
       </div>
 
       {activeFilters.length > 0 && <div className="-my-1 flex flex-wrap items-center gap-x-2">
@@ -355,7 +378,7 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
         <label className="flex items-center gap-2 text-sm text-black/55">
           <span>Trier</span>
           <select className={selectBase} value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
-            {(Object.keys(sortNames) as SortKey[]).map((key) => <option key={key} value={key}>{sortNames[key]}</option>)}
+            {sortKeys.map((key) => <option key={key} value={key}>{sortNames[key]}</option>)}
           </select>
         </label>
       </div>

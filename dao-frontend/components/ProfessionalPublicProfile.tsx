@@ -7,10 +7,13 @@ import {
   AlertCircle, ArrowLeft, BadgeCheck, Expand, FileDown, Globe, ImageOff, Info, Link2, Mail, MapPin, MessageCircle, Phone, ShieldCheck, X,
 } from 'lucide-react';
 import { Card } from './ui';
+import ProfessionalReviews from './reviews/ProfessionalReviews';
+import { Stars } from './reviews/ReviewStars';
 import { professionalBlob, professionalRead } from '../lib/professionals';
 import {
   availabilityLabel, availabilityOf, availabilityTones, initials, monogramTone, plural, professionalTypeNames,
 } from './professional-display';
+import { formatRating, reviewCount, type RatingSummary } from '../lib/reviews';
 
 type Asset = { id: string; caption?: string | null; mime_type: string; asset_kind?: string | null; original_name?: string | null };
 type PortfolioProject = {
@@ -24,6 +27,7 @@ type Profile = {
   office_address?: string | null; website_url?: string | null; professional_phone?: string | null; professional_email?: string | null;
   whatsapp_phone?: string | null; social_links?: string[] | null; trades?: string[] | null;
   areas?: Array<{ governorate: string; delegation?: string | null }> | null; logo_id?: string | null; portfolio?: PortfolioProject[] | null;
+  rating?: RatingSummary | null; // absent until the reviews migration is deployed
 };
 
 const assetKinds: Record<string, string> = { before: 'Avant', after: 'Après', brochure: 'Brochure PDF' };
@@ -223,6 +227,7 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
     return groups;
   }, {});
   const governorateCount = Object.keys(byGovernorate).length;
+  const rating = profile.rating;
 
   return <section className="mx-auto w-full max-w-6xl space-y-6">
     {!showPreview && <div className="-my-2">{backLink}</div>}
@@ -251,6 +256,11 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
               ? <span className="inline-flex items-center gap-1.5 font-semibold text-teal"><BadgeCheck aria-hidden="true" size={18} />Vérifié par D.A.O.</span>
               : <span className="inline-flex items-center gap-1.5 font-semibold text-clay"><AlertCircle aria-hidden="true" size={18} />Vérification en attente / suspendue</span>}
             <span className="inline-flex items-center gap-1.5 text-black/60"><MapPin aria-hidden="true" size={16} className="text-black/35" />{place || 'Localisation non renseignée'}</span>
+            {rating && (rating.count > 0
+              ? <a href="#avis" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-ink underline-offset-4 hover:underline">
+                <Stars value={Number(rating.average ?? 0)} size={15} />{formatRating(rating.average)}<span className="font-normal text-black/55">· {reviewCount(rating.count)}</span>
+              </a>
+              : <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-semibold text-black/60">Nouveau sur D.A.O.</span>)}
           </div>
           {trades.length > 0 && <ul aria-label="Métiers" className="flex flex-wrap gap-2 pt-1">
             {trades.map((trade) => <li key={trade} className="rounded-lg bg-sand px-2.5 py-1 text-sm font-medium text-ink">{trade}</li>)}
@@ -293,6 +303,7 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
               <span className="text-black/70">{verified ? 'Professionnel vérifié par D.A.O. à partir de son dossier privé.' : 'Vérification du professionnel en attente ou suspendue.'}</span>
             </li>
             {!showPreview && <li className="flex gap-2.5"><ShieldCheck aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-teal" /><span className="text-black/70">Fiche publique relue et approuvée par D.A.O.</span></li>}
+            {rating !== undefined && <li className="flex gap-2.5"><ShieldCheck aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-teal" /><span className="text-black/70">Avis vérifiés : seuls des clients ayant un chantier avec ce professionnel sur D.A.O. peuvent le noter.</span></li>}
             <li className="flex gap-2.5"><Info aria-hidden="true" size={18} className="mt-0.5 shrink-0 text-black/40" /><span className="text-black/55">Les réalisations sont déclarées par le professionnel et leurs médias sont modérés.</span></li>
           </ul>
         </Card>
@@ -331,6 +342,8 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
             </div>}
           </Card>)}
         </section>
+
+        {rating !== undefined && <ProfessionalReviews contractorId={profile.id} professionalName={profile.name} />}
 
         <Card className="space-y-4 sm:p-7">
           <h2 className="text-xl font-bold text-ink">Zones d’intervention</h2>

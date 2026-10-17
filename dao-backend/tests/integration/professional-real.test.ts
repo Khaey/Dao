@@ -52,7 +52,8 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     assert.equal(card.trades.length,2);assert.equal(card.portfolio_count,0);assert.equal(card.logo_id,null);
     assert.equal(card.presentation,'Travaux déclarés');
     // Exactly the documented public card shape: no contact, address, fiscal or file metadata.
-    assert.deepEqual(Object.keys(card).sort(),['areas','availability','available_from','city','contractor_type','governorate','id','logo_id','name','portfolio_count','presentation','review_status','trades','verification_status','years_experience']);
+    assert.deepEqual(Object.keys(card).sort(),['areas','availability','available_from','city','contractor_type','governorate','id','logo_id','name','portfolio_count','presentation','rating_average','rating_count','review_status','trades','verification_status','years_experience']);
+    assert.equal(card.rating_count,0);assert.equal(card.rating_average,null);
     const serialized=JSON.stringify(card);
     for(const secret of ['PRIVATE','contact@example.invalid','+21620000003','example.com','object_path'])assert.equal(serialized.includes(secret),false,secret);
     // Access gates unchanged: contractors and non-staff cannot read it, clients cannot use the staff view.
