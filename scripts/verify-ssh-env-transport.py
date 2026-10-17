@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import pwd
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -25,15 +26,38 @@ def checked(args):
     return result.stdout
 
 
+def validate_private_parent(directory, uid):
+    """Match StrictModes' owner/write constraints without following symlinks."""
+    directory = Path(directory)
+    assert directory.is_absolute(), 'Fixture parent must be absolute'
+    for parent in (directory, *directory.parents):
+        info = parent.lstat()
+        print(f'Fixture parent metadata: {parent} uid={info.st_uid} mode={stat.S_IMODE(info.st_mode):04o}')
+        assert stat.S_ISDIR(info.st_mode), 'Fixture parent is not a real directory'
+        assert info.st_uid in (0, uid), 'Fixture parent has an unexpected owner'
+        assert not info.st_mode & 0o022, 'Fixture parent is writable by others'
+    assert directory.stat().st_uid == uid, 'Runner home must belong to runner'
+
+
 def main():
     action = Path(sys.argv[1]).resolve()
     assert (action / 'entrypoint.sh').is_file()
-    username = pwd.getpwuid(os.getuid()).pw_name
+    account = pwd.getpwuid(os.getuid())
+    username = account.pw_name
     assert os.getuid() != 0, 'Run as the disposable runner user, not root'
-    with tempfile.TemporaryDirectory(prefix='dao187-ssh-') as directory:
+    runner_home = Path(account.pw_dir)
+    validate_private_parent(runner_home, os.getuid())
+    with tempfile.TemporaryDirectory(prefix='.dao187-ssh-', dir=runner_home) as directory:
         root = Path(directory)
+        assert stat.S_IMODE(root.stat().st_mode) == 0o700
         for name in ('host', 'client'):
             checked(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(root / name)])
+        validate_private_parent(root, os.getuid())
+        for name, mode in (('client', 0o600), ('client.pub', 0o644)):
+            info = (root / name).lstat()
+            assert stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid()
+            assert stat.S_IMODE(info.st_mode) == mode
+            print(f'Fixture key metadata: {name} uid={info.st_uid} mode={mode:04o}')
         with socket.socket() as probe:
             probe.bind(('127.0.0.1', 0))
             port = probe.getsockname()[1]
