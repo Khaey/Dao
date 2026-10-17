@@ -50,7 +50,7 @@ export function containsContact(input: string) {
     || /(^|[\s(])@[a-z0-9_.]{3,}/.test(t)
     || /(https?:|www\.|\barobase\b)/.test(t)
     || /[a-z0-9-]{2,} *\. *(tn|com|net|org|fr|me|io|info|biz|co|app|site|online|shop|store|pro|tech|link|ly)([^a-z0-9]|$)/.test(t)
-    || /(^|[^a-z0-9])(wa\.me|t\.me|whatsapp|telegram|viber|instagram|facebook|tiktok|snapchat|linkedin|messenger)([^a-z0-9]|$)/.test(t);
+    || /(^|[^a-z0-9])(wa|t) *\. *me([^a-z0-9]|$)/.test(t);
 }
 
 const reviewErrors: Record<string, string> = {
@@ -87,7 +87,7 @@ export type ReceivedReview = PublicReview & {
 export type ModerationItem = PublicReview & {
   status: 'published' | 'hidden' | 'withdrawn'; hidden_reason: string | null; project_id: string; contractor_id: string;
   contractor_name: string; author_name: string | null; response_status: 'published' | 'hidden' | null;
-  project_origin: string | null; author_since: string | null;
+  project_origin: string | null; author_since: string | null; edited_since_hidden?: boolean; open_reports?: number;
   reports: Array<{ reason: string; details: string; status: 'open' | 'dismissed' | 'actioned'; created_at: string }>;
 };
 export type ModerationAction = 'hide' | 'restore' | 'dismiss_reports' | 'hide_response' | 'restore_response';
@@ -102,3 +102,6 @@ export const reportReview = (reviewId: string, reason: string, details: string) 
 export const moderationQueue = () => call<ModerationItem[]>('review_moderation_queue');
 export const moderateReview = (reviewId: string, action: ModerationAction, reason: string | null) =>
   call<{ id: string; action: ModerationAction }>('moderate_contractor_review', { p_review_id: reviewId, p_action: action, p_reason: reason });
+export type ModerationFilter = 'reported' | 'edited' | 'hidden' | 'all';
+export const moderationPage = (filter: ModerationFilter, limit = 30, offset = 0) =>
+  call<{ total: number; items: ModerationItem[] }>('review_moderation_page', { p_filter: filter, p_limit: limit, p_offset: offset });
