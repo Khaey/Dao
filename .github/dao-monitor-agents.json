@@ -173,6 +173,12 @@
       "agent": "DAO Pilot 6",
       "role": "PILOT",
       "watchdog": false
+    },
+    {
+      "issue": 203,
+      "agent": "DAO DOW",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }

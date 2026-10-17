@@ -556,6 +556,7 @@ class ClaudeAgentRegistryTests(unittest.TestCase):
             194: ("DAO TOW", "OPT"),
             195: ("DAO COP", "PILOT"),
             198: ("DAO DOW", "DEV"),
+            203: ("DAO DOW", "DEV"),
         }
         issues = [item["issue"] for item in config["missions"]]
         self.assertEqual(len(issues), len(set(issues)))

@@ -175,7 +175,7 @@ build artifact or any third-party SCP container. Only the verified application
 package is transferred separately over the same host-verified OpenSSH channel.
 
 The SSH-side staging validates that `/opt/dao` is an owned, non-symlink,
-non-world-writable directory. It creates `ops-incoming` as owner-only `0700`,
+non-world-writable directory. It checks that any existing `ops-incoming` (shared with legacy fixed OPS transport, historically `0755`) belongs to the deploying user and is not a symlink, then restricts it to owner-only `0700` **before** creating private files.
 then creates the exact run/attempt directory as `0700` and both private files
 as `0600` with exclusive creation and `O_NOFOLLOW` when supported. A successful
 future staging removes only owned, run-shaped attempt directories older than
