@@ -7,6 +7,7 @@ import subprocess
 import tarfile
 import tempfile
 import textwrap
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -91,6 +92,52 @@ class DeployTransferTests(unittest.TestCase):
             result = self.shell(script, host, DAO_REPO_READ_TOKEN='')
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse((host / 'ops-incoming').exists())
+
+    def test_parent_must_be_owned_and_not_world_writable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory)
+            host.chmod(0o707)
+            script = render(
+                step_script('Transfer protected DEV environment payload over SSH', 'script')
+            ).replace('/opt/dao', str(host))
+            result = self.shell(script, host)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse((host / 'ops-incoming').exists())
+
+    def test_payload_root_symlink_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory)
+            outside = host / 'outside'
+            outside.mkdir()
+            (host / 'ops-incoming').symlink_to(outside, target_is_directory=True)
+            script = render(
+                step_script('Transfer protected DEV environment payload over SSH', 'script')
+            ).replace('/opt/dao', str(host))
+            result = self.shell(script, host)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(list(outside.iterdir()), [])
+
+    def test_next_successful_transfer_removes_only_old_owned_attempt_directories(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory)
+            root = host / 'ops-incoming'
+            stale = root / '100-1'
+            fresh = root / '101-1'
+            unrelated = root / 'manual-recovery'
+            malformed = root / '100-x'
+            stale.mkdir(parents=True)
+            fresh.mkdir()
+            unrelated.mkdir()
+            malformed.mkdir()
+            old = time.time() - 25 * 60 * 60
+            os.utime(stale, (old, old))
+            os.utime(malformed, (old, old))
+            payload = self.prepare(host)
+            self.assertTrue(payload.exists())
+            self.assertFalse(stale.exists())
+            self.assertTrue(fresh.exists())
+            self.assertTrue(unrelated.exists())
+            self.assertTrue(malformed.exists())
 
     def test_scp_archive_contains_only_the_verified_package(self):
         with tempfile.TemporaryDirectory() as directory:

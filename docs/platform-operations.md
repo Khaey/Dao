@@ -165,18 +165,21 @@ or RLS change is exposed.
 
 For email configuration sync, define `RESEND_API_KEY` and `DAO_EMAIL_FROM`
 as dev environment secrets. The workflow fixes `DAO_PUBLIC_URL` to the DEV
-URL. The normal main-only `deploy-dev` job creates a private, run-scoped JSON
-payload from those protected secrets, transfers it outside the build artifact,
-and deletes it from the runner and VPS in `always()` cleanup paths. The runner
-stages it at `ops-incoming/<run>-<attempt>/dao-env.json`. One pinned SCP action
-uploads this file together with the unchanged package to `/opt/dao`, retaining
-both relative paths; the JSON is never an uploaded GitHub build artifact.
-This is one SCP action/upload, not a guarantee of one TCP/SSH session inside
-the third-party action. See [issue #85](https://github.com/Khaey/Dao/issues/85)
-for before/after timing and deployment evidence. The runner
-temporarily changes only the payload's mode to `0644` for the pinned SCP
-container, with traversable staging directories; the VPS payload is changed
-to `0600` before root-helper consumption.
+URL. The normal main-only `deploy-dev` job sends those protected values through
+the pinned SSH action with debug and stdout capture disabled. No private JSON
+or repository token is created on the runner, included in SCP, or uploaded as
+an artifact. The pinned SCP action transfers only the verified application
+package.
+
+The SSH-side staging validates that `/opt/dao` is an owned, non-symlink,
+non-world-writable directory. It creates `ops-incoming` as owner-only `0700`,
+then creates the exact run/attempt directory as `0700` and both private files
+as `0600` with exclusive creation and `O_NOFOLLOW` when supported. A successful
+future staging removes only owned, run-shaped attempt directories older than
+24 hours; it does not follow symlinks or remove unrelated recovery directories.
+The exact current run/attempt is also removed by the deployment trap and the
+workflow's `always()` SSH cleanup. A host/network interruption can still delay
+cleanup until connectivity or a later successful deployment is available.
 The deploy script invokes the installed helper under the existing host lock,
 after stale-main validation and before release activation. The helper preserves
 all non-managed keys and atomically keeps `/etc/dao/dao-dev.env` at `root:dao /
@@ -198,6 +201,28 @@ can fail the operation. See [OPS control](ops-control.md) for exact fields and
 the distinction between private-payload cleanup and workflow transport cleanup.
 Fault tests are fictional; no manual live sync or outage is required to qualify
 this nonroot change, and interruption recovery is not guaranteed.
+
+### First deployment after private-payload transport changes
+
+Treat the first main deployment using a changed secret-transport path as a
+single observed attempt, not a retry loop:
+
+1. Before merge, require the exact-head CI and independent security review.
+   Confirm the previous active release is healthy from existing status evidence.
+2. Observe the normal main deployment once. Do not print environment values,
+   enable SSH debug, download secrets, or add a second ad-hoc transport.
+3. On failure, preserve the original job and read the closed `deploy_recovery`
+   record plus the final host-cleanup step. Never infer success from a green
+   cleanup after a failed deployment.
+4. If recovery is incomplete, use only the fixed read-only `status`, `health`
+   and, when needed, `log-summary` operations before considering an authorized
+   `restart` or `env-sync`. Do not improvise root access or involve OCE.
+5. The deployment script keeps the previous release and environment backup;
+   its reviewed rollback restores each independently and rechecks readiness.
+   Stop on an ambiguous or repeated cause under D-023.
+6. Confirm the exact run/attempt payload directory was removed. A later
+   successful deployment prunes owned attempt directories older than 24 hours;
+   it is not permission for broad deletion under `/opt/dao`.
 
 Raw application logs may contain tokens/user data, so they are not copied to public Actions logs. Detailed log review
 remains a private operator session or a future private, redacted log channel.

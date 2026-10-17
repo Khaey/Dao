@@ -66,6 +66,12 @@ class DeploymentSecretPermissionsTest(unittest.TestCase):
             "envs: RESEND_API_KEY,DAO_EMAIL_FROM,DAO_REPO_READ_TOKEN", step
         )
         self.assertIn("umask 077", step)
+        self.assertIn('test -O "$payload_parent"', step)
+        self.assertIn('test -z "$(find "$payload_parent" -maxdepth 0 -perm /002', step)
+        self.assertIn('test -O "$payload_root"', step)
+        self.assertIn('stat -c \'%a\' "$payload_root"', step)
+        self.assertIn("-mmin +1440 -regextype posix-extended", step)
+        self.assertIn("-regex '.*/[0-9]+-[0-9]+'", step)
         self.assertIn('mkdir -m 0700 "$payload_dir"', step)
         self.assertIn("os.open(path, flags, 0o600)", step)
         self.assertIn("debug: false", step)

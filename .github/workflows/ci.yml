@@ -348,6 +348,7 @@ jobs:
           script: |
             set -Eeuo pipefail
             umask 077
+            payload_parent="/opt/dao"
             payload_root="/opt/dao/ops-incoming"
             payload_dir="$payload_root/${{ github.run_id }}-${{ github.run_attempt }}"
             cleanup() { rm -rf -- "$payload_dir"; }
@@ -355,10 +356,23 @@ jobs:
             test -n "$RESEND_API_KEY"
             test -n "$DAO_EMAIL_FROM"
             test -n "$DAO_REPO_READ_TOKEN"
+            test -d "$payload_parent" && test ! -L "$payload_parent"
+            test -O "$payload_parent"
+            test -z "$(find "$payload_parent" -maxdepth 0 -perm /002 -print -quit)"
             if [ -e "$payload_root" ] || [ -L "$payload_root" ]; then
               test -d "$payload_root" && test ! -L "$payload_root"
             fi
             install -d -m 0700 "$payload_root"
+            test -O "$payload_root"
+            test "$(stat -c '%a' "$payload_root")" = 700
+            stale_count="$(find "$payload_root" -mindepth 1 -maxdepth 1 -type d \
+              -user "$(id -un)" -mmin +1440 -regextype posix-extended \
+              -regex '.*/[0-9]+-[0-9]+' -print | wc -l)"
+            find "$payload_root" -mindepth 1 -maxdepth 1 -type d \
+              -user "$(id -un)" -mmin +1440 -regextype posix-extended \
+              -regex '.*/[0-9]+-[0-9]+' \
+              -exec rm -rf -- {} +
+            echo "Stale protected DEV payload cleanup complete count=$stale_count"
             rm -rf -- "$payload_dir"
             mkdir -m 0700 "$payload_dir"
             export DAO_ENV_PAYLOAD="$payload_dir/dao-env.json"
