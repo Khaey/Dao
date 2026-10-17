@@ -41,6 +41,14 @@ class ProjectSyncTests(unittest.TestCase):
         for name in ("DAO OPT 3", "DAO Chat 21", "DAO Pilot 6", "DAO CoPilot 1"):
             self.assertIn(name, sync.OPTIONS["Agent"])
 
+    def test_registry_agents_are_all_supported(self):
+        import json
+        registry = Path(__file__).resolve().parents[1] / ".github/dao-monitor-agents.json"
+        missions = json.loads(registry.read_text(encoding="utf-8"))["missions"]
+        known = {name.casefold() for name in sync.OPTIONS["Agent"]}
+        missing = sorted({m["agent"] for m in missions if m["agent"].casefold() not in known})
+        self.assertEqual(missing, [])
+
     def test_missing_agent_option_is_reported(self):
         class NoCall:
             def graphql(self, *args, **kwargs):

@@ -1,0 +1,21 @@
+name: Synthetic native OpenSSH transport proof
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/ssh-transport-proof.yml'
+      - 'scripts/prepare-dev-ssh.sh'
+      - 'scripts/stage-dev-private-dir.sh'
+      - 'scripts/verify-ssh-env-transport.py'
+permissions:
+  contents: read
+jobs:
+  synthetic-ssh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prove native OpenSSH transport over private loopback
+        run: python3 scripts/verify-ssh-env-transport.py

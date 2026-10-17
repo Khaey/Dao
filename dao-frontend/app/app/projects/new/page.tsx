@@ -1,13 +1,17 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, MapPin, Ruler, Wallet } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, Building2, CalendarDays, Info, MapPin, Search, Users, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 import CollaborativeProjectForm from '../../../../components/CollaborativeProjectForm';
-import { Badge, Button, Card, Input } from '../../../../components/ui';
+import { cn } from '../../../../lib/utils';
+import { ErrorPanel } from '../_components/ProjectUi';
+import ClientTeamProjectForm from './_components/ClientTeamProjectForm';
+import { controlClass, CreationHeader, describe, Field, FormAlert, formatDay, formatTnd, Panel, StepActions, Stepper, SummaryBlock } from './_components/CreationUi';
 
 type Territory = { id: string; name_fr: string; governorate_id?: string; delegation_id?: string };
+type FieldErrors = Record<string, string>;
 const moneyToMillimes = (value: string) => value ? Math.round(Number(value) * 1000) : null;
 const types = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
 
@@ -26,34 +30,132 @@ export default function NewProject() {
     }
     setReady(true);
   })(); }, []);
-  if (!ready) return <p role="status">Chargement…</p>;
+  if (!ready) return <div aria-busy="true" className="mx-auto max-w-3xl space-y-6"><span className="sr-only">Chargement…</span><div className="h-5 w-28 animate-pulse rounded bg-ink/[0.07]" /><div className="h-9 w-2/3 animate-pulse rounded bg-ink/[0.08]" /><div className="grid gap-4 sm:grid-cols-2">{[0, 1].map(item => <div key={item} className="h-56 animate-pulse rounded-2xl border border-black/[0.04] bg-white" />)}</div></div>;
   if (contractor) return <CollaborativeProjectForm contractor />;
-  if (!client) return <p role="alert">Un compte client ou artisan est nécessaire pour créer un chantier.</p>;
-  if (mode === 'marketplace') return <MarketplaceProjectForm />;
-  if (mode === 'existing') return <CollaborativeProjectForm contractor={false} />;
-  return <section className="mx-auto max-w-3xl space-y-6"><div><h1 className="text-3xl font-bold">Nouveau chantier</h1><p className="mt-2 text-sm text-black/55">Comment souhaitez-vous démarrer ?</p></div><div className="grid gap-4 sm:grid-cols-2"><button type="button" onClick={() => setMode('marketplace')} className="rounded-2xl border border-black/10 bg-white p-6 text-left hover:border-teal focus-visible:outline-teal"><span className="block text-lg font-bold">Je cherche des professionnels</span><span className="mt-2 block text-sm text-black/55">Préparer un DAO pour recevoir des offres.</span></button><button type="button" onClick={() => setMode('existing')} className="rounded-2xl border border-black/10 bg-white p-6 text-left hover:border-teal focus-visible:outline-teal"><span className="block text-lg font-bold">J’ai déjà mes artisans / entreprises</span><span className="mt-2 block text-sm text-black/55">Inviter mon équipe et suivre mes travaux.</span></button></div></section>;
+  if (!client) return <div className="mx-auto max-w-3xl"><ErrorPanel title="Création indisponible" message="Un compte client ou artisan est nécessaire pour créer un chantier." backHref="/app/projects" /></div>;
+  if (mode === 'marketplace') return <MarketplaceProjectForm onCancel={() => setMode('')} />;
+  if (mode === 'existing') return <ClientTeamProjectForm onCancel={() => setMode('')} />;
+  const choices = [
+    { id: 'marketplace' as const, icon: Search, title: 'Je cherche des professionnels', text: 'Préparer un DAO pour recevoir des offres.', steps: ['Décrivez le chantier et sa localisation', 'Structurez-le en lots de travaux', 'D.A.O. relit le dossier avant publication'] },
+    { id: 'existing' as const, icon: Users, title: 'J’ai déjà mes artisans / entreprises', text: 'Inviter mon équipe et suivre mes travaux.', steps: ['Décrivez le chantier et son avancement', 'Un lot principal par artisan', 'Chaque artisan reçoit son lien d’invitation'] },
+  ];
+  return <section className="mx-auto max-w-4xl space-y-8">
+    <CreationHeader backHref="/app/projects" eyebrow="Espace de travail" title="Nouveau chantier" description="Comment souhaitez-vous démarrer ? Vous pourrez compléter le chantier à tout moment après sa création." />
+    <div className="grid gap-4 md:grid-cols-2">{choices.map(choice => { const Icon = choice.icon; return <button key={choice.id} type="button" onClick={() => setMode(choice.id)} className="group flex h-full flex-col rounded-2xl border border-black/[0.08] bg-white p-5 text-left shadow-[0_1px_2px_rgba(23,32,42,0.04)] transition hover:-translate-y-0.5 hover:border-teal/50 hover:shadow-[0_12px_30px_rgba(23,32,42,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6">
+      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal/10 text-teal"><Icon size={20} aria-hidden="true" /></span>
+      <span className="mt-4 block text-lg font-bold leading-snug text-ink">{choice.title}</span>
+      <span className="mt-1.5 block text-sm text-ink/70">{choice.text}</span>
+      <span className="mt-5 block border-t border-black/[0.06] pt-4">{choice.steps.map((step, index) => <span key={step} className="mt-2 flex items-start gap-2.5 text-sm text-ink/80 first:mt-0"><span aria-hidden="true" className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sand text-[11px] font-bold text-ink/70">{index + 1}</span>{step}</span>)}</span>
+      <span aria-hidden="true" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-teal">Commencer<ArrowRight size={15} className="transition group-hover:translate-x-0.5 motion-reduce:transition-none" /></span>
+    </button>; })}</div>
+  </section>;
 }
 
-function MarketplaceProjectForm() {
-  const router = useRouter();
+const marketplaceSteps = ['Projet', 'Localisation', 'Budget', 'Vérification'];
+const stepTitles = ['Décrivez le projet', 'Situez le chantier', 'Budget et calendrier', 'Vérifiez les informations'];
+const stepDescriptions = ['Un titre clair aide les professionnels à comprendre votre besoin.', 'La localisation publique sera limitée au territoire. L’adresse exacte se complète ensuite dans le projet privé.', 'Le budget est indicatif et exprimé en dinars tunisiens. Vous pourrez le préciser lot par lot.', 'Relisez votre dossier. Vous pourrez ajouter les lots et documents depuis la fiche projet.'];
+
+function MarketplaceProjectForm({ onCancel }: { onCancel: () => void }) {
+  const router = useRouter(); const panelRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ title: '', description: '', type: 'renovation', surface: '', budget: '', date: '', endDate: '', governorate: '', delegation: '', locality: '' });
   const [governorates, setGovernorates] = useState<Territory[]>([]); const [delegations, setDelegations] = useState<Territory[]>([]); const [localities, setLocalities] = useState<Territory[]>([]);
-  const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
-  const update = (key: keyof typeof form, value: string) => setForm(current => ({ ...current, [key]: value, ...(key === 'governorate' ? { delegation: '', locality: '' } : {}), ...(key === 'delegation' ? { locality: '' } : {}) }));
-  useEffect(() => { void (async () => { const { data } = await supabaseBrowser().from('governorates').select('id,name_fr').order('name_fr'); setGovernorates(data ?? []); })(); }, []);
+  const [territoryError, setTerritoryError] = useState(false);
+  const [error, setError] = useState(''); const [fieldErrors, setFieldErrors] = useState<FieldErrors>({}); const [saving, setSaving] = useState(false);
+  // Keep the id of a project already created so a retry after a failed update never creates a duplicate.
+  const [createdId, setCreatedId] = useState('');
+  const update = (key: keyof typeof form, value: string) => { setForm(current => ({ ...current, [key]: value, ...(key === 'governorate' ? { delegation: '', locality: '' } : {}), ...(key === 'delegation' ? { locality: '' } : {}) })); setFieldErrors(current => { const next = { ...current }; delete next[key]; if (key === 'date') delete next.endDate; return next; }); };
+  useEffect(() => { void (async () => { const { data, error: loadError } = await supabaseBrowser().from('governorates').select('id,name_fr').order('name_fr'); setGovernorates(data ?? []); setTerritoryError(Boolean(loadError)); })(); }, []);
   useEffect(() => { if (!form.governorate) { setDelegations([]); return; } void (async () => { const { data } = await supabaseBrowser().from('delegations').select('id,name_fr,governorate_id').eq('governorate_id', form.governorate).order('name_fr'); setDelegations(data ?? []); })(); }, [form.governorate]);
   useEffect(() => { if (!form.delegation) { setLocalities([]); return; } void (async () => { const { data } = await supabaseBrowser().from('localities').select('id,name_fr,delegation_id').eq('delegation_id', form.delegation).order('name_fr'); setLocalities(data ?? []); })(); }, [form.delegation]);
+  const firstStepRender = useRef(true);
+  // On step change (not on first display), bring the new step to the top so mobile users see its title.
+  useEffect(() => { if (firstStepRender.current) { firstStepRender.current = false; return; } panelRef.current?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }, [step]);
   const selected = useMemo(() => ({ governorate: governorates.find(item => item.id === form.governorate)?.name_fr, delegation: delegations.find(item => item.id === form.delegation)?.name_fr, locality: localities.find(item => item.id === form.locality)?.name_fr }), [delegations, form.delegation, form.governorate, form.locality, governorates, localities]);
+  const fieldIds: Record<string, string> = { title: 'project-title', surface: 'project-surface', governorate: 'project-governorate', budget: 'project-budget', endDate: 'project-end' };
 
-  function validate(nextStep: number) { setError(''); if (nextStep >= 2 && !form.title.trim()) { setError('Ajoutez un titre pour votre projet.'); return false; } if (nextStep >= 3 && !form.governorate) { setError('Choisissez au moins un gouvernorat.'); return false; } if (form.date && form.endDate && form.endDate < form.date) { setError('La date de fin doit être postérieure ou égale à la date de début.'); return false; } return true; }
-  function next(event: React.MouseEvent<HTMLButtonElement>) { event.preventDefault(); if (validate(step + 1)) setStep(value => Math.min(4, value + 1)); }
-  async function submit(event: FormEvent) { event.preventDefault(); if (!validate(4)) return; setSaving(true); setError(''); const { data } = await supabaseBrowser().auth.getSession(); if (!data.session) { router.push('/auth/login'); return; } const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` }; const created = await fetch('/api/projects', { method: 'POST', headers, body: JSON.stringify({ project_type: form.type, surface_m2: form.surface ? Number(form.surface) : null, desired_start_date: form.date || null, desired_end_date: form.endDate || null, indicative_budget_millimes: moneyToMillimes(form.budget), governorate_id: form.governorate, delegation_id: form.delegation || null, locality_id: form.locality || null }) }); const payload = await created.json().catch(() => ({})); if (!created.ok || !payload.data?.id) { setError(payload.error || 'Impossible de créer le projet.'); setSaving(false); return; } const updated = await fetch('/api/projects', { method: 'PATCH', headers, body: JSON.stringify({ project_id: payload.data.id, title: form.title, description: form.description, project_type: form.type, surface_m2: form.surface ? Number(form.surface) : null, desired_start_date: form.date || null, desired_end_date: form.endDate || null, indicative_budget_millimes: moneyToMillimes(form.budget), governorate_id: form.governorate, delegation_id: form.delegation || null, locality_id: form.locality || null }) }); const updatePayload = await updated.json().catch(() => ({})); if (!updated.ok) { setError(updatePayload.error || 'Projet créé mais informations incomplètes.'); setSaving(false); return; } router.push(`/app/projects/${payload.data.id}`); }
-  const inputClass = 'mt-2 w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none focus:border-teal focus:ring-4 focus:ring-teal/10';
-  return <section className="mx-auto max-w-4xl space-y-6"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Nouveau projet</p><h1 className="mt-2 text-3xl font-bold tracking-tight">Préparons votre chantier</h1><p className="mt-2 max-w-2xl text-sm text-black/55">Quelques étapes simples pour créer un dossier clair, prêt à recevoir des offres.</p></div><div className="grid gap-2 sm:grid-cols-4">{[['Projet', 'Informations générales'], ['Localisation', 'Où se déroule le chantier ?'], ['Budget', 'Quand et avec quel budget ?'], ['Vérification', 'Relire avant création']].map(([label, caption], index) => <div key={label} className={`rounded-xl border p-3 ${step === index + 1 ? 'border-teal bg-teal/5' : step > index + 1 ? 'border-teal/20 bg-white' : 'border-black/5 bg-white/60'}`}><div className="flex items-center gap-2"><span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${step > index + 1 ? 'bg-teal text-white' : step === index + 1 ? 'bg-ink text-white' : 'bg-sand text-black/40'}`}>{step > index + 1 ? <Check size={14} /> : index + 1}</span><span className="text-sm font-semibold">{label}</span></div><p className="mt-1 pl-8 text-[11px] text-black/45">{caption}</p></div>)}</div><Card><div className="mb-6 flex items-center justify-between border-b border-black/5 pb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-black/40">Étape {step} sur 4</p><h2 className="mt-1 text-xl font-bold">{step === 1 ? 'Décrivez le projet' : step === 2 ? 'Situez le chantier' : step === 3 ? 'Budget et calendrier' : 'Vérifiez les informations'}</h2></div><span className="text-sm font-semibold text-teal">{step * 25}%</span></div><form onSubmit={event => { if (step < 4) { event.preventDefault(); return; } void submit(event); }}>
-    {step === 1 && <div className="grid gap-5"><label className="block text-sm font-semibold">Titre du projet<Input aria-label="Titre du projet" required value={form.title} onChange={event => update('title', event.target.value)} placeholder="Ex. Maison S+3 à Sahloul" /></label><label className="block text-sm font-semibold">Description<textarea aria-label="Description" className={`${inputClass} min-h-32 resize-y`} value={form.description} onChange={event => update('description', event.target.value)} placeholder="Décrivez le besoin global, les pièces concernées ou vos priorités." /></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold">Type de projet<select aria-label="Type de projet" className={inputClass} value={form.type} onChange={event => update('type', event.target.value)}>{Object.entries(types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="block text-sm font-semibold">Surface (m²)<Input aria-label="Surface (m²)" type="number" min="1" value={form.surface} onChange={event => update('surface', event.target.value)} placeholder="180" /></label></div></div>}
-    {step === 2 && <div className="grid gap-5"><div className="flex items-start gap-3 rounded-xl bg-teal/5 p-4 text-sm text-black/60"><MapPin size={19} className="mt-0.5 shrink-0 text-teal" /><p>La localisation publique sera limitée au territoire. L’adresse exacte se complète ensuite dans le projet privé.</p></div><div className="grid gap-4 sm:grid-cols-3"><label className="block text-sm font-semibold">Gouvernorat<select aria-label="Gouvernorat" required className={inputClass} value={form.governorate} onChange={event => update('governorate', event.target.value)}><option value="">Choisir…</option>{governorates.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></label><label className="block text-sm font-semibold">Délégation<select aria-label="Délégation" className={inputClass} disabled={!form.governorate} value={form.delegation} onChange={event => update('delegation', event.target.value)}><option value="">Choisir…</option>{delegations.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></label><label className="block text-sm font-semibold">Localité<select aria-label="Localité" className={inputClass} disabled={!form.delegation} value={form.locality} onChange={event => update('locality', event.target.value)}><option value="">Choisir…</option>{localities.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></label></div></div>}
-    {step === 3 && <div className="grid gap-5"><div className="flex items-start gap-3 rounded-xl bg-sand p-4 text-sm text-black/60"><Wallet size={19} className="mt-0.5 shrink-0 text-clay" /><p>Le budget est indicatif et exprimé en dinars tunisiens. Vous pourrez le préciser lot par lot.</p></div><div className="grid gap-4 sm:grid-cols-3"><label className="block text-sm font-semibold sm:col-span-1">Budget indicatif (TND)<Input aria-label="Budget indicatif (TND)" type="number" min="0" step="0.001" value={form.budget} onChange={event => update('budget', event.target.value)} placeholder="150000" /></label><label className="block text-sm font-semibold">Début souhaité<Input aria-label="Début souhaité" type="date" value={form.date} onChange={event => update('date', event.target.value)} /></label><label className="block text-sm font-semibold">Fin souhaitée<Input aria-label="Fin souhaitée" type="date" min={form.date || undefined} value={form.endDate} onChange={event => update('endDate', event.target.value)} /></label></div></div>}
-    {step === 4 && <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-sand p-4"><p className="text-xs text-black/45">Projet</p><p className="mt-1 font-bold">{form.title}</p><p className="mt-1 text-sm text-black/55">{types[form.type as keyof typeof types]}{form.surface ? ` · ${form.surface} m²` : ''}</p></div><div className="rounded-xl bg-sand p-4"><p className="text-xs text-black/45">Localisation</p><p className="mt-1 font-bold">{[selected.governorate, selected.delegation, selected.locality].filter(Boolean).join(' · ') || 'À préciser'}</p></div><div className="rounded-xl bg-sand p-4"><p className="text-xs text-black/45">Budget</p><p className="mt-1 font-bold">{form.budget ? `${form.budget} TND` : 'À préciser'}</p></div><div className="rounded-xl bg-sand p-4"><p className="text-xs text-black/45">Calendrier</p><p className="mt-1 font-bold">{form.date || 'À préciser'}{form.endDate ? ` → ${form.endDate}` : ''}</p></div></div>{form.description && <div className="rounded-xl border border-black/5 p-4"><p className="text-xs text-black/45">Description</p><p className="mt-1 whitespace-pre-wrap text-sm text-black/65">{form.description}</p></div>}<p className="flex items-center gap-2 text-sm text-black/55"><Ruler size={17} className="text-teal" />Vous pourrez ajouter les lots et documents depuis la fiche projet.</p></div>}
-    {error && <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p>}<div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-black/5 pt-5">{step > 1 ? <Button type="button" className="bg-white text-ink ring-1 ring-black/10 hover:bg-sand" onClick={() => { setError(''); setStep(value => value - 1); }}><ArrowLeft size={16} className="mr-2" />Précédent</Button> : <span />}{step < 4 ? <Button type="button" onClick={next}>Continuer <ArrowRight size={16} className="ml-2" /></Button> : <Button disabled={saving}>{saving ? 'Création…' : 'Créer le projet'}</Button>}</div></form></Card></section>;
+  /** Validates every step up to `nextStep - 1`; the summary message keeps the wording used before (E2E). */
+  function validate(nextStep: number) {
+    setError(''); const fields: FieldErrors = {}; let message = '';
+    const set = (key: string, text: string, summary = text) => { fields[key] = text; if (!message) message = summary; };
+    if (nextStep >= 2 && !form.title.trim()) set('title', 'Indiquez un titre pour le projet.', 'Ajoutez un titre pour votre projet.');
+    if (nextStep >= 2 && form.surface && !(Number(form.surface) > 0)) set('surface', 'La surface doit être supérieure à 0.');
+    if (nextStep >= 3 && !form.governorate) set('governorate', 'Choisissez le gouvernorat du chantier.', 'Choisissez au moins un gouvernorat.');
+    if (nextStep >= 4 && form.budget && !(Number(form.budget) >= 0)) set('budget', 'Le budget doit être un montant positif.');
+    if (form.date && form.endDate && form.endDate < form.date) set('endDate', 'Choisissez une date de fin égale ou postérieure au début.', 'La date de fin doit être postérieure ou égale à la date de début.');
+    setFieldErrors(fields);
+    if (message) { setError(message); const first = Object.keys(fields)[0]; window.setTimeout(() => document.getElementById(fieldIds[first])?.focus(), 0); return false; }
+    return true;
+  }
+  function next() { if (validate(step + 1)) setStep(value => Math.min(4, value + 1)); }
+  function previous() { setError(''); setFieldErrors({}); setStep(value => value - 1); }
+  async function submit(event: FormEvent) {
+    event.preventDefault(); if (saving || !validate(4)) return;
+    setSaving(true); setError('');
+    try {
+      const { data } = await supabaseBrowser().auth.getSession(); if (!data.session) { router.push('/auth/login'); return; }
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` };
+      const fields = { project_type: form.type, surface_m2: form.surface ? Number(form.surface) : null, desired_start_date: form.date || null, desired_end_date: form.endDate || null, indicative_budget_millimes: moneyToMillimes(form.budget), governorate_id: form.governorate, delegation_id: form.delegation || null, locality_id: form.locality || null };
+      let projectId = createdId;
+      if (!projectId) {
+        const created = await fetch('/api/projects', { method: 'POST', headers, body: JSON.stringify(fields) });
+        const payload = await created.json().catch(() => ({}));
+        if (!created.ok || !payload.data?.id) { setError(payload.error || 'Impossible de créer le projet.'); setSaving(false); return; }
+        projectId = payload.data.id; setCreatedId(projectId);
+      }
+      const updated = await fetch('/api/projects', { method: 'PATCH', headers, body: JSON.stringify({ project_id: projectId, title: form.title, description: form.description, ...fields }) });
+      const updatePayload = await updated.json().catch(() => ({}));
+      if (!updated.ok) { setError(`${updatePayload.error || 'Projet créé mais informations incomplètes.'} Réessayez : le projet déjà créé sera complété, sans doublon.`); setSaving(false); return; }
+      router.push(`/app/projects/${projectId}`);
+    } catch {
+      setError(createdId ? 'La connexion a été interrompue. Réessayez : le projet déjà créé sera complété, sans doublon.' : 'La connexion a été interrompue. Vérifiez dans Mes chantiers si le projet a été créé avant de réessayer.');
+      setSaving(false);
+    }
+  }
+  const budgetHint = form.budget && !fieldErrors.budget ? formatTnd(form.budget) || undefined : undefined;
+  const location = [selected.governorate, selected.delegation, selected.locality].filter(Boolean).join(' · ');
+  const icons = [Building2, MapPin, Wallet, Info];
+  const StepIcon = icons[step - 1];
+
+  return <section className="mx-auto max-w-3xl space-y-6">
+    <CreationHeader eyebrow="Nouveau projet" title="Préparons votre chantier" description="Quelques étapes simples pour créer un dossier clair, prêt à recevoir des offres." onBack={step === 1 ? onCancel : undefined} backLabel="Changer de parcours" />
+    <Stepper steps={marketplaceSteps} current={step - 1} />
+    <div ref={panelRef} className="scroll-mt-24">
+      <form noValidate onSubmit={event => { if (step < 4) { event.preventDefault(); next(); return; } void submit(event); }}>
+        <Panel title={stepTitles[step - 1]} description={step === 4 ? stepDescriptions[3] : undefined}>
+          {step !== 4 && <div className="mb-5 flex items-start gap-3 rounded-xl bg-sand/80 p-4 text-sm text-ink/75"><StepIcon size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-teal" /><p>{stepDescriptions[step - 1]}</p></div>}
+          {step === 1 && <div className="grid gap-5">
+            <Field id="project-title" label="Titre du projet" error={fieldErrors.title}><input {...describe('project-title', fieldErrors.title)} aria-label="Titre du projet" className={controlClass(fieldErrors.title)} required maxLength={200} value={form.title} onChange={event => update('title', event.target.value)} placeholder="Ex. Maison S+3 à Sahloul" /></Field>
+            <Field id="project-description" label="Description" optional hint="Le besoin global, les pièces concernées ou vos priorités."><textarea {...describe('project-description', undefined, 'x')} aria-label="Description" className={cn(controlClass(), 'min-h-32 resize-y')} value={form.description} onChange={event => update('description', event.target.value)} placeholder="Décrivez le besoin global, les pièces concernées ou vos priorités." /></Field>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field id="project-type" label="Type de projet"><select id="project-type" aria-label="Type de projet" className={controlClass()} value={form.type} onChange={event => update('type', event.target.value)}>{Object.entries(types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+              <Field id="project-surface" label="Surface (m²)" optional error={fieldErrors.surface}><input {...describe('project-surface', fieldErrors.surface)} aria-label="Surface (m²)" className={controlClass(fieldErrors.surface)} type="number" inputMode="decimal" min="1" value={form.surface} onChange={event => update('surface', event.target.value)} placeholder="180" /></Field>
+            </div>
+          </div>}
+          {step === 2 && <>
+            {territoryError && <p role="status" className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">La liste des gouvernorats n’a pas pu être chargée. Rechargez la page pour réessayer.</p>}
+            <div className="grid gap-5 sm:grid-cols-3">
+              <Field id="project-governorate" label="Gouvernorat" error={fieldErrors.governorate}><select {...describe('project-governorate', fieldErrors.governorate)} aria-label="Gouvernorat" required className={controlClass(fieldErrors.governorate)} value={form.governorate} onChange={event => update('governorate', event.target.value)}><option value="">Choisir…</option>{governorates.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></Field>
+              <Field id="project-delegation" label="Délégation" optional hint={!form.governorate ? 'Choisissez d’abord le gouvernorat.' : undefined}><select {...describe('project-delegation', undefined, !form.governorate ? 'x' : undefined)} aria-label="Délégation" className={controlClass()} disabled={!form.governorate} value={form.delegation} onChange={event => update('delegation', event.target.value)}><option value="">Choisir…</option>{delegations.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></Field>
+              <Field id="project-locality" label="Localité" optional hint={!form.delegation ? 'Choisissez d’abord la délégation.' : undefined}><select {...describe('project-locality', undefined, !form.delegation ? 'x' : undefined)} aria-label="Localité" className={controlClass()} disabled={!form.delegation} value={form.locality} onChange={event => update('locality', event.target.value)}><option value="">Choisir…</option>{localities.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></Field>
+            </div>
+          </>}
+          {step === 3 && <div className="grid gap-5 sm:grid-cols-3">
+            <Field id="project-budget" label="Budget indicatif (TND)" optional error={fieldErrors.budget} hint={budgetHint}><input {...describe('project-budget', fieldErrors.budget, budgetHint)} aria-label="Budget indicatif (TND)" className={controlClass(fieldErrors.budget)} type="number" inputMode="decimal" min="0" step="0.001" value={form.budget} onChange={event => update('budget', event.target.value)} placeholder="150000" /></Field>
+            <Field id="project-start" label="Début souhaité" hint="Nécessaire avant la revue du DAO."><input {...describe('project-start', undefined, 'x')} aria-label="Début souhaité" className={controlClass()} type="date" value={form.date} onChange={event => update('date', event.target.value)} /></Field>
+            <Field id="project-end" label="Fin souhaitée" error={fieldErrors.endDate} hint="Nécessaire avant la revue du DAO."><input {...describe('project-end', fieldErrors.endDate, 'x')} aria-label="Fin souhaitée" className={controlClass(fieldErrors.endDate)} type="date" min={form.date || undefined} value={form.endDate} onChange={event => update('endDate', event.target.value)} /></Field>
+          </div>}
+          {step === 4 && <div className="grid gap-3 sm:grid-cols-2">
+            <SummaryBlock title="Projet" onEdit={() => setStep(1)} editLabel="Modifier le projet"><p className="break-words font-semibold">{form.title}</p><p className="mt-0.5 text-ink/70">{types[form.type as keyof typeof types]}{form.surface ? ` · ${form.surface} m²` : ''}</p></SummaryBlock>
+            <SummaryBlock title="Localisation" onEdit={() => setStep(2)} editLabel="Modifier la localisation"><p className="flex items-start gap-1.5 font-semibold"><MapPin size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-ink/55" />{location || 'À préciser'}</p></SummaryBlock>
+            <SummaryBlock title="Budget" onEdit={() => setStep(3)} editLabel="Modifier le budget"><p className="font-semibold tabular-nums">{form.budget ? formatTnd(form.budget) : 'À préciser'}</p></SummaryBlock>
+            <SummaryBlock title="Calendrier" onEdit={() => setStep(3)} editLabel="Modifier le calendrier"><p className="flex items-start gap-1.5 font-semibold"><CalendarDays size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-ink/55" />{form.date ? formatDay(form.date) : 'À préciser'}{form.endDate ? ` → ${formatDay(form.endDate)}` : ''}</p>{(!form.date || !form.endDate) && <p className="mt-1 text-xs text-amber-800">Les deux dates seront nécessaires avant la revue du DAO.</p>}</SummaryBlock>
+            {form.description && <SummaryBlock title="Description" onEdit={() => setStep(1)} editLabel="Modifier la description"><p className="whitespace-pre-wrap text-ink/80">{form.description}</p></SummaryBlock>}
+          </div>}
+          {error && <FormAlert>{error}</FormAlert>}
+          <StepActions onPrevious={step > 1 ? previous : undefined} previousDisabled={saving} primaryLabel={step < 4 ? 'Continuer' : saving ? 'Création…' : 'Créer le projet'} busy={saving} />
+        </Panel>
+      </form>
+    </div>
+  </section>;
 }
