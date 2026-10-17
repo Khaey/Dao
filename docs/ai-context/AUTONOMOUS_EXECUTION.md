@@ -11,6 +11,18 @@ Si une etape est deja autorisee mais bloquee par un controle obligatoire : ne pa
 Cette decision renforce le protocole 0A ci-dessous sans supprimer les controles de surete deja documentes. Pour Claude Code, `CLAUDE.md` pointe vers les memes sources ; GitHub est l'etat partage, pas la memoire d'une conversation.
 
 
+## Quota guard / mode economie (decision proprietaire, 17/10/2026)
+
+Ces regles s'appliquent aux agents DEV2, OPT3, DOW, COP, TOW, Pilot et futurs agents sur Work, Codex et Claude. **L'autonomie A-Z reste la norme** ; l'optimisation ne justifie pas un nouveau GO ni un raccourci de securite.
+
+1. **Modele adapte a la phase, pas le plus cher par defaut.** Work/Codex : Luna (triage, lectures, commentaires), Sol avec effort faible (changements usuels, UX, tests), Sol moyen (raisonnement technique difficile) ; Astra faible uniquement lorsque des indices concrets montrent que Sol ne suffit pas. Les modeles disponibles et le selecteur relevent du compte utilisateur ; les agents Claude emploient l'equivalent economique disponible. Une escalation d'effort doit etre justifiee par un obstacle precis ; ne pas utiliser Fast/Ultrafast par reflexe. Changer de modele ne restaure pas un quota partage.
+2. **Preflight unique, scope borne.** Lire le dernier checkpoint significatif, le main exact, la derniere CI du SHA concerne et les PR en collision. Ouvrir seulement les fichiers modifies ou les invariants pertinents. Chercher par chemin, diff ou symbole avant de lire tout un dossier. Ne pas recopier de gros logs/docs dans les commentaires. Conserver les resultats des verifications fiables pour la session.
+3. **Boucles interdites.** Une tentative ciblee, une correction expliquee et une nouvelle tentative apres changement reel ; si le meme echec persiste deux fois sans information nouvelle, publier les faits et sortir de l'etape bloquee. Eviter les sous-agents en parallele lorsque le meme objectif peut etre traite par un seul agent. Aucun refactor/lint global non mandate a la place de la livraison produit.
+4. **CI et E2E : zero duplication, zero contournement.** Avant merge verifier les 3 checks stricts exigibles sur le HEAD et la base a jour, et toute preuve de securite/permission necessaire. Ne jamais remplacer une preuve E2E requise par une decouverte de tests. Si CI tourne encore, noter run/status et passer a une action independante ; ne pas sonder en boucle. Ne pas relancer une CI verte pour le meme contenu/inputs, ni une CI rouge sans diagnostic/correction.
+5. **Sauvegarde avant travail long ou quota bas.** Commit/push WIP propre et non sensible sur la branche de l'owner, verifier son HEAD distant, garder la PR DRAFT tant que les preuves manquent, consigner SHA + PASS/FAIL/UNTESTED + prochain geste dans un checkpoint bref. Un commentaire sans push ne sauvegarde pas le code ; un commentaire n'active pas une session fermee.
+
+Ces limites portent sur le gaspillage, **jamais sur les controles Auth/RLS, les droits, les migrations, le deploiement, les regles GitHub, les autorisations root/OCE/Cloudflare/PROD ou les engagements juridiques**. Les gates existants restent prioritaires.
+
 ## Scope and ownership
 
 The **latest canonical owner issue** controls scope for every D.A.O agent:

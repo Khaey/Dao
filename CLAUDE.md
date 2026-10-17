@@ -19,6 +19,10 @@ Sans redemander de validation : diagnostiquer, choisir une solution reversible, 
 - **DOW / #193** : code et performances frontend avec baseline et tests avant/apres.
 - **TOW / #194** : E2E, automatisation CI et fiabilite **sans diminuer la couverture ni contourner les gates**.
 
+## Quota : consignes obligatoires (tous Claude/Cowork)
+
+Appliquer le **QUOTA GUARD** de `AGENTS.md` et du protocole autonome. Choisir le modele et l'effort disponibles les moins couteux qui permettent la phase ; ne pas utiliser le modele le plus lourd pour une lecture d'issue, du reporting ou une correction triviale. **Ne pas modifier automatiquement le reglage du compte.** Lire en premier le dernier checkpoint et les fichiers concernes, pas tout l'historique. Eviter agents paralleles redondants, scans sans objectif, logs volumineux, polling CI et repetitions sur un SHA/inputs inchanges. Deux echecs identiques sans fait nouveau : arreter uniquement cette boucle, sauvegarder le WIP sur branche owned et documenter un blocage precis ; poursuivre les actions independantes. Aucun gain de quota ne peut supprimer les checks GitHub stricts, l'E2E requis, l'Auth/RLS ni les autorisations de securite.
+
 ## Skills utiles
 
 - `.claude/skills/dao-preflight/SKILL.md` — preparation rapide sans relecture excessive.
