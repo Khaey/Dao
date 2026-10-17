@@ -7,13 +7,14 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
     'bid_documents','bid_group_items','bid_groups','bid_items','bid_versions','bids',
     'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions',
     'contractor_profiles','contractor_service_areas','contractor_trades','contractor_profile_details','contractor_files',
+    'contractor_reviews','contractor_review_responses','contractor_review_reports',
     'contracts','conversation_participants','conversations','delegations',
     'document_grants','documents','governorates','localities','messages',
     'notifications','portfolio_assets','portfolio_projects','profile_contacts',
@@ -237,6 +238,47 @@ BEGIN
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
       RAISE EXCEPTION 'messaging RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  -- Verified Client reviews (#213 R1): closed tables, authenticated-only RPCs, internal helpers not exposed.
+  IF has_table_privilege('authenticated','public.contractor_reviews','SELECT')
+     OR has_table_privilege('authenticated','public.contractor_reviews','INSERT')
+     OR has_table_privilege('authenticated','public.contractor_reviews','UPDATE')
+     OR has_table_privilege('authenticated','public.contractor_reviews','DELETE')
+     OR has_table_privilege('anon','public.contractor_reviews','SELECT')
+     OR has_table_privilege('authenticated','public.contractor_review_responses','SELECT')
+     OR has_table_privilege('authenticated','public.contractor_review_responses','INSERT')
+     OR has_table_privilege('authenticated','public.contractor_review_responses','UPDATE')
+     OR has_table_privilege('authenticated','public.contractor_review_reports','SELECT')
+     OR has_table_privilege('authenticated','public.contractor_review_reports','INSERT')
+     OR has_table_privilege('authenticated','public.contractor_review_reports','UPDATE') THEN
+    RAISE EXCEPTION 'schema contract: review tables must stay RPC-only';
+  END IF;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.my_review_opportunities()',
+    'public.submit_contractor_review(uuid,uuid,jsonb)',
+    'public.withdraw_contractor_review(uuid)',
+    'public.respond_to_contractor_review(uuid,text)',
+    'public.report_contractor_review(uuid,text,text)',
+    'public.moderate_contractor_review(uuid,text,text)',
+    'public.professional_reviews(uuid,integer,integer)',
+    'public.my_received_reviews()',
+    'public.review_moderation_queue()'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'review RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'dao_private.review_pair(uuid,uuid,uuid)',
+    'dao_private.can_read_contractor_reviews(uuid)',
+    'dao_private.review_author_label(uuid)',
+    'dao_private.contains_contact(text)',
+    'dao_private.review_public_json(public.contractor_reviews)',
+    'dao_private.review_audit(text,uuid,jsonb)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'review internal helper must not be executable by clients: %',missing_name;
     END IF;
   END LOOP;
   FOR missing_name IN SELECT unnest(ARRAY[
