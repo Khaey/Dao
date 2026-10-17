@@ -179,6 +179,12 @@
       "agent": "DAO DOW",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 204,
+      "agent": "DAO Pilot 7",
+      "role": "PILOT",
+      "watchdog": false
     }
   ]
 }

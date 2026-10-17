@@ -533,6 +533,7 @@ class Team20PauseTransferTests(unittest.TestCase):
             115: ("DAO OPT 3", "OPT"),
             165: ("DAO OPT 3", "OPT"),
             180: ("DAO Pilot 6", "PILOT"),
+            204: ("DAO Pilot 7", "PILOT"),
             126: ("DAO COP", "PILOT"),
             161: ("DAO Chat 1", "DEV"),
             187: ("DAO DEV 2", "DEV"),

@@ -1,9 +1,11 @@
 # D.A.O — AI context entry point
 
-For **Pilot 5 handoff**, begin with [issue #154](https://github.com/Khaey/Dao/issues/154)
-and [PILOT5_HANDOFF_20261014.md](PILOT5_HANDOFF_20261014.md), then verify
-remote main, active PRs, live CI and latest owner comments. Earlier Pilot 4
-handoff remains a dated historical source; live GitHub always takes precedence.
+**Current pilot: DAO PILOT 7.** Begin with [issue #204](https://github.com/Khaey/Dao/issues/204)
+and [PILOT7_HANDOFF_20261017.md](PILOT7_HANDOFF_20261017.md); verify
+remote main, exact-SHA CI/deploy, active PRs and latest canonical owner comments.
+The earlier Pilot 6 [#180](https://github.com/Khaey/Dao/issues/180), Pilot 5
+[#154](https://github.com/Khaey/Dao/issues/154) and Pilot 4 handoffs are
+historical. Current GitHub evidence and owner decisions take precedence.
 
 Start with the owner issue's latest meaningful checkpoint, root `AGENTS.md`,
 `AUTONOMOUS_EXECUTION.md` and this index. Read **task-relevant** documents
@@ -16,6 +18,7 @@ historical checkpoints.
 
 | File | Purpose |
 | --- | --- |
+| **[PILOT7_HANDOFF_20261017.md](PILOT7_HANDOFF_20261017.md)** | **Pilot 6 → Pilot 7 (17/10/2026): current autonomous coordination, CI/DEV, owners, risks, priorities, PR triage; canonical issue #204** |
 | [AUTONOMOUS_EXECUTION.md](AUTONOMOUS_EXECUTION.md) | All-agent ownership and quota-aware execution, validation, concurrency and VPS rules |
 | [WORK_CHECKPOINTS.md](WORK_CHECKPOINTS.md) | Common checkpoints and safe recovery for every agent; WIP publication, quota/crash limits and short restart checklist (#87) |
 | **[PILOT5_HANDOFF_20261014.md](PILOT5_HANDOFF_20261014.md)** | **Pilot 4 → Pilot 5: dated handoff, live SHA/CI/PRs, agent owners, commercial context and first actions; issue #154 is canonical** |
