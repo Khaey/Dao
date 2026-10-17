@@ -56,12 +56,16 @@ test('reviews: verified eligibility, closed tables, minimal public projection, m
   await t.test('validation: scores 1–5, comment length, no contact details',async()=>{
     for(const input of [review(6,good),review(0,good),review(4.5,good),review(5,'Trop court'),
       review(5,'Appelez-le au +216 20 123 456 pour un devis rapide.'),review(5,'Écrivez à artisan.exemple@mail.tn pour un devis.'),
-      review(5,'Voir www.exemple.tn pour ses autres réalisations.'),review(5,good,{quality:9})])
+      review(5,'Voir www.exemple.tn pour ses autres réalisations.'),review(5,good,{quality:9}),
+      // COP/PILOT 7: separators, other digit scripts, bare domains and handles are contact details too.
+      review(5,'Appelez le 20 123 456 pour un devis, il répond vite.'),review(5,'Appelez le 20-123-456 pour un devis, il répond vite.'),
+      review(5,'Appelez le ٢٠١٢٣٤٥٦ pour un devis, il répond vite.'),review(5,'Toutes ses réalisations sont sur monsite.tn, allez voir.'),
+      review(5,'Suivez @atelier_exemple pour voir ses chantiers en cours.')])
       await denied('client','submit_contractor_review',input,'22023');
   });
 
   await t.test('publish, edit in place, tables stay closed',async()=>{
-    const first=await ok('client','submit_contractor_review',review(4,'Chantier 2024, budget de 12 000 TND respecté, finitions soignées.',{quality:5,deadlines:3}));
+    const first=await ok('client','submit_contractor_review',review(4,'Chantier du 12/03/2024 au 30/06/2024, budget de 12 000 TND respecté.',{quality:5,deadlines:3}));
     assert.equal(first.status,'published');reviewId=first.id;
     const edited=await ok('client','submit_contractor_review',review(5,good,{quality:5,deadlines:4,budget:5,communication:5,cleanliness:4}));
     assert.equal(edited.id,reviewId);assert.equal(edited.edited,true);
@@ -90,13 +94,20 @@ test('reviews: verified eligibility, closed tables, minimal public projection, m
   await t.test('response and report belong to the reviewed professional only',async()=>{
     await denied('client','respond_to_contractor_review',{p_review_id:reviewId,p_body:'Merci'});
     await denied('pro2','respond_to_contractor_review',{p_review_id:reviewId,p_body:'Réponse usurpée'});
-    await denied('pro','respond_to_contractor_review',{p_review_id:reviewId,p_body:'Appelez le 20123456'},'22023');
+    for(const body of ['Appelez le 20123456','Appelez le 20 123 456','Écrivez sur wa.me/21620123456','Contact : atelier@mail.tn'])
+      await denied('pro','respond_to_contractor_review',{p_review_id:reviewId,p_body:body},'22023');
     await ok('pro','respond_to_contractor_review',{p_review_id:reviewId,p_body:'Merci pour votre confiance !'});
     assert.equal((await ok('client2','professional_reviews',{p_contractor_id:cp.id,p_limit:10,p_offset:0})).items[0].response.body,'Merci pour votre confiance !');
     assert.equal((await ok('pro','my_received_reviews')).length,1);
     await denied('client2','report_contractor_review',{p_review_id:reviewId,p_reason:'fake',p_details:''});
     await denied('pro','report_contractor_review',{p_review_id:reviewId,p_reason:'bad',p_details:''},'22023');
     assert.equal((await ok('pro','report_contractor_review',{p_review_id:reviewId,p_reason:'fake',p_details:'Chantier inconnu'})).status,'open');
+    // Author label publishes letters only: an email-derived or numeric display name falls back.
+    for(const display of ['ali.trabelsi92','20123456','a@b.tn']){
+      assert.ifError((await admin.from('profiles').update({display_name:display}).eq('user_id',users.client.id)).error);
+      assert.equal((await ok('client2','professional_reviews',{p_contractor_id:cp.id,p_limit:10,p_offset:0})).items[0].author,'Client D.A.O.',display);
+    }
+    assert.ifError((await admin.from('profiles').update({display_name:'Amira Ben Salem'}).eq('user_id',users.client.id)).error);
   });
 
   await t.test('staff moderation with mandatory reason; withdraw cannot bypass a hide',async()=>{
@@ -113,6 +124,15 @@ test('reviews: verified eligibility, closed tables, minimal public projection, m
     await ok('staff','moderate_contractor_review',{p_review_id:reviewId,p_action:'restore',p_reason:null});
     assert.equal((await ok('client2','professional_reviews',{p_contractor_id:cp.id,p_limit:10,p_offset:0})).items.length,1);
     await denied('outsider','withdraw_contractor_review',{p_review_id:reviewId});
+    // A report dismissed by staff is not reopened by the same reporter; responses can be hidden and restored.
+    await ok('staff','moderate_contractor_review',{p_review_id:reviewId,p_action:'dismiss_reports',p_reason:null});
+    assert.equal((await ok('pro','report_contractor_review',{p_review_id:reviewId,p_reason:'other',p_details:''})).status,'already_reviewed');
+    await denied('staff','moderate_contractor_review',{p_review_id:reviewId,p_action:'hide_response',p_reason:''},'22023');
+    await ok('staff','moderate_contractor_review',{p_review_id:reviewId,p_action:'hide_response',p_reason:'Réponse hors sujet'});
+    assert.equal((await ok('client2','professional_reviews',{p_contractor_id:cp.id,p_limit:10,p_offset:0})).items[0].response,null);
+    await denied('pro','respond_to_contractor_review',{p_review_id:reviewId,p_body:'Nouvelle réponse'});
+    await ok('staff','moderate_contractor_review',{p_review_id:reviewId,p_action:'restore_response',p_reason:null});
+    assert.ok((await ok('client2','professional_reviews',{p_contractor_id:cp.id,p_limit:10,p_offset:0})).items[0].response);
   });
 
   await t.test('losing the relationship blocks edits but keeps the published review; actions are audited',async()=>{
@@ -123,4 +143,15 @@ test('reviews: verified eligibility, closed tables, minimal public projection, m
     assert.ifError(audit.error);assert.ok(audit.data!.length>=8);
     assert.equal(JSON.stringify(audit.data).includes('soigné'),false,'audit never stores review text');
   });
+  await t.test('owner decision: a chantier created by the professional is reviewable by its confirmed Client',async()=>{
+    const own=await insert('projects',{client_id:users.client2.id,initiator_id:users.pro.id,project_origin:'contractor_existing_client'});
+    await insert('project_members',{project_id:own.id,user_id:users.pro.id,participation_role:'contractor'});
+    assert.ifError((await admin.from('projects').update({project_stage:'in_progress'}).eq('id',own.id)).error);
+    const opportunities=await ok('client2','my_review_opportunities');
+    assert.ok(opportunities.some((item:any)=>item.project_id===own.id&&item.contractor_id===cp.id));
+    // The staff queue flags the origin as a fraud indicator.
+    const created=await ok('client2','submit_contractor_review',{p_project_id:own.id,p_contractor_id:cp.id,p_input:{rating:5,comment:good}});
+    assert.equal((await ok('staff','review_moderation_queue')).find((item:any)=>item.id===created.id).project_origin,'contractor_existing_client');
+  });
+
 });

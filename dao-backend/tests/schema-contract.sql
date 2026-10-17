@@ -273,6 +273,7 @@ BEGIN
     'dao_private.review_pair(uuid,uuid,uuid)',
     'dao_private.can_read_contractor_reviews(uuid)',
     'dao_private.review_author_label(uuid)',
+    'dao_private.contains_contact(text)',
     'dao_private.review_public_json(public.contractor_reviews)',
     'dao_private.review_audit(text,uuid,jsonb)'
   ]) LOOP
