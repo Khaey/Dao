@@ -151,11 +151,16 @@ Les 18 verbes, contrôle owner/main/dev, identité SSH et verrous restent les
 mêmes. Aucun script transporté n'est exécuté en root : les appels sudo gardent
 leurs chemins/arguments littéraux. Les helpers root ne sont pas remplacés par
 le transport ; manifeste et admission de maintenance restent indépendants.
-Le JSON privé existe seulement pour `env-sync`, hors artefact GitHub, avec le
-même mode 0644 éphémère pour le conteneur SCP puis 0600 avant consommation.
+Le JSON privé existe seulement pour `env-sync`, hors artefact GitHub, en mode
+0600 de sa préparation à sa consommation. Le transport utilise OpenSSH natif
+avec l'empreinte hôte vérifiée par `prepare-dev-ssh.sh` avant de charger les
+secrets applicatifs. Les répertoires run/attempt sont privés (0700) sur runner
+et hôte ; `stage-dev-private-dir.sh` refuse les destinations préexistantes ou
+non sûres. Aucun conteneur tiers ne reçoit la clé SSH ou le JSON.
 Les nettoyages `always()` retirent le répertoire exact run/attempt sur runner
 et hôte, y compris après échec ; une coupure empêchant le cleanup peut laisser
 un résidu limité à ce répertoire, sans promesse d'intercepter toute interruption.
+Les credentials SSH du runner sont retirés après le nettoyage distant.
 
 Qualification livrée par PR #102 au main source
 `5e551b0dea87a49977f170f3466d71088defe27c`, après CI/deploy
