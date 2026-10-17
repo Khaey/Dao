@@ -78,6 +78,17 @@ LogLevel ERROR
                 env['INPUT_SCRIPT'] = remote_script
                 result = command(['bash', str(action / 'entrypoint.sh')], env=env)
                 logs = result.stdout + result.stderr
+                if (result.returncode == 0) != success:
+                    # Fixture-only diagnostics; never forward arbitrary command output.
+                    categories = ('unable to authenticate', 'handshake failed',
+                                  'connection refused', 'fingerprint', 'curl:',
+                                  'unbound variable', 'Permission denied',
+                                  'account is locked', 'bad ownership', 'not allowed')
+                    server_log = checked(['sudo', '-n', 'cat', str(root / 'server.log')])
+                    for category in categories:
+                        if category.lower() in (logs + server_log).lower():
+                            print('Fixture failure category:', category)
+                    print('Fixture exit code:', result.returncode)
                 assert (result.returncode == 0) == success, name + ': wrong exit outcome'
                 assert 'SYNTHETIC_ROUNDTRIP_PASS' in logs, name + ': no receipt proof'
                 assert 'DAO187_SYNTHETIC_' not in logs, name + ': sentinel leak'
