@@ -317,7 +317,7 @@ class AttributionTests(unittest.TestCase):
         return pr
 
     def test_registered_canonical_owners_and_unique_issues(self):
-        expected = {112: "DAO OPT 20", 115: "DAO OPT 2", 116: "DAO DEV 2",
+        expected = {112: "DAO OPT 20", 115: "DAO OPT 3", 116: "DAO DEV 2",
                     61: "DAO Pilot 4", 120: "DAO OPT 20", 85: "OPT"}
         issues = [m["issue"] for m in self.config["missions"]]
         self.assertEqual(len(issues), len(set(issues)))
@@ -513,7 +513,7 @@ class AgentOnboardingTests(unittest.TestCase):
 
     def test_current_active_assignments_are_registered(self):
         config = dm.configuration()
-        expected = {64: "DAO OPT 3", 115: "DAO OPT 2", 124: "DAO OPT 20",
+        expected = {64: "DAO OPT 3", 115: "DAO OPT 3", 124: "DAO OPT 20",
                     125: "DAO DEV 2", 137: "DAO Chat 20", 146: "DAO Chat 1", 156: "DAO Chat 1", 161: "DAO Chat 1",
                     89: "DAO Pilot 4", 93: "DAO Pilot 5", 154: "DAO Pilot 5"}
         for issue, name in expected.items():
@@ -530,6 +530,9 @@ class Team20PauseTransferTests(unittest.TestCase):
         expected = {
             58: ("DAO DEV 2", "DEV"),
             64: ("DAO OPT 3", "OPT"),
+            115: ("DAO OPT 3", "OPT"),
+            165: ("DAO OPT 3", "OPT"),
+            180: ("DAO Pilot 6", "PILOT"),
             126: ("DAO COP", "PILOT"),
             161: ("DAO Chat 1", "DEV"),
             187: ("DAO DEV 2", "DEV"),

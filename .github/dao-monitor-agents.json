@@ -63,7 +63,7 @@
     },
     {
       "issue": 115,
-      "agent": "DAO OPT 2",
+      "agent": "DAO OPT 3",
       "role": "OPT",
       "watchdog": false
     },
@@ -160,6 +160,18 @@
       "issue": 187,
       "agent": "DAO DEV 2",
       "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 165,
+      "agent": "DAO OPT 3",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 180,
+      "agent": "DAO Pilot 6",
+      "role": "PILOT",
       "watchdog": false
     }
   ]
