@@ -9,7 +9,8 @@ STAGE = (ROOT / "scripts/stage-dev-private-dir.sh").read_text()
 class DeploymentSecretPermissionsTest(unittest.TestCase):
     def test_verified_host_key_is_mandatory(self):
         self.assertIn('DEV_SSH_HOST_FINGERPRINT:?', SETUP)
-        self.assertIn('"$observed" != "$DEV_SSH_HOST_FINGERPRINT"', SETUP)
+        self.assertIn('"$observed" != "$trusted_pin"', SETUP)
+        self.assertIn('scripts/normalize-dev-host-fingerprint.py', SETUP)
         self.assertIn('StrictHostKeyChecking yes', SETUP)
         self.assertIn('UserKnownHostsFile', SETUP)
         self.assertNotIn('StrictHostKeyChecking no', SETUP + DEPLOY)
