@@ -78,3 +78,27 @@ export const myReviewOpportunities = () => call<ReviewOpportunity[]>('my_review_
 export const submitReview = (projectId: string, contractorId: string, input: ReviewInput) =>
   call<{ id: string; status: OwnReview['status']; edited: boolean }>('submit_contractor_review', { p_project_id: projectId, p_contractor_id: contractorId, p_input: input });
 export const withdrawReview = (reviewId: string) => call<{ id: string; status: 'withdrawn' }>('withdraw_contractor_review', { p_review_id: reviewId });
+
+// Professional (R4) and staff (R5) views.
+export type ReceivedReview = PublicReview & {
+  status: 'published' | 'hidden'; response_status: 'published' | 'hidden' | null;
+  response_editable_until: string | null; report_status: 'open' | 'dismissed' | 'actioned' | null;
+};
+export type ModerationItem = PublicReview & {
+  status: 'published' | 'hidden' | 'withdrawn'; hidden_reason: string | null; project_id: string; contractor_id: string;
+  contractor_name: string; author_name: string | null; response_status: 'published' | 'hidden' | null;
+  project_origin: string | null; author_since: string | null;
+  reports: Array<{ reason: string; details: string; status: 'open' | 'dismissed' | 'actioned'; created_at: string }>;
+};
+export type ModerationAction = 'hide' | 'restore' | 'dismiss_reports' | 'hide_response' | 'restore_response';
+export const reportReasons: Record<string, string> = {
+  insult: 'Propos injurieux', personal_data: 'Données personnelles', off_topic: 'Hors sujet', fake: 'Chantier inexistant / faux avis', other: 'Autre',
+};
+
+export const myReceivedReviews = () => call<ReceivedReview[]>('my_received_reviews');
+export const respondToReview = (reviewId: string, body: string) => call<{ review_id: string; status: string }>('respond_to_contractor_review', { p_review_id: reviewId, p_body: body });
+export const reportReview = (reviewId: string, reason: string, details: string) =>
+  call<{ id?: string; status: 'open' | 'already_reviewed' }>('report_contractor_review', { p_review_id: reviewId, p_reason: reason, p_details: details });
+export const moderationQueue = () => call<ModerationItem[]>('review_moderation_queue');
+export const moderateReview = (reviewId: string, action: ModerationAction, reason: string | null) =>
+  call<{ id: string; action: ModerationAction }>('moderate_contractor_review', { p_review_id: reviewId, p_action: action, p_reason: reason });
