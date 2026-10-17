@@ -18,7 +18,12 @@ import dao_monitor as dm
 
 class MonitorTests(unittest.TestCase):
     def setUp(self):
-        self.config = dm.configuration()
+        # Preserve historical monitor behavior tests with a synthetic old
+        # assignment. The live registry now transfers #58 from DEV 20 to DEV 2.
+        self.config = copy.deepcopy(dm.configuration())
+        historical = dm.mission_for(58, self.config)
+        historical["agent"] = "DAO DEV 20"
+        historical["watchdog"] = True
         self.mission = dm.mission_for(58, self.config)
         self.active = {"id": 123, "created_at": "2026-10-09T00:00:00Z",
                        "user": {"login": "Khaey"},
