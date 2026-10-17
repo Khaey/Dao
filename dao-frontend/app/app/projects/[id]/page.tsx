@@ -2,7 +2,7 @@
 import ReviewHistory from '../../../../components/backoffice/ReviewHistory';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, TouchEvent as ReactTouchEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Activity, AlertCircle, Archive, ArrowRight, Building2, CalendarDays, Check, ChevronDown, ChevronLeft, Eye, FileText, History, Layers, LayoutDashboard, Lock, MapPin, MessageCircle, Pencil, Plus, RotateCcw, ShieldCheck, Sparkles, Trash2, Upload, Users } from 'lucide-react';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
@@ -55,6 +55,36 @@ export default function ProjectDetail() {
   useEffect(() => { const nav = tabNav.current; const active = nav?.querySelector<HTMLElement>('[aria-current="true"]'); if (nav && active) nav.scrollLeft = Math.max(0, active.offsetLeft - 16); }, [activeTab, loading]);
   // When the project form opens (button or ?edit=project), bring it into view on small screens.
   useEffect(() => { if (projectEdit && !loading) projectEditRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [projectEdit, loading]);
+  // Touch screens: a horizontal swipe on the section content moves to the next / previous tab.
+  // Ignored for screen-edge gestures (browser back), form fields, horizontally scrollable areas,
+  // mostly-vertical moves and text selection, so scrolling and editing keep working as before.
+  const tabPanel = useRef<HTMLDivElement>(null); const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null); const swipeDirection = useRef(0);
+  function onSwipeStart(event: ReactTouchEvent<HTMLDivElement>) {
+    swipeStart.current = null;
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0]; const target = event.target as HTMLElement;
+    if (touch.clientX < 24 || touch.clientX > window.innerWidth - 24) return;
+    if (target.closest('input, textarea, select, [contenteditable="true"], [data-no-swipe]')) return;
+    for (let node: HTMLElement | null = target; node && node !== event.currentTarget; node = node.parentElement) { const overflowX = getComputedStyle(node).overflowX; if ((overflowX === 'auto' || overflowX === 'scroll') && node.scrollWidth > node.clientWidth) return; }
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+  }
+  function onSwipeEnd(event: ReactTouchEvent<HTMLDivElement>) {
+    const start = swipeStart.current; swipeStart.current = null;
+    if (!start || event.changedTouches.length !== 1) return;
+    const touch = event.changedTouches[0]; const dx = touch.clientX - start.x; const dy = touch.clientY - start.y;
+    if (Date.now() - start.t > 700 || Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    if (window.getSelection()?.toString()) return;
+    const next = tabs[tabs.findIndex(tab => tab.id === activeTab) + (dx < 0 ? 1 : -1)];
+    if (!next) return;
+    swipeDirection.current = dx < 0 ? 1 : -1; setActiveTab(next.id);
+  }
+  useEffect(() => {
+    const direction = swipeDirection.current; swipeDirection.current = 0;
+    if (!direction) return;
+    const navTop = tabNav.current?.getBoundingClientRect().top;
+    if (navTop !== undefined && navTop < 64) window.scrollBy({ top: navTop - 72, behavior: 'smooth' });
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) tabPanel.current?.animate([{ transform: `translateX(${direction * 28}px)`, opacity: 0.4 }, { transform: 'translateX(0)', opacity: 1 }], { duration: 200, easing: 'cubic-bezier(.2,.7,.2,1)' });
+  }, [activeTab]);
 
   async function openConversation(memberId:string){
     setError('');
@@ -290,8 +320,10 @@ export default function ProjectDetail() {
     </dl>
     <div className="relative -mx-4 sm:mx-0">
       <nav ref={tabNav} aria-label="Sections du projet" className="overflow-x-auto border-b border-black/10 px-4 [scrollbar-width:none] sm:px-0 [&::-webkit-scrollbar]:hidden"><div className="flex min-w-max gap-1">{tabs.map(tab => { const Icon = tab.icon; const active = activeTab === tab.id; return <button key={tab.id} type="button" aria-current={active ? 'true' : undefined} onClick={() => setActiveTab(tab.id)} className={`relative inline-flex min-h-12 items-center gap-2 rounded-t-lg px-3.5 text-sm font-semibold transition after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-teal ${active ? 'text-ink after:bg-teal' : 'text-ink/65 after:bg-transparent hover:text-ink'}`}><Icon size={16} aria-hidden="true" className={active ? 'text-teal' : ''} />{tab.label}{tab.id === 'lots' && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none ${active ? 'bg-teal/10 text-teal' : 'bg-ink/[0.06] text-ink/70'}`}>{activeRequests.length}</span>}</button>; })}</div></nav>
-      <span aria-hidden="true" className="pointer-events-none absolute bottom-px right-0 top-0 w-10 bg-gradient-to-l from-sand to-transparent sm:hidden" />
+      <span aria-hidden="true" className="pointer-events-none absolute right-0 top-0 h-12 w-10 bg-gradient-to-l from-sand to-transparent sm:hidden" />
+      <div aria-hidden="true" className="mt-2.5 flex items-center justify-center gap-1.5 md:hidden">{tabs.map(tab => <span key={tab.id} className={`h-1.5 rounded-full transition-all ${activeTab === tab.id ? 'w-5 bg-teal' : 'w-1.5 bg-ink/20'}`} />)}</div>
     </div>
+    <div ref={tabPanel} className="space-y-6" onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} onTouchCancel={() => { swipeStart.current = null; }}>
     {activeTab === 'overview' && <div className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
       <div className="min-w-0 space-y-5">
         <Card className="p-5 sm:p-6"><SectionHeading eyebrow="Résumé" title="Votre dossier en un coup d’œil" description="Suivez séparément l’avancement administratif DAO et celui des travaux." />
@@ -325,6 +357,7 @@ export default function ProjectDetail() {
     </Card>}
     {activeTab === 'dao' && <Card className="p-5 sm:p-6">{!isClient && <p className="mb-5 rounded-xl bg-sand p-3.5 text-sm text-ink/70">Le client décide de la recherche de professionnels et de la soumission du DAO. Rejoindre le chantier ne donne pas accès aux offres concurrentes.</p>}<SectionHeading eyebrow="Préparation du DAO" title="Votre dossier est-il prêt ?" description="Vérifiez les éléments essentiels avant de demander la revue DAO." /><ul className="mt-6 grid gap-3 sm:grid-cols-2">{[['Projet renseigné', Boolean(projectForm.title)], ['Localisation', Boolean(location)], ['Dates souhaitées', datesReady], [`${activeRequests.length} lot${activeRequests.length > 1 ? 's' : ''}`, activeRequests.length > 0], ['Budgets', totalLotBudget > 0 || projectBudget > 0], ['Documents facultatifs', documents.length > 0]].map(([label, done]) => <li key={String(label)} className="flex items-center gap-3 rounded-xl bg-sand p-3.5 text-sm"><span aria-hidden="true" className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${done ? 'bg-teal text-white' : 'border border-dashed border-ink/30 bg-white'}`}>{done && <Check size={13} />}</span><span className={done ? 'text-ink/80' : 'font-semibold text-ink'}>{label}</span><span className="sr-only">{done ? ' — prêt' : ' — à compléter'}</span></li>)}</ul>{rejectedReason && <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4"><p className="font-bold text-red-700">Corrections demandées</p><p className="mt-2 text-sm text-red-800">{rejectedReason}</p>{isClient && effectiveStatus === 'rejected' && <button type="button" className={cn(primaryAction, 'mt-3')} onClick={() => void correctProject()}>Corriger le DAO</button>}</div>}{isClient && effectiveStatus === 'draft' && activeRequests.length > 0 && (datesReady ? <Link href={`/app/projects/${id}/review`} className={cn(primaryAction, 'mt-6')}>Revoir le DAO</Link> : <div className="mt-5 space-y-3"><p className="text-sm text-amber-800" role="status">Indiquez les dates de début et de fin souhaitées avant de demander la revue DAO.</p><button type="button" className={primaryAction} onClick={() => { setActiveTab('overview'); setProjectEdit(true); }}>Compléter les dates</button></div>)}{effectiveStatus !== 'draft' && <p className="mt-6 text-sm text-ink/70">Statut actuel : <strong>{statusLabel[effectiveStatus] ?? effectiveStatus}</strong></p>}</Card>}
     {activeTab === 'history' && <Card className="p-5 sm:p-6"><ReviewHistory projectId={id} /><SectionHeading title="Historique du projet" description="Les versions et retours réellement enregistrés restent consultables." action={<Badge>{projectVersions.length} version{projectVersions.length > 1 ? 's' : ''}</Badge>} /><ul className="mt-5 space-y-2">{team.events.map(event => <li key={event.id} className="flex flex-wrap gap-x-2 rounded-xl bg-sand px-3.5 py-3 text-sm"><span className="tabular-nums text-ink/65">{formatDate(event.created_at)}</span><span className="text-ink">{({ project_created: 'Chantier créé', client_confirmed: 'Chantier confirmé par le client', member_joined: 'Participant ajouté', member_revoked: 'Participant retiré', invitation_created: 'Invitation créée', invitation_declined: 'Invitation refusée', invitation_revoked: 'Invitation révoquée', tracking_updated: 'Suivi mis à jour', lot_participant_updated: 'Professionnel du lot mis à jour', private_permission_updated: 'Permission privée mise à jour' } as Record<string, string>)[event.action] || 'Équipe ou suivi mis à jour'}</span></li>)}</ul><div className="relative mt-6 space-y-5 border-l border-black/10 pl-6">{projectVersions.map(version => <div key={version.id} className="relative"><span className="absolute -left-[31px] top-1.5 h-2.5 w-2.5 rounded-full bg-teal ring-4 ring-white" /><p className="text-xs text-ink/65">{formatDate(version.created_at)}</p><p className="mt-1 font-bold text-ink">Version {version.version_no} · {statusLabel[version.status] ?? version.status}</p>{version.title && <p className="mt-1 text-sm text-ink/70">{version.title}</p>}{reviews.filter(review => review.project_version_id === version.id).map(review => <div key={review.id} className="mt-2 rounded-xl bg-sand p-3 text-sm"><p className="font-semibold">{review.decision === 'rejected' ? 'Corrections demandées' : 'Revue DAO'}</p>{review.reason && <p className="mt-1 text-ink/70">{review.reason}</p>}</div>)}</div>)}</div><div className="mt-8 space-y-3">{requests.map(request => <div key={request.id} className="rounded-xl bg-sand p-1"><button type="button" aria-expanded={historyRequestId === request.id} onClick={() => setHistoryRequestId(historyRequestId === request.id ? null : request.id)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-2.5 text-left text-sm font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal"><span className="min-w-0 break-words">{request.title || 'Lot sans titre'}</span><span className="shrink-0 text-teal">{request.history.length} version{request.history.length > 1 ? 's' : ''}</span></button>{historyRequestId === request.id && <div className="mx-2.5 mb-2.5 mt-1 space-y-2 border-t border-black/5 pt-3">{request.history.map(version => <p key={version.id} className="text-xs text-ink/70"><strong>v{version.version_no}</strong> · {version.title} · {formatDate(version.created_at)}</p>)}</div>}</div>)}</div></Card>}
+    </div>
     {isClient && project.status !== 'archived' && <div className="flex flex-col gap-3 border-t border-black/[0.08] pt-6 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-ink/65">Abandonner archive le projet ; il reste consultable dans votre historique.</p><button type="button" onClick={() => void archive()} className="inline-flex min-h-11 items-center gap-2 self-start rounded-xl bg-white px-4 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-200 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:self-auto"><Archive size={16} aria-hidden="true" />Abandonner le projet</button></div>}
   </section>;
 }
