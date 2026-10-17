@@ -2,8 +2,10 @@
 """Sync DAO Project #3 from repo issues/PRs and canonical agent registry.
 Requires DAO_PROJECTS_TOKEN classic PAT scoped project+repo in Actions Secrets.
 A merge/closed issue never independently proves DEV deployment.
+The board never claims an AI agent is running based on PR or issue metadata.
 """
 import argparse
+from datetime import datetime, timezone, timedelta
 import json
 import os
 from pathlib import Path
@@ -61,29 +63,67 @@ def domain(item):
     return next((g for g, words in groups if any(w in name for w in words)), "Autre")
 
 
-def status(item, open_linked_pr=False):
+# Status reflects recent GitHub delivery evidence, not a live AI agent session.
+# Never retain an old In Progress value without current evidence.
+ACTIVE_HOURS = 72
+
+
+def recently_updated(item, now=None):
+    value = item.get("updated_at")
+    if not value:
+        return False
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            return False
+    except (TypeError, ValueError, AttributeError):
+        return False
+    age = (now or datetime.now(timezone.utc)) - stamp
+    return timedelta(0) <= age <= timedelta(hours=ACTIVE_HOURS)
+
+
+def explicit_active(item):
+    return any((v if isinstance(v, str) else v.get("name", "")).casefold()
+               in ("dao:active", "dao:in-progress") for v in item.get("labels") or [])
+
+
+def status(item, open_linked_pr=False, now=None):
     if item.get("pull_request"):
-        if item.get("merged_at"):
-            return "Done"
-        return "In Progress" if item.get("state") == "open" else None
+        if item.get("state") == "closed" or item.get("merged_at"):
+            return "Done"  # closed unmerged = workflow finished, not delivered
+        if item.get("draft") or not recently_updated(item, now):
+            return "Todo"
+        return "In Progress"
     if item.get("state") == "closed":
         return "Done"
-    return "In Progress" if open_linked_pr else None
+    # Avoid double-counting an active PR and its owner issue.
+    if open_linked_pr:
+        return "Todo"
+    if explicit_active(item) and recently_updated(item, now):
+        return "In Progress"
+    return "Todo"
 
 
-def evidence(item):
+def evidence(item, open_linked_pr=False, linked_pr=None, now=None):
     if item.get("pull_request"):
         if item.get("merged_at"):
             return "PR fusionnée ; déploiement DEV non attesté par le seul merge"
         if item.get("state") == "closed":
             return "PR fermée sans fusion ; non livrée"
-        return "PR ouverte ; vérifier la CI et le checkpoint"
+        if item.get("draft"):
+            return "PR DRAFT / bloquée, pas de travail actif attesté"
+        if not recently_updated(item, now):
+            return "PR ouverte, sans activité GitHub depuis plus de 72h ; à requalifier"
+        return "PR ouverte et mise à jour récemment ; activité agent non attestée"
     if item.get("state") == "closed":
         if item.get("state_reason") in ("duplicate", "not_planned"):
             return "Issue close (doublon/abandonnée) ; non livrée"
         return "Issue close ; vérifier la preuve du déploiement"
-    return "Issue ouverte ; voir dernier checkpoint"
-
+    if open_linked_pr:
+        return "Issue suivie dans la PR ouverte #" + str(linked_pr) + " ; non comptée deux fois"
+    if explicit_active(item) and recently_updated(item, now):
+        return "Issue explicitement active <72h ; session agent non attestée"
+    return "Issue ouverte : backlog / attente, pas d'activité prouvée"
 
 class Github:
     def __init__(self, token):
@@ -273,8 +313,12 @@ def synchronize(g, owner, number, registry, dry_run):
                for i in issues}
     for n, pr in prs.items():
         content[("pr", n)] = dict(content.get(("pr", n), {}), **pr, pull_request=True)
-    linked = {owner_issue(pr.get("body")) for pr in prs.values()
-              if pr.get("state") == "open" and owner_issue(pr.get("body"))}
+    linked = {}
+    for pr in prs.values():
+        ref = owner_issue(pr.get("body"))
+        if pr.get("state") == "open" and ref is not None:
+            linked.setdefault(ref, []).append(pr["number"])
+    now = datetime.now(timezone.utc)
     project_id, fields = get_project(g, owner, number)
     if not dry_run:
         create_fields(g, project_id, fields)
@@ -298,12 +342,12 @@ def synchronize(g, owner, number, registry, dry_run):
             changes["added"] += 1
         ref = owner_issue(item.get("body")) if kind == "pr" else n
         values = (
-            ("Status", status(item, kind == "issue" and n in linked)
-             or ("Todo" if not row.get("s") else None), "status"),
+            ("Status", status(item, kind == "issue" and n in linked, now), "status"),
             ("Agent", owners.get(ref, "Non attribué"), "agent"),
             ("Priorité", priority(item), "priority"),
             ("Domaine", domain(item), "domain"),
-            ("État GitHub", evidence(item), "evidence"),
+            ("État GitHub", evidence(item, kind == "issue" and n in linked,
+                                     min(linked[n]) if kind == "issue" and n in linked else None, now), "evidence"),
         )
         for field, value, metric in values:
             if set_field(g, project_id, row, fields, field, value, dry_run):
