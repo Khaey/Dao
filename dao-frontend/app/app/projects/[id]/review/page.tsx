@@ -1,10 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { AlertCircle, CalendarDays, Check, ChevronLeft, Layers, Lock, Send } from 'lucide-react';
 import { supabaseBrowser } from '../../../../../lib/supabase-browser';
-import { Badge, Button, Card } from '../../../../../components/ui';
-import { statusLabel } from '../../../../../lib/utils';
+import { Card } from '../../../../../components/ui';
+import { cn } from '../../../../../lib/utils';
+import { DossierSteps, ErrorPanel, primaryAction, secondaryAction, StatusPill } from '../../_components/ProjectUi';
 
 type LotSnapshot = {
   id: string;
@@ -117,19 +120,62 @@ export default function ProjectReview() {
   }
 
   const total = useMemo(() => requests.reduce((sum, request) => sum + Number(request.budget_millimes || 0), 0), [requests]);
-  if (loading) return <p>Chargement de la revue…</p>;
-  if (!project || !version) return <p role="alert">{error || 'Projet introuvable.'}</p>;
+  if (loading) return <div aria-busy="true" className="mx-auto max-w-4xl space-y-6"><span className="sr-only">Chargement de la revue…</span><div className="rounded-2xl border border-black/[0.06] bg-white p-5 sm:p-7"><div className="h-3 w-24 animate-pulse rounded bg-ink/[0.07]" /><div className="mt-4 h-8 w-2/3 animate-pulse rounded bg-ink/[0.08]" /><div className="mt-3 h-4 w-1/2 animate-pulse rounded bg-ink/[0.05]" /><div className="mt-7 grid grid-cols-4 gap-2">{[0, 1, 2, 3].map(item => <div key={item} className="h-1.5 animate-pulse rounded-full bg-ink/[0.08]" />)}</div></div>{[0, 1].map(item => <div key={item} className="h-40 animate-pulse rounded-2xl border border-black/[0.04] bg-white" />)}</div>;
+  if (!project || !version) return <div className="mx-auto max-w-4xl"><ErrorPanel title="Revue indisponible" message={error || 'Projet introuvable.'} backHref="/app/projects" /></div>;
   const rejected = version.status === 'rejected';
   const datesReady = Boolean(version.desired_start_date && version.desired_end_date) && version.desired_end_date >= version.desired_start_date;
-  return <section className="mx-auto max-w-4xl space-y-6">
-    <div><p className="text-sm font-semibold text-teal">Revue du DAO</p><div className="mt-1 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-bold">{version.title}</h1><Badge>{statusLabel[version.status] ?? version.status}</Badge></div><p className="mt-2 whitespace-pre-wrap text-black/60">{version.description || 'Sans description'}</p></div>
-    {rejected && <Card className="border-red-200 bg-red-50"><h2 className="font-semibold text-red-800">Des corrections sont demandées</h2><p className="mt-2 text-sm text-red-700">Consultez le commentaire de revue sur la page du projet, corrigez les lots concernés puis soumettez une nouvelle version.</p></Card>}
-    <Card><h2 className="font-semibold">Checklist avant soumission</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-sand/70 p-3 text-sm"><span className="font-medium">Titre et description</span><span className="ml-2 text-teal">{version.title && version.title !== 'Nouveau projet' && version.description && version.description !== 'Brouillon' ? '✓' : 'À compléter'}</span></div><div className="rounded-xl bg-sand/70 p-3 text-sm"><span className="font-medium">Localisation</span><span className="ml-2 text-teal">{location || 'À compléter'}</span></div><div className="rounded-xl bg-sand/70 p-3 text-sm"><span className="font-medium">Dates souhaitées</span><span className="ml-2 text-teal">{datesReady ? '✓' : 'À compléter'}</span></div><div className="rounded-xl bg-sand/70 p-3 text-sm"><span className="font-medium">Lots actifs</span><span className="ml-2 text-teal">{requests.length > 0 ? '✓ ' + requests.length : 'À compléter'}</span></div><div className="rounded-xl bg-sand/70 p-3 text-sm"><span className="font-medium">Documents</span><span className="ml-2 text-teal">{documents.length ? documents.length + ' fichier(s)' : 'Aucun'}</span></div></div></Card>
-    <Card><h2 className="font-semibold">Résumé du chantier</h2><div className="mt-4 grid gap-4 sm:grid-cols-3"><div><p className="text-xs text-black/45">Type</p><p className="font-semibold">{typeLabels[version.project_type] ?? version.project_type}</p></div><div><p className="text-xs text-black/45">Surface</p><p className="font-semibold">{version.surface_m2 ?? '—'} m²</p></div><div><p className="text-xs text-black/45">Localisation</p><p className="font-semibold">{location || 'Non renseignée'}</p></div><div><p className="text-xs text-black/45">Début souhaité</p><p className="font-semibold">{formatDate(version.desired_start_date)}</p></div><div><p className="text-xs text-black/45">Fin souhaitée</p><p className="font-semibold">{formatDate(version.desired_end_date)}</p></div><div><p className="text-xs text-black/45">Budget projet</p><p className="font-semibold">{formatTnd(version.indicative_budget_millimes)}</p></div></div></Card>
-    <Card><div className="flex items-center justify-between"><h2 className="font-semibold">Lots inclus</h2><Badge>{requests.length} lot{requests.length > 1 ? 's' : ''}</Badge></div>{requests.length === 0 ? <p className="mt-4 text-sm text-black/55">Aucun lot n’est lié à cette version du projet.</p> : <div className="mt-4 space-y-3">{requests.map(request => <article key={request.id} className="rounded-xl bg-sand/70 p-4"><div className="flex flex-wrap justify-between gap-3"><div><p className="text-xs font-semibold text-teal">{request.trade_name}</p><h3 className="mt-1 font-semibold">{request.title}</h3></div><span className="text-sm">{formatTnd(request.budget_millimes)}</span></div><p className="mt-2 whitespace-pre-wrap text-sm text-black/60">{request.scope}</p><p className="mt-2 text-xs text-black/40">Version {request.version_no}</p></article>)}</div>}<div className="mt-4 border-t border-black/5 pt-3 text-right text-sm font-semibold">Total lots : {formatTnd(total)}</div></Card>
-    {!datesReady && version.status === 'draft' && isClient && <Card className="border-amber-200 bg-amber-50"><h2 className="font-semibold text-amber-900">Dates souhaitées à compléter avant la soumission.</h2><p className="mt-2 text-sm text-amber-800">Renseignez une date de début et une date de fin souhaitées pour que D.A.O. puisse préparer la revue du chantier.</p><Button className="mt-4" onClick={() => router.push('/app/projects/' + id + '?tab=overview&edit=project')}>Renseigner les dates</Button></Card>}
-    {requests.length === 0 && version.status === 'draft' && <Card className="border-amber-200 bg-amber-50"><h2 className="font-semibold text-amber-900">Un lot actif est nécessaire avant la soumission.</h2><p className="mt-2 text-sm text-amber-800">Créez le lot principal depuis la fiche projet. Aucun lot ne sera créé avant votre validation.</p><Button className="mt-4" onClick={() => router.push('/app/projects/' + id + '?tab=lots')}>Créer le lot principal</Button></Card>}
-    {!isClient && <p className="rounded-xl bg-sand p-4 text-sm text-black/60">Seul le client peut soumettre le DAO. La confirmation du chantier et la revue DAO sont deux démarches distinctes.</p>}{error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-    <div className="flex flex-wrap gap-3">{isClient && (rejected ? <Button onClick={() => void correct()} disabled={saving}>{saving ? 'Préparation…' : 'Créer une version de correction'}</Button> : <Button onClick={() => void submit()} disabled={saving || requests.length === 0 || !datesReady || version.status !== 'draft'}>{saving ? 'Soumission…' : 'Soumettre pour revue DAO'}</Button>)}<Button type="button" className="bg-white text-ink" onClick={() => router.push('/app/projects/' + id)}>Retour au projet</Button></div>
+  const titleReady = Boolean(version.title && version.title !== 'Nouveau projet' && version.description && version.description !== 'Brouillon');
+  const checks: { label: string; done: boolean; detail: string; optional?: boolean }[] = [
+    { label: 'Titre et description', done: titleReady, detail: titleReady ? 'Renseignés' : 'À compléter' },
+    { label: 'Localisation', done: Boolean(location), detail: location || 'À compléter' },
+    { label: 'Dates souhaitées', done: datesReady, detail: datesReady ? `${formatDate(version.desired_start_date)} → ${formatDate(version.desired_end_date)}` : 'À compléter' },
+    { label: 'Lots actifs', done: requests.length > 0, detail: requests.length > 0 ? `${requests.length} lot${requests.length > 1 ? 's' : ''}` : 'À compléter' },
+    { label: 'Documents', done: documents.length > 0, detail: documents.length ? `${documents.length} fichier${documents.length > 1 ? 's' : ''}` : 'Aucun, facultatif', optional: true },
+  ];
+  const required = checks.filter(check => !check.optional);
+  const canSubmit = requests.length > 0 && datesReady && version.status === 'draft';
+  return <section className="mx-auto max-w-4xl space-y-6 pb-4" aria-labelledby="review-title">
+    <Link href={'/app/projects/' + id} className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-teal transition hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal"><ChevronLeft size={16} aria-hidden="true" />Fiche du chantier</Link>
+    <header className="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_2px_rgba(23,32,42,0.04)] sm:p-7">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Revue du DAO</p>
+      <div className="mt-2 flex flex-wrap items-start gap-x-3 gap-y-2"><h1 id="review-title" className="min-w-0 break-words text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-3xl">{version.title}</h1><span className="mt-1.5"><StatusPill status={version.status} /></span></div>
+      <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-relaxed text-ink/70">{version.description || 'Sans description'}</p>
+      <div className="mt-6 border-t border-black/[0.06] pt-5"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/65">Parcours du dossier</p><div className="mt-3"><DossierSteps status={version.status} /></div></div>
+    </header>
+    {rejected && <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-5"><AlertCircle size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-red-600" /><div className="min-w-0"><h2 className="font-semibold text-red-800">Des corrections sont demandées</h2><p className="mt-1.5 text-sm text-red-800">Consultez le commentaire de revue sur la page du projet, corrigez les lots concernés puis soumettez une nouvelle version.</p></div></div>}
+    {!datesReady && version.status === 'draft' && isClient && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><div className="flex items-start gap-3"><CalendarDays size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-700" /><div className="min-w-0"><h2 className="font-semibold text-amber-900">Dates souhaitées à compléter avant la soumission.</h2><p className="mt-1.5 text-sm text-amber-900/90">Renseignez une date de début et une date de fin souhaitées pour que D.A.O. puisse préparer la revue du chantier.</p><button type="button" className={cn(primaryAction, 'mt-4')} onClick={() => router.push('/app/projects/' + id + '?tab=overview&edit=project')}>Renseigner les dates</button></div></div></div>}
+    {requests.length === 0 && version.status === 'draft' && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><div className="flex items-start gap-3"><Layers size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-700" /><div className="min-w-0"><h2 className="font-semibold text-amber-900">Un lot actif est nécessaire avant la soumission.</h2><p className="mt-1.5 text-sm text-amber-900/90">Créez le lot principal depuis la fiche projet. Aucun lot ne sera créé avant votre validation.</p><button type="button" className={cn(primaryAction, 'mt-4')} onClick={() => router.push('/app/projects/' + id + '?tab=lots')}>Créer le lot principal</button></div></div></div>}
+    <Card className="p-5 sm:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-bold tracking-tight text-ink">Checklist avant soumission</h2><p className="mt-1 text-sm text-ink/70">Les éléments indispensables pour que D.A.O. puisse relire votre dossier.</p></div><span className="rounded-full bg-ink/[0.06] px-2.5 py-1 text-xs font-semibold tabular-nums text-ink/80">{required.filter(check => check.done).length}/{required.length} prêts</span></div>
+      <ul className="mt-5 grid gap-3 sm:grid-cols-2">{checks.map(check => <li key={check.label} className="flex items-start gap-3 rounded-xl bg-sand/70 p-3.5"><span aria-hidden="true" className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${check.done ? 'bg-teal text-white' : check.optional ? 'border border-dashed border-ink/25 bg-white' : 'bg-amber-100 text-amber-800'}`}>{check.done ? <Check size={13} /> : !check.optional && <AlertCircle size={13} />}</span><div className="min-w-0 text-sm"><p className="font-semibold text-ink">{check.label}</p><p className={`mt-0.5 break-words ${check.done || check.optional ? 'text-ink/65' : 'font-medium text-amber-800'}`}>{check.detail}</p></div><span className="sr-only">{check.done ? ' — prêt' : check.optional ? ' — facultatif' : ' — à compléter'}</span></li>)}</ul>
+    </Card>
+    <Card className="p-5 sm:p-6">
+      <h2 className="text-lg font-bold tracking-tight text-ink">Résumé du chantier</h2>
+      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+        <div className="min-w-0"><dt className="text-xs text-ink/65">Type</dt><dd className="mt-0.5 font-semibold text-ink">{typeLabels[version.project_type] ?? 'Autre'}</dd></div>
+        <div className="min-w-0"><dt className="text-xs text-ink/65">Surface</dt><dd className="mt-0.5 font-semibold tabular-nums text-ink">{version.surface_m2 ? `${version.surface_m2} m²` : '—'}</dd></div>
+        <div className="col-span-2 min-w-0 sm:col-span-1"><dt className="text-xs text-ink/65">Localisation</dt><dd className="mt-0.5 break-words font-semibold text-ink">{location || 'Non renseignée'}</dd></div>
+        <div className="min-w-0"><dt className="text-xs text-ink/65">Début souhaité</dt><dd className="mt-0.5 font-semibold text-ink">{formatDate(version.desired_start_date)}</dd></div>
+        <div className="min-w-0"><dt className="text-xs text-ink/65">Fin souhaitée</dt><dd className="mt-0.5 font-semibold text-ink">{formatDate(version.desired_end_date)}</dd></div>
+        <div className="col-span-2 min-w-0 sm:col-span-1"><dt className="text-xs text-ink/65">Budget projet</dt><dd className="mt-0.5 font-semibold tabular-nums text-ink">{formatTnd(version.indicative_budget_millimes)}</dd></div>
+      </dl>
+    </Card>
+    <Card className="p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold tracking-tight text-ink">Lots inclus</h2><span className="rounded-full bg-ink/[0.06] px-2.5 py-1 text-xs font-semibold tabular-nums text-ink/80">{requests.length} lot{requests.length > 1 ? 's' : ''}</span></div>
+      {requests.length === 0 ? <p className="mt-4 rounded-xl bg-sand px-4 py-3 text-sm text-ink/70">Aucun lot n’est lié à cette version du projet.</p> : <ul className="mt-5 divide-y divide-black/[0.06] rounded-xl border border-black/[0.08]">{requests.map(request => <li key={request.id} className="p-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4"><div className="min-w-0"><p className="text-xs font-semibold text-teal">{request.trade_name}</p><h3 className="mt-1 break-words font-semibold text-ink">{request.title}</h3></div><span className="text-sm font-semibold tabular-nums text-ink">{formatTnd(request.budget_millimes)}</span></div>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink/70">{request.scope}</p>
+        <p className="mt-2 text-xs text-ink/65">Version {request.version_no}</p>
+      </li>)}</ul>}
+      <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-black/[0.06] pt-4 text-sm"><span className="text-ink/70">Total des lots</span><span className="text-base font-bold tabular-nums text-ink">{formatTnd(total)}</span></div>
+    </Card>
+    {!isClient && <p className="flex items-start gap-2 rounded-xl bg-sand px-4 py-3 text-sm text-ink/70"><Lock size={15} aria-hidden="true" className="mt-0.5 shrink-0" />Seul le client peut soumettre le DAO. La confirmation du chantier et la revue DAO sont deux démarches distinctes.</p>}
+    {error && <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><AlertCircle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />{error}</p>}
+    <div className="sticky bottom-0 z-10 -mx-4 border-t border-black/[0.08] bg-sand/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border sm:bg-white/95 sm:px-5 sm:py-4">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <button type="button" className={cn(secondaryAction, isClient && 'hidden sm:inline-flex')} onClick={() => router.push('/app/projects/' + id)}>Retour au projet</button>
+        {isClient && <div className="flex flex-col gap-1.5 sm:items-end">{rejected ? <button type="button" className={primaryAction} onClick={() => void correct()} disabled={saving}>{saving ? 'Préparation…' : 'Créer une version de correction'}</button> : <button type="button" className={primaryAction} onClick={() => void submit()} disabled={saving || !canSubmit}><Send size={16} aria-hidden="true" />{saving ? 'Soumission…' : 'Soumettre pour revue DAO'}</button>}{!rejected && !canSubmit && version.status === 'draft' && <p className="text-center text-xs text-ink/65 sm:text-right">Complétez la checklist pour activer la soumission.</p>}</div>}
+      </div>
+    </div>
   </section>;
 }
