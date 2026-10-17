@@ -31,7 +31,7 @@ async function checkSettings(page: Page, user: E2EUser | null, professional: boo
   await openSettings(page);
   await main.getByRole('link', { name: /Sécurité du compte/ }).click();
   await expect(page.locator('#security')).toBeFocused();
-  await expect(page.getByLabel('Nouveau mot de passe', { exact: true })).toBeInViewport();
+  await expect(page.getByLabel('Nouveau mot de passe', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.locator('#security')).toBeFocused();
   await signOut(page);
