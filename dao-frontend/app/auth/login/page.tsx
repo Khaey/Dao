@@ -3,12 +3,26 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { Button, Input } from '../../../components/ui';
 import { invitationReturn } from '../../../lib/collaboration';
 import { isStaffOnly, type AppRole } from '../../../lib/roles';
 
 const focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal';
+
+// Supabase Auth returns English technical messages; show a clear French message instead.
+// Credential failures stay generic on purpose (no hint whether the account exists).
+function loginErrorMessage(error: { code?: string; status?: number; name?: string; message?: string }) {
+  const code = error.code ?? '';
+  const message = (error.message ?? '').toLowerCase();
+  if (code === 'invalid_credentials' || message.includes('invalid login credentials')) return 'Adresse e-mail ou mot de passe incorrect.';
+  if (code === 'email_not_confirmed' || message.includes('email not confirmed')) return 'Votre adresse e-mail n’est pas encore confirmée. Ouvrez le lien reçu par e-mail, puis reconnectez-vous.';
+  if (code.startsWith('over_') || error.status === 429 || message.includes('rate limit')) return 'Trop de tentatives de connexion. Patientez quelques minutes avant de réessayer.';
+  if (code === 'user_banned') return 'Ce compte est suspendu. Contactez D.A.O pour en savoir plus.';
+  if (error.name === 'AuthRetryableFetchError' || error.status === 0 || (error.status ?? 0) >= 500 || message.includes('fetch')) return 'Connexion impossible pour le moment. Vérifiez votre réseau, puis réessayez.';
+  return 'La connexion a échoué. Vérifiez vos informations, puis réessayez.';
+}
 
 export default function Login() {
   const [returnTo, setReturnTo] = useState<string | null>(null);
@@ -17,23 +31,33 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     setError('');
-    const supabase = supabaseBrowser();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
-      return;
+    setSubmitting(true);
+    try {
+      const supabase = supabaseBrowser();
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(loginErrorMessage(error));
+        setSubmitting(false);
+        return;
+      }
+      if (returnTo) {
+        r.push(returnTo);
+        return;
+      }
+      const { data: roleRows } = await supabase.from('user_roles').select('role').eq('user_id', data.user.id);
+      const roles = (roleRows ?? []).map(row => row.role as AppRole);
+      r.push(isStaffOnly(roles) ? '/app/dao' : '/app');
+    } catch (exception: any) {
+      setError(loginErrorMessage(exception ?? {}));
+      setSubmitting(false);
     }
-    if (returnTo) {
-      r.push(returnTo);
-      return;
-    }
-    const { data: roleRows } = await supabase.from('user_roles').select('role').eq('user_id', data.user.id);
-    const roles = (roleRows ?? []).map(row => row.role as AppRole);
-    r.push(isStaffOnly(roles) ? '/app/dao' : '/app');
   }
 
   return (
@@ -43,7 +67,7 @@ export default function Login() {
           <Link href="/" aria-label="D.A.O, accueil" className={`rounded-md text-xl font-bold tracking-tight ${focus}`}>
             D.A.O<span className="text-clay" aria-hidden="true">.</span>
           </Link>
-          <Link href="/" className={`rounded-lg px-3 py-2 text-sm font-semibold text-ink/70 transition hover:bg-ink/5 hover:text-ink ${focus}`}>
+          <Link href="/" className={`inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold text-ink/70 transition hover:bg-ink/5 hover:text-ink ${focus}`}>
             Retour à l’accueil <span aria-hidden="true">↗</span>
           </Link>
         </header>
@@ -91,12 +115,17 @@ export default function Login() {
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <label htmlFor="dao-login-password" className="text-sm font-semibold text-ink">Mot de passe</label>
-                  <Link className={`rounded-sm text-xs font-semibold text-teal hover:underline ${focus}`} href="/auth/forgot-password">Mot de passe oublié ?</Link>
+                  <Link className={`-my-3.5 inline-flex min-h-11 items-center rounded-sm px-1 text-xs font-semibold text-teal hover:underline ${focus}`} href="/auth/forgot-password">Mot de passe oublié ?</Link>
                 </div>
-                <Input id="dao-login-password" type="password" autoComplete="current-password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} required className="min-h-12" />
+                <div className="relative">
+                  <Input id="dao-login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} required className="min-h-12 pr-14" />
+                  <button type="button" onClick={() => setShowPassword(value => !value)} aria-controls="dao-login-password" aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} title={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} className={`absolute right-1 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-ink/55 transition hover:bg-ink/5 hover:text-ink ${focus}`}>
+                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
               {error && <p role="alert" aria-live="polite" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-              <Button className="min-h-12 w-full text-base">Se connecter <span aria-hidden="true" className="ml-2">→</span></Button>
+              <Button className="min-h-12 w-full text-base" disabled={submitting} aria-busy={submitting || undefined}>{submitting ? 'Connexion…' : <>Se connecter <span aria-hidden="true" className="ml-2">→</span></>}</Button>
             </form>
 
             <p className="mt-7 text-center text-sm text-ink/65">
