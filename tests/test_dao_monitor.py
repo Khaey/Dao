@@ -508,13 +508,34 @@ class AgentOnboardingTests(unittest.TestCase):
 
     def test_current_active_assignments_are_registered(self):
         config = dm.configuration()
-        expected = {64: "DAO Chat 21", 115: "DAO OPT 2", 124: "DAO OPT 20",
-                    125: "DAO DEV 2", 137: "DAO Chat 20", 146: "DAO Chat 1", 156: "DAO Chat 1", 161: "DAO Chat 21",
+        expected = {64: "DAO OPT 3", 115: "DAO OPT 2", 124: "DAO OPT 20",
+                    125: "DAO DEV 2", 137: "DAO Chat 20", 146: "DAO Chat 1", 156: "DAO Chat 1", 161: "DAO Chat 1",
                     89: "DAO Pilot 4", 93: "DAO Pilot 5", 154: "DAO Pilot 5"}
         for issue, name in expected.items():
             with self.subTest(issue=issue):
                 self.assertEqual(dm.mission_for(issue, config)["agent"], name)
 
+
+
+class Team20PauseTransferTests(unittest.TestCase):
+    """Open missions are owned by active agents; closed histories do not trigger watchdog."""
+
+    def test_paused_team_missions_have_current_owners(self):
+        config = dm.configuration()
+        expected = {
+            58: ("DAO DEV 2", "DEV"),
+            64: ("DAO OPT 3", "OPT"),
+            126: ("DAO COP", "PILOT"),
+            161: ("DAO Chat 1", "DEV"),
+            187: ("DAO DEV 2", "DEV"),
+        }
+        for issue, (agent, role) in expected.items():
+            with self.subTest(issue=issue):
+                mission = dm.mission_for(issue, config)
+                self.assertEqual(mission["agent"], agent)
+                self.assertEqual(mission["role"], role)
+                self.assertFalse(mission.get("watchdog", False))
+        self.assertFalse(dm.mission_for(137, config)["watchdog"])
 
 
 class ClaudeAgentRegistryTests(unittest.TestCase):
