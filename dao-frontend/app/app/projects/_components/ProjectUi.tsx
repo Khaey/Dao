@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { AlertTriangle, Check, RotateCcw } from 'lucide-react';
 import { statusLabel } from '../../../../lib/utils';
@@ -89,16 +91,22 @@ export function dossierStepText(status: string) {
 export function DossierSteps({ status }: { status: string }) {
   const step = dossierStep(status);
   if (!step) return <p className="text-sm text-ink/70">Ce projet est archivé et reste consultable.</p>;
-  return <ol className="grid grid-cols-4 gap-2" aria-label="Parcours du dossier D.A.O.">{dossierSteps.map((label, index) => {
-    const done = step.complete || index < step.index;
-    const current = !step.complete && index === step.index;
-    const blocked = current && status === 'rejected';
-    return <li key={label} aria-current={current ? 'step' : undefined} className="min-w-0">
-      <span aria-hidden="true" className={`block h-1.5 rounded-full ${done ? 'bg-teal' : current ? (blocked ? 'bg-red-500' : 'bg-ink') : 'bg-ink/10'}`} />
-      <span className={`mt-2 flex items-center gap-1 text-xs font-semibold leading-tight ${done ? 'text-teal' : current ? (blocked ? 'text-red-700' : 'text-ink') : 'text-ink/65'}`}>{done && <Check size={12} aria-hidden="true" className="shrink-0" />}<span className="min-w-0 break-words">{label}</span></span>
-      <span className="sr-only">{done ? ' — terminé' : current ? ' — étape actuelle' : ' — à venir'}</span>
-    </li>;
-  })}</ol>;
+  const rejectedNow = status === 'rejected';
+  // Mobile: the four labels do not fit in quarter-width columns without breaking words,
+  // so phones show the bars plus one caption naming the current step; labels appear from sm.
+  return <div>
+    <ol className="grid grid-cols-4 gap-2" aria-label="Parcours du dossier D.A.O.">{dossierSteps.map((label, index) => {
+      const done = step.complete || index < step.index;
+      const current = !step.complete && index === step.index;
+      const blocked = current && rejectedNow;
+      return <li key={label} aria-current={current ? 'step' : undefined} className="min-w-0">
+        <span aria-hidden="true" className={`block h-1.5 rounded-full ${done ? 'bg-teal' : current ? (blocked ? 'bg-red-500' : 'bg-ink') : 'bg-ink/10'}`} />
+        <span className={`mt-2 hidden items-center gap-1 text-xs font-semibold leading-tight sm:flex ${done ? 'text-teal' : current ? (blocked ? 'text-red-700' : 'text-ink') : 'text-ink/65'}`}>{done && <Check size={12} aria-hidden="true" className="shrink-0" />}<span className="min-w-0">{label}</span></span>
+        <span className="sr-only">{label}{done ? ' — terminé' : current ? ' — étape actuelle' : ' — à venir'}</span>
+      </li>;
+    })}</ol>
+    <p aria-hidden="true" className={`mt-2.5 flex items-center gap-1.5 text-xs font-semibold sm:hidden ${rejectedNow ? 'text-red-700' : step.complete ? 'text-teal' : 'text-ink'}`}>{step.complete ? <><Check size={12} className="shrink-0" />Parcours terminé · {dossierSteps[3]}</> : <>Étape {step.index + 1} sur 4 · {dossierSteps[step.index]}{rejectedNow && ' · corrections demandées'}</>}</p>
+  </div>;
 }
 
 export function ProgressBar({ value, label }: { value: number; label: string }) {
