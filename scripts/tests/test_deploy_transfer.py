@@ -14,9 +14,14 @@ class DeployTransferTests(unittest.TestCase):
         self.assertIn('StrictHostKeyChecking yes', SETUP)
     def test_remote_staging_permissions_and_isolation(self):
         for key in ('install -d -m 0700 "$root"', 'test -O "$root"',
-                    'test ! -L "$root"', 'mkdir -m 0700 "$dir"',
-                    'test ! -e "$dir"', '-mmin +1440'):
+                    'mkdir -m 0700 "$dir"', 'test ! -e "$dir"',
+                    '-mmin +1440'):
             self.assertIn(key, STAGE)
+        # Either guard form is valid; the executable symlink test separately
+        # proves that unsafe targets are rejected without modifying them.
+        self.assertTrue(
+            'test ! -L "$root"' in STAGE or '[ -L "$root" ]' in STAGE
+        )
     def test_private_files_never_go_to_scp_container(self):
         self.assertIn('create_private("dao-env.json"', DEPLOY)
         self.assertIn('create_private("github-read-token"', DEPLOY)

@@ -10,9 +10,20 @@ dir="$root/$run-$attempt"
 test -d "$parent" && test ! -L "$parent" && test -O "$parent"
 test -z "$(find "$parent" -maxdepth 0 -perm /002 -print -quit)"
 if [ -e "$root" ] || [ -L "$root" ]; then
-  test -d "$root" && test ! -L "$root" && test -O "$root"
-  test "$(stat -c '%a' "$root")" = 700
+  # The existing OPS/SCP transport creates this shared parent as 0755.
+  # Verify identity BEFORE changing mode. The private deploy must never
+  # reuse a foreign-owned path or traverse an existing symlink.
+  if [ ! -d "$root" ] || [ -L "$root" ]; then
+    echo "DEV_PRIVATE_STAGE_REJECTED reason=directory_type" >&2
+    exit 1
+  fi
+  if [ ! -O "$root" ]; then
+    echo "DEV_PRIVATE_STAGE_REJECTED reason=directory_owner" >&2
+    exit 1
+  fi
 fi
+# GNU install -d -m updates the mode of a pre-existing owned directory.
+# Restrict legacy 0755 OPS staging to 0700 before creating any credentials.
 install -d -m 0700 "$root"
 test -O "$root"
 test "$(stat -c '%a' "$root")" = 700
