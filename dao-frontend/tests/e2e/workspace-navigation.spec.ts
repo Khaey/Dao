@@ -32,6 +32,7 @@ test('Gestionnaire : navigation mobile avec dossier rempli, portrait et écran c
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await expect(dialog.getByRole('button', { name: 'Fermer le menu' })).toBeFocused();
   await expect(dialog.getByRole('link', { name: 'Utilisateurs & rôles', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('link', { name: 'Avis', exact: true })).toBeVisible();
   await expect(dialog.getByRole('link', { name: 'Historique', exact: true })).toBeVisible();
   await assertNoHorizontalOverflow();
   expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
@@ -46,8 +47,9 @@ test('Gestionnaire : navigation mobile avec dossier rempli, portrait et écran c
   await page.setViewportSize({ width: 320, height: 568 });
   await menu.click();
   await assertNoHorizontalOverflow();
-  await dialog.getByRole('link', { name: 'Revues', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/dao\/review$/);
+  await dialog.getByRole('link', { name: 'Avis', exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/dao\/reviews$/);
+  await expect(page.getByRole('heading', { name: 'Modération des avis', exact: true })).toBeVisible();
   await expect(menuPanel).toHaveCount(0);
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
 
@@ -75,5 +77,26 @@ test('Gestionnaire : navigation mobile avec dossier rempli, portrait et écran c
   await expect(menuPanel).toHaveCount(0);
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
   await expect(menu).toBeHidden();
+  await expect(page.getByRole('navigation', { name: 'Espace Gestionnaire DAO' }).getByRole('link', { name: 'Avis', exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Espace Gestionnaire DAO' }).getByRole('link', { name: 'Historique', exact: true })).toBeVisible();
+});
+
+test('Avis : navigation Admin visible et accès Client refusé', async ({ page, e2eAdmin, e2eClient }) => {
+  expect(e2eAdmin).toBeTruthy();
+  expect(e2eClient).toBeTruthy();
+
+  await login(page, e2eAdmin!);
+  await page.goto('/app/dao');
+  const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
+  if (await menu.isVisible()) await menu.click();
+  await page.getByRole('link', { name: 'Avis', exact: true }).filter({ visible: true }).click();
+  await expect(page).toHaveURL(/\/app\/dao\/reviews$/);
+  await expect(page.getByRole('heading', { name: 'Modération des avis', exact: true })).toBeVisible();
+  await signOut(page);
+
+  await login(page, e2eClient!);
+  if (await menu.isVisible()) await menu.click();
+  await expect(page.getByRole('link', { name: 'Avis', exact: true })).toHaveCount(0);
+  await page.goto('/app/dao/reviews');
+  await expect(page.getByRole('alert')).toContainText('Modération réservée à D.A.O.');
 });
