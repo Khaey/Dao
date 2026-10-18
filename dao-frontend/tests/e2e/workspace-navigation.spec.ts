@@ -90,7 +90,7 @@ test('Avis : navigation Admin visible et accès Client refusé', async ({ page, 
   const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
   const reviewsLink = page.getByRole('link', { name: 'Avis', exact: true });
   // Wait for the layout to settle (mobile menu button OR desktop link) before branching: isVisible() does not wait.
-  await expect(menu.or(reviewsLink.filter({ visible: true }).first())).toBeVisible();
+  await expect(menu.or(reviewsLink.filter({ visible: true })).first()).toBeVisible();
   if (await menu.isVisible()) await menu.click();
   await reviewsLink.filter({ visible: true }).first().click();
   await expect(page).toHaveURL(/\/app\/dao\/reviews$/);
@@ -98,7 +98,7 @@ test('Avis : navigation Admin visible et accès Client refusé', async ({ page, 
   await signOut(page);
 
   await login(page, e2eClient!);
-  await expect(menu.or(page.getByRole('navigation').first())).toBeVisible();
+  await expect(menu.or(page.getByRole('navigation').first()).first()).toBeVisible();
   if (await menu.isVisible()) await menu.click();
   await expect(page.getByRole('link', { name: 'Avis', exact: true })).toHaveCount(0);
   await page.goto('/app/dao/reviews');
