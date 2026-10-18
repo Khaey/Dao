@@ -57,10 +57,11 @@ begin
   iid:=dao_private.notification_uuid(n.payload->>'invitation_id');
   if n.kind='invitation_received' then
     return exists(select 1 from public.project_invitations i join auth.users u on u.id=auth.uid()
+      join public.project_members sender on sender.project_id=i.project_id and sender.user_id=i.created_by and sender.status='accepted'
       where i.id=iid and i.project_id=pid and i.expected_role=workspace and i.status='pending' and i.expires_at>now()
         and u.email_confirmed_at is not null and lower(u.email)=i.recipient_email
         and dao_private.account_active(i.created_by)
-        and not exists(select 1 from public.contractor_profiles where user_id=i.created_by and verification_status='suspended'));
+        and (sender.participation_role<>'contractor' or not exists(select 1 from public.contractor_profiles where user_id=i.created_by and verification_status='suspended')));
   elsif n.kind='invitation_accepted' then
     return exists(select 1 from public.project_invitations i join public.projects p on p.id=i.project_id
       join public.project_members recipient on recipient.project_id=p.id and recipient.user_id=auth.uid()
@@ -70,7 +71,7 @@ begin
       where i.id=iid and p.id=pid and i.status='accepted' and p.initiator_id=auth.uid()
         and i.accepted_by<>auth.uid() and dao_private.account_active(i.accepted_by)
         and exists(select 1 from public.user_roles where user_id=i.accepted_by and role=i.expected_role)
-        and not exists(select 1 from public.contractor_profiles where user_id=i.accepted_by and verification_status='suspended'));
+        and (i.expected_role<>'contractor' or not exists(select 1 from public.contractor_profiles where user_id=i.accepted_by and verification_status='suspended')));
   end if;
   return false;
 end;
@@ -108,11 +109,12 @@ for each row execute function dao_private.internal_review_notification();
 
 create function dao_private.internal_invitation_notification() returns trigger
 language plpgsql security definer set search_path='' as $$
-declare recipient uuid; workspace text; p public.projects;
+declare recipient uuid; workspace text; sender_role text; p public.projects;
 begin
   select * into p from public.projects where id=NEW.project_id and status<>'archived';
-  if p.id is null or not dao_private.account_active(NEW.created_by)
-     or exists(select 1 from public.contractor_profiles where user_id=NEW.created_by and verification_status='suspended') then return NEW; end if;
+  select participation_role into sender_role from public.project_members where project_id=p.id and user_id=NEW.created_by and status='accepted';
+  if p.id is null or sender_role is null or not dao_private.account_active(NEW.created_by)
+     or (sender_role='contractor' and exists(select 1 from public.contractor_profiles where user_id=NEW.created_by and verification_status='suspended')) then return NEW; end if;
   if TG_OP='INSERT' then
     if NEW.status<>'pending' or NEW.expires_at<=now() or NEW.recipient_email is null then return NEW; end if;
     -- Only existing, confirmed identities; never resolve invitations lazily by email in browser.
@@ -124,7 +126,7 @@ begin
     end loop;
   elsif OLD.status='pending' and NEW.status='accepted' and NEW.accepted_by is not null and p.initiator_id<>NEW.accepted_by
       and dao_private.account_active(NEW.accepted_by)
-      and not exists(select 1 from public.contractor_profiles where user_id=NEW.accepted_by and verification_status='suspended') then
+      and (NEW.expected_role<>'contractor' or not exists(select 1 from public.contractor_profiles where user_id=NEW.accepted_by and verification_status='suspended')) then
     select participation_role into workspace from public.project_members where project_id=p.id and user_id=p.initiator_id and status='accepted';
     if workspace is not null and exists(select 1 from public.project_members where project_id=p.id and user_id=NEW.accepted_by and status='accepted' and participation_role=NEW.expected_role) then
       perform dao_private.emit_internal_notification(p.initiator_id,'invitation_accepted','invitation_accepted:'||NEW.id,

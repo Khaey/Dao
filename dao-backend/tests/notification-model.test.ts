@@ -34,6 +34,9 @@ test('notifications S1: SQL replay, live isolation and transactional events (PGl
     await insert('profiles',{user_id:id,display_name:name});await insert('user_roles',{user_id:id,role});
   }
   await insert('contractor_profiles',{user_id:users.pro,business_name:'Synthetic',verification_status:'verified'});
+  // Professional-only suspension must not suppress this actor's Client events.
+  await insert('user_roles',{user_id:users.client,role:'contractor'});
+  await insert('contractor_profiles',{user_id:users.client,business_name:'Dual role',verification_status:'suspended'});
   const gov=await insert('governorates',{code:'NOTICE_TEST',name_fr:'Synthetic',name_ar:'اختبار'});
   const project=await insert('projects',{client_id:users.client});
   const version=await insert('project_versions',{project_id:project.id,version_no:1,title:'PRIVATE TITLE',description:'PRIVATE',governorate_id:gov.id,status:'client_review'});
@@ -67,6 +70,14 @@ test('notifications S1: SQL replay, live isolation and transactional events (PGl
     await as(users.client,()=>db.query('select public.mark_my_notification_read($1)',[item.id]));
     assert.equal((await list('client')).rows[0].read_at,read);assert.equal(Number(await count('client')),0);
   });
+  await t.test('legacy/malformed payloads and unsupported kinds stay hidden without a cast error',async()=>{
+    for(const input of [{kind:'future_private_kind',payload:{project_id:project.id,body:'PRIVATE'}},
+      {kind:'review_rejected',payload:{project_id:'not-a-uuid',version_id:version.id,workspace:'client'}},
+      {kind:'review_rejected',payload:{project_id:project.id,version_id:'not-a-uuid',workspace:'client'}}])
+      await insert('notifications',{user_id:users.client,...input});
+    assert.equal((await list('client')).rows.length,1);
+    assert.equal(await as(users.client,async()=>(await db.query('select id from public.notifications')).rows.length),1);
+  });
   const pending=await insert('projects',{client_id:null,initiator_id:users.pro,project_origin:'contractor_existing_client'});
   let invitation:any;
   await t.test('invitation creation/acceptance is transactional, idempotent and role scoped', async () => {
@@ -97,7 +108,7 @@ test('notifications S1: SQL replay, live isolation and transactional events (PGl
     await insert('account_states',{user_id:users.client,status:'suspended'});
     await as(users.client,async()=>{await assert.rejects(db.query('select public.my_notifications()'),{code:'42501'});assert.equal((await db.query('select * from public.notifications')).rows.length,0);});
     await db.query("update public.account_states set status='active' where user_id=$1",[users.client]);
-    await insert('user_roles',{user_id:users.client,role:'contractor'});
+    await db.query("update public.contractor_profiles set verification_status='verified' where user_id=$1",[users.client]);
     await as(users.client,()=>db.query("select public.set_my_workspace('contractor')"));assert.equal((await list('client')).rows.length,0);
     await as(users.client,()=>db.query("select public.set_my_workspace('client')"));assert.equal((await list('client')).rows.length,20);
     const before=Number((await db.query<any>('select count(*) n from public.notifications')).rows[0].n);
