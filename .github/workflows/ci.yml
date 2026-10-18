@@ -298,7 +298,12 @@ jobs:
           grep -Eq 'Total: 108 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with configurable workers
         working-directory: dao-frontend
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, configured workers)" npm run test:e2e -- --reporter=line
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/playwright-results.json
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, configured workers)" npm run test:e2e -- --reporter=line,json
+      - name: Annotate Playwright failures (readable without raw logs)
+        if: always()
+        run: node "$GITHUB_WORKSPACE/.github/scripts/playwright-failure-annotations.mjs" "$RUNNER_TEMP/playwright-results.json" "FULL Playwright E2E"
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
