@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, CalendarClock, HardHat, Inbox, Layers, UserRound } from 'lucide-react';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { Badge, Card } from '../../../components/ui';
+import { ErrorPanel } from '../projects/_components/ProjectUi';
 
 type Invitation = {
   id: string; project_id: string; expected_role: 'client' | 'contractor'; recipient_name: string | null; status: string;
@@ -59,6 +60,7 @@ export default function Invitations() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   async function load() {
+    setLoading(true); setError('');
     const { data, error: rpcError } = await supabaseBrowser().rpc('my_project_invitations');
     if (rpcError) setError('Impossible de charger vos invitations.'); else setRows((data ?? []) as Invitation[]);
     setLoading(false);
@@ -87,11 +89,10 @@ export default function Invitations() {
       </div>
       {!loading && pending.length > 0 && <p className="rounded-full bg-clay/10 px-3.5 py-1.5 text-sm font-semibold text-clay">{pending.length} en attente</p>}
     </header>
-    {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
     {message && <p role="status" className="rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal">{message}</p>}
     {loading ? <div aria-label="Chargement de vos invitations" aria-busy="true" className="space-y-3">
       {[0, 1].map(i => <div key={i} className="h-28 animate-pulse rounded-2xl bg-black/5" />)}
-    </div> : <>
+    </div> : error ? <ErrorPanel title="Vos invitations n’ont pas pu être chargées" message={error} onRetry={() => void load()} /> : <>
       <div className="space-y-3">
         <h2 className="text-lg font-bold text-ink">À traiter</h2>
         {pending.length ? pending.map(row => <InvitationCard key={row.id} row={row} busy={busy === row.id} onRespond={(r, a) => void respond(r, a)} />)

@@ -70,3 +70,14 @@ authentifié. Une offre attribuée ne peut pas être retirée par ce parcours.
 Une prochaine intervention DEV 2 doit partir d’un défaut encore reproductible
 ou d’un nouveau GO produit. Une simple formulation historique « reste à faire »
 ne constitue pas une preuve de régression.
+
+## Reprise DEV 2 — états d’erreur (#251)
+
+La revalidation du 18/10/2026 a confirmé que les fonctions métier ci-dessus
+restent livrées. Elle a en revanche reproduit un défaut transversal : une panne
+de chargement sur « DAO disponibles », « Mes offres » ou « Mes invitations »
+était présentée en même temps qu’un faux état vide, sans action de reprise.
+
+Le lot #251 sépare désormais erreur et absence réelle de données, propose
+« Réessayer » sur chaque écran et efface l’erreur obsolète avant le nouveau
+chargement. Il ne change ni le cycle métier, ni Auth/RLS, ni le schéma SQL.

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 import { ArrowRight, CalendarClock, FileText, Layers, Trophy } from 'lucide-react';
 import { Badge, Button, Card } from '../../../../components/ui';
+import { ErrorPanel } from '../../projects/_components/ProjectUi';
 
 type Offer={id:string;publication_id:string;project_id:string;version_no:number;status:string;validity:string;created_at:string;submitted_at:string|null;withdrawn_at:string|null;expires_at:string;publication_title:string;publication_status:string;submission_deadline:string|null;lot_count:number;total_millimes:number;selected_count:number;not_selected_count:number};
 const labels:Record<string,string>={draft:'Brouillon',submitted:'Soumise',withdrawn:'Retirée',expired:'Expirée',superseded:'Remplacée'};
@@ -15,7 +16,7 @@ const money=(value:number)=>new Intl.NumberFormat('fr-TN',{style:'currency',curr
 
 export default function MyOffers(){
   const [offers,setOffers]=useState<Offer[]>([]);const [filter,setFilter]=useState('all');const [loading,setLoading]=useState(true);const [busy,setBusy]=useState('');const [error,setError]=useState('');const [message,setMessage]=useState('');
-  async function load(){setLoading(true);const {data,error:rpcError}=await supabaseBrowser().rpc('my_bid_summaries');if(rpcError)setError('Impossible de charger vos offres.');else setOffers((data??[]) as Offer[]);setLoading(false)}
+  async function load(){setLoading(true);setError('');const {data,error:rpcError}=await supabaseBrowser().rpc('my_bid_summaries');if(rpcError)setError('Impossible de charger vos offres.');else setOffers((data??[]) as Offer[]);setLoading(false)}
   useEffect(()=>{void load()},[]);
   const rows=useMemo(()=>filter==='all'?offers:offers.filter(o=>o.status===filter),[offers,filter]);
   async function withdraw(offer:Offer){if(!window.confirm(`Retirer définitivement la version ${offer.version_no} de cette offre ? Son contenu restera dans votre historique.`))return;setBusy(offer.id);setError('');setMessage('');const {data}=await supabaseBrowser().auth.getSession();if(!data.session){setError('Session expirée.');setBusy('');return}const response=await fetch('/api/bids/withdraw',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${data.session.access_token}`},body:JSON.stringify({version_id:offer.id})});const body=await response.json().catch(()=>({}));if(!response.ok)setError(body.error||'Le retrait de cette offre a été refusé.');else{setMessage('Offre retirée. Son contenu reste consultable dans votre historique.');await load()}setBusy('')}
@@ -24,9 +25,10 @@ export default function MyOffers(){
   const header=<header className="flex flex-wrap items-end justify-between gap-4"><div className="space-y-2"><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Espace artisan</p><h1 className="text-3xl font-bold tracking-tight text-ink">Mes offres</h1><p className="max-w-2xl text-sm text-black/55">Une vue globale de vos brouillons, offres soumises, résultats et retraits.</p></div><Link href="/app/artisan" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal">Voir les DAO disponibles<ArrowRight aria-hidden="true" size={15}/></Link></header>;
   if(loading)return <section className="mx-auto w-full max-w-5xl space-y-6">{header}<div aria-busy="true" className="space-y-3"><span className="sr-only">Chargement de vos offres…</span>{[0,1,2].map(i=><div key={i} className="h-28 animate-pulse rounded-2xl bg-black/5"/>)}</div></section>;
   return <section className="mx-auto w-full max-w-5xl space-y-6">{header}
+    {error?<ErrorPanel title="Vos offres n’ont pas pu être chargées" message={error} onRetry={()=>void load()}/>:<>
     {offers.length>0&&<dl className="grid grid-cols-3 overflow-hidden rounded-2xl border border-black/[0.06] bg-white">{([['Offres',offers.length],['Soumises',counts.submitted??0],['Lots retenus',won]] as [string,number][]).map(([label,value],index)=><div key={label} className={`px-4 py-3.5 sm:px-5 ${index?'border-l border-black/[0.06]':''}`}><dt className="text-xs font-semibold text-black/50">{label}</dt><dd className={`mt-0.5 text-2xl font-bold tabular-nums ${label==='Lots retenus'&&value>0?'text-teal':'text-ink'}`}>{value}</dd></div>)}</dl>}
     {offers.length>0&&<div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrer par état">{['all',...Object.keys(labels)].filter(key=>key==='all'||counts[key]).map(key=><button key={key} type="button" aria-pressed={filter===key} onClick={()=>setFilter(key)} className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition ${filter===key?'bg-ink text-white':'border border-black/10 bg-white text-ink hover:border-teal'}`}>{filterNames[key]}<span className={`tabular-nums ${filter===key?'text-white/70':'text-black/45'}`}>{key==='all'?offers.length:counts[key]}</span></button>)}</div>}
-    {error&&<p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}{message&&<p role="status" className="rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal">{message}</p>}
+    {message&&<p role="status" className="rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal">{message}</p>}
     {rows.length===0?<Card className="flex flex-col items-center gap-2 border-dashed py-12 text-center"><FileText aria-hidden="true" size={26} className="text-black/25"/><h2 className="font-bold text-ink">Aucune offre</h2><p className="max-w-sm text-sm text-black/55">Vos brouillons et offres soumises apparaîtront ici.</p><Link href="/app/artisan" className="mt-2 inline-flex min-h-11 items-center gap-1.5 font-semibold text-teal">Découvrir les DAO<ArrowRight aria-hidden="true" size={15}/></Link></Card>
     :<div className="space-y-3">{rows.map(offer=>{const deadline=offer.status==='draft'&&offer.submission_deadline?new Date(offer.submission_deadline):null;const late=deadline?deadline.getTime()-Date.now()<3*86400000:false;return <Card key={offer.id} className={`sm:p-6 ${offer.selected_count>0?'border-teal/25':''}`}>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -37,6 +39,6 @@ export default function MyOffers(){
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0"><Link href={`/app/artisan/publications/${offer.publication_id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal">{offer.status==='draft'?'Compléter':'Voir le DAO'}</Link>{offer.status==='submitted'&&offer.selected_count===0&&<Button className="min-h-11 bg-white text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-50" disabled={busy===offer.id} onClick={()=>void withdraw(offer)}>{busy===offer.id?'Retrait…':'Retirer l’offre'}</Button>}</div>
       </div>
-    </Card>})}</div>}
+    </Card>})}</div>}</>}
   </section>
 }
