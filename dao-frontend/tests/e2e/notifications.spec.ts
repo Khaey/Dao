@@ -90,7 +90,7 @@ test('Notifications : pagination, filtre, sécurité des liens, clavier et 375/3
 });
 
 test('Notifications : compte suspendu et déconnexion effacent les données affichées',async({page},info)=>{
-  const actor=await notificationActor(info),pro=await notificationActor(info,'contractor');
+  const actor=await notificationActor(info),pro=await notificationActor(info,'contractor'),operator=await notificationActor(info,'dao_admin');
   const gov=await actor.admin.from('governorates').select('id').eq('code','E2E_TEST').single();expect(gov.error).toBeNull();
   const project=await pro.db.rpc('create_collaborative_project',{p_origin:'contractor_existing_client',p_title:'Invitation synthétique',p_description:'',
     p_governorate_id:gov.data!.id,p_delegation_id:null,p_locality_id:null,p_stage:'not_started',p_payment_status:'not_set'});expect(project.error).toBeNull();
@@ -98,7 +98,7 @@ test('Notifications : compte suspendu et déconnexion effacent les données affi
   const invitation=await pro.db.rpc('issue_project_invitation',{p_project_id:project.data.id,p_expected_role:'client',p_recipient_email:actor.user.email,
     p_recipient_name:null,p_principal_request_id:null,p_can_view_private_details:false});expect(invitation.error).toBeNull();
   await login(page,actor.user);await page.goto('/app/notifications');await expect(page.getByRole('heading',{name:'Invitation reçue',exact:true})).toBeVisible();
-  expect((await actor.admin.from('account_states').insert({user_id:actor.user.id,status:'suspended'})).error).toBeNull();
+  expect((await operator.db.rpc('backoffice_command',{p_action:'account',p_input:{user_id:actor.user.id,status:'suspended',reason:'Synthetic S1 suspension'},p_key:randomUUID()})).error).toBeNull();
   await page.getByRole('button',{name:'Actualiser les notifications'}).click();await expect(page.getByRole('alert')).toContainText('Votre compte ne permet pas');
   await expect(page.getByRole('list',{name:'Notifications personnelles'})).toHaveCount(0);
   await signOut(page);await expect(page.getByRole('heading',{name:'Mes notifications',exact:true})).toHaveCount(0);

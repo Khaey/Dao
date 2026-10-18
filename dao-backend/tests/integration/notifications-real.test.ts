@@ -12,7 +12,7 @@ test('notifications S1: real JWT, live roles, concurrent reads and confirmed eve
   async function insert(table:string,input:any){const r=await admin.from(table).insert(input).select('*').single();assert.ifError(r.error);return r.data!;}
   async function rpc(db:any,name:string,args:any={}){const r=await db.rpc(name,args);assert.ifError(r.error);return r.data;}
   async function denied(db:any,name:string,args:any={}){const r=await db.rpc(name,args);assert.ok(r.error,`${name} must deny access`);}
-  for(const [name,role] of Object.entries({client:'client',other:'client',pro:'contractor',staff:'dao_reviewer'})) {
+  for(const [name,role] of Object.entries({client:'client',other:'client',pro:'contractor',staff:'dao_reviewer',operator:'dao_admin'})) {
     const email=`notices-${name}-${randomUUID()}@example.invalid`,password='N!'+randomUUID();
     const user=await admin.auth.admin.createUser({email,password,email_confirm:true});assert.ifError(user.error);
     const auth=createClient(url,key,options);const login=await auth.auth.signInWithPassword({email,password});assert.ifError(login.error);
@@ -20,14 +20,17 @@ test('notifications S1: real JWT, live roles, concurrent reads and confirmed eve
     actors[name]={id:user.data.user!.id,email,db};await insert('profiles',{user_id:actors[name].id,display_name:'Synthetic '+name});
     await insert('user_roles',{user_id:actors[name].id,role});
   }
-  const {client,other,pro,staff}=actors;
+  const {client,other,pro,staff,operator}=actors;
+  const account=(userId:string,status:'active'|'suspended')=>rpc(operator.db,'backoffice_command',{
+    p_action:'account',p_input:{user_id:userId,status,reason:'Synthetic notification test'},p_key:randomUUID(),
+  });
   const cp=await insert('contractor_profiles',{user_id:pro.id,business_name:'Synthetic notices',verification_status:'verified'});
   const gov=(await admin.from('governorates').select('id').eq('code','E2E_TEST').single()).data!.id;
   const trade=(await admin.from('trades').select('id').eq('code','plumbing').single()).data!.id;
   const page=(db:any,args:any={})=>rpc(db,'my_notifications',args);
   let project:any,version:any;
   await t.test('empty Client/Artisan/staff, anon, invalid JWT and no direct writes/outbox',async()=>{
-    for(const a of [client,pro,staff]){const p=await page(a.db);assert.deepEqual(p.rows,[]);assert.equal(p.unread_count,0);}
+    for(const a of [client,pro,staff,operator]){const p=await page(a.db);assert.deepEqual(p.rows,[]);assert.equal(p.unread_count,0);}
     await denied(anon,'my_notifications');await denied(anon,'my_unread_notification_count');await denied(anon,'mark_my_notification_read',{p_id:randomUUID()});
     const invalid=createClient(url,key,{...options,global:{headers:{Authorization:'Bearer forged.jwt.invalid'}}});await denied(invalid,'my_notifications');
     for(const db of [client.db,pro.db,staff.db]) {
@@ -123,7 +126,7 @@ test('notifications S1: real JWT, live roles, concurrent reads and confirmed eve
     // An explicit old timestamp is fixture-only; product RPCs never accept it.
     assert.ifError((await admin.from('project_invitations').update({created_at:'2026-01-01T00:00:00Z',expires_at:'2026-01-02T00:00:00Z'}).eq('id',two.i.id)).error);
     assert.ok(record.created_at);assert.deepEqual((await page(other.db)).rows,[]);
-    await insert('account_states',{user_id:other.id,status:'suspended'});
+    await account(other.id,'suspended');
     const before=await admin.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',other.id);assert.ifError(before.error);
     await pending();const after=await admin.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',other.id);assert.ifError(after.error);assert.equal(after.count,before.count);
   });
@@ -131,13 +134,13 @@ test('notifications S1: real JWT, live roles, concurrent reads and confirmed eve
     await insert('user_roles',{user_id:client.id,role:'contractor'});
     await rpc(client.db,'set_my_workspace',{p_workspace:'contractor'});assert.deepEqual((await page(client.db)).rows,[]);
     await rpc(client.db,'set_my_workspace',{p_workspace:'client'});assert.equal((await page(client.db)).rows.length,20);
-    await insert('account_states',{user_id:client.id,status:'suspended'});
+    await account(client.id,'suspended');
     await denied(client.db,'my_notifications');await denied(client.db,'my_unread_notification_count');await denied(client.db,'mark_my_notification_read',{p_id:randomUUID()});
     assert.deepEqual((await client.db.from('notifications').select('id')).data,[]);
-    assert.ifError((await admin.from('account_states').update({status:'active'}).eq('user_id',client.id)).error);
-    assert.ifError((await admin.from('user_roles').delete().eq('user_id',client.id).eq('role','client')).error);
+    await account(client.id,'active');
+    await rpc(operator.db,'backoffice_command',{p_action:'role',p_input:{user_id:client.id,role:'client',enabled:false},p_key:randomUUID()});
     assert.deepEqual((await page(client.db)).rows,[]);
-    await insert('user_roles',{user_id:client.id,role:'client'});
+    await rpc(operator.db,'backoffice_command',{p_action:'role',p_input:{user_id:client.id,role:'client',enabled:true},p_key:randomUUID()});
     assert.ifError((await admin.from('projects').update({status:'archived'}).eq('id',project.id)).error);
     assert.deepEqual((await page(client.db)).rows,[]);
   });
