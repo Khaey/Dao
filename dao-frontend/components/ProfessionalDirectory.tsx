@@ -127,13 +127,14 @@ function ProfessionalCard({ row, href, review }: { row: DirectoryRow; href: stri
   const years = row.years_experience;
   const works = row.portfolio_count ?? 0;
 
-  return <Link href={href}
+  // Short accessible name (the professional's name); the rest of the card stays readable as content.
+  return <Link href={href} aria-labelledby={`professional-${row.id}-name`}
     className="group block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
     <Card className="flex h-full flex-col gap-4 transition duration-200 group-hover:-translate-y-0.5 group-hover:border-teal/25 group-hover:shadow-[0_14px_40px_rgba(23,32,42,0.08)] motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
       <div className="flex items-start gap-3.5">
         <DirectoryLogo id={row.id} logoId={row.logo_id} name={row.name} />
         <div className="min-w-0 flex-1 space-y-1">
-          <h2 className="line-clamp-2 break-words font-bold leading-snug text-ink transition group-hover:text-teal">{row.name}</h2>
+          <h2 id={`professional-${row.id}-name`} className="line-clamp-2 break-words font-bold leading-snug text-ink transition group-hover:text-teal">{row.name}</h2>
           <p className="text-xs font-medium text-black/50">{typeNames[row.contractor_type ?? ''] ?? 'Professionnel'}</p>
           {verified
             ? <p className="inline-flex items-center gap-1 text-xs font-semibold text-teal"><BadgeCheck aria-hidden="true" size={15} />Vérifié par D.A.O.</p>
@@ -143,7 +144,7 @@ function ProfessionalCard({ row, href, review }: { row: DirectoryRow; href: stri
           {row.rating_count != null && (row.rating_count > 0
             ? <p className="flex items-center gap-1.5 text-xs text-black/60"><Stars value={Number(row.rating_average ?? 0)} size={13} />
               <span className="font-semibold text-ink">{formatRating(row.rating_average)}</span>({row.rating_count} avis)</p>
-            : <p className="text-xs font-medium text-black/45">Nouveau sur D.A.O.</p>)}
+            : <p className="text-xs font-medium text-black/45">Pas encore d’avis</p>)}
         </div>
       </div>
 
