@@ -53,3 +53,23 @@ Les tickets anciens sans owner dans le registre officiel ne reçoivent
 pas d'agent inventé ; l'attribution historique se valide par checkpoint.
 
 Références : GitHub Docs — Automating Projects using Actions / Projects GraphQL.
+
+## Afficher et attribuer la priorité dans la vue
+
+Le champ synchronisé s'appelle **`Priorité`** (avec accent), pas **`Priority`**.
+Dans Project #3 → vue Git View/Table → options de la vue → **Fields / Champs**,
+afficher **Priorité** et non un éventuel champ anglais distinct `Priority`.
+Vérifier aussi les filtres de la vue et l'option `Non définie`.
+
+L'automatisation classe `P0` à `P3` seulement à partir d'une déclaration explicite :
+le titre, une étiquette `P1`, ou une ligne de description telle que
+`Priorité : P1` / `## Priorité : P2` dans les 50 premières lignes.
+Sans priorité explicite, elle **conserve une priorité P0–P3 choisie
+manuellement dans le Project**, au lieu de la remplacer par `Non définie`.
+Les tickets qui n'ont jamais reçu de priorité restent `Non définie` :
+ce n'est ni un bug d'import ni une déduction automatique d'urgence.
+Pour les classer, le responsable produit attribue une priorité réelle via
+le tableau ou ajoute la ligne explicite dans l'issue.
+
+Ce choix évite de transformer arbitrairement 200+ tickets historiques en P1
+ou P2, et préserve les choix faits manuellement entre deux synchronisations.
