@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -279,6 +279,11 @@ BEGIN
       RAISE EXCEPTION 'OCE sync RPC grant mismatch: %',missing_name;
     END IF;
   END LOOP;
+  -- OCE summary access (#58): authenticated-only boolean check, never anon.
+  IF has_function_privilege('anon','public.oce_summary_access(uuid,uuid)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.oce_summary_access(uuid,uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'OCE summary access grant mismatch';
+  END IF;
   -- Verified Client reviews (#213 R1): closed tables, authenticated-only RPCs, internal helpers not exposed.
   IF has_table_privilege('authenticated','public.contractor_reviews','SELECT')
      OR has_table_privilege('authenticated','public.contractor_reviews','INSERT')

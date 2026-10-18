@@ -49,3 +49,13 @@ orchestration `ensure-*`, résumé technique exposé dans D.A.O, plan d'activati
 - Failures record only the error kind/code (never message, payload or OCE identifier); the run stops at the first failure and reports it.
 - `summary(ref)` is the read-only technical summary; it never writes to D.A.O data.
 - Not wired to any route or scheduler yet: exposure in D.A.O follows once permissions are validated.
+
+## Technical summary route (#58, read-only)
+
+`GET /api/oce/planning-summary?project_id=<uuid>&lot_id=<uuid>` returns the gateway's `planning-summary` for one lot. It is **not displayed anywhere yet** and stays `503 OCE_DISABLED` until `DAO_OCE_ENABLED=1`.
+
+- **Who may read (v1):** the Client who owns the project, and D.A.O project management (`dao_admin`, or the reviewer assigned to the project). Professionals, other members, unassigned reviewers and strangers are refused. Extending to project members is an explicit owner decision, not implied.
+- **When:** only for a lot of that project, not withdrawn, in a non-archived project, whose mapping is *admitted* (`oce_summary_access`, decided by the database from the caller's JWT, live roles and account status).
+- **Same refusal everywhere:** unauthorized, unknown, wrong pair, archived, withdrawn, revoked or not admitted all answer `403 FORBIDDEN`; the gateway is not called. Strict query (exactly the two UUIDs), GET only, `Cache-Control: private, no-store`.
+- **Nothing sensitive:** no OCE identifier, URL, body or credential in answers or logs; no privileged client; a gateway outage answers `503 UNAVAILABLE` and affects no other D.A.O function. One gateway client per process keeps the circuit breaker state.
+- Tests: `oce-planning-handler.test.ts` (handler) and `oce-summary-access-real.test.ts` (real JWT roles, admission/revocation/withdrawal/archiving/suspension).

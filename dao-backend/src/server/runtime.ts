@@ -9,6 +9,8 @@ import { createInvitationEmailHandler } from './invitationEmailHandler.js';
 import { createProfessionalHandler } from './professionalHandler.js';
 import { NotificationService } from '../services/NotificationService.js';
 import { createNotificationHandler } from './notificationHandler.js';
+import { createOcePlanningHandler } from './ocePlanningHandler.js';
+import { createOceGateway } from '../oce/gatewayClient.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -74,4 +76,13 @@ export function createBackofficeApi(request: Request) {
 export function createProfessionalApi(request:Request) {
   const {url,db,resolveActor}=requestScope(request);
   return createProfessionalHandler(db,resolveActor,()=>createClient(url,env('DAO_SUPABASE_SECRET_KEY'),{auth:{persistSession:false,autoRefreshToken:false}}));
+}
+
+let oceGateway: ReturnType<typeof createOceGateway> | undefined;
+/** Read-only OCE technical summary. The gateway client is disabled unless DAO_OCE_ENABLED=1 (no credential here). */
+export function createOcePlanningApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  // One client per process so the circuit breaker keeps its state across requests.
+  oceGateway ??= createOceGateway(process.env);
+  return createOcePlanningHandler(db, resolveActor, oceGateway);
 }
