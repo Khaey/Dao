@@ -7,7 +7,8 @@ import { recordE2EValue } from './support/state';
 
 test('Notifications : invitation réelle, acceptation, lecture et nouveau message privé',async({page},info)=>{
   const client=await notificationActor(info),pro=await notificationActor(info,'contractor');
-  await login(page,client.user);await page.goto('/app/notifications');
+  await login(page,client.user);await page.getByRole('link',{name:'Ouvrir mes notifications',exact:true}).click();
+  await expect(page).toHaveURL(/\/app\/notifications$/);
   await expect(page.getByRole('heading',{name:'Aucune notification pour le moment'})).toBeVisible();
   await expect(page.getByLabel('0 notifications non lues',{exact:true})).toBeVisible();
   const project=await createCollaborative(page,info,false,pro.user.email);await signOut(page);

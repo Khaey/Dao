@@ -188,7 +188,7 @@ jobs:
         run: |
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh migration list + schema contract" bash -euo pipefail -c '
             supabase migration list --local
-            contract_sql="$(cat tests/schema-contract.sql)"
+            contract_sql="$(cat tests/schema-contract.sql tests/notifications-s1-contract.sql)"
             supabase db query --local -o csv "$contract_sql"
           '
       - name: Capture fresh-local DAO schema fingerprints before reset
@@ -215,7 +215,7 @@ jobs:
         run: |
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Post-reset migration list + schema contract" bash -euo pipefail -c '
             supabase migration list --local
-            contract_sql="$(cat tests/schema-contract.sql)"
+            contract_sql="$(cat tests/schema-contract.sql tests/notifications-s1-contract.sql)"
             supabase db query --local -o csv "$contract_sql"
           '
       - name: Upload fresh-local DAO schema fingerprints

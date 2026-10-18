@@ -162,6 +162,7 @@ model {
   dao.web.invitations -> dao.web.api "Issue/revoke/send"
   dao.web.messaging -> dao.web.api "Liste, ouvre, envoie et marque lu"
   dao.web.notifications -> dao.web.api "Liste et marque ses propres événements, sans payload privé"
+  dao.web.shell -> dao.web.notifications "Ouvre le centre personnel depuis une navigation secondaire"
   dao.web.rpc -> dao.web.notifications "Persiste les événements confirmés dans leur transaction"
   dao.web.review -> dao.web.api "Décision de revue"
   dao.web.publications -> dao.web.api "Publication"
