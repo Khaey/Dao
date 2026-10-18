@@ -58,8 +58,10 @@ OLD_DAO_ADMIN_GRANT = ('# D.A.O environment and safe diagnostics; existing servi
     '/usr/local/sbin/dao-dev-admin env-restore, /usr/local/sbin/dao-dev-admin log-summary, '
     '/usr/local/sbin/dao-dev-admin oce-audit, /usr/local/sbin/dao-dev-admin oce-integration-inventory, '
     '/usr/local/sbin/dao-dev-admin oce-gateway-plan\n')
-NEW_DAO_ADMIN_GRANT = OLD_DAO_ADMIN_GRANT.rstrip('\n') + \
+MID_DAO_ADMIN_GRANT = OLD_DAO_ADMIN_GRANT.rstrip('\n') + \
     ', /usr/local/sbin/dao-dev-admin oce-gateway-apply\n'
+NEW_DAO_ADMIN_GRANT = MID_DAO_ADMIN_GRANT.rstrip('\n') + \
+    ', /usr/local/sbin/dao-dev-admin oce-gateway-qualify\n'
 
 
 class Halt(Exception):
@@ -370,7 +372,8 @@ def reconcile_grant(path, previous, approved):
     current = read_file(path).decode()
     if current == approved:
         return False
-    require(current == previous, 'GRANT_DRIFT')
+    allowed = previous if isinstance(previous, tuple) else (previous,)
+    require(current in allowed, 'GRANT_DRIFT')
     fd, temporary = tempfile.mkstemp(prefix='.dao-grant-', dir=path.parent)
     try:
         with os.fdopen(fd, 'w') as stream:
@@ -395,8 +398,8 @@ def reconcile_oce_grants():
     changed = []
     if reconcile_grant(OCE_PRIVATE_SUDOERS, OLD_OCE_PRIVATE_GRANT, NEW_OCE_PRIVATE_GRANT):
         changed.append('oce-private-provision')
-    if reconcile_grant(DAO_ADMIN_SUDOERS, OLD_DAO_ADMIN_GRANT, NEW_DAO_ADMIN_GRANT):
-        changed.append('oce-gateway-apply')
+    if reconcile_grant(DAO_ADMIN_SUDOERS, (OLD_DAO_ADMIN_GRANT, MID_DAO_ADMIN_GRANT), NEW_DAO_ADMIN_GRANT):
+        changed.append('oce-gateway-qualify')
     return changed
 
 
