@@ -23,7 +23,9 @@ export function notificationId(value: unknown): string {
   return value;
 }
 function validTimestamp(value: unknown): value is string {
-  return typeof value === 'string' && timestamp.test(value) && Number.isFinite(Date.parse(value));
+  if (typeof value !== 'string' || !timestamp.test(value) || value.startsWith('0000-')) return false;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0,19) === value.slice(0,19);
 }
 export function parseNotificationQuery(query: URLSearchParams) {
   for (const key of query.keys()) if (!['limit', 'cursor', 'unread'].includes(key) || query.getAll(key).length !== 1)
