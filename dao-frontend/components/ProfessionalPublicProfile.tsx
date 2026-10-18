@@ -343,7 +343,7 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
           </Card>)}
         </section>
 
-        {rating !== undefined && <ProfessionalReviews contractorId={profile.id} professionalName={profile.name} />}
+        {rating !== undefined && <ProfessionalReviews contractorId={profile.id} professionalName={profile.name} canReport={!showPreview} />}
 
         <Card className="space-y-4 sm:p-7">
           <h2 className="text-xl font-bold text-ink">Zones d’intervention</h2>

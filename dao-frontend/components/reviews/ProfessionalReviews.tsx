@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BadgeCheck, MessageSquareQuote } from 'lucide-react';
+import { BadgeCheck, Flag, MessageSquareQuote } from 'lucide-react';
 import { Card } from '../ui';
 import { Stars } from './ReviewStars';
 import {
-  criteriaKeys, criteriaLabels, formatRating, formatReviewMonth, professionalReviews, reviewCount,
+  criteriaKeys, criteriaLabels, formatRating, formatReviewMonth, professionalReviews, reportReasons, reportReview, reviewCount,
   type PublicReview, type RatingSummary,
 } from '../../lib/reviews';
 
@@ -41,7 +41,35 @@ function Summary({ summary }: { summary: RatingSummary }) {
   </div>;
 }
 
-function ReviewItem({ review, professionalName }: { review: PublicReview; professionalName: string }) {
+function ReportControl({ reviewId }: { reviewId: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'done'>('idle');
+  const [message, setMessage] = useState('');
+  async function send() {
+    if (!reason) { setMessage('Choisissez un motif.'); return; }
+    setState('sending'); setMessage('');
+    try {
+      const result = await reportReview(reviewId, reason, '');
+      setState('done'); setMessage(result.status === 'already_reviewed' ? 'D.A.O. a déjà examiné votre signalement.' : 'Merci, D.A.O. va examiner cet avis.');
+    } catch (exception) { setState('idle'); setMessage((exception as Error).message); }
+  }
+  if (state === 'done') return <p role="status" className="text-xs text-teal">{message}</p>;
+  if (!open) return <button type="button" onClick={() => setOpen(true)}
+    className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-black/45 transition hover:text-red-700"><Flag aria-hidden="true" size={13} />Signaler cet avis</button>;
+  return <div className="flex flex-wrap items-center gap-2">
+    <select aria-label="Motif du signalement" value={reason} onChange={(event) => setReason(event.target.value)}
+      className="min-h-11 rounded-xl border border-black/10 bg-white px-3 text-sm text-ink outline-none focus:border-teal focus:ring-4 focus:ring-teal/10">
+      <option value="">Motif…</option>
+      {Object.entries(reportReasons).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    </select>
+    <button type="button" disabled={state === 'sending'} onClick={() => void send()} className="min-h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-teal disabled:opacity-60">{state === 'sending' ? 'Envoi…' : 'Signaler'}</button>
+    <button type="button" onClick={() => { setOpen(false); setMessage(''); }} className="min-h-11 px-2 text-sm font-semibold text-black/55">Annuler</button>
+    {message && <p role="alert" className="w-full text-xs text-red-700">{message}</p>}
+  </div>;
+}
+
+function ReviewItem({ review, professionalName, canReport }: { review: PublicReview; professionalName: string; canReport: boolean }) {
   return <li className="space-y-3 border-t border-black/5 pt-5 first:border-t-0 first:pt-0">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2.5">
@@ -58,11 +86,12 @@ function ReviewItem({ review, professionalName }: { review: PublicReview; profes
       <p className="text-xs font-semibold text-ink">Réponse de {professionalName}</p>
       <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-black/70">{review.response.body}</p>
     </div>}
+    {canReport && <ReportControl reviewId={review.id} />}
   </li>;
 }
 
 /** Reviews section of the professional profile (published reviews only, server-paginated). */
-export default function ProfessionalReviews({ contractorId, professionalName }: { contractorId: string; professionalName: string }) {
+export default function ProfessionalReviews({ contractorId, professionalName, canReport = true }: { contractorId: string; professionalName: string; canReport?: boolean }) {
   const [summary, setSummary] = useState<RatingSummary | null>(null);
   const [items, setItems] = useState<PublicReview[] | null>(null);
   const [more, setMore] = useState(false);
@@ -103,7 +132,7 @@ export default function ProfessionalReviews({ contractorId, professionalName }: 
     {items && items.length > 0 && <Card className="space-y-6 sm:p-7">
       {summary && summary.count > 0 && <Summary summary={summary} />}
       <ul className="space-y-5 border-t border-black/5 pt-6">
-        {items.map((review) => <ReviewItem key={review.id} review={review} professionalName={professionalName} />)}
+        {items.map((review) => <ReviewItem key={review.id} review={review} professionalName={professionalName} canReport={canReport} />)}
       </ul>
       {more && <button type="button" onClick={() => void loadMore()} disabled={loading}
         className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal disabled:opacity-60">
