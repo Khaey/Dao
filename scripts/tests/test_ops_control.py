@@ -138,7 +138,7 @@ class MaintenanceTests(unittest.TestCase):
                 patch.object(admin.os, 'fchown'):
             result = admin.upgrade(self.ledger)
         self.assertEqual(result['ops_upgrade'], 'unchanged')
-        self.assertEqual(result['grants_updated'], ['oce-private-provision', 'oce-gateway-apply'])
+        self.assertEqual(result['grants_updated'], ['oce-private-provision', 'oce-gateway-qualify'])
         self.assertEqual(admin.OCE_PRIVATE_SUDOERS.read_text(), admin.NEW_OCE_PRIVATE_GRANT)
         self.assertEqual(admin.DAO_ADMIN_SUDOERS.read_text(), admin.NEW_DAO_ADMIN_GRANT)
         self.assertEqual(admin.load_ledger(), self.ledger)

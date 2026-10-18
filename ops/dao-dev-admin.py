@@ -342,6 +342,41 @@ def oce_gateway_apply():
     print(json.dumps(data, sort_keys=True))
 
 
+QUALIFY_FLAGS = (
+    'positive_flow_verified', 'unknown_operation_rejected', 'extra_fields_rejected',
+    'forged_mapping_rejected', 'cross_project_mapping_rejected',
+    'mapping_revocation_verified', 'dao_loopback_bypass_denied',
+    'dao_container_bypass_denied', 'demo_access_preserved',
+)
+QUALIFY_REASON = re.compile(r'[a-z0-9_ ]{1,64}')
+
+
+def oce_gateway_qualify():
+    """Run the fixed live qualification; expose only its closed boolean report."""
+    helper = Path('/usr/local/sbin/dao-oce-gateway-qualify')
+    if not helper.is_file() or not os.access(helper, os.X_OK):
+        raise ValueError('gateway qualification helper missing')
+    result = subprocess.run([str(helper)], capture_output=True, text=True, timeout=240, check=False)
+    if result.returncode != 0:
+        reason = 'internal_or_command_error'
+        try:
+            data = json.loads(result.stderr.strip().splitlines()[-1])
+            candidate = data.get('oce_gateway_qualification_error')
+            if isinstance(candidate, str) and QUALIFY_REASON.fullmatch(candidate):
+                reason = candidate
+        except (ValueError, IndexError, AttributeError):
+            pass
+        print(json.dumps({'oce_gateway_qualification': 'failed', 'reason': reason}, sort_keys=True))
+        raise ValueError('gateway qualification failed')
+    data = json.loads(result.stdout)
+    expected = {'gateway_qualification', *QUALIFY_FLAGS}
+    if (not isinstance(data, dict) or set(data) != expected
+            or data.get('gateway_qualification') != 'complete'
+            or any(data[key] is not True for key in QUALIFY_FLAGS)):
+        raise ValueError('gateway qualification output invalid')
+    print(json.dumps(data, sort_keys=True))
+
+
 def oce_integration_inventory():
     """Fixed inspect-only command; no Docker exec, stop, compose or credentials."""
     docker = shutil.which('docker')
@@ -611,6 +646,8 @@ def main():
         oce_gateway_plan()
     elif operation == 'oce-gateway-apply':
         oce_gateway_apply()
+    elif operation == 'oce-gateway-qualify':
+        oce_gateway_qualify()
     elif operation == 'log-summary':
         p = subprocess.run(['/usr/bin/journalctl', '-u', 'dao-dev.service', '--since', '1 hour ago', '-n', '200', '-o', 'json', '--no-pager'], capture_output=True, text=True, timeout=15, check=True)
         counts = {}

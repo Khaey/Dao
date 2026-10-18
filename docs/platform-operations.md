@@ -121,6 +121,7 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | oce-integration-inventory | Fixed OCE DB/Compose/storage/network metadata for #58; anonymous peers and no credential/path values | Reinstall reviewed admin helper once as root; available in DAO DEV operations on main |
 | oce-gateway-plan | Fixed read-only gateway host plan; no service start, bind change or demo-access change | Installed helper |
 | oce-gateway-apply | Close public `:8080`, activate the fixed gateway and egress guard, verify both bypass denials | Explicit #58 authorization, successful private tunnel and favorable plan |
+| oce-gateway-qualify | Fixed live qualification of the private gateway with synthetic lots revoked afterwards; closed boolean report only | Gate B applied (`oce-gateway-apply` succeeded); explicit #58 owner authorization |
 
 Example with a credential authorized for Actions dispatch:
 

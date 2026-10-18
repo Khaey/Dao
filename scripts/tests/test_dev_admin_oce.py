@@ -166,3 +166,50 @@ class DevAdminOceAuditTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DevAdminOceQualifyTests(unittest.TestCase):
+    REPORT = {'gateway_qualification': 'complete', **{k: True for k in admin.QUALIFY_FLAGS}}
+
+    def run_qualify(self, **result):
+        out = io.StringIO()
+        with patch.object(admin.Path, 'is_file', return_value=True), \
+             patch.object(admin.os, 'access', return_value=True), \
+             patch.object(admin.subprocess, 'run', return_value=types.SimpleNamespace(**result)) as run, \
+             patch('sys.stdout', out):
+            try:
+                admin.oce_gateway_qualify()
+                error = None
+            except ValueError as exc:
+                error = str(exc)
+        return run, out.getvalue(), error
+
+    def test_qualify_runs_fixed_helper_without_arguments_and_prints_closed_report(self):
+        run, out, error = self.run_qualify(returncode=0, stdout=json.dumps(self.REPORT), stderr='secret')
+        self.assertIsNone(error)
+        self.assertEqual(run.call_args.args[0], ['/usr/local/sbin/dao-oce-gateway-qualify'])
+        self.assertEqual(json.loads(out), self.REPORT)
+        self.assertNotIn('secret', out)
+
+    def test_qualify_rejects_false_flag_or_extra_key(self):
+        for report in ({**self.REPORT, 'positive_flow_verified': False}, {**self.REPORT, 'extra': True}):
+            _, out, error = self.run_qualify(returncode=0, stdout=json.dumps(report), stderr='')
+            self.assertEqual(error, 'gateway qualification output invalid')
+            self.assertEqual(out, '')
+
+    def test_qualify_failure_exposes_only_sanitized_reason(self):
+        stderr = json.dumps({'oce_gateway_qualification_error': 'container bypass reachable'})
+        _, out, error = self.run_qualify(returncode=1, stdout='', stderr=stderr)
+        self.assertEqual(error, 'gateway qualification failed')
+        self.assertEqual(json.loads(out), {'oce_gateway_qualification': 'failed',
+                                            'reason': 'container bypass reachable'})
+        bad = json.dumps({'oce_gateway_qualification_error': 'Token=abc123!'})
+        _, out, _ = self.run_qualify(returncode=1, stdout='', stderr=bad)
+        self.assertEqual(json.loads(out)['reason'], 'internal_or_command_error')
+
+    def test_dispatch_and_request_vocabulary_include_qualify(self):
+        req = importlib.util.spec_from_file_location(
+            'req', Path(__file__).parents[2] / 'scripts' / 'dao-ops-request.py')
+        mod = importlib.util.module_from_spec(req)
+        req.loader.exec_module(mod)
+        self.assertIn('oce-gateway-qualify', mod.OPERATIONS)
