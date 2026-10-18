@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { AlertCircle, Check, Copy, Link2, Lock, UserPlus } from 'lucide-react';
+import { AlertCircle, Check, Copy, Link2, Lock, MessageCircle, UserPlus } from 'lucide-react';
 import { Card, Input, SectionHeading } from './ui';
 import { projectApi, Team } from '../lib/collaboration';
 import { cn } from '../lib/utils';
@@ -14,7 +14,7 @@ const initials = (name?: string) => (name || 'P').split(/\s+/).filter(Boolean).s
 const labelClass = 'block text-sm font-semibold text-ink';
 const checkboxClass = 'mt-0.5 h-5 w-5 shrink-0 rounded border-black/20 accent-teal';
 
-export default function ProjectTeam({ projectId, team, needsClient, archived, lots, onChange, initialLotId }: { projectId: string; team: Team; needsClient: boolean; archived: boolean; lots: { id: string; title: string }[]; onChange: (team: Team) => void; initialLotId?: string }) {
+export default function ProjectTeam({ projectId, team, needsClient, archived, lots, onChange, initialLotId, messageTarget, onMessage }: { projectId: string; team: Team; needsClient: boolean; archived: boolean; lots: { id: string; title: string }[]; messageTarget?: (member: Team['members'][number]) => string | null; onMessage?: (conversationMemberId: string) => void; onChange: (team: Team) => void; initialLotId?: string }) {
   const [recipientName, setRecipientName] = useState(''); const [email, setEmail] = useState(''); const [requestId, setRequestId] = useState(() => lots.some(lot => lot.id === initialLotId) ? initialLotId! : ''); const [privateAccess, setPrivateAccess] = useState(false);
   const [link, setLink] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const [copied, setCopied] = useState(false);
   const [invitation, setInvitation] = useState<PreparedInvitation | null>(null);
@@ -46,7 +46,8 @@ export default function ProjectTeam({ projectId, team, needsClient, archived, lo
       <ul className="mt-5 divide-y divide-black/[0.06] rounded-xl border border-black/[0.08]">{members.map(member => <li key={member.id} className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3"><span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${member.participation_role === 'client' ? 'bg-ink text-white' : 'bg-teal/10 text-teal'}`}>{initials(member.name)}</span><div className="min-w-0"><h3 className="break-words font-semibold text-ink">{member.name || 'Participant'}</h3><Pill tone={member.participation_role === 'client' ? 'neutral' : 'teal'} className="mt-1">{member.participation_role === 'client' ? 'Client' : 'Artisan / Entreprise'}</Pill></div></div>
-          {team.is_client && !archived && member.participation_role === 'contractor' && <button type="button" disabled={saving} className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-200 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50" onClick={() => { if (window.confirm('Retirer ce participant du chantier ?')) void change('/api/projects/members', { member_id: member.id, revoke: true }); }}>Retirer le participant</button>}
+          <div className="flex items-center gap-2">{(() => { const target = onMessage && messageTarget ? messageTarget(member) : null; return target ? <button type="button" aria-label={`Écrire à ${member.name || 'ce participant'}`} title={`Écrire à ${member.name || 'ce participant'}`} onClick={() => onMessage!(target)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-teal/10 text-teal transition hover:bg-teal hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal"><MessageCircle size={18} aria-hidden="true" /></button> : null; })()}
+          {team.is_client && !archived && member.participation_role === 'contractor' && <button type="button" disabled={saving} className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-200 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50" onClick={() => { if (window.confirm('Retirer ce participant du chantier ?')) void change('/api/projects/members', { member_id: member.id, revoke: true }); }}>Retirer le participant</button>}</div>
         </div>
         {member.participation_role === 'contractor' && <label className="mt-3 flex min-h-11 items-start gap-3 rounded-lg bg-sand/70 px-3 py-2.5 text-sm text-ink"><input type="checkbox" className={checkboxClass} checked={member.can_view_private_details} disabled={!team.is_client || archived || saving} onChange={event => void change('/api/projects/members', { member_id: member.id, can_view_private_details: event.target.checked })} />Accès aux coordonnées privées pour {member.name || 'ce participant'}</label>}
       </li>)}</ul>
