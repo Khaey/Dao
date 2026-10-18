@@ -41,7 +41,7 @@ test('Back-office : prise en charge, nouvelle version et sous-lots visibles côt
  await expect(reviewer.getByRole('button',{name:'Modifier le dossier'})).toHaveCount(0);
  await reviewer.goto(`/app/dao/history?project_id=${project.projectId}`);
  await reviewer.getByText('Filtres du dossier',{exact:true}).click();
- await expect(reviewer.getByLabel('Chantier',{exact:true})).toHaveValue(project.projectId);
+ await expect(reviewer.getByLabel('Chantier',{exact:true})).toHaveValue(project.projectId);await expect(reviewer.locator('main h2').first()).toBeVisible();await expect(reviewer.locator('main h2').filter({hasText:/^[a-z]+(_[a-z]+)+$/})).toHaveCount(0);
  await expect(reviewer.getByLabel('Chantier',{exact:true}).locator('option:checked')).toHaveText(project.title+' staff');
  await reviewer.getByLabel('Action',{exact:true}).selectOption('sub_lot_versioned');
  await expect(reviewer.getByText('Réseaux techniques',{exact:true})).toBeVisible();
