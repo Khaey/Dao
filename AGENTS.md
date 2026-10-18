@@ -1,5 +1,17 @@
 # D.A.O — instructions for every Work/Codex session
 
+## QUOTA GUARD — economie Work/Codex/Claude (17 octobre 2026)
+
+**Instruction proprietaire pour tous les agents : livrer plus avec moins de quota, sans reduire les preuves.** Dans le selecteur Work/Codex, **privilegier GPT-6 Luna pour le triage repetitif, GPT-6 Sol / effort faible pour le code courant, moyen si difficulte demontree ; reserver Astra / effort faible aux problemes complexes averes**. Pour Claude, prendre le modele/effort le plus leger capable de la phase. C'est une recommandation de reglage utilisateur, **pas un changement automatique de modele ni une garantie de quota** ; ne pas supposer un modele disponible.
+
+- A chaque reprise : une lecture ciblee du dernier checkpoint de son issue, vrai main/CI exact-SHA et PR concernees ; ne pas reparcourir tout l'historique ou le depot.
+- Une phase = un objectif et des fichiers limites. Grouper les lectures, privilegier diff/recherche ciblee ; eviter sorties massives, analyses generales, refactors non demandes et agents paralleles redondants.
+- Ne jamais relancer tests, builds, E2E ou CI deja PASS sur le **meme SHA et les memes entrees**. Une nouvelle modification invalidante exige de nouveaux checks. Respecter l'integralite des 3 checks GitHub obligatoires et des tests Auth/RLS.
+- Aucun polling CI serre : verifier aux changements d'etat pertinents (avant merge, apres deploiement), puis noter `PENDING` et le run si inacheve. Aucun rerun pour gagner du temps sans cause technique.
+- Apres deux echecs identiques sans fait nouveau, arreter la boucle, documenter le blocage prouve et continuer les travaux independants. Si le quota chute, publier immediatement le WIP non sensible sur sa propre branche + checkpoint court ; **jamais de faux PASS ni de bypass des protections**.
+
+Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
+
 ## Current coordinator — DAO PILOT 7 (17 October 2026)
 
 Owner decision: PILOT 6 has ended coordination due to conversation limits;
