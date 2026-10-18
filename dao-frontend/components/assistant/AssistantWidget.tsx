@@ -23,9 +23,17 @@ export default function AssistantWidget() {
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
+  const opener = useRef<HTMLElement | null>(null); // element to refocus on close (null = the floating button)
   const titleId = useId();
   const panelId = useId();
   const entries = useMemo(() => searchFaq(faqFor(context), query), [context, query]);
+
+  // Other parts of the app (e.g. the Assistance tab) can open the assistant.
+  useEffect(() => {
+    const openFromEvent = () => { opener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null; setOpen(true); };
+    window.addEventListener('dao:open-assistant', openFromEvent);
+    return () => window.removeEventListener('dao:open-assistant', openFromEvent);
+  }, []);
 
   // Close when the page changes, so the assistant never covers a page the user just opened.
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -52,12 +60,16 @@ export default function AssistantWidget() {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  function close() { setOpen(false); setQuery(''); requestAnimationFrame(() => trigger.current?.focus()); }
+  function close() {
+    setOpen(false); setQuery('');
+    const target = opener.current;
+    requestAnimationFrame(() => (target?.isConnected ? target : trigger.current)?.focus());
+  }
 
   const returnTo = encodeURIComponent(pathname);
 
   return <div className="print:hidden">
-    {!open && <button ref={trigger} type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={false} aria-controls={panelId}
+    {!open && <button ref={trigger} type="button" onClick={() => { opener.current = null; setOpen(true); }} aria-haspopup="dialog" aria-expanded={false} aria-controls={panelId}
       aria-label="Aide D.A.O." title="Aide D.A.O."
       className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[45] inline-flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white shadow-[0_10px_30px_rgba(23,32,42,0.25)] transition hover:bg-teal focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/40 sm:right-6 sm:bottom-6 [body:has([data-dao-bottom-bar])_&]:bottom-28 sm:[body:has([data-dao-bottom-bar])_&]:bottom-28">
       <MessageCircleQuestion aria-hidden="true" size={22} />
@@ -108,7 +120,8 @@ export default function AssistantWidget() {
           <p className="flex items-center gap-2 text-sm font-semibold text-ink"><LifeBuoy aria-hidden="true" size={16} className="text-teal" />Contacter D.A.O.</p>
           {signedIn === false && <p className="mt-1 text-sm text-black/60">Connectez-vous pour écrire à l’équipe D.A.O. et suivre sa réponse.{' '}
             <Link href={`/auth/login?returnTo=${returnTo}`} className="font-semibold text-teal underline-offset-4 hover:underline">Se connecter</Link></p>}
-          {signedIn && <p className="mt-1 text-sm text-black/60">La demande d’assistance directement depuis l’application arrive prochainement. Pour une question sur un chantier, écrivez à ses participants depuis « Mes messages ».</p>}
+          {signedIn && <p className="mt-1 text-sm text-black/60">La demande d’assistance directement depuis l’application arrive prochainement. Pour une question sur un chantier, écrivez à ses participants depuis « Messages & Assistance ».{' '}
+            <Link href="/app/messages?onglet=assistance" className="font-semibold text-teal underline-offset-4 hover:underline">Voir l’assistance</Link></p>}
         </div>
       </div>
     </>}

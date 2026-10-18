@@ -94,7 +94,7 @@ export default function RoleNav() {
     { href: '/app/artisan/profile', label: 'Mon dossier professionnel', icon: HardHat, show: has('contractor') },
     { href: '/app/professionals', label: 'Trouver un professionnel', icon: HardHat, show: has('client') },
     { href: '/app/invitations', label: 'Mes invitations', icon: Mail, show: !staff && (has('client') || has('contractor')) },
-    { href: '/app/messages', label: 'Mes messages', icon: MessageCircle, show: !staff && (has('client') || has('contractor')) },
+    { href: '/app/messages', label: 'Messages & Assistance', icon: MessageCircle, show: !staff && (has('client') || has('contractor')) },
     { href: '/app/contracts', label: 'Mes contrats', icon: FileText, show: has('client') || has('contractor') || has('dao_admin') },
     { href: '/app/dao/review', label: 'Revues', icon: ShieldCheck, show: staff },
     { href: '/app/dao/reviews', label: 'Avis', icon: Star, show: staff },
