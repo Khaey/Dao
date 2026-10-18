@@ -283,6 +283,15 @@ class ValidationAndCliTests(unittest.TestCase):
                 self.assertIn("unknown_agent", result.stdout)
                 self.assertNotIn("https://", result.stdout)
 
+    def test_non_renderable_filename_is_invalid_data_in_both_formats(self):
+        for path in ("bad\ud800.py", "bad\u2028.py", "bad\u0085.py"):
+            for fmt in ("json", "markdown"):
+                with self.subTest(path=ascii(path), fmt=fmt):
+                    result = self.cli(prs=[pr(files=[path])], fmt=fmt)
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("invalid_file_path", result.stdout)
+                    self.assertNotIn("Traceback", result.stdout)
+
     def test_strict_json_duplicate_keys_constants_and_unreadable_input(self):
         for raw in ('{"issues": [], "issues": []}', '[NaN]', '[Infinity]'):
             with self.subTest(raw=raw):

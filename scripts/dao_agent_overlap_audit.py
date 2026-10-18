@@ -187,7 +187,9 @@ def file_paths(row, source):
             paths.append(item["previous_filename"])
         for path in paths:
             require(isinstance(path, str) and 0 < len(path) <= 1024
-                    and not any(ord(char) < 32 or ord(char) == 127 for char in path)
+                    and not any(ord(char) < 32 or 127 <= ord(char) <= 159
+                                or 0xD800 <= ord(char) <= 0xDFFF
+                                or (char.isspace() and char != " ") for char in path)
                     and "\\" not in path
                     and not PurePosixPath(path).is_absolute()
                     and all(part not in ("", ".", "..") for part in path.split("/"))
