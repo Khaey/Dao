@@ -106,9 +106,19 @@ menu dans un lot isolé après fusion/réconciliation de son HEAD.
 
 | Preuve | État au lot A |
 | --- | --- |
-| Contrat pur : routes allowlistées, expurgation, curseur/précision, limites, 0/1/50 | Tests ajoutés, exécution consignée dans la PR |
-| SQL réel : Client A/B, Artisan, double rôle, staff, anon, suspendu, UUID tiers, révocation, rollback, doublon | À réaliser au lot B ; PGlite ne remplace pas les JWT réels |
-| 100+ notifications : pagination exhaustive, compteur, idempotence de lecture et événement | À réaliser au lot B |
-| UX desktop/mobile 0/1/N, erreur réseau/retry, lecture/navigation, workspace, suspension | À réaliser au lot C, FULL E2E conservé |
+| Contrat pur : routes allowlistées, expurgation, curseur/précision, limites, 0/1/50 | PASS local, 5 tests au lot A |
+| SQL réel : Client A/B, Artisan, double rôle, staff, anon, suspendu, UUID tiers, révocation, rollback, doublon | Tests écrits au lot B, CI réelle PENDING ; modèle PGlite PASS (ne remplace pas les JWT réels) |
+| 100+ notifications : pagination exhaustive, compteur, idempotence de lecture et événement | PASS PGlite, scénario JWT réel écrit et PENDING |
+| UX desktop/mobile 0/1/N, erreur réseau/retry, lecture/navigation, workspace, suspension | Page et 5 scénarios × 2 viewports écrits au lot C ; build local PASS, exécution FULL E2E PENDING |
 | Revue COP sur SQL et 3 checks exact-HEAD | Gates avant fusion du lot B |
 | Migration DEV et recette live | Non appliquée, non testée ; circuit distinct requis |
+
+Lot C : la découverte stricte passe de 96 à 106 exécutions, sans retirer les
+scénarios précédents. Les recettes UI d'erreur réseau/pagination interceptent
+uniquement l'API notifications après une vraie connexion ; elles ne valent pas
+preuve de sécurité SQL. Invitation/acceptation/message, suspension et workspace
+utilisent les vrais JWT/commandes sur la base jetable et des comptes distincts
+par scénario. `RoleNav.tsx` reste inchangé : accès direct à la page jusqu'au lot
+menu, dépendant de #222. Les artefacts ou logs d'erreur applicatifs ne recopient
+ni notification, ni identité, ni exception brute ; les codes HTTP d'erreurs sont
+fixes (`UNAUTHENTICATED`, `FORBIDDEN`, `BAD_REQUEST`, `UNAVAILABLE`).

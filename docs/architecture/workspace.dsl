@@ -23,7 +23,7 @@ model {
 
       collaboration = component "Collaboration chantier" "Membres, rôles projet, permissions privées et affectation aux lots." "Next.js / RPC"
       messaging = component "Messagerie privée chantier" "Fil texte par chantier et professionnel confirmé, historique immuable et notifications internes." "Next.js / API / RPC / RLS"
-      notifications = component "Notifications personnelles — socle S1" "API personnelle, événements transactionnels, droits vivants et lecture idempotente ; canal distinct de l'outbox e-mail." "API / RPC / RLS"
+      notifications = component "Centre de notifications personnelles S1" "Liste responsive, compteur réel, lecture idempotente et événements transactionnels aux droits vivants ; canal distinct de l'outbox e-mail." "Next.js / API / RPC / RLS"
       invitations = component "Invitations chantier" "Token one-shot hashé et boîte du destinataire ; expiration, preview, accept/refuse/revoke." "Next.js / RPC"
       teamCreation = component "Création avec équipe existante" "Création atomique projet + lots principaux + invitations." "Next.js / RPC"
 
@@ -113,6 +113,7 @@ model {
   client -> dao.web.teamCreation "Crée avec équipe existante"
   client -> dao.web.collaboration "Gère l'équipe chantier"
   client -> dao.web.messaging "Échange avec le professionnel confirmé"
+  client -> dao.web.notifications "Consulte ses événements Client"
   client -> dao.web.review "Soumet/corrige le DAO"
   client -> dao.web.publications "Publie après approbation"
   client -> dao.web.compare "Compare les offres" "P2"
@@ -122,6 +123,7 @@ model {
   contractor -> dao.web.invitations "Consulte sa boîte et accepte/refuse une invitation"
   contractor -> dao.web.collaboration "Travaille sur un chantier accepté"
   contractor -> dao.web.messaging "Échange avec le client confirmé"
+  contractor -> dao.web.notifications "Consulte ses événements Artisan"
   contractor -> dao.web.contracts "Lit le contrat dont il est partie ; aucune action engageante"
 
   reviewer -> dao.web.manager "Pilote les opérations"
