@@ -28,7 +28,7 @@ jobs:
       cancel-in-progress: false
     runs-on: ubuntu-latest
     environment: dev
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,7 +80,9 @@ jobs:
           set -euo pipefail
           # The request parser supplies a closed vocabulary; reject shell syntax too.
           [[ "$DAO_OPERATION" =~ ^[a-z-]+$ ]] || exit 2
-          timeout 5m ssh -F "$RUNNER_TEMP/dao-secure-ssh/config" dao-dev "bash '/opt/dao/ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/scripts/dao-operations.sh' '$DAO_OPERATION' '$GITHUB_RUN_ID' '$GITHUB_RUN_ATTEMPT'"
+          max_time=5m
+          if [[ "$DAO_OPERATION" == oce-gateway-apply ]]; then max_time=12m; fi
+          timeout "$max_time" ssh -F "$RUNNER_TEMP/dao-secure-ssh/config" dao-dev "bash '/opt/dao/ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/scripts/dao-operations.sh' '$DAO_OPERATION' '$GITHUB_RUN_ID' '$GITHUB_RUN_ATTEMPT'"
       - name: Remove runner payload
         if: always()
         run: |
