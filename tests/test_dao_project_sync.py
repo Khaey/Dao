@@ -91,6 +91,14 @@ class ProjectSyncTests(unittest.TestCase):
         missing = sorted({m["agent"] for m in missions if m["agent"].casefold() not in known})
         self.assertEqual(missing, [])
 
+    def test_current_mission_owner_registry_links_are_visible(self):
+        registry = Path(__file__).resolve().parents[1] / ".github/dao-monitor-agents.json"
+        owners = {m["issue"]: m["agent"] for m in json.loads(registry.read_text(encoding="utf-8"))["missions"]}
+        self.assertEqual(owners[243], "DAO DEV 20")
+        self.assertEqual(owners[251], "DAO DEV 2")
+        self.assertEqual(sync.owner_issue("Owner issue: #243\n\nPhase A"), 243)
+        self.assertEqual(sync.owner_issue("Owner issue: #251\n\nCorrectif Artisan"), 251)
+
     def test_missing_agent_option_is_reported(self):
         class NoCall:
             def graphql(self, *args, **kwargs):
