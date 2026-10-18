@@ -56,6 +56,7 @@ Ce document complète `workspace.dsl` avec une lecture orientée produit.
 ### En cours / préparé mais non considéré terminé
 
 - comparaison client des offres par lot (travail P2 / ancienne PR #27 à réconcilier avec le main)
+- intégration OCE #58 : adaptateur serveur, mapping/journal durables, orchestration et route de résumé en lecture seule **livrés mais inactifs** (`DAO_OCE_ENABLED` non posé) ; passerelle privée installée, **non activée** (`:8080` public inchangé, cutover à rejouer après décision du propriétaire). Aucune donnée Client ni lien opérationnel D.A.O ↔ OCE ; vue `Roadmap`.
 
 ### Futur explicitement décidé
 
