@@ -171,4 +171,28 @@ test('reviews: verified eligibility, closed tables, minimal public projection, m
     assert.equal((await ok('staff','review_moderation_page',{p_filter:'edited',p_limit:10,p_offset:0})).items.some((item:any)=>item.id===reviewId),false);
     await denied('client','submit_contractor_review',review(3,'Écrivez-moi sur wa.me/21620123456 pour la suite.'),'22023');
   });
+
+  await t.test('COP R2: an account cannot hold more than 10 open reports; staff decisions free a slot',async()=>{
+    // Direct service-role fixtures: 12 extra published reviews of the same professional (distinct projects).
+    const extra:string[]=[];
+    for(let i=0;i<12;i++){
+      const p=await insert('projects',{client_id:users.client.id,initiator_id:users.client.id,project_origin:'client_existing_team'});
+      const r=await insert('contractor_reviews',{project_id:p.id,contractor_id:cp.id,author_id:users.client.id,rating:4,comment:`Avis de test numéro ${i} avec un commentaire assez long.`,status:'published'});
+      extra.push(r.id);
+    }
+    const openCount=async()=>{const r=await admin.from('contractor_review_reports').select('id',{count:'exact',head:true}).eq('reporter_id',users.outsider.id).eq('status','open');assert.ifError(r.error);return r.count??0;};
+    assert.equal(await openCount(),0);
+    for(let i=0;i<10;i++) assert.equal((await ok('outsider','report_contractor_review',{p_review_id:extra[i],p_reason:'other',p_details:''})).status,'open');
+    assert.equal(await openCount(),10);
+    // The 11th distinct report is refused (configuration_limit_exceeded); editing an open report is still allowed.
+    await denied('outsider','report_contractor_review',{p_review_id:extra[10],p_reason:'other',p_details:''},'53400');
+    assert.equal((await ok('outsider','report_contractor_review',{p_review_id:extra[0],p_reason:'fake',p_details:'Précision ajoutée'})).status,'open');
+    assert.equal(await openCount(),10);
+    // Another account is not affected by this account's quota, and a staff decision frees a slot.
+    assert.equal((await ok('client2','report_contractor_review',{p_review_id:extra[10],p_reason:'other',p_details:''})).status,'open');
+    await ok('staff','moderate_contractor_review',{p_review_id:extra[0],p_action:'dismiss_reports',p_reason:null});
+    assert.equal(await openCount(),9);
+    assert.equal((await ok('outsider','report_contractor_review',{p_review_id:extra[10],p_reason:'other',p_details:''})).status,'open');
+    assert.equal(await openCount(),10);
+  });
 });
