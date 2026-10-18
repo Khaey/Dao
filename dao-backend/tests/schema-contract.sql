@@ -7,10 +7,10 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018061000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000'
   ];
   expected_tables text[] := ARRAY[
-    'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
+    'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
     'bid_documents','bid_group_items','bid_groups','bid_items','bid_versions','bids',
     'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions',
     'contractor_profiles','contractor_service_areas','contractor_trades','contractor_profile_details','contractor_files',
@@ -259,6 +259,23 @@ BEGIN
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
       RAISE EXCEPTION 'messaging RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  -- OCE sync mapping (#58 lot 2): closed tables, service_role-only RPCs.
+  FOR missing_name IN SELECT unnest(ARRAY['oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal']) LOOP
+    IF has_table_privilege('anon','public.'||missing_name,'SELECT') OR has_table_privilege('authenticated','public.'||missing_name,'SELECT')
+       OR has_table_privilege('authenticated','public.'||missing_name,'INSERT') OR has_table_privilege('authenticated','public.'||missing_name,'UPDATE')
+       OR has_table_privilege('authenticated','public.'||missing_name,'DELETE') THEN
+      RAISE EXCEPTION 'schema contract: OCE sync tables must stay closed: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.oce_request_mapping(uuid,uuid)','public.oce_set_admission(uuid,boolean)','public.oce_begin_sync(uuid,text,text,text)',
+    'public.oce_finish_sync(uuid,boolean,text,text)','public.oce_object_changed(uuid,text,text,text,text)','public.oce_record_object(uuid,text,text,text,text)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR has_function_privilege('authenticated',missing_name,'EXECUTE')
+       OR NOT has_function_privilege('service_role',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'OCE sync RPC grant mismatch: %',missing_name;
     END IF;
   END LOOP;
   -- Verified Client reviews (#213 R1): closed tables, authenticated-only RPCs, internal helpers not exposed.

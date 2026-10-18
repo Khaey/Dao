@@ -103,7 +103,7 @@ jetable ne vaut jamais activation du scheduler ou recette authentifiée DEV.
 
 ## Mécanisme livré, activation volontairement absente
 
-La migration additive `20261018061000_invitation_expiry_reminders_s2.sql`
+La migration additive `20261018071000_invitation_expiry_reminders_s2.sql`
 implémente deux fonctions **privées** :
 `dao_private.dry_run_invitation_expiry_reminders` et
 `dao_private.generate_invitation_expiry_reminders`. Leurs droits sont révoqués
