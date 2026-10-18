@@ -230,8 +230,10 @@ def gateway_failure_report(stderr):
         return failed
     if 'phase' not in data:
         return {'reason': reason}
-    if (data.get('phase') not in GATEWAY_APPLY_PHASES
-            or data.get('rollback') not in GATEWAY_ROLLBACK_OUTCOMES):
+    if (not isinstance(data.get('phase'), str)
+            or not isinstance(data.get('rollback'), str)
+            or data['phase'] not in GATEWAY_APPLY_PHASES
+            or data['rollback'] not in GATEWAY_ROLLBACK_OUTCOMES):
         return failed
     return {'reason': reason, 'phase': data['phase'], 'rollback': data['rollback']}
 
