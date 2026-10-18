@@ -7,6 +7,7 @@ import { Badge, Card, Input } from './ui';
 import { Stars } from './reviews/ReviewStars';
 import { formatRating } from '../lib/reviews';
 import { professionalBlob, professionalRead, professionalStatus } from '../lib/professionals';
+import { emptyFilters, forgetReturn, hasSearch, parseSearch, projectContext, rememberForReturn, searchToParams, takeReturn, type DirectoryFilters, type DirectorySort } from './directory-search';
 import { availabilityLabel, availabilityOf, availabilityTones, initials, monogramTone, professionalTypeNames as typeNames } from './professional-display';
 
 type DirectoryRow = {
@@ -29,10 +30,10 @@ type DirectoryRow = {
   review_status?: string | null;
 };
 
-type Filters = { trade: string; zone: string; availability: string; type: string; rating: string };
-type SortKey = 'recent' | 'rating' | 'experience' | 'portfolio' | 'name';
+type Filters = DirectoryFilters;
+type SortKey = DirectorySort;
 
-const noFilters: Filters = { trade: '', zone: '', availability: '', type: '', rating: '' };
+const noFilters: Filters = emptyFilters;
 const ratingFilters: Record<string, string> = { '4': '4 ★ et plus', '3': '3 ★ et plus' };
 const availabilityFilters: Record<string, string> = {
   now: 'Disponible maintenant',
@@ -194,7 +195,8 @@ function SkeletonCard() {
 }
 
 export default function ProfessionalDirectory({ review = false }: { review?: boolean }) {
-  const [context, setContext] = useState('');
+  const [projectCtx, setProjectCtx] = useState<{ projectId: string; requestId: string } | null>(null);
+  const [ready, setReady] = useState(false);
   const [rows, setRows] = useState<DirectoryRow[] | null>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Filters>(noFilters);
@@ -202,15 +204,30 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [error, setError] = useState('');
 
+  const context = projectCtx ? `?project_id=${encodeURIComponent(projectCtx.projectId)}&request_id=${encodeURIComponent(projectCtx.requestId)}` : '';
+
+  // Restore search, filters and sort from the URL (Back/Forward, reload, shared link) or, when the user returns
+  // through a profile's own "back to directory" link, from this tab's memory of the search it left from.
   useEffect(() => {
-    if (review) return;
     const params = new URLSearchParams(window.location.search);
-    const projectId = params.get('project_id');
-    const requestId = params.get('request_id');
-    if (projectId && requestId && /^[0-9a-f-]{36}$/i.test(projectId) && /^[0-9a-f-]{36}$/i.test(requestId)) {
-      setContext(`?project_id=${encodeURIComponent(projectId)}&request_id=${encodeURIComponent(requestId)}`);
+    const ctx = review ? null : projectContext(params);
+    let source = params;
+    const remembered = takeReturn();
+    if (!review && !hasSearch(params) && remembered) {
+      const rememberedCtx = projectContext(remembered);
+      if ((rememberedCtx?.projectId ?? null) === (ctx?.projectId ?? null) && (rememberedCtx?.requestId ?? null) === (ctx?.requestId ?? null)) source = remembered;
     }
+    const restored = parseSearch(source, Object.keys(typeNames));
+    setProjectCtx(ctx); setQuery(restored.query); setFilters(restored.filters); setSort(restored.sort); setReady(true);
   }, [review]);
+
+  // Keep the address bar in sync without adding history entries, so Back returns to the previous page.
+  useEffect(() => {
+    if (!ready) return;
+    const qs = searchToParams({ query, filters, sort }, projectCtx).toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+    if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(null, '', next);
+  }, [ready, query, filters, sort, projectCtx]);
 
   useEffect(() => {
     let active = true;
@@ -261,7 +278,7 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
   }, [rows, query, filters, sort]);
 
   const setFilter = (key: keyof Filters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
-  const resetAll = () => { setQuery(''); setFilters(noFilters); };
+  const resetAll = () => { setQuery(''); setFilters(noFilters); forgetReturn(); };
   const filterLabel = (key: keyof Filters) => key === 'type' ? typeNames[filters.type] : key === 'availability' ? availabilityFilters[filters.availability]
     : key === 'rating' ? ratingFilters[filters.rating] : filters[key];
   const hasRatings = (rows ?? []).some((row) => row.rating_count != null);
@@ -377,12 +394,15 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
         </p>
         <label className="flex items-center gap-2 text-sm text-black/55">
           <span>Trier</span>
-          <select className={selectBase} value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
+          <select aria-label="Trier les professionnels" className={selectBase} value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
             {sortKeys.map((key) => <option key={key} value={key}>{sortNames[key]}</option>)}
           </select>
         </label>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" onClickCapture={review ? undefined : (event) => {
+        const link = (event.target as HTMLElement).closest('a');
+        if (link?.getAttribute('href')?.startsWith('/app/professionals/')) rememberForReturn(window.location.search.slice(1));
+      }}>
         {visible.map((row) => <ProfessionalCard key={row.id} row={row} review={review}
           href={review ? `/app/dao/professionals/${row.id}/dossier` : `/app/professionals/${row.id}${context}`} />)}
       </div>
