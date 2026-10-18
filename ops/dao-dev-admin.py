@@ -210,6 +210,39 @@ GATEWAY_ROLLBACK_OUTCOMES = frozenset({
 })
 
 
+GATEWAY_TRACE_STEPS = frozenset({
+    'env_backup', 'env_write', 'compose_up', 'health_wait', 'post_pin', 'guard_start', 'gateway_start',
+    'gateway_ready', 'bypass_checks', 'final_health',
+    'rb_gateway_stop', 'rb_guard_stop', 'rb_env_restore', 'rb_compose_up', 'rb_health_wait',
+    'post_health', 'post_demo', 'post_pin_active', 'post_loopback', 'post_gateway_state', 'post_guard_state',
+})
+GATEWAY_TRACE_OUTCOMES = frozenset({'ok', 'failed', 'timeout', 'nonzero', 'error'})
+GATEWAY_ROLLBACK_FAILURES = frozenset({
+    'service_stop_failed', 'env_restore_failed', 'compose_restore_failed', 'postcheck_failed',
+})
+
+
+def gateway_trace(value):
+    """Closed trace [[step, outcome, seconds multiple of 5]...]; anything else is dropped, never echoed."""
+    if not isinstance(value, list) or len(value) > 40:
+        return None
+    out = []
+    for row in value:
+        if (not isinstance(row, list) or len(row) != 3 or not isinstance(row[0], str) or not isinstance(row[1], str)
+                or row[0] not in GATEWAY_TRACE_STEPS or row[1] not in GATEWAY_TRACE_OUTCOMES
+                or type(row[2]) is not int or not 0 <= row[2] <= 600 or row[2] % 5):
+            return None
+        out.append([row[0], row[1], row[2]])
+    return out
+
+
+def gateway_rollback_failures(value):
+    if (not isinstance(value, list) or len(value) > 4
+            or any(not isinstance(item, str) or item not in GATEWAY_ROLLBACK_FAILURES for item in value)):
+        return None
+    return sorted(set(value))
+
+
 def gateway_failure_report(stderr):
     """Expose only allowlisted enum values; never pass untrusted stderr."""
     failed = {'reason': 'unclassified'}
@@ -223,7 +256,8 @@ def gateway_failure_report(stderr):
         return failed
     keys = set(data)
     if keys not in ({'oce_gateway_host_error'},
-                    {'oce_gateway_host_error', 'phase', 'rollback'}):
+                    {'oce_gateway_host_error', 'phase', 'rollback'},
+                    {'oce_gateway_host_error', 'phase', 'rollback', 'rollback_failures', 'trace'}):
         return failed
     reason = data.get('oce_gateway_host_error')
     if not isinstance(reason, str) or reason not in GATEWAY_FAILURE_REASONS:
@@ -235,7 +269,15 @@ def gateway_failure_report(stderr):
             or data['phase'] not in GATEWAY_APPLY_PHASES
             or data['rollback'] not in GATEWAY_ROLLBACK_OUTCOMES):
         return failed
-    return {'reason': reason, 'phase': data['phase'], 'rollback': data['rollback']}
+    report = {'reason': reason, 'phase': data['phase'], 'rollback': data['rollback']}
+    if 'trace' in data:
+        # Detail is optional evidence: if it is malformed it is dropped without invalidating the closed core.
+        trace = gateway_trace(data.get('trace'))
+        failures = gateway_rollback_failures(data.get('rollback_failures'))
+        if trace is not None and failures is not None:
+            report['rollback_failures'] = failures
+            report['trace'] = trace
+    return report
 
 
 def gateway_failure_reason(stderr):
@@ -279,7 +321,7 @@ def oce_gateway_apply():
         raise ValueError('gateway helper missing')
     result = subprocess.run(
         [str(helper), 'apply', '--acknowledge-public-demo-link-closes'],
-        capture_output=True, text=True, timeout=600, check=False,
+        capture_output=True, text=True, timeout=900, check=False,
     )
     if result.returncode != 0:
         print(json.dumps({'oce_gateway_apply': 'failed',

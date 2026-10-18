@@ -7,6 +7,7 @@ container IPs or response bodies.
 
 from __future__ import annotations
 
+import datetime
 import http.client
 import json
 import os
@@ -37,6 +38,33 @@ DOCKER = "/usr/bin/docker"
 SYSTEMCTL = "/usr/bin/systemctl"
 RUNUSER = "/usr/sbin/runuser"
 CURL = "/usr/bin/curl"
+
+# Time budget (seconds). Worst case = forward (up 120 + health 180) + rollback (stops 60 + up 120 + health 180 +
+# post-checks 2 x 20) = 700 s, inside the helper cap of 900 s (dao-dev-admin), SSH 17 min and job 20 min. The first
+# attempts ended after ~180 s with the old 75 s waits: OCE can need well over a minute to answer /api/health after a
+# recreate, and the old rollback then judged a still-starting container as failed.
+COMPOSE_UP_TIMEOUT = 120
+HEALTH_WAIT_APPLY = 180
+HEALTH_WAIT_ROLLBACK = 180
+POSTCHECK_WAIT = 20
+
+# Closed-vocabulary trace of what happened; never command output, paths, values or addresses.
+TRACE_STEPS = frozenset({
+    "env_backup", "env_write", "compose_up", "health_wait", "post_pin", "guard_start", "gateway_start", "gateway_ready",
+    "bypass_checks", "final_health",
+    "rb_gateway_stop", "rb_guard_stop", "rb_env_restore", "rb_compose_up", "rb_health_wait",
+    "post_health", "post_demo", "post_pin_active", "post_loopback", "post_gateway_state", "post_guard_state",
+})
+TRACE_OUTCOMES = frozenset({"ok", "failed", "timeout", "nonzero", "error"})
+TRACE = []
+ROLLBACK_FAILURES = []
+
+
+def mark(step, outcome, started=None):
+    """Record one bounded trace entry: [step, outcome, elapsed seconds rounded down to 5 s, max 600]."""
+    if step in TRACE_STEPS and outcome in TRACE_OUTCOMES and len(TRACE) < 40:
+        seconds = 0 if started is None else max(0, int(time.monotonic() - started))
+        TRACE.append([step, outcome, min(600, seconds // 5 * 5)])
 
 
 class Halt(ValueError):
@@ -99,13 +127,30 @@ def demo_enabled():
         conn.close()
 
 
-def wait_health(seconds=75):
-    deadline = time.monotonic() + seconds
+def wait_health(seconds=HEALTH_WAIT_APPLY, step="health_wait"):
+    started = time.monotonic()
+    deadline = started + seconds
     while time.monotonic() < deadline:
         if health():
+            mark(step, "ok", started)
             return
         time.sleep(2)
+    mark(step, "timeout", started)
     raise Halt("oce health timeout")
+
+
+def poll(check, seconds):
+    """True as soon as check() is true, waiting at most `seconds`; never raises."""
+    deadline = time.monotonic() + seconds
+    while True:
+        try:
+            if check():
+                return True
+        except Exception:
+            pass
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(2)
 
 
 def env_meta():
@@ -300,7 +345,7 @@ def require_active_digest_pin():
     return files
 
 
-def compose_up_app(pinned_sources, pinned_image):
+def compose_up_app(pinned_sources, pinned_image, step="compose_up"):
     """Recreate from the pinned preflight snapshot, including during rollback.
 
     The running container may be absent or incomplete after a failed recreate.
@@ -313,7 +358,19 @@ def compose_up_app(pinned_sources, pinned_image):
     for path in pinned_sources:
         args.extend(["-f", str(path)])
     args.extend(["up", "-d", "--no-deps", "--no-build", "--pull", "never", "app"])
-    run(args, timeout=120)
+    started = time.monotonic()
+    try:
+        run(args, timeout=COMPOSE_UP_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        mark(step, "timeout", started)
+        raise Halt("command failed")
+    except Halt:
+        mark(step, "nonzero", started)
+        raise
+    except Exception:
+        mark(step, "error", started)
+        raise
+    mark(step, "ok", started)
 
 
 def app_inspect():
@@ -432,6 +489,57 @@ def validate_installed_files():
         raise Halt("nft unavailable")
 
 
+APP_STATES = frozenset({"created", "running", "paused", "restarting", "removing", "exited", "dead"})
+APP_HEALTH = frozenset({"starting", "healthy", "unhealthy"})
+
+
+def app_diagnostics():
+    """Read-only, closed-vocabulary state of the OCE app container. Never raises, never prints raw Docker output,
+    labels, environment, addresses or health-check logs."""
+    out = {
+        "docker_compose_available": False,
+        "app_container_present": False,
+        "app_state": "absent",
+        "app_health_status": "none",
+        "app_restart_count": 0,
+        "app_oom_killed": False,
+        "app_exit_code": None,
+        "app_uptime_bucket_s": None,
+        "health_latency_bucket_ms": None,
+    }
+    try:
+        out["docker_compose_available"] = run([DOCKER, "compose", "version"], timeout=15, check=False).returncode == 0
+    except Exception:
+        pass
+    try:
+        started = time.monotonic()
+        health()
+        out["health_latency_bucket_ms"] = min(3000, int((time.monotonic() - started) * 1000) // 100 * 100)
+    except Exception:
+        pass
+    try:
+        row = app_inspect()
+        state = row.get("State") or {}
+        count = row.get("RestartCount")
+        out["app_restart_count"] = min(99, count) if type(count) is int and count >= 0 else 0
+        out["app_container_present"] = True
+        status = state.get("Status")
+        out["app_state"] = status if status in APP_STATES else "unknown"
+        health_status = (state.get("Health") or {}).get("Status")
+        out["app_health_status"] = health_status if health_status in APP_HEALTH else "none"
+        out["app_oom_killed"] = state.get("OOMKilled") is True
+        code = state.get("ExitCode")
+        out["app_exit_code"] = code if type(code) is int and 0 <= code <= 255 else None
+        stamp = state.get("StartedAt")
+        if isinstance(stamp, str) and len(stamp) >= 19:
+            began = datetime.datetime.strptime(stamp[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+            seconds = int((datetime.datetime.now(datetime.timezone.utc) - began).total_seconds())
+            out["app_uptime_bucket_s"] = min(86400, max(0, seconds) // 60 * 60)
+    except Exception:
+        pass
+    return out
+
+
 def plan():
     require_root()
     validate_installed_files()
@@ -459,6 +567,7 @@ def plan():
                 "gateway_service_active": service_active(GATEWAY_SERVICE),
                 "egress_guard_active": service_active(GUARD_SERVICE),
                 "gateway_socket_ready": socket_ready(),
+                "app_diagnostics": app_diagnostics(),
             },
             sort_keys=True,
         )
@@ -486,40 +595,62 @@ class ApplyFailure(Halt):
 
 def rollback_activation(changed, original, original_meta, gateway_was_active,
                         guard_was_active, pinned_sources, pinned_image, initial_loopback):
-    """Best-effort *all* recovery steps, then verify the original invariant."""
+    """Best-effort *all* recovery steps, then verify the original invariant.
+
+    Every sub-step is recorded in TRACE and every failing one in ROLLBACK_FAILURES (closed names), so an aggregate
+    result is never the only evidence. The post-check waits for the app to answer: a restored container that is
+    still starting is not a failed restoration.
+    """
     failures = []
+
+    def stop(service, step):
+        started = time.monotonic()
+        try:
+            run([SYSTEMCTL, "disable", "--now", service], timeout=30)
+            mark(step, "ok", started)
+        except Exception:
+            mark(step, "failed", started)
+            failures.append("service_stop_failed")
+
     if not gateway_was_active:
-        try:
-            run([SYSTEMCTL, "disable", "--now", GATEWAY_SERVICE], timeout=30)
-        except Exception:
-            failures.append("service_stop_failed")
+        stop(GATEWAY_SERVICE, "rb_gateway_stop")
     if not guard_was_active:
-        try:
-            run([SYSTEMCTL, "disable", "--now", GUARD_SERVICE], timeout=30)
-        except Exception:
-            failures.append("service_stop_failed")
+        stop(GUARD_SERVICE, "rb_guard_stop")
     if changed:
         env_restored = False
+        started = time.monotonic()
         try:
             restore_env(original, original_meta)
             env_restored = True
+            mark("rb_env_restore", "ok", started)
         except Exception:
+            mark("rb_env_restore", "failed", started)
             failures.append("env_restore_failed")
         if env_restored:
             try:
-                compose_up_app(pinned_sources, pinned_image)
-                wait_health()
+                compose_up_app(pinned_sources, pinned_image, step="rb_compose_up")
+                wait_health(HEALTH_WAIT_ROLLBACK, "rb_health_wait")
             except Exception:
                 failures.append("compose_restore_failed")
-    try:
-        if (not health() or not demo_enabled()
-                or not pinned_app_active()
-                or loopback_only() != initial_loopback
-                or service_active(GATEWAY_SERVICE) != gateway_was_active
-                or service_active(GUARD_SERVICE) != guard_was_active):
-            raise Halt("postcheck failed")
-    except Exception:
-        failures.append("postcheck_failed")
+
+    def verify(step, check):
+        started = time.monotonic()
+        try:
+            ok = bool(check())
+        except Exception:
+            ok = False
+        mark(step, "ok" if ok else "failed", started)
+        if not ok:
+            failures.append("postcheck_failed")
+        return ok
+
+    verify("post_health", lambda: poll(health, POSTCHECK_WAIT))
+    verify("post_demo", lambda: poll(demo_enabled, POSTCHECK_WAIT))
+    verify("post_pin_active", pinned_app_active)
+    verify("post_loopback", lambda: loopback_only() == initial_loopback)
+    verify("post_gateway_state", lambda: service_active(GATEWAY_SERVICE) == gateway_was_active)
+    verify("post_guard_state", lambda: service_active(GUARD_SERVICE) == guard_was_active)
+    ROLLBACK_FAILURES[:] = sorted(set(failures))
     unique = set(failures)
     return "verified" if not unique else (next(iter(unique)) if len(unique) == 1
                                            else "multiple_failed")
@@ -545,41 +676,65 @@ def apply():
     gateway_was_active = service_active(GATEWAY_SERVICE)
     guard_was_active = service_active(GUARD_SERVICE)
     phase = "bind_change"
+    TRACE.clear()
+    ROLLBACK_FAILURES.clear()
     try:
         if changed:
+            started = time.monotonic()
             backup_env(original)
+            mark("env_backup", "ok", started)
+            started = time.monotonic()
             write_env_loopback(original)
+            mark("env_write", "ok", started)
         if changed or not loopback_only():
             phase = "compose_recreate"
             compose_up_app(pinned_sources, pinned_image)
-            wait_health()
+            wait_health(HEALTH_WAIT_APPLY, "health_wait")
         phase = "post_compose_pin"
+        started = time.monotonic()
         if not loopback_only() or not pinned_app_active():
+            mark("post_pin", "failed", started)
             raise Halt("loopback or pinned runtime verification failed")
+        mark("post_pin", "ok", started)
 
         phase = "guard_start"
+        started = time.monotonic()
         run([SYSTEMCTL, "enable", "--now", GUARD_SERVICE], timeout=30)
         if not service_active(GUARD_SERVICE):
+            mark("guard_start", "failed", started)
             raise Halt("egress guard inactive")
+        mark("guard_start", "ok", started)
 
         phase = "gateway_start"
+        started = time.monotonic()
         run([SYSTEMCTL, "enable", "--now", GATEWAY_SERVICE], timeout=30)
+        mark("gateway_start", "ok", started)
         phase = "gateway_ready"
-        deadline = time.monotonic() + 20
+        started = time.monotonic()
+        deadline = started + 20
         while time.monotonic() < deadline and not (service_active(GATEWAY_SERVICE) and socket_ready()):
             time.sleep(1)
         if not service_active(GATEWAY_SERVICE) or not socket_ready() or not gateway_ready():
+            mark("gateway_ready", "failed", started)
             raise Halt("gateway service not ready")
+        mark("gateway_ready", "ok", started)
 
         phase = "bypass_checks"
+        started = time.monotonic()
         ip = container_ip()
         if not dao_direct_denied("http://127.0.0.1:8080/api/health"):
+            mark("bypass_checks", "failed", started)
             raise Halt("dao loopback bypass still reachable")
         if not dao_direct_denied("http://" + ip + ":8080/api/health"):
+            mark("bypass_checks", "failed", started)
             raise Halt("dao container bypass still reachable")
+        mark("bypass_checks", "ok", started)
         phase = "final_health"
-        if not health() or not demo_enabled() or not pinned_app_active():
+        started = time.monotonic()
+        if not poll(health, POSTCHECK_WAIT) or not demo_enabled() or not pinned_app_active():
+            mark("final_health", "failed", started)
             raise Halt("operator OCE access or runtime pin unavailable")
+        mark("final_health", "ok", started)
     except Exception as failure:
         result = rollback_activation(changed, original, original_meta,
                                      gateway_was_active, guard_was_active,
@@ -631,15 +786,22 @@ def main():
         raise Halt("usage: plan or apply --acknowledge-public-demo-link-closes")
 
 
+def failure_report(exc):
+    """Closed report printed on stderr; trace and rollback detail only after an activation failure."""
+    reason = str(exc) if isinstance(exc, Halt) else "internal_or_command_error"
+    report = {"oce_gateway_host_error": reason}
+    if isinstance(exc, ApplyFailure):
+        report["phase"] = exc.phase
+        report["rollback"] = exc.rollback
+        report["rollback_failures"] = list(ROLLBACK_FAILURES)
+        report["trace"] = [list(entry) for entry in TRACE]
+    return report
+
+
 if __name__ == "__main__":
     os.umask(0o077)
     try:
         main()
     except Exception as exc:
-        reason = str(exc) if isinstance(exc, Halt) else "internal_or_command_error"
-        report = {"oce_gateway_host_error": reason}
-        if isinstance(exc, ApplyFailure):
-            report["phase"] = exc.phase
-            report["rollback"] = exc.rollback
-        print(json.dumps(report, sort_keys=True), file=sys.stderr)
+        print(json.dumps(failure_report(exc), sort_keys=True), file=sys.stderr)
         sys.exit(1)
