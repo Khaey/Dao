@@ -68,10 +68,41 @@ les chemins Compose et le digest immuable *avant* mutation et les réutilise
 pendant le rollback, même si un conteneur a été partiellement recréé ou a
 disparu. Le rollback tente indépendamment l'arrêt de chaque service et la
 restauration Compose, puis vérifie état OCE, digest, bind initial et services.
-Le délai maximum du wrapper root (600 s), du transport SSH (12 minutes pour
-`oce-gateway-apply`) et du job (15 minutes) laisse un budget au rollback.
+Le délai maximum du wrapper root (900 s), du transport SSH (17 minutes pour
+`oce-gateway-apply`) et du job (20 minutes) laisse un budget au pire cas
+(montée Compose 120 s + attente santé 180 s, puis rollback : arrêts, montée
+120 s, attente santé 180 s et deux contrôles de 20 s).
 Les futurs échecs retournent uniquement les codes fermés `phase` et
-`rollback` — jamais stdout/stderr sensibles.
+`rollback`, la liste fermée `rollback_failures` et une `trace` d'étapes
+`[étape, issue, secondes arrondies à 5]` — jamais stdout/stderr, chemins,
+valeurs ni adresses.
+
+### Après le 2e échec (`compose_recreate` + `multiple_failed`, #39168572760)
+
+Diagnostic sur code, sans log brut ni accès VPS : les deux échecs durent
+~180 s, soit deux attentes de santé complètes de 75 s plus les montées Compose.
+Hypothèse la plus cohérente : **l'app OCE met plus de 75 s à répondre à
+`/api/health` après recréation**, l'attente d'`apply` expire, le rollback
+refait la même recréation, expire de la même façon, puis son contrôle final
+était **instantané** et jugeait un conteneur encore en démarrage comme raté
+(`multiple_failed`), alors que le `plan` suivant le trouvait sain. Ce n'est
+**pas prouvé** : la correction ci-dessus ne fait que (1) attendre 180 s,
+(2) attendre le contrôle final de rollback (20 s) au lieu d'un test unique,
+(3) dire précisément quelle étape échoue (`compose_up` : `ok|nonzero|timeout|error`,
+`health_wait`, chaque sous-étape `rb_*` et `post_*`).
+
+`dao-oce-gateway-host plan` (`/dao-ops oce-gateway-plan`, lecture seule)
+expose maintenant `app_diagnostics` : état du conteneur app (`running|exited|…`),
+santé Docker (`starting|healthy|unhealthy|none`), nombre de redémarrages
+(max 99), OOM, code de sortie, uptime arrondi à la minute, latence de
+`/api/health` arrondie à 100 ms et disponibilité de `docker compose`. Aucun
+log, label, environnement ni adresse.
+
+Ordre avant toute nouvelle tentative : fusionner, admettre le SHA, installer
+(`ops-preflight` puis `ops-upgrade`, autorisation propriétaire), lancer
+`oce-gateway-plan` pour lire `app_diagnostics`, et seulement ensuite demander
+une décision expresse pour un nouvel `oce-gateway-apply`. Aucun troisième
+`apply` n'est autorisé par ce document.
 
 **STOP** : ne pas relancer `apply` avec la version installée précédente.
 Le merge et le déploiement applicatif DEV ne remplacent **pas** l'upgrade

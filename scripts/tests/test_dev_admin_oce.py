@@ -65,7 +65,26 @@ class DevAdminOceAuditTests(unittest.TestCase):
                                                        "reason": permitted["oce_gateway_host_error"],
                                                        "phase": "compose_recreate",
                                                        "rollback": "postcheck_failed"})
-        self.assertEqual(run.call_args.kwargs["timeout"], 600)
+        self.assertEqual(run.call_args.kwargs["timeout"], 900)
+
+    def test_gateway_failure_trace_is_closed_and_dropped_when_malformed(self):
+        core = {"oce_gateway_host_error": "gateway activation failed and rollback incomplete",
+                "phase": "compose_recreate", "rollback": "multiple_failed"}
+        good = {**core, "rollback_failures": ["postcheck_failed", "env_restore_failed"],
+                "trace": [["compose_up", "ok", 5], ["health_wait", "timeout", 180], ["post_health", "failed", 20]]}
+        report = admin.gateway_failure_report(json.dumps(good))
+        self.assertEqual(report["rollback_failures"], ["env_restore_failed", "postcheck_failed"])
+        self.assertEqual(report["trace"], good["trace"])
+        for bad_trace in ([["compose_up", "ok", 7]], [["private", "ok", 5]], [["compose_up", "private", 5]],
+                          [["compose_up", "ok", 5, "x"]], [["compose_up", "ok", 601]], [["compose_up", "ok", True]],
+                          "private-value", [["compose_up", "ok", 5]] * 41):
+            with self.subTest(trace=str(bad_trace)[:40]):
+                degraded = admin.gateway_failure_report(json.dumps({**good, "trace": bad_trace}))
+                self.assertEqual(degraded, {"reason": core["oce_gateway_host_error"], "phase": "compose_recreate",
+                                            "rollback": "multiple_failed"})
+        degraded = admin.gateway_failure_report(json.dumps({**good, "rollback_failures": ["private-value"]}))
+        self.assertNotIn("trace", degraded)
+        self.assertEqual(admin.gateway_failure_report(json.dumps({**good, "extra": "private-value"})), {"reason": "unclassified"})
 
     def test_gateway_failure_reasons_are_closed_and_bounded(self):
         for reason in ('oce health timeout', 'gateway service not ready',

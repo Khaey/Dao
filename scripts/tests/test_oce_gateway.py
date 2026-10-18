@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -335,12 +336,12 @@ class HostEnvTests(unittest.TestCase):
         self.assertEqual(result, "service_stop_failed")
         self.assertEqual(len(actual_calls), 2)
         env_restore.assert_called_once()
-        compose.assert_called_once_with(sources, "digest")
+        compose.assert_called_once_with(sources, "digest", step="rb_compose_up")
 
     def test_failed_forward_compose_can_be_recovered_without_live_pin_check(self):
         sources = host.BASE_FILES
         restored = []
-        def fake_compose(files, digest):
+        def fake_compose(files, digest, step=None):
             restored.append((files, digest))
             if len(restored) == 1:
                 raise host.Halt("command failed")
@@ -370,6 +371,110 @@ class HostEnvTests(unittest.TestCase):
         self.assertEqual(restored[0], restored[1])
         pin.assert_called_once()
         restore.assert_called_once()
+
+    def _reset_trace(self):
+        host.TRACE.clear()
+        host.ROLLBACK_FAILURES.clear()
+
+    def test_compose_up_outcome_is_classified_in_the_closed_trace(self):
+        sources = (*host.BASE_FILES, host.PIN_FILE)
+        image = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
+        cases = [(None, "ok"), (host.Halt("command failed"), "nonzero"),
+                 (host.subprocess.TimeoutExpired("docker", 120), "timeout"), (OSError("x"), "error")]
+        for failure, outcome in cases:
+            self._reset_trace()
+            with self.subTest(outcome=outcome), patch.object(host, "selected_compose_files", return_value=sources), patch.object(
+                host, "configured_app_image", return_value=image
+            ), patch.object(host, "run", side_effect=failure):
+                if failure is None:
+                    host.compose_up_app(sources, image)
+                else:
+                    with self.assertRaises(Exception):
+                        host.compose_up_app(sources, image)
+            self.assertEqual([(row[0], row[1]) for row in host.TRACE], [("compose_up", outcome)])
+
+    def test_health_wait_records_timeout_and_success_with_bounded_buckets(self):
+        self._reset_trace()
+        with patch.object(host, "health", return_value=False):
+            with self.assertRaisesRegex(host.Halt, "oce health timeout"):
+                host.wait_health(0, "rb_health_wait")
+        with patch.object(host, "health", return_value=True):
+            host.wait_health(5)
+        self.assertEqual([(r[0], r[1]) for r in host.TRACE], [("rb_health_wait", "timeout"), ("health_wait", "ok")])
+        self.assertTrue(all(isinstance(r[2], int) and 0 <= r[2] <= 600 and r[2] % 5 == 0 for r in host.TRACE))
+
+    def test_rollback_reports_each_failed_substep_not_only_an_aggregate(self):
+        self._reset_trace()
+        with patch.object(host, "run"), patch.object(host, "restore_env", side_effect=host.Halt("x")), patch.object(
+            host, "compose_up_app"
+        ), patch.object(host, "wait_health"), patch.object(host, "poll", return_value=False), patch.object(
+            host, "pinned_app_active", return_value=True
+        ), patch.object(host, "loopback_only", return_value=False), patch.object(host, "service_active", return_value=False):
+            result = host.rollback_activation(True, b"OE_BIND=0.0.0.0", object(), False, False,
+                                              host.BASE_FILES, "digest", False)
+        self.assertEqual(result, "multiple_failed")
+        self.assertEqual(host.ROLLBACK_FAILURES, ["env_restore_failed", "postcheck_failed"])
+        steps = {row[0]: row[1] for row in host.TRACE}
+        self.assertEqual(steps["rb_env_restore"], "failed")
+        self.assertEqual(steps["post_health"], "failed")
+        self.assertEqual(steps["post_demo"], "failed")
+        self.assertEqual(steps["post_pin_active"], "ok")
+        self.assertEqual(steps["post_loopback"], "ok")
+        self.assertNotIn("rb_compose_up", steps, "no compose restore attempted without an env restore")
+
+    def test_rollback_postcheck_waits_for_a_still_starting_app(self):
+        self._reset_trace()
+        answers = iter([False, False, True])
+        with patch.object(host, "run"), patch.object(host, "restore_env"), patch.object(
+            host, "compose_up_app"
+        ), patch.object(host, "wait_health"), patch.object(host, "health", side_effect=lambda: next(answers)), patch.object(
+            host, "demo_enabled", return_value=True
+        ), patch.object(host, "pinned_app_active", return_value=True), patch.object(
+            host, "loopback_only", return_value=False
+        ), patch.object(host, "service_active", return_value=False), patch.object(host.time, "sleep"):
+            result = host.rollback_activation(True, b"OE_BIND=0.0.0.0", object(), False, False,
+                                              host.BASE_FILES, "digest", False)
+        self.assertEqual(result, "verified")
+        self.assertEqual(host.ROLLBACK_FAILURES, [])
+
+    def test_failure_report_carries_only_the_closed_trace(self):
+        self._reset_trace()
+        host.mark("compose_up", "timeout")
+        host.mark("not_a_step", "ok")
+        host.mark("health_wait", "password=private")
+        host.ROLLBACK_FAILURES[:] = ["compose_restore_failed"]
+        report = host.failure_report(host.ApplyFailure("gateway activation failed and rollback incomplete",
+                                                       "compose_recreate", "multiple_failed"))
+        self.assertEqual(report["trace"], [["compose_up", "timeout", 0]])
+        self.assertEqual(report["rollback_failures"], ["compose_restore_failed"])
+        self.assertNotIn("private", json.dumps(report))
+        self.assertEqual(host.failure_report(ValueError("password=private")), {"oce_gateway_host_error": "internal_or_command_error"})
+
+    def test_app_diagnostics_are_closed_and_never_echo_container_content(self):
+        row = {
+            "RestartCount": 7,
+            "Config": {"Env": ["JWT_SECRET=private-value"], "Labels": {"x": "private-value"}},
+            "NetworkSettings": {"IPAddress": "172.18.0.9"},
+            "State": {"Status": "running", "OOMKilled": False, "ExitCode": 0, "StartedAt": "2026-10-18T16:16:12.123456789Z",
+                      "Health": {"Status": "starting", "Log": [{"Output": "private-value"}]}},
+        }
+        ok = type("R", (), {"returncode": 0, "stdout": b""})()
+        with patch.object(host, "run", return_value=ok), patch.object(host, "health", return_value=False), patch.object(
+            host, "app_inspect", return_value=row
+        ):
+            out = host.app_diagnostics()
+        self.assertEqual(out["app_state"], "running")
+        self.assertEqual(out["app_health_status"], "starting")
+        self.assertEqual(out["app_restart_count"], 7)
+        self.assertIs(out["docker_compose_available"], True)
+        self.assertEqual(out["app_uptime_bucket_s"] % 60, 0)
+        self.assertNotIn("private", json.dumps(out))
+        self.assertNotIn("172.18", json.dumps(out))
+        with patch.object(host, "run", side_effect=OSError("boom")), patch.object(host, "health", return_value=False), patch.object(
+            host, "app_inspect", side_effect=host.Halt("absent")
+        ):
+            absent = host.app_diagnostics()
+        self.assertEqual((absent["app_container_present"], absent["app_state"]), (False, "absent"))
 
     def test_direct_compose_digest_is_valid_active_pin(self):
         digest = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
