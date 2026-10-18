@@ -319,7 +319,7 @@ class HostEnvTests(unittest.TestCase):
         actual_calls = []
         def fake_run(args, **_kwargs):
             actual_calls.append(args)
-            if args[2] == host.GATEWAY_SERVICE:
+            if args[-1] == host.GATEWAY_SERVICE:
                 raise host.Halt("service unavailable")
         with patch.object(host, "run", side_effect=fake_run), patch.object(
             host, "restore_env"
