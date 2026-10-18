@@ -8,6 +8,7 @@ import { Badge, Card } from '../../components/ui';
 import { stageLabels } from '../../lib/collaboration';
 import { effectiveProjectStatus } from '../../lib/utils';
 import { DossierMeter, dossierStepText, dossierSummary, primaryAction, secondaryAction, StatusPill } from './projects/_components/ProjectUi';
+import ReviewInvitation from './_components/ReviewInvitation';
 
 type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number; client_id: string | null; initiator_id:string; project_origin:string; project_stage: string };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
@@ -101,6 +102,8 @@ export default function Dashboard() {
           <div><h2 className="font-bold text-ink">Votre espace est prêt</h2><p className="mt-1 text-sm text-black/55">Créez votre premier projet et structurez vos travaux lot par lot.</p></div>
           <Link className={`${primaryAction} bg-clay sm:ml-auto`} href="/app/projects/new">Nouveau chantier</Link>
         </Card>}
+
+        <ReviewInvitation />
 
         <div className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
