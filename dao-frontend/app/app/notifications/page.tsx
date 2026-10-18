@@ -6,15 +6,15 @@ import { useRouter } from 'next/navigation';
 import { Bell, Check, CheckCheck, ClipboardCheck, Mail, MessageCircle, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { Button, Card } from '../../../components/ui';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
-import { fetchNotifications, markNotificationRead, NotificationApiError, type NotificationItem, type NotificationPage } from '../../../lib/notifications';
+import { fetchNotifications, markAllNotificationsRead, markNotificationRead, NotificationApiError, type NotificationItem, type NotificationPage } from '../../../lib/notifications';
 
 const dates=new Intl.DateTimeFormat('fr-FR',{dateStyle:'medium',timeStyle:'short'});
 const workspaceLabels={client:'Espace Client',contractor:'Espace Artisan',staff:'Espace D.A.O'};
-const icons={review_approved:ClipboardCheck,review_rejected:ClipboardCheck,invitation_received:Mail,invitation_accepted:CheckCheck,project_message:MessageCircle};
+const icons={review_approved:ClipboardCheck,review_rejected:ClipboardCheck,invitation_received:Mail,invitation_accepted:CheckCheck,project_message:MessageCircle,invitation_expiring:Bell};
 
 export default function NotificationsPage() {
   const router=useRouter();
-  const [unread,setUnread]=useState(false);
+  const [filter,setFilter]=useState<'all'|'unread'|'action'>('all');
   const [identity,setIdentity]=useState<string|null>(null);
   const [page,setPage]=useState<NotificationPage|null>(null);
   const [loading,setLoading]=useState(true);
@@ -43,11 +43,11 @@ export default function NotificationsPage() {
     readRequest.current?.abort();const controller=new AbortController();readRequest.current=controller;
     setLoading(true);setError('');
     try {
-      let result=await fetchNotifications(unread,cursor,controller.signal);
+      let result=await fetchNotifications(filter,cursor,controller.signal);
       if(current!==generation.current)return;
       // A workspace changed in another tab: discard any old cursor/page and load its first page.
       let append=Boolean(cursor);
-      if(cursor&&lastWorkspace.current!==result.workspace){result=await fetchNotifications(unread,null,controller.signal);append=false;}
+      if(cursor&&lastWorkspace.current!==result.workspace){result=await fetchNotifications(filter,null,controller.signal);append=false;}
       if(current!==generation.current)return;
       lastWorkspace.current=result.workspace;
       setPage(previous=>append&&previous?.workspace===result.workspace?{...result,rows:[...previous.rows,...result.rows].filter((row,index,rows)=>rows.findIndex(x=>x.id===row.id)===index)}:result);
@@ -57,7 +57,7 @@ export default function NotificationsPage() {
       if(e instanceof NotificationApiError&&e.status===403)setPage(null);
       setError(e instanceof NotificationApiError?e.message:'Impossible de charger vos notifications. Vérifiez votre connexion et réessayez.');
     } finally {if(current===generation.current)setLoading(false);}
-  },[identity,unread,router]);
+  },[identity,filter,router]);
 
   useEffect(()=>{setPage(null);setAnnouncement('');void load();return()=>{generation.current++;readRequest.current?.abort();};},[load]);
   useEffect(()=>{
@@ -82,6 +82,7 @@ export default function NotificationsPage() {
       }
     } finally {if(!controller.signal.aborted)setMarking(null);}
   }
+  async function markAll(){const controller=new AbortController();markRequest.current?.abort();markRequest.current=controller;setMarking('all');setError('');try{const data=await markAllNotificationsRead(controller.signal);setAnnouncement(`${data?.marked??0} notification(s) marquée(s) comme lue(s).`);await load();}catch{if(!controller.signal.aborted)setError('Lecture groupée non enregistrée. Réessayez.');}finally{if(!controller.signal.aborted)setMarking(null);}}
 
   return <section className="mx-auto w-full max-w-4xl space-y-6" aria-labelledby="notifications-title">
     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -90,15 +91,16 @@ export default function NotificationsPage() {
         <h1 id="notifications-title" className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Mes notifications</h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-black/60">Les événements utiles de vos dossiers, invitations et échanges, réunis ici.</p>
       </div>
-      <button type="button" onClick={()=>void load()} disabled={loading||Boolean(marking)||!identity} aria-label="Actualiser les notifications"
+      <div className="flex items-center gap-2"><Link href="/app/notifications/preferences" className="inline-flex min-h-11 items-center rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">Préférences</Link><button type="button" onClick={()=>void load()} disabled={loading||Boolean(marking)||!identity} aria-label="Actualiser les notifications"
         className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-black/10 bg-white px-3 text-teal hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal disabled:opacity-50"><RefreshCw size={18} aria-hidden="true" className={loading?'animate-spin':''}/></button>
+      </div>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div role="group" aria-label="Filtrer les notifications" className="inline-flex rounded-xl border border-black/5 bg-white p-1">
-        {[false,true].map(value=><button key={String(value)} type="button" aria-pressed={unread===value} disabled={Boolean(marking)} onClick={()=>setUnread(value)}
-          className={`min-h-11 rounded-lg px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal ${unread===value?'bg-teal text-white':'text-black/60 hover:bg-sand'}`}>{value?'Non lues':'Toutes'}</button>)}
+        {([['all','Toutes'],['unread','Non lues'],['action','Action à traiter']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={filter===value} disabled={Boolean(marking)} onClick={()=>setFilter(value)}
+          className={`min-h-11 rounded-lg px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal ${filter===value?'bg-teal text-white':'text-black/60 hover:bg-sand'}`}>{label}</button>)}
       </div>
-      {page&&<span className="rounded-full bg-teal/10 px-3 py-2 text-sm font-semibold text-teal" aria-label={`${page.unread_count} notifications non lues`}>{page.unread_count} non lue{page.unread_count!==1?'s':''}</span>}
+      <div className="flex flex-wrap items-center gap-2">{page&&page.unread_count>0&&<button type="button" onClick={()=>void markAll()} disabled={Boolean(marking)||loading} className="min-h-11 rounded-xl border border-black/10 px-3 text-sm font-semibold text-teal disabled:opacity-50">Tout marquer comme lu</button>}{page&&<span className="rounded-full bg-teal/10 px-3 py-2 text-sm font-semibold text-teal" aria-label={`${page.unread_count} notifications non lues`}>{page.unread_count} non lue{page.unread_count!==1?'s':''}</span>}</div>
     </div>
     <p role="status" aria-live="polite" className="sr-only">{loading?'Chargement des notifications…':announcement}</p>
     {error&&<div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-800"><p className="min-w-0 flex-1">{error}</p>
@@ -106,15 +108,16 @@ export default function NotificationsPage() {
     {loading&&!page?<div aria-busy="true" className="space-y-3">{[0,1,2].map(i=><div key={i} aria-hidden="true" className="h-28 animate-pulse rounded-2xl bg-black/5"/>)}</div>
       :page&&page.rows.length===0?<Card className="flex flex-col items-center gap-3 border-dashed px-5 py-14 text-center">
         <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal/10 text-teal"><Bell size={26}/></span>
-        <h2 className="text-lg font-bold">{unread?'Vous êtes à jour':'Aucune notification pour le moment'}</h2>
-        <p className="max-w-md text-sm leading-relaxed text-black/60">{unread?'Vous avez consulté toutes les notifications disponibles dans cet espace.':'Vos prochaines notifications apparaîtront ici lorsqu’un événement vous concernera.'}</p>
+        <h2 className="text-lg font-bold">{filter==='unread'?'Vous êtes à jour':filter==='action'?'Aucune action à traiter':'Aucune notification pour le moment'}</h2>
+        <p className="max-w-md text-sm leading-relaxed text-black/60">{filter==='unread'?'Vous avez consulté toutes les notifications disponibles dans cet espace.':filter==='action'?'Aucun rappel facultatif ne demande votre attention.':'Vos prochaines notifications apparaîtront ici lorsqu’un événement vous concernera.'}</p>
       </Card>:page&&<Card className="overflow-hidden p-0"><ul aria-label="Notifications personnelles" className="divide-y divide-black/5">{page.rows.map(item=>{
         const Icon=icons[item.kind];const isUnread=!item.read_at;
         return <li key={item.id} className={`px-4 py-5 sm:px-6 ${isUnread?'bg-teal/[.035]':''}`}>
           <div className="flex items-start gap-3 sm:gap-4">
             <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${isUnread?'bg-teal/10 text-teal':'bg-sand text-black/50'}`}><Icon size={21}/></span>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h2 className={`text-base ${isUnread?'font-bold':'font-semibold'}`}>{item.title}</h2><span className={`text-xs font-semibold ${isUnread?'text-teal':'text-black/50'}`}>{isUnread?'Non lue':'Lue'}</span></div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><h2 className={`text-base ${isUnread?'font-bold':'font-semibold'}`}>{item.title}</h2>{item.action_required&&<span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900">Action requise</span>}<span className={`text-xs font-semibold ${isUnread?'text-teal':'text-black/50'}`}>{isUnread?'Non lue':'Lue'}</span></div>
+              {item.expires_at&&<p className="mt-1 text-sm font-semibold text-amber-900">Expire le <time dateTime={item.expires_at}>{dates.format(new Date(item.expires_at))}</time></p>}
               <time dateTime={item.created_at} className="mt-1 block text-xs text-black/55">{dates.format(new Date(item.created_at))}</time>
               <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
                 <Link href={item.href} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-teal hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">Consulter<span className="sr-only"> : {item.title}</span><ArrowUpRight size={15} aria-hidden="true"/></Link>
