@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ArrowUpRight, Building2, CalendarDays, ChevronRight, Filter, MapPin, Plus, Search, X } from 'lucide-react';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { stageLabels } from '../../../lib/collaboration';
@@ -15,7 +15,14 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('f
 const lotsLabel = (count: number) => `${count} lot${count > 1 ? 's' : ''}`;
 const roleLabel = (role?: string) => role ? `Mon rôle : ${role === 'client' ? 'Client' : 'Artisan / Entreprise'}` : '';
 
+// The list renders only after the client-side fetch, so choosing one layout here never causes a hydration mismatch:
+// only the table (lg and up) or the cards are built, instead of both with one hidden by CSS.
+const wideQuery = '(min-width: 1024px)';
+const subscribeWide = (notify: () => void) => { const media = window.matchMedia(wideQuery); media.addEventListener('change', notify); return () => media.removeEventListener('change', notify); };
+const useWideLayout = () => useSyncExternalStore(subscribeWide, () => window.matchMedia(wideQuery).matches, () => true);
+
 export default function Projects() {
+  const wide = useWideLayout();
   const [contractor, setContractor] = useState(false);
   const [rows, setRows] = useState<ProjectRow[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [query, setQuery] = useState(''); const [status, setStatus] = useState(''); const [stage, setStage] = useState('');
   async function load() { setLoading(true); setError(''); const supabase = supabaseBrowser(); const { data: session } = await supabase.auth.getSession(); const userId = session.session?.user.id ?? null; if (userId) { const [{ data: roles }, { data: profile }] = await Promise.all([supabase.from('user_roles').select('role').eq('user_id', userId), supabase.from('profiles').select('last_workspace').eq('user_id', userId).maybeSingle()]); const hasContractor = Boolean(roles?.some(row => row.role === 'contractor')); const hasClient = Boolean(roles?.some(row => row.role === 'client')); setContractor(hasContractor && (!hasClient || profile?.last_workspace === 'contractor')); } const [projects, versions, requests, governors, delegations, localities, memberships] = await Promise.all([supabase.from('projects').select('id,project_type,status,desired_end_date,indicative_budget_millimes,surface_m2,created_at,client_id,project_stage').order('created_at', { ascending: false }), supabase.from('project_versions').select('project_id,title,status,governorate_id,delegation_id,locality_id,version_no').order('version_no', { ascending: false }), supabase.from('project_requests').select('id,project_id,status').neq('status', 'withdrawn'), supabase.from('governorates').select('id,name_fr'), supabase.from('delegations').select('id,name_fr'), supabase.from('localities').select('id,name_fr'), userId ? supabase.from('project_members').select('project_id,participation_role').eq('user_id', userId).eq('status', 'accepted') : Promise.resolve({ data: [] as { project_id: string; participation_role: string }[] })]); if (projects.error) { setError('Impossible de charger vos projets.'); setLoading(false); return; }
@@ -86,7 +93,7 @@ export default function Projects() {
         <button type="button" onClick={clearFilters} className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-teal ring-1 ring-inset ring-teal/25 transition hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal"><X size={15} aria-hidden="true" />Effacer les filtres</button>
       </div>
       : filtered.length > 0 && <>
-        <div className="hidden overflow-x-auto rounded-2xl border border-black/[0.06] bg-white lg:block">
+        {wide ? <div className="hidden overflow-x-auto rounded-2xl border border-black/[0.06] bg-white lg:block">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Liste de mes chantiers</caption>
             <thead className="border-b border-black/[0.06] text-xs font-semibold text-ink/65">
@@ -107,7 +114,7 @@ export default function Projects() {
             </tr>)}</tbody>
           </table>
         </div>
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden" aria-label="Liste de mes chantiers">{filtered.map(project => <li key={project.id} className="min-w-0">
+        : <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden" aria-label="Liste de mes chantiers">{filtered.map(project => <li key={project.id} className="min-w-0">
           <article data-testid={`project-row-${project.id}`} className="relative flex h-full min-w-0 flex-col rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_1px_2px_rgba(23,32,42,0.04)] transition focus-within:ring-2 focus-within:ring-teal hover:border-black/15">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -127,7 +134,7 @@ export default function Projects() {
             </dl>
             {project.desired_end_date && <p className="mt-2 flex items-center gap-1.5 text-xs text-ink/65"><CalendarDays size={13} aria-hidden="true" />Fin souhaitée : {formatDate(project.desired_end_date)}</p>}
           </article>
-        </li>)}</ul>
+        </li>)}</ul>}
       </>}
   </section>;
 }
