@@ -98,6 +98,34 @@ rétroactive des anciennes alertes ni création artificielle de checkpoint ACTIV
   « Attribution à confirmer — PR #N » si la PR est connue, sans inventer de
   responsable. Le merger ou l'auteur Git ne prouve pas l'identité de l'agent.
 
+## Visibilité des agents dans GitHub Projects (18/10/2026)
+
+Le tableau **GitHub Projects #3** possède un champ personnalisé `Agent`, distinct
+de l'assigné GitHub `Assignees`. Les agents ChatGPT/Claude ne sont pas des
+comptes utilisateurs GitHub assignables : un champ `Assignees` vide n'efface
+pas l'attribution `Agent`.
+
+- **Source canonique** : `.github/dao-monitor-agents.json`. Une PR portant
+  `Owner issue: #243` récupère `DAO DEV 20` via la mission #243.
+  En cas d'issue nouvellement mandatée, enregistrer aussi l'association
+  `issue → agent` dans le registre, sans retarder les PR de l'agent existant.
+- **Titre de carte visible** : pour les PR fonctionnelles ouvertes, préfixer
+  simplement le titre avec le nom de l'agent (ex.
+  `DAO DEV 20 — feat(notifications): ...`). Cela reste lisible même
+  si la vue Projects masque le champ `Agent` ; ne change ni le SHA,
+  ni le contenu, ni les droits. C'est une convention d'affichage,
+  **pas un nouveau contrôle CI ni une validation obligatoire par PILOT**.
+- Une **issue propriétaire** avec PR ouverte peut être classée `Todo`
+  tandis que **sa PR** est `In Progress` afin d'éviter un double comptage.
+  Sur la vue « En cours », chercher la **PR** et non seulement la mission.
+- La synchronisation `DAO Projects Sync` vérifie le champ `Agent` :
+  sa sortie `agent: 0` signifie **aucune différence à corriger**,
+  pas « aucun agent ». Le titre peut être modifié sans redémarrer la CI.
+  Une synchro réussie n'atteste pas une session IA en activité.
+- L'apparence exacte des champs visibles dépend des réglages de la
+  **vue GitHub Projects**. Cette synchronisation ne modifie pas le
+  paramétrage visuel de la vue.
+
 ## Déclarer le propriétaire d'une PR (#120)
 
 Dans le corps de chaque nouvelle PR, écrire sur une ligne en texte normal :
