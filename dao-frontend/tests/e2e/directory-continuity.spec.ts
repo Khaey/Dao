@@ -57,5 +57,7 @@ test('Annuaire : recherche, filtres et tri survivent à la fiche, au retour, au 
   await search.fill('');
   await expect(page).not.toHaveURL(/q=/);
   await expect(page.getByRole('link', { name: /Bati Beta E2E/ })).toBeVisible();
+  // No review yet is stated as such, never as a fake "new" badge; card links are named after the professional.
+  await expect(page.getByRole('link', { name: 'Bati Beta E2E', exact: true }).getByText('Pas encore d’avis')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
 });
