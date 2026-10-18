@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test';
 import { test, expect } from './support/fixtures';
 import { login } from './support/flow';
 
-const rpcError = { message: 'temporary_unavailable', code: '503', details: null, hint: null };
+const rpcError = { message: 'query_failed', code: 'PGRST000', details: null, hint: null };
 
 async function failUntilRetry(page: Page, endpoint: string) {
   const handler = async (route: Route) => {
@@ -10,7 +10,7 @@ async function failUntilRetry(page: Page, endpoint: string) {
       await route.continue();
       return;
     }
-    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify(rpcError) });
+    await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify(rpcError) });
   };
   await page.route('**/*', handler);
   return () => page.unroute('**/*', handler);
