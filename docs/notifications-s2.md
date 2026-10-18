@@ -100,3 +100,23 @@ Tests du lot A : contrat pur et fixtures synthétiques. Les lots suivants doiven
 ajouter PGlite, plans SQL, base Supabase jetable avec JWT Client A/B, Artisan,
 double rôle, staff, anon et suspendu, puis E2E desktop/mobile. Une preuve CI
 jetable ne vaut jamais activation du scheduler ou recette authentifiée DEV.
+
+## Mécanisme livré, activation volontairement absente
+
+La migration additive `20261018071000_invitation_expiry_reminders_s2.sql`
+implémente deux fonctions **privées** :
+`dao_private.dry_run_invitation_expiry_reminders` et
+`dao_private.generate_invitation_expiry_reminders`. Leurs droits sont révoqués
+à `public`, `anon`, `authenticated` et `service_role`. Le dry-run ne retourne que
+`eligible` et la limite demandée ; la génération retourne seulement `generated`
+et `has_more`. Aucun identifiant, e-mail ou payload n'est journalisé ou renvoyé.
+
+La génération verrouille un lot avec `FOR UPDATE SKIP LOCKED`, revalide toutes
+les conditions après verrouillage et s'appuie sur l'unicité `(user_id,event_key)`.
+L'index partiel `(expires_at,id) WHERE status='pending'` borne le scan. Une
+exécution manuelle contrôlée par le propriétaire de la fonction sur une base
+jetable suffit aux tests ; aucun appel navigateur, endpoint, cron, secret,
+service-role, workflow GitHub, VPS ou scheduler n'est fourni. Une future
+activation devra définir séparément l'identité d'exécution, la fréquence, le
+monitoring agrégé et le rollback, puis recevoir une autorisation dédiée avant
+toute écriture sur DEV partagé ou PROD.
