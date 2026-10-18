@@ -195,23 +195,49 @@ GATEWAY_FAILURE_REASONS = frozenset({
     'response bound',
     'root required',
     'runtime digest pin not active',
+    'runtime pin changed during activation',
     'runtime pin unsafe',
 })
 
 
-def gateway_failure_reason(stderr):
+GATEWAY_APPLY_PHASES = frozenset({
+    'bind_change', 'compose_recreate', 'post_compose_pin', 'guard_start',
+    'gateway_start', 'gateway_ready', 'bypass_checks', 'final_health',
+})
+GATEWAY_ROLLBACK_OUTCOMES = frozenset({
+    'verified', 'service_stop_failed', 'env_restore_failed',
+    'compose_restore_failed', 'postcheck_failed', 'multiple_failed',
+})
+
+
+def gateway_failure_report(stderr):
+    """Expose only allowlisted enum values; never pass untrusted stderr."""
+    failed = {'reason': 'unclassified'}
     if not isinstance(stderr, str) or len(stderr) > 4096:
-        return 'unclassified'
+        return failed
     try:
         data = json.loads(stderr)
     except (ValueError, TypeError):
-        return 'unclassified'
-    if not isinstance(data, dict) or set(data) != {'oce_gateway_host_error'}:
-        return 'unclassified'
-    reason = data['oce_gateway_host_error']
+        return failed
+    if not isinstance(data, dict):
+        return failed
+    keys = set(data)
+    if keys not in ({'oce_gateway_host_error'},
+                    {'oce_gateway_host_error', 'phase', 'rollback'}):
+        return failed
+    reason = data.get('oce_gateway_host_error')
     if not isinstance(reason, str) or reason not in GATEWAY_FAILURE_REASONS:
-        return 'unclassified'
-    return reason
+        return failed
+    if 'phase' not in data:
+        return {'reason': reason}
+    if (data.get('phase') not in GATEWAY_APPLY_PHASES
+            or data.get('rollback') not in GATEWAY_ROLLBACK_OUTCOMES):
+        return failed
+    return {'reason': reason, 'phase': data['phase'], 'rollback': data['rollback']}
+
+
+def gateway_failure_reason(stderr):
+    return gateway_failure_report(stderr)['reason']
 
 
 def oce_gateway_plan():
@@ -251,11 +277,11 @@ def oce_gateway_apply():
         raise ValueError('gateway helper missing')
     result = subprocess.run(
         [str(helper), 'apply', '--acknowledge-public-demo-link-closes'],
-        capture_output=True, text=True, timeout=180, check=False,
+        capture_output=True, text=True, timeout=600, check=False,
     )
     if result.returncode != 0:
         print(json.dumps({'oce_gateway_apply': 'failed',
-                          'reason': gateway_failure_reason(result.stderr)}, sort_keys=True))
+                          **gateway_failure_report(result.stderr)}, sort_keys=True))
         raise ValueError('gateway apply failed')
     data = json.loads(result.stdout)
     expected = {
