@@ -38,7 +38,7 @@ test('Notifications : invitation réelle, acceptation, lecture et nouveau messag
 });
 
 const at='2026-10-18T00:00:00.123456Z';
-function item(id=randomUUID(),read=false){return {id,kind:'review_rejected',title:'Dossier à corriger',created_at:at,read_at:read?at:null,href:'/app/projects/'+id+'/review'};}
+function item(id=randomUUID(),read=false){return {id,kind:'review_rejected',title:'Dossier à corriger',created_at:at,read_at:read?at:null,href:'/app/projects/'+id+'/review',action_required:false,expires_at:null};}
 
 test('Notifications : erreur réseau, retry et échec de marquage sans faux succès',async({page},info)=>{
   const {user}=await notificationActor(info);await login(page,user);

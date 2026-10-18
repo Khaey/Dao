@@ -300,10 +300,17 @@ def require_active_digest_pin():
     return files
 
 
-def compose_up_app():
-    files = require_active_digest_pin()
+def compose_up_app(pinned_sources, pinned_image):
+    """Recreate from the pinned preflight snapshot, including during rollback.
+
+    The running container may be absent or incomplete after a failed recreate.
+    Requiring its *current* labels/digest before recovery prevents restoration.
+    The effective Compose image and source list must still match the frozen pin.
+    """
+    if tuple(pinned_sources) != selected_compose_files() or configured_app_image(pinned_sources) != pinned_image:
+        raise Halt("runtime pin changed during activation")
     args = [DOCKER, "compose", "--project-directory", str(BASE)]
-    for path in files:
+    for path in pinned_sources:
         args.extend(["-f", str(path)])
     args.extend(["up", "-d", "--no-deps", "--no-build", "--pull", "never", "app"])
     run(args, timeout=120)
@@ -458,10 +465,71 @@ def plan():
     )
 
 
+APPLY_PHASES = frozenset({
+    "bind_change", "compose_recreate", "post_compose_pin", "guard_start",
+    "gateway_start", "gateway_ready", "bypass_checks", "final_health",
+})
+ROLLBACK_OUTCOMES = frozenset({
+    "verified", "service_stop_failed", "env_restore_failed",
+    "compose_restore_failed", "postcheck_failed", "multiple_failed",
+})
+
+
+class ApplyFailure(Halt):
+    """Sanitized closed-state failure; never include command output or secrets."""
+
+    def __init__(self, reason, phase, rollback):
+        super().__init__(reason)
+        self.phase = phase
+        self.rollback = rollback
+
+
+def rollback_activation(changed, original, original_meta, gateway_was_active,
+                        guard_was_active, pinned_sources, pinned_image, initial_loopback):
+    """Best-effort *all* recovery steps, then verify the original invariant."""
+    failures = []
+    if not gateway_was_active:
+        try:
+            run([SYSTEMCTL, "disable", "--now", GATEWAY_SERVICE], timeout=30)
+        except Exception:
+            failures.append("service_stop_failed")
+    if not guard_was_active:
+        try:
+            run([SYSTEMCTL, "disable", "--now", GUARD_SERVICE], timeout=30)
+        except Exception:
+            failures.append("service_stop_failed")
+    if changed:
+        env_restored = False
+        try:
+            restore_env(original, original_meta)
+            env_restored = True
+        except Exception:
+            failures.append("env_restore_failed")
+        if env_restored:
+            try:
+                compose_up_app(pinned_sources, pinned_image)
+                wait_health()
+            except Exception:
+                failures.append("compose_restore_failed")
+    try:
+        if (not health() or not demo_enabled()
+                or not pinned_app_active()
+                or loopback_only() != initial_loopback
+                or service_active(GATEWAY_SERVICE) != gateway_was_active
+                or service_active(GUARD_SERVICE) != guard_was_active):
+            raise Halt("postcheck failed")
+    except Exception:
+        failures.append("postcheck_failed")
+    unique = set(failures)
+    return "verified" if not unique else (next(iter(unique)) if len(unique) == 1
+                                           else "multiple_failed")
+
+
 def apply():
     require_root()
     validate_installed_files()
-    require_active_digest_pin()
+    pinned_sources = require_active_digest_pin()
+    pinned_image = configured_app_image(pinned_sources)
     if not health() or not pinned_app_active():
         raise Halt("oce health or runtime digest pin unavailable")
     if not demo_enabled():
@@ -473,55 +541,62 @@ def apply():
     original_meta = env_meta()
     original, bind = read_env()
     changed = bind != "127.0.0.1"
+    initial_loopback = loopback_only()
     gateway_was_active = service_active(GATEWAY_SERVICE)
     guard_was_active = service_active(GUARD_SERVICE)
-
-    # No service/network change is attempted without the explicit caller-side
-    # acknowledgement checked by main(). Restore the original public binding
-    # and stop newly-started services if any activation step fails.
+    phase = "bind_change"
     try:
         if changed:
             backup_env(original)
             write_env_loopback(original)
         if changed or not loopback_only():
-            compose_up_app()
+            phase = "compose_recreate"
+            compose_up_app(pinned_sources, pinned_image)
             wait_health()
+        phase = "post_compose_pin"
         if not loopback_only() or not pinned_app_active():
             raise Halt("loopback or pinned runtime verification failed")
 
+        phase = "guard_start"
         run([SYSTEMCTL, "enable", "--now", GUARD_SERVICE], timeout=30)
         if not service_active(GUARD_SERVICE):
             raise Halt("egress guard inactive")
 
+        phase = "gateway_start"
         run([SYSTEMCTL, "enable", "--now", GATEWAY_SERVICE], timeout=30)
+        phase = "gateway_ready"
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline and not (service_active(GATEWAY_SERVICE) and socket_ready()):
             time.sleep(1)
         if not service_active(GATEWAY_SERVICE) or not socket_ready() or not gateway_ready():
             raise Halt("gateway service not ready")
 
+        phase = "bypass_checks"
         ip = container_ip()
         if not dao_direct_denied("http://127.0.0.1:8080/api/health"):
             raise Halt("dao loopback bypass still reachable")
         if not dao_direct_denied("http://" + ip + ":8080/api/health"):
             raise Halt("dao container bypass still reachable")
+        phase = "final_health"
         if not health() or not demo_enabled() or not pinned_app_active():
             raise Halt("operator OCE access or runtime pin unavailable")
-    except Exception:
-        try:
-            if not gateway_was_active:
-                run([SYSTEMCTL, "disable", "--now", GATEWAY_SERVICE], timeout=30)
-            if not guard_was_active:
-                run([SYSTEMCTL, "disable", "--now", GUARD_SERVICE], timeout=30)
-            if changed:
-                restore_env(original, original_meta)
-                compose_up_app()
-                wait_health()
-                if not pinned_app_active():
-                    raise Halt("pinned runtime not restored")
-        except Exception as recovery_error:
-            raise Halt("gateway activation failed and rollback incomplete") from recovery_error
-        raise
+    except Exception as failure:
+        result = rollback_activation(changed, original, original_meta,
+                                     gateway_was_active, guard_was_active,
+                                     pinned_sources, pinned_image, initial_loopback)
+        if result != "verified":
+            raise ApplyFailure("gateway activation failed and rollback incomplete", phase, result) from failure
+        reason = str(failure) if isinstance(failure, Halt) else "internal_or_command_error"
+        # Deliberately collapse the original exception to a closed allowlist.
+        if reason not in {
+            "command failed", "oce health timeout", "runtime pin changed during activation",
+            "loopback or pinned runtime verification failed", "egress guard inactive",
+            "gateway service not ready", "dao loopback bypass still reachable",
+            "dao container bypass still reachable", "operator OCE access or runtime pin unavailable",
+            "internal_or_command_error",
+        }:
+            reason = "internal_or_command_error"
+        raise ApplyFailure(reason, phase, "verified") from failure
 
     print(
         json.dumps(
@@ -562,5 +637,9 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         reason = str(exc) if isinstance(exc, Halt) else "internal_or_command_error"
-        print(json.dumps({"oce_gateway_host_error": reason}, sort_keys=True), file=sys.stderr)
+        report = {"oce_gateway_host_error": reason}
+        if isinstance(exc, ApplyFailure):
+            report["phase"] = exc.phase
+            report["rollback"] = exc.rollback
+        print(json.dumps(report, sort_keys=True), file=sys.stderr)
         sys.exit(1)

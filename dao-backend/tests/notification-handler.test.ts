@@ -10,15 +10,18 @@ function request(method='GET', body?: unknown, query='') {
 }
 test('notifications authenticate before data and keep JWT-scoped RPC inputs actor-free', async () => {
   const calls: any[] = [];
-  const db = { rpc: async (name: string, args: unknown) => { calls.push({ name, args }); return { data: { rows: [], unread_count: 0, workspace: 'client', has_more: false } }; } };
+  const db = { rpc: async (name: string, args: unknown) => { calls.push({ name, args }); return { data: name==='my_notifications_s2'?{ rows: [], unread_count: 0, workspace: 'client', has_more: false }:{workspace:'client',invitation_expiring:true} }; } };
   const anonymous = createNotificationHandler(new NotificationService(db), async () => null);
   assert.equal((await anonymous(request())).status, 401); assert.equal(calls.length, 0);
   const handler = createNotificationHandler(new NotificationService(db), async (header) => { assert.equal(header,'Bearer actor'); return { id: 'real-actor' }; });
   const result = await handler(request('GET', undefined, '?limit=50&unread=true'));
   assert.equal(result.status,200); assert.equal(result.headers.get('cache-control'), 'private, no-store');
-  assert.deepEqual(calls[0], { name: 'my_notifications', args: { p_limit: 50, p_before: null, p_before_id: null, p_unread: true } });
+  assert.deepEqual(calls[0], { name: 'my_notifications_s2', args: { p_limit: 50, p_before: null, p_before_id: null, p_unread: true,p_action:false } });
   assert.equal((await handler(request('PATCH', { id }))).status,200);
   assert.deepEqual(calls[1], { name: 'mark_my_notification_read', args: { p_id: id } });
+  assert.equal((await handler(request('GET',undefined,'?view=preferences'))).status,200);
+  assert.equal((await handler(request('PATCH',{action:'mark_all_read'}))).status,200);
+  assert.equal((await handler(request('PATCH',{action:'update_preferences',invitation_expiring:false}))).status,200);
 });
 test('invalid parameters, JSON, forged identity, bulk read and methods never reach SQL', async () => {
   let calls = 0;

@@ -7,6 +7,7 @@ import { Badge, Card, Input } from './ui';
 import { Stars } from './reviews/ReviewStars';
 import { formatRating } from '../lib/reviews';
 import { professionalBlob, professionalRead, professionalStatus } from '../lib/professionals';
+import { emptyFilters, forgetReturn, hasSearch, parseSearch, projectContext, rememberForReturn, searchToParams, takeReturn, type DirectoryFilters, type DirectorySort } from './directory-search';
 import { availabilityLabel, availabilityOf, availabilityTones, initials, monogramTone, professionalTypeNames as typeNames } from './professional-display';
 
 type DirectoryRow = {
@@ -29,10 +30,10 @@ type DirectoryRow = {
   review_status?: string | null;
 };
 
-type Filters = { trade: string; zone: string; availability: string; type: string; rating: string };
-type SortKey = 'recent' | 'rating' | 'experience' | 'portfolio' | 'name';
+type Filters = DirectoryFilters;
+type SortKey = DirectorySort;
 
-const noFilters: Filters = { trade: '', zone: '', availability: '', type: '', rating: '' };
+const noFilters: Filters = emptyFilters;
 const ratingFilters: Record<string, string> = { '4': '4 ★ et plus', '3': '3 ★ et plus' };
 const availabilityFilters: Record<string, string> = {
   now: 'Disponible maintenant',
@@ -126,13 +127,14 @@ function ProfessionalCard({ row, href, review }: { row: DirectoryRow; href: stri
   const years = row.years_experience;
   const works = row.portfolio_count ?? 0;
 
-  return <Link href={href}
+  // Short accessible name (the professional's name); the rest of the card stays readable as content.
+  return <Link href={href} aria-labelledby={`professional-${row.id}-name`}
     className="group block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">
     <Card className="flex h-full flex-col gap-4 transition duration-200 group-hover:-translate-y-0.5 group-hover:border-teal/25 group-hover:shadow-[0_14px_40px_rgba(23,32,42,0.08)] motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
       <div className="flex items-start gap-3.5">
         <DirectoryLogo id={row.id} logoId={row.logo_id} name={row.name} />
         <div className="min-w-0 flex-1 space-y-1">
-          <h2 className="line-clamp-2 break-words font-bold leading-snug text-ink transition group-hover:text-teal">{row.name}</h2>
+          <h2 id={`professional-${row.id}-name`} className="line-clamp-2 break-words font-bold leading-snug text-ink transition group-hover:text-teal">{row.name}</h2>
           <p className="text-xs font-medium text-black/50">{typeNames[row.contractor_type ?? ''] ?? 'Professionnel'}</p>
           {verified
             ? <p className="inline-flex items-center gap-1 text-xs font-semibold text-teal"><BadgeCheck aria-hidden="true" size={15} />Vérifié par D.A.O.</p>
@@ -142,7 +144,7 @@ function ProfessionalCard({ row, href, review }: { row: DirectoryRow; href: stri
           {row.rating_count != null && (row.rating_count > 0
             ? <p className="flex items-center gap-1.5 text-xs text-black/60"><Stars value={Number(row.rating_average ?? 0)} size={13} />
               <span className="font-semibold text-ink">{formatRating(row.rating_average)}</span>({row.rating_count} avis)</p>
-            : <p className="text-xs font-medium text-black/45">Nouveau sur D.A.O.</p>)}
+            : <p className="text-xs font-medium text-black/45">Pas encore d’avis</p>)}
         </div>
       </div>
 
@@ -194,7 +196,8 @@ function SkeletonCard() {
 }
 
 export default function ProfessionalDirectory({ review = false }: { review?: boolean }) {
-  const [context, setContext] = useState('');
+  const [projectCtx, setProjectCtx] = useState<{ projectId: string; requestId: string } | null>(null);
+  const [ready, setReady] = useState(false);
   const [rows, setRows] = useState<DirectoryRow[] | null>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<Filters>(noFilters);
@@ -202,15 +205,30 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [error, setError] = useState('');
 
+  const context = projectCtx ? `?project_id=${encodeURIComponent(projectCtx.projectId)}&request_id=${encodeURIComponent(projectCtx.requestId)}` : '';
+
+  // Restore search, filters and sort from the URL (Back/Forward, reload, shared link) or, when the user returns
+  // through a profile's own "back to directory" link, from this tab's memory of the search it left from.
   useEffect(() => {
-    if (review) return;
     const params = new URLSearchParams(window.location.search);
-    const projectId = params.get('project_id');
-    const requestId = params.get('request_id');
-    if (projectId && requestId && /^[0-9a-f-]{36}$/i.test(projectId) && /^[0-9a-f-]{36}$/i.test(requestId)) {
-      setContext(`?project_id=${encodeURIComponent(projectId)}&request_id=${encodeURIComponent(requestId)}`);
+    const ctx = review ? null : projectContext(params);
+    let source = params;
+    const remembered = takeReturn();
+    if (!review && !hasSearch(params) && remembered) {
+      const rememberedCtx = projectContext(remembered);
+      if ((rememberedCtx?.projectId ?? null) === (ctx?.projectId ?? null) && (rememberedCtx?.requestId ?? null) === (ctx?.requestId ?? null)) source = remembered;
     }
+    const restored = parseSearch(source, Object.keys(typeNames));
+    setProjectCtx(ctx); setQuery(restored.query); setFilters(restored.filters); setSort(restored.sort); setReady(true);
   }, [review]);
+
+  // Keep the address bar in sync without adding history entries, so Back returns to the previous page.
+  useEffect(() => {
+    if (!ready) return;
+    const qs = searchToParams({ query, filters, sort }, projectCtx).toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+    if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(null, '', next);
+  }, [ready, query, filters, sort, projectCtx]);
 
   useEffect(() => {
     let active = true;
@@ -261,7 +279,7 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
   }, [rows, query, filters, sort]);
 
   const setFilter = (key: keyof Filters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
-  const resetAll = () => { setQuery(''); setFilters(noFilters); };
+  const resetAll = () => { setQuery(''); setFilters(noFilters); forgetReturn(); };
   const filterLabel = (key: keyof Filters) => key === 'type' ? typeNames[filters.type] : key === 'availability' ? availabilityFilters[filters.availability]
     : key === 'rating' ? ratingFilters[filters.rating] : filters[key];
   const hasRatings = (rows ?? []).some((row) => row.rating_count != null);
@@ -377,12 +395,15 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
         </p>
         <label className="flex items-center gap-2 text-sm text-black/55">
           <span>Trier</span>
-          <select className={selectBase} value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
+          <select aria-label="Trier les professionnels" className={selectBase} value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
             {sortKeys.map((key) => <option key={key} value={key}>{sortNames[key]}</option>)}
           </select>
         </label>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" onClickCapture={review ? undefined : (event) => {
+        const link = (event.target as HTMLElement).closest('a');
+        if (link?.getAttribute('href')?.startsWith('/app/professionals/')) rememberForReturn(window.location.search.slice(1));
+      }}>
         {visible.map((row) => <ProfessionalCard key={row.id} row={row} review={review}
           href={review ? `/app/dao/professionals/${row.id}/dossier` : `/app/professionals/${row.id}${context}`} />)}
       </div>

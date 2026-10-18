@@ -19,6 +19,8 @@ export function createNotificationHandler(service: NotificationService, resolveA
         return Response.json({ error: 'Authentification requise.', code: 'UNAUTHENTICATED' }, { status: 401, headers });
       }
       if (request.method === 'GET') {
+        const url=new URL(request.url);
+        if(url.searchParams.get('view')==='preferences'&&[...url.searchParams.keys()].length===1){const data=await service.preferences();report({category:'OK'});return Response.json({data},{headers});}
         const data = await service.list(new URL(request.url).searchParams);report({ category: 'OK', page_size: data.rows.length });
         return Response.json({ data }, { headers });
       }
@@ -27,9 +29,14 @@ export function createNotificationHandler(service: NotificationService, resolveA
         return Response.json({ error: 'Méthode refusée.', code: 'METHOD_NOT_ALLOWED' }, { status: 405, headers: { ...headers, Allow: 'GET, PATCH' } });
       }
       const body = await request.json();
-      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1 || !Object.hasOwn(body, 'id'))
+      if (!body || typeof body !== 'object' || Array.isArray(body))
         throw new NotificationContractError('BAD_REQUEST');
-      const data = await service.markRead(body.id);report({ category: 'OK' });
+      let data;
+      if(Object.keys(body).length===1&&Object.hasOwn(body,'id'))data=await service.markRead(body.id);
+      else if(Object.keys(body).length===1&&body.action==='mark_all_read')data=await service.markAllRead();
+      else if(Object.keys(body).length===2&&body.action==='update_preferences'&&typeof body.invitation_expiring==='boolean')data=await service.updatePreferences(body.invitation_expiring);
+      else throw new NotificationContractError('BAD_REQUEST');
+      report({ category: 'OK' });
       return Response.json({ data }, { headers });
     } catch (error: any) {
       const invalid = error instanceof SyntaxError || error?.code === 'BAD_REQUEST' || error?.code === '22023' || error?.code === '22P02';
