@@ -50,10 +50,10 @@ test('Notifications : erreur réseau, retry et échec de marquage sans faux succ
     if(failGet){failGet=false;await route.abort('failed');return;}
     await route.fulfill({json:{data:{rows:[{...row,read_at:read?at:null}],workspace:'client',unread_count:read?0:1,next_cursor:null}}});
   });
-  await page.goto('/app/notifications');await expect(page.getByRole('alert')).toContainText('Impossible de charger vos notifications');
+  await page.goto('/app/notifications');await expect(page.locator('section[aria-labelledby="notifications-title"]').getByRole('alert')).toContainText('Impossible de charger vos notifications');
   await expect(page.getByLabel('0 notifications non lues',{exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Réessayer',exact:true}).click();await expect(page.getByRole('heading',{name:'Dossier à corriger',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Marquer comme lue : Dossier à corriger'}).click();await expect(page.getByRole('alert')).toContainText('Lecture non enregistrée');
+  await page.getByRole('button',{name:'Marquer comme lue : Dossier à corriger'}).click();await expect(page.locator('section[aria-labelledby="notifications-title"]').getByRole('alert')).toContainText('Lecture non enregistrée');
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
   await expect(page.getByRole('status')).not.toContainText('Notification marquée comme lue.');
   failMark=false;await page.getByRole('button',{name:'Marquer comme lue : Dossier à corriger'}).click();await expect(page.getByLabel('0 notifications non lues',{exact:true})).toBeVisible();
@@ -85,7 +85,7 @@ test('Notifications : pagination, filtre, sécurité des liens, clavier et 375/3
   }
   const link=page.getByRole('link',{name:'Consulter : Dossier à corriger'}).first();await link.focus();await expect(link).toBeFocused();
   expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-  corrupt=true;await page.getByRole('button',{name:'Actualiser les notifications'}).click();await expect(page.getByRole('alert')).toBeVisible();
+  corrupt=true;await page.getByRole('button',{name:'Actualiser les notifications'}).click();await expect(page.locator('section[aria-labelledby="notifications-title"]').getByRole('alert')).toBeVisible();
   await expect(page.locator('a[href^="https://evil.invalid"]')).toHaveCount(0);await expect(page.getByText('PRIVATE',{exact:true})).toHaveCount(0);
 });
 
@@ -99,7 +99,7 @@ test('Notifications : compte suspendu et déconnexion effacent les données affi
     p_recipient_name:null,p_principal_request_id:null,p_can_view_private_details:false});expect(invitation.error).toBeNull();
   await login(page,actor.user);await page.goto('/app/notifications');await expect(page.getByRole('heading',{name:'Invitation reçue',exact:true})).toBeVisible();
   expect((await operator.db.rpc('backoffice_command',{p_action:'account',p_input:{user_id:actor.user.id,status:'suspended',reason:'Synthetic S1 suspension'},p_key:randomUUID()})).error).toBeNull();
-  await page.getByRole('button',{name:'Actualiser les notifications'}).click();await expect(page.getByRole('alert')).toContainText('Votre compte ne permet pas');
+  await page.getByRole('button',{name:'Actualiser les notifications'}).click();await expect(page.locator('section[aria-labelledby="notifications-title"]').getByRole('alert')).toContainText('Votre compte ne permet pas');
   await expect(page.getByRole('list',{name:'Notifications personnelles'})).toHaveCount(0);
   await signOut(page);await expect(page.getByRole('heading',{name:'Mes notifications',exact:true})).toHaveCount(0);
   await page.goto('/app/notifications');await expect(page).toHaveURL(/\/auth\/login/);
