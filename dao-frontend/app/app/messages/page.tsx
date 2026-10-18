@@ -6,6 +6,7 @@ import { LifeBuoy, MessageCircle, Search } from 'lucide-react';
 import { Card, Input } from '../../../components/ui';
 import { projectApi } from '../../../lib/collaboration';
 import SupportPanel from '../../../components/support/SupportPanel';
+import { originRoute, type SupportOrigin } from '../../../lib/support-client';
 
 type Tab = 'chantiers' | 'assistance';
 
@@ -33,7 +34,17 @@ export default function MessagesPage() {
   const [tab, setTab] = useState<Tab>('chantiers');
   const tabRefs = { chantiers: useRef<HTMLButtonElement>(null), assistance: useRef<HTMLButtonElement>(null) };
   // Tab kept in the URL (?onglet=assistance) so links and Back/Forward land on the right view.
-  useEffect(() => { if (new URLSearchParams(window.location.search).get('onglet') === 'assistance') setTab('assistance'); }, []);
+  const [supportOrigin, setSupportOrigin] = useState<SupportOrigin | null>(null);
+  const [startNew, setStartNew] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('onglet') !== 'assistance') return;
+    setTab('assistance');
+    setStartNew(params.get('nouvelle') === '1');
+    const route = params.get('origine');
+    // Only an internal path chosen by the assistant link; anything else is dropped.
+    if (route && /^\/[A-Za-z0-9/_-]{0,159}$/.test(route) && !route.includes('..')) setSupportOrigin({ route: originRoute(route), faq_id: null });
+  }, []);
   function selectTab(next: Tab, focus = false) {
     setTab(next);
     const url = new URL(window.location.href);
@@ -71,7 +82,7 @@ export default function MessagesPage() {
         {key === 'chantiers' && unread > 0 && <span className={`rounded-full px-1.5 text-xs font-bold ${tab === key ? 'bg-white text-ink' : 'bg-clay text-white'}`} aria-label={`${unread} non lu${unread > 1 ? 's' : ''}`}>{unread}</span>}
       </button>)}
     </div>
-    {tab === 'assistance' ? <div role="tabpanel" id="panel-assistance" aria-labelledby="tab-assistance"><SupportPanel onShowProjects={() => selectTab('chantiers', true)} /></div>
+    {tab === 'assistance' ? <div role="tabpanel" id="panel-assistance" aria-labelledby="tab-assistance"><SupportPanel key={startNew ? 'new' : 'list'} origin={supportOrigin} startNew={startNew} onShowProjects={() => selectTab('chantiers', true)} /></div>
     : <div role="tabpanel" id="panel-chantiers" aria-labelledby="tab-chantiers" className="space-y-6">
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
     {loading ? <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Chargement des conversations…</p>{[0, 1, 2].map((key) => <div key={key} className="h-20 animate-pulse rounded-2xl bg-black/5" />)}</div>

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ChevronDown, LifeBuoy, MessageCircleQuestion, Search, X } from 'lucide-react';
 import { contextOf, faqFor, searchFaq, type AssistantContext } from './faq';
+import { originRoute } from '../../lib/support-client';
 
 const greetings: Record<AssistantContext, string> = {
   public: 'Questions fréquentes sur D.A.O., l’inscription et la connexion.',
@@ -120,8 +121,8 @@ export default function AssistantWidget() {
           <p className="flex items-center gap-2 text-sm font-semibold text-ink"><LifeBuoy aria-hidden="true" size={16} className="text-teal" />Contacter D.A.O.</p>
           {signedIn === false && <p className="mt-1 text-sm text-black/60">Connectez-vous pour écrire à l’équipe D.A.O. et suivre sa réponse.{' '}
             <Link href={`/auth/login?returnTo=${returnTo}`} className="font-semibold text-teal underline-offset-4 hover:underline">Se connecter</Link></p>}
-          {signedIn && <p className="mt-1 text-sm text-black/60">La demande d’assistance directement depuis l’application arrive prochainement. Pour une question sur un chantier, écrivez à ses participants depuis « Messages & Assistance ».{' '}
-            <Link href="/app/messages?onglet=assistance" className="font-semibold text-teal underline-offset-4 hover:underline">Voir l’assistance</Link></p>}
+          {signedIn && <p className="mt-1 text-sm text-black/60">Posez votre question à l’équipe D.A.O. et suivez sa réponse dans « Messages & Assistance ». Pour une question sur un chantier, écrivez à ses participants.{' '}
+            <Link href={`/app/messages?onglet=assistance&nouvelle=1&origine=${encodeURIComponent(originRoute(pathname))}`} className="font-semibold text-teal underline-offset-4 hover:underline">Écrire à D.A.O.</Link></p>}
         </div>
       </div>
     </>}

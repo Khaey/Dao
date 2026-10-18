@@ -29,7 +29,7 @@ test('Assistant : FAQ publique, recherche et clavier, puis aide contextuelle con
   await fab.click();
   await dialog.getByText('Comment créer un chantier ?', { exact: true }).click();
   await expect(dialog.getByText(/« Nouveau chantier »/)).toBeVisible();
-  await expect(dialog.getByText(/arrive prochainement/)).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Écrire à D.A.O.', exact: true })).toHaveAttribute('href', '/app/messages?onglet=assistance&nouvelle=1&origine=%2Fapp%2Fprojects');
   await dialog.getByRole('button', { name: 'Fermer l’aide', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(fab).toBeFocused();
