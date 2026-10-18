@@ -128,7 +128,7 @@ export default function Dashboard() {
         <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-black/45">Raccourcis</h2>
         {([['Trouver un professionnel', '/app/professionals', 'Annuaire des professionnels vérifiés, notes et avis.', Search],
           ['Mes avis', '/app/reviews', 'Notez les professionnels de vos chantiers démarrés.', Star],
-          ['Mes messages', '/app/messages', 'Échanges privés avec vos équipes de chantier.', MessageSquare],
+          ['Messages & Assistance', '/app/messages', 'Échanges de chantier et assistance D.A.O.', MessageSquare],
           ['Mes invitations', '/app/invitations', 'Invitations envoyées et reçues.', Mail]] as const).map(([title, href, description, Icon]) => <Link key={href} href={href}
           className="group flex min-h-11 items-start gap-3 rounded-2xl border border-black/5 bg-white p-4 transition hover:border-teal/30 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
           <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-teal"><Icon size={17} /></span>

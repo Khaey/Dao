@@ -63,7 +63,7 @@ export default function ThreadPage() {
 
   return <section className="mx-auto w-full max-w-4xl space-y-4">
     <div>
-      <Link href="/app/messages" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-black/60 hover:text-teal"><ArrowLeft aria-hidden="true" size={16} />Mes messages</Link>
+      <Link href="/app/messages" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-black/60 hover:text-teal"><ArrowLeft aria-hidden="true" size={16} />Messages &amp; Assistance</Link>
       <h1 className="mt-1 text-2xl font-bold tracking-tight">{conversation?.participant_name || 'Discussion du chantier'}</h1>
       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-black/55">
         {conversation?.project_title && <span className="font-semibold text-teal">{conversation.project_title}</span>}

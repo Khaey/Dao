@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { MessageCircle, Search } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { LifeBuoy, MessageCircle, Search } from 'lucide-react';
 import { Card, Input } from '../../../components/ui';
 import { projectApi } from '../../../lib/collaboration';
+import SupportPanel from '../../../components/support/SupportPanel';
+
+type Tab = 'chantiers' | 'assistance';
 
 type Conversation = { id: string; project_title: string; participant_name: string; last_message_at: string | null; last_message: string | null; unread_count: number };
 
@@ -27,6 +30,22 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [tab, setTab] = useState<Tab>('chantiers');
+  const tabRefs = { chantiers: useRef<HTMLButtonElement>(null), assistance: useRef<HTMLButtonElement>(null) };
+  // Tab kept in the URL (?onglet=assistance) so links and Back/Forward land on the right view.
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('onglet') === 'assistance') setTab('assistance'); }, []);
+  function selectTab(next: Tab, focus = false) {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === 'assistance') url.searchParams.set('onglet', 'assistance'); else url.searchParams.delete('onglet');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    if (focus) tabRefs[next].current?.focus();
+  }
+  function onTabKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    selectTab(event.key === 'Home' ? 'chantiers' : event.key === 'End' ? 'assistance' : tab === 'chantiers' ? 'assistance' : 'chantiers', true);
+  }
   useEffect(() => { projectApi<Conversation[]>('/api/messages/conversations').then(setRows).catch((e) => setError(e.message)).finally(() => setLoading(false)); }, []);
 
   const unread = rows.reduce((sum, row) => sum + Number(row.unread_count || 0), 0);
@@ -40,11 +59,20 @@ export default function MessagesPage() {
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="text-xs font-bold uppercase tracking-[.16em] text-teal">Communication privée</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Mes messages</h1>
-        <p className="mt-2 text-sm text-black/55">Vos échanges avec les participants autorisés de vos chantiers.</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">Messages & Assistance</h1>
+        <p className="mt-2 text-sm text-black/55">Vos échanges de chantier et votre lien avec l’équipe D.A.O.</p>
       </div>
-      {unread > 0 && <span className="rounded-full bg-clay px-3 py-1.5 text-xs font-bold text-white">{unread} non lu{unread > 1 ? 's' : ''}</span>}
     </div>
+    <div role="tablist" aria-label="Type de messages" onKeyDown={onTabKey} className="flex gap-1 rounded-2xl border border-black/[0.06] bg-white p-1">
+      {([['chantiers', 'Chantiers', MessageCircle], ['assistance', 'Assistance D.A.O.', LifeBuoy]] as const).map(([key, label, Icon]) => <button key={key} ref={tabRefs[key]} type="button" role="tab" id={`tab-${key}`}
+        aria-selected={tab === key} aria-controls={`panel-${key}`} tabIndex={tab === key ? 0 : -1} onClick={() => selectTab(key)}
+        className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/25 ${tab === key ? 'bg-ink text-white' : 'text-black/60 hover:bg-sand hover:text-ink'}`}>
+        <Icon aria-hidden="true" size={16} />{label}
+        {key === 'chantiers' && unread > 0 && <span className={`rounded-full px-1.5 text-xs font-bold ${tab === key ? 'bg-white text-ink' : 'bg-clay text-white'}`} aria-label={`${unread} non lu${unread > 1 ? 's' : ''}`}>{unread}</span>}
+      </button>)}
+    </div>
+    {tab === 'assistance' ? <div role="tabpanel" id="panel-assistance" aria-labelledby="tab-assistance"><SupportPanel onShowProjects={() => selectTab('chantiers', true)} /></div>
+    : <div role="tabpanel" id="panel-chantiers" aria-labelledby="tab-chantiers" className="space-y-6">
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
     {loading ? <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Chargement des conversations…</p>{[0, 1, 2].map((key) => <div key={key} className="h-20 animate-pulse rounded-2xl bg-black/5" />)}</div>
       : rows.length === 0 ? <Card className="flex flex-col items-center gap-3 border-dashed px-5 py-14 text-center">
@@ -78,5 +106,6 @@ export default function MessagesPage() {
             </Link></li>;
           })}</ul>}
       </Card>}
+    </div>}
   </section>;
 }

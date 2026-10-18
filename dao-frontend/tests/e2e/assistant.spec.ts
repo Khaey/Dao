@@ -34,4 +34,22 @@ test('Assistant : FAQ publique, recherche et clavier, puis aide contextuelle con
   await expect(dialog).toHaveCount(0);
   await expect(fab).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+
+  // Messages & Assistance: deep link to the support tab, honest state while the support API is not deployed.
+  await page.goto('/app/messages?onglet=assistance');
+  const assistanceTab = page.getByRole('tab', { name: 'Assistance D.A.O.' });
+  const projectsTab = page.getByRole('tab', { name: /^Chantiers/ });
+  await expect(assistanceTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText(/aucune demande ne peut être envoyée/)).toBeVisible();
+  const help = page.getByRole('button', { name: 'Consulter l’aide', exact: true });
+  await help.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(help).toBeFocused();
+  await projectsTab.click();
+  await expect(projectsTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page).not.toHaveURL(/onglet=/);
+  await projectsTab.press('ArrowRight');
+  await expect(assistanceTab).toBeFocused();
+  await expect(page).toHaveURL(/onglet=assistance/);
 });
