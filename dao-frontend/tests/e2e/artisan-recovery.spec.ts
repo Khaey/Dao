@@ -25,6 +25,7 @@ test('Espace Artisan : une erreur de chargement ne devient pas un faux état vid
 
   await failFirst(page, '/rest/v1/publications');
   await login(page, e2eArtisan!);
+  await page.goto('/app/artisan');
   await expect(page.getByText('Les DAO disponibles n’ont pas pu être chargés', { exact: true })).toBeVisible();
   await expect(page.getByText('Aucun DAO accessible', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Réessayer', exact: true }).click();
