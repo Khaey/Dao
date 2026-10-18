@@ -14,7 +14,8 @@ test('notification query defaults, bound and exact microsecond composite cursor'
 test('reject invalid limits, repeated keys, actor spoofing and malformed cursors', () => {
   for (const input of ['limit=0', 'limit=51', 'limit=1.5', 'limit=-1', 'limit=01', 'limit=Infinity', 'limit=20&limit=20',
     'user_id='+id, 'workspace=staff', 'unread=1', 'cursor=', 'cursor=https://example.invalid', 'cursor='+at+'~bad',
-    'cursor=9999-99-99T00:00:00Z~'+id, 'cursor='+at+'~'+id+'~extra'])
+    'cursor=9999-99-99T00:00:00Z~'+id, 'cursor=2026-02-30T00:00:00Z~'+id,
+    'cursor=0000-01-01T00:00:00Z~'+id, 'cursor='+at+'~'+id+'~extra'])
     assert.throws(() => parseNotificationQuery(new URLSearchParams(input)), { code: 'BAD_REQUEST' }, input);
   assert.equal(notificationId(id), id);
   for (const input of [null, {}, 'x', id+'/../../dao']) assert.throws(() => notificationId(input), { code: 'BAD_REQUEST' });
