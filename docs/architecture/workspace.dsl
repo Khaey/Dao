@@ -53,6 +53,7 @@ model {
       contracts = component "Contrat V1" "Fondation non engageante par award : snapshot immuable, trois parties, versions SHA-256 et audit ; aucune signature ou finance." "PostgreSQL / RPC privé"
       subcontract = component "Sous-traitance entreprise" "Entreprise titulaire pouvant publier certains lots aux sous-traitants." "P3 futur" "Planned"
       sessionPolicy = component "Politique de session" "Timeout/re-auth plus strict pour staff/admin; politique à définir." "Futur sécurité" "Planned"
+      oceAdapter = component "Adaptateur OCE (livré, inactif)" "Client Unix-socket typé, retries bornés, disjoncteur, orchestration idempotente, mapping/journal durables et route de résumé en lecture seule. Désactivé tant que DAO_OCE_ENABLED n'est pas posé ; aucune donnée Client (#58)." "TypeScript / RPC service_role" "InProgress"
     }
   }
 
@@ -61,6 +62,7 @@ model {
   supabaseDb = softwareSystem "Supabase PostgreSQL" "Données métier, fonctions, triggers et historique." "External"
   supabaseRls = softwareSystem "Supabase RLS / dao_private" "Frontière d'autorisation et helpers privés." "External"
   supabaseStorage = softwareSystem "Supabase Storage privé" "Documents et objets privés." "External"
+  oceGateway = softwareSystem "Passerelle OCE privée (non activée)" "Service local deny-by-default (socket Unix, uid dao seul, opérations fixes). Installé mais ni démarré ni activé : l'accès public :8080 est inchangé et OCE n'est pas lié à D.A.O (#58)." "External,InProgress"
 
   demoOwner = person "Propriétaire / invité OCE" "Identité Access nommément approuvée, indépendante des rôles D.A.O."
   oceDemo = softwareSystem "Démo OCE indépendante" "Runtime OCE existant ; comptes démo conservés ; aucune dépendance produit D.A.O." "External"
@@ -178,6 +180,9 @@ model {
   dao.web.documents -> supabaseStorage "Stocke les objets privés"
   dao.web.services -> supabaseStorage "Émet signed URL après contrôle"
   dao.web.services -> dao.web.email "Envoie une invitation"
+  dao.web.oceAdapter -> oceGateway "Socket Unix privé — NON ACTIVÉ"
+  dao.web.oceAdapter -> supabaseDb "Mapping et journal de synchronisation (RPC service_role)"
+  oceGateway -> oceDemo "Compte technique via loopback — après activation autorisée"
   dao.web.email -> resend "POST transactionnel"
   dao.web.rpc -> dao.web.notificationWorker "Enregistre un événement avec la mutation"
   dao.web.notificationWorker -> supabaseDb "Claim et complète les leases"
@@ -213,7 +218,7 @@ views {
   }
 
   systemLandscape "OceCloudflareChecks" "Contrôle, provisionnement et activation OCE #58 par workflows et verbes root bornés." {
-    include workAgents github githubDevEnv cloudflareApi rootMaintenance vps ocePrivateAccess oceDemo demoOwner
+    include workAgents github githubDevEnv cloudflareApi rootMaintenance vps ocePrivateAccess oceDemo demoOwner oceGateway
     autoLayout tb
   }
 
@@ -273,6 +278,7 @@ views {
   component dao.web "Roadmap" "Capacités en cours/futures clairement séparées de l'opérationnel." {
     include dao.web.contracts dao.web.subcontract
     include dao.web.staffAdmin dao.web.settings dao.web.sessionPolicy
+    include dao.web.oceAdapter oceGateway oceDemo supabaseDb
     autoLayout lr
   }
 
