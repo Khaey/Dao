@@ -50,10 +50,32 @@ export async function professionalCases(db, check) {
     assert.equal(JSON.stringify(view).includes('Identité privée'),false);
     await deny(()=>rpc('other','professional_public_profile',[cp,true]),'42501');
   });
-  await check('PRO contact consent and web edits need moderation without restarting verification',async()=>{
+  await check('PRO published editorial edits stay visible; sensitive changes still revoke visibility',async()=>{
+    const before=await dossier(); assert.equal(before.profile.public_identity_status,'approved');
+    await rpc('pro','update_my_contractor_profile',['Atelier','artisan','Atelier public','Présentation actualisée',6,'available',null,[trade]]);
+    const after=await dossier();
+    assert.equal(after.profile.verification_status,'verified');
+    assert.equal(after.profile.public_identity_status,'approved');
+    assert.equal(after.details.review_status,'approved');
+    assert.equal((await publicProfile()).presentation,'Présentation actualisée');
+    assert.equal((await rpc('client','professional_directory',[false])).some(p=>p.id===cp),true);
+    const res=await submit(); assert.equal(res.already_published,true);
+    assert.equal((await dossier()).details.review_status,'approved');
+    await deny(()=>rpc('other','professional_public_profile',[cp,true]),'42501');
+  });
+  await check('PRO edits to consented contacts preserve publication without resubmission',async()=>{
     await cmd('pro','details',{show_phone:true,website_url:'https://example.com',show_website:true});
-    assert.equal((await dossier()).profile.verification_status,'verified'); await deny(()=>publicProfile(),'42501');
-    await submit(); await approveProfile(); assert.equal((await publicProfile()).professional_phone,'+21620000001');
+    assert.equal((await dossier()).profile.verification_status,'verified');
+    assert.equal((await dossier()).details.review_status,'approved');
+    assert.equal((await publicProfile()).professional_phone,'+21620000001');
+  });
+  await check('PRO edited identity still requires DAO verification and reapproval',async()=>{
+    await rpc('pro','update_my_contractor_profile',['Atelier révisé','artisan','Atelier public','Présentation actualisée',6,'available',null,[trade]]);
+    assert.equal((await dossier()).profile.verification_status,'pending');
+    await deny(()=>publicProfile(),'42501');
+    await db.query("update public.contractor_profiles set verification_status='verified' where id=$1",[cp]);
+    await submit(); await approveProfile();
+    assert.equal((await publicProfile()).presentation,'Présentation actualisée');
   });
   await check('PRO unpublished portfolio invisible; public media require consent and server inspection',async()=>{
     project=await cmd('pro','portfolio_save',{title:'Rénovation',description:'Réalisation déclarée',trade_id:trade,completed_year:2024,approximate_location:'Tunis',publication_consent:true});

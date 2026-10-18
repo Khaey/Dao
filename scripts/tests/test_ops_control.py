@@ -614,9 +614,11 @@ class TransportTests(unittest.TestCase):
                 expected = {'scripts/' + name for name in names}
                 if with_payload:
                     expected.add('dao-env.json')
-                    self.assertEqual((destination / 'dao-env.json').stat().st_mode & 0o777, 0o644)
+                    self.assertEqual((destination / 'dao-env.json').stat().st_mode & 0o777, 0o600)
                     self.assertFalse((root / 'dao-env.json').exists())
                 self.assertEqual(files, expected)
+                self.assertEqual(destination.stat().st_mode & 0o777, 0o700)
+                self.assertEqual((destination / 'scripts').stat().st_mode & 0o777, 0o700)
                 for name in names:
                     self.assertEqual((destination / 'scripts' / name).read_bytes(), (ROOT / 'scripts' / name).read_bytes())
                 archive = root / 'transport.tar.gz'
@@ -626,6 +628,10 @@ class TransportTests(unittest.TestCase):
                 subprocess.run(['tar', '-xzf', str(archive), '-C', str(extracted)], check=True)
                 self.assertEqual({p.relative_to(extracted / 'ops-incoming/22-1').as_posix()
                                   for p in (extracted / 'ops-incoming/22-1').rglob('*') if p.is_file()}, expected)
+                if with_payload:
+                    transferred = extracted / 'ops-incoming/22-1/dao-env.json'
+                    self.assertEqual(transferred.stat().st_mode & 0o777, 0o600)
+                    self.assertEqual(transferred.read_text(), '{"fictional":"fictional-secret"}')
 
     def test_invalid_ids_or_existing_destination_cannot_overwrite_transport(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -639,13 +645,57 @@ class TransportTests(unittest.TestCase):
             self.assertEqual(self.stage(root, '22', '1').returncode, 2)
             self.assertEqual(marker.read_bytes(), b'untouched')
 
+    def test_native_workflow_stream_preserves_privacy_and_rejects_unsafe_host(self):
+        workflow = (ROOT / '.github/workflows/dev-operations.yml').read_text()
+        block = workflow.split('- name: Transfer fixed operations transport\n', 1)[1].split('      - name:', 1)[0]
+        commands = block.split('run: |\n', 1)[1]
+        for scenario in ('success', 'existing', 'symlink', 'connection-failure'):
+            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                host = root / 'host'
+                host.mkdir(mode=0o700)
+                (root / 'scripts').mkdir()
+                for name in ('dao-operations.sh', 'dev-status.sh', 'validate-dev.sh', 'dao-ops-diagnostics.py', 'stage-dev-private-dir.sh'):
+                    source = (ROOT / 'scripts' / name).read_text()
+                    (root / 'scripts' / name).write_text(source.replace('/opt/dao', str(host)))
+                (root / 'dao-env.json').write_text('{"fictional":"fictional-secret"}')
+                self.assertEqual(self.stage(root, '22', '1').returncode, 0)
+                destination = host / 'ops-incoming/22-1'
+                if scenario == 'existing':
+                    destination.mkdir(parents=True)
+                elif scenario == 'symlink':
+                    (host / 'ops-incoming').symlink_to(root / 'scripts', target_is_directory=True)
+                stub = 'ssh() { bash -c "${@: -1}"; }; '
+                if scenario == 'connection-failure':
+                    stub = 'ssh() { return 255; }; '
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', stub + commands.replace('/opt/dao', str(host))],
+                                        cwd=root, capture_output=True, text=True,
+                                        env={**os.environ, 'RUNNER_TEMP': str(root),
+                                             'GITHUB_RUN_ID': '22', 'GITHUB_RUN_ATTEMPT': '1'})
+                self.assertNotIn('fictional-secret', result.stdout + result.stderr)
+                if scenario == 'success':
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(destination.stat().st_mode & 0o777, 0o700)
+                    payload = destination / 'dao-env.json'
+                    self.assertEqual(payload.stat().st_mode & 0o777, 0o600)
+                    self.assertEqual(payload.read_text(), '{"fictional":"fictional-secret"}')
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertFalse((destination / 'dao-env.json').exists())
+
     def test_workflow_recovery_transport_and_always_cleanup_do_not_need_current(self):
         workflow = (ROOT / '.github/workflows/dev-operations.yml').read_text()
         self.assertNotIn('cd /opt/dao/current', workflow)
-        self.assertIn("/scripts/dao-operations.sh' \"$DAO_OPERATION\"", workflow)
+        self.assertIn("/scripts/dao-operations.sh' '$DAO_OPERATION'", workflow)
+        self.assertNotIn('appleboy/', workflow)
+        self.assertLess(workflow.index('Prepare pinned native SSH'), workflow.index('Prepare private environment payload'))
+        self.assertIn('scripts/stage-dev-private-dir.sh', workflow)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             host = root / 'host'
+            ssh_dir = root / 'dao-secure-ssh'
+            ssh_dir.mkdir()
+            (ssh_dir / 'config').touch()
             for stage in ('Remove runner transport after transfer', 'Remove runner payload',
                           'Remove host transport after operation or interruption'):
                 destination = (host if stage.startswith('Remove host') else root) / 'ops-incoming/22-1'
@@ -663,8 +713,12 @@ class TransportTests(unittest.TestCase):
                 self.assertIsNotNone(match)
                 commands = match.group(1).replace('${{ github.run_id }}', '22').replace('${{ github.run_attempt }}', '1')
                 commands = commands.replace('/opt/dao', str(host))
+                # Execute the actual remote cleanup command through a local SSH stub.
+                commands = 'ssh() { bash -c "${@: -1}"; }; timeout() { shift; "$@"; }; ' + commands
                 result = subprocess.run(['bash', '-euo', 'pipefail', '-c', commands],
-                                        cwd=root, capture_output=True, text=True)
+                                        cwd=root, capture_output=True, text=True,
+                                        env={**os.environ, 'RUNNER_TEMP': str(root),
+                                             'GITHUB_RUN_ID': '22', 'GITHUB_RUN_ATTEMPT': '1'})
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertFalse(destination.exists())
                 self.assertEqual((sibling / 'keep').read_text(), 'untouched')

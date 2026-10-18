@@ -37,6 +37,11 @@ jobs:
       - name: Validate and normalize owner operation
         id: request
         run: python3 scripts/dao-ops-request.py
+      - name: Prepare pinned native SSH
+        env:
+          DEV_SSH_KEY: ${{ secrets.DEV_SSH_KEY }}
+          DEV_SSH_HOST_FINGERPRINT: ${{ secrets.DEV_SSH_HOST_FINGERPRINT }}
+        run: bash scripts/prepare-dev-ssh.sh
       - name: Prepare private environment payload
         if: steps.request.outputs.operation == 'env-sync'
         env:
@@ -55,34 +60,27 @@ jobs:
       - name: Stage fixed non-root operations transport
         run: bash scripts/prepare-ops-transport.sh '${{ github.run_id }}' '${{ github.run_attempt }}'
       - name: Transfer fixed operations transport
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
-        with:
-          host: 137.74.168.122
-          username: dao
-          key: ${{ secrets.DEV_SSH_KEY }}
-          source: ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}
-          target: /opt/dao
-          timeout: 30s
-          command_timeout: 2m
+        run: |
+          set -euo pipefail
+          cfg="$RUNNER_TEMP/dao-secure-ssh/config"
+          target="/opt/dao/ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ssh -F "$cfg" dao-dev "bash -se -- '$GITHUB_RUN_ID' '$GITHUB_RUN_ATTEMPT'" < scripts/stage-dev-private-dir.sh
+          tar -czf - -C "ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" . |
+            ssh -F "$cfg" dao-dev "umask 077; tar -xzf - -C '$target' --no-same-owner --no-same-permissions"
+          ssh -F "$cfg" dao-dev "test \"\$(stat -c %a '$target')\" = 700 && if test -e '$target/dao-env.json'; then test \"\$(stat -c %a '$target/dao-env.json')\" = 600; fi"
       - name: Remove runner transport after transfer
         if: always()
         run: |
           rm -f dao-env.json
           rm -rf -- 'ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}'
       - name: Execute fixed DEV operation
-        uses: appleboy/ssh-action@v1.2.2
         env:
           DAO_OPERATION: ${{ steps.request.outputs.operation }}
-        with:
-          host: 137.74.168.122
-          username: dao
-          key: ${{ secrets.DEV_SSH_KEY }}
-          envs: DAO_OPERATION
-          timeout: 30s
-          command_timeout: 5m
-          script: |
-            set -euo pipefail
-            bash '/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}/scripts/dao-operations.sh' "$DAO_OPERATION" '${{ github.run_id }}' '${{ github.run_attempt }}'
+        run: |
+          set -euo pipefail
+          # The request parser supplies a closed vocabulary; reject shell syntax too.
+          [[ "$DAO_OPERATION" =~ ^[a-z-]+$ ]] || exit 2
+          timeout 5m ssh -F "$RUNNER_TEMP/dao-secure-ssh/config" dao-dev "bash '/opt/dao/ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/scripts/dao-operations.sh' '$DAO_OPERATION' '$GITHUB_RUN_ID' '$GITHUB_RUN_ATTEMPT'"
       - name: Remove runner payload
         if: always()
         run: |
@@ -91,12 +89,11 @@ jobs:
       - name: Remove host transport after operation or interruption
         if: always()
         continue-on-error: true
-        uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: 137.74.168.122
-          username: dao
-          key: ${{ secrets.DEV_SSH_KEY }}
-          timeout: 30s
-          command_timeout: 30s
-          script: |
-            rm -rf -- '/opt/dao/ops-incoming/${{ github.run_id }}-${{ github.run_attempt }}'
+        run: |
+          cfg="$RUNNER_TEMP/dao-secure-ssh/config"
+          if [[ -f "$cfg" ]]; then
+            timeout 30s ssh -F "$cfg" dao-dev "rm -rf -- '/opt/dao/ops-incoming/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}'"
+          fi
+      - name: Remove runner SSH credentials
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/dao-secure-ssh"

@@ -1,6 +1,10 @@
 """Offline classifications for DAO GitHub Projects sync; no PAT and no network."""
 import importlib.util
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
+from unittest.mock import patch
+import tempfile
+import json
 import unittest
 
 path = Path(__file__).resolve().parents[1] / "scripts/dao_project_sync.py"
@@ -15,14 +19,52 @@ class ProjectSyncTests(unittest.TestCase):
         self.assertIsNone(sync.owner_issue(""))
 
     def test_repository_status_not_equal_dev_deploy(self):
-        self.assertEqual(sync.status({"pull_request":True,"state":"closed","merged_at":"now"}), "Done")
-        self.assertEqual(sync.status({"pull_request":True,"state":"open"}), "In Progress")
-        self.assertIsNone(sync.status({"pull_request":True,"state":"closed","merged_at":None}))
-        self.assertEqual(sync.status({"state":"closed"}), "Done")
-        self.assertEqual(sync.status({"state":"open"}, True), "In Progress")
-        self.assertIsNone(sync.status({"state":"open"}, False))
-        self.assertIn("non attesté", sync.evidence({"pull_request":True,"state":"closed","merged_at":"now"}))
-        self.assertIn("non livrée", sync.evidence({"pull_request":True,"state":"closed"}))
+        now = datetime(2026, 10, 18, tzinfo=timezone.utc)
+        recent = (now - timedelta(hours=2)).isoformat()
+        stale = (now - timedelta(hours=100)).isoformat()
+        pr = {"pull_request": True, "state": "open", "updated_at": recent}
+        self.assertEqual(sync.status(pr, now=now), "In Progress")
+        self.assertEqual(sync.status({**pr, "draft": True}, now=now), "Todo")
+        self.assertEqual(sync.status({**pr, "updated_at": stale}, now=now), "Todo")
+        self.assertEqual(sync.status({"pull_request": True, "state": "open"}, now=now), "Todo")
+        self.assertEqual(sync.status({"pull_request": True, "state": "closed", "merged_at": "now"}, now=now), "Done")
+        self.assertEqual(sync.status({"pull_request": True, "state": "closed"}, now=now), "Done")
+        self.assertEqual(sync.status({"state": "closed"}, now=now), "Done")
+        self.assertEqual(sync.status({"state": "open"}, True, now), "Todo")
+        self.assertEqual(sync.status({"state": "open"}, False, now), "Todo")
+        self.assertEqual(sync.status({"state": "open", "labels": ["dao:active"], "updated_at": recent}, now=now), "In Progress")
+        self.assertEqual(sync.status({"state": "open", "labels": ["dao:active"], "updated_at": stale}, now=now), "Todo")
+        self.assertEqual(sync.status({"state": "open", "labels": ["dao:active"], "updated_at": recent}, True, now), "Todo")
+        self.assertIn("non attesté", sync.evidence({"pull_request": True, "state": "closed", "merged_at": "now"}))
+        self.assertIn("non livrée", sync.evidence({"pull_request": True, "state": "closed"}))
+        self.assertIn("non comptée deux fois", sync.evidence({"state": "open"}, True, 219))
+
+    def test_sync_overwrites_stale_in_progress_card(self):
+        class FakeGithub:
+            def __init__(self):
+                self.updates = []
+            def paged(self, path):
+                if "/pulls?" in path:
+                    return iter([])
+                return iter([{"number": 7, "state": "open", "title": "Idle", "node_id": "node7"}])
+            def graphql(self, query, **kwargs):
+                self.updates.append(kwargs["input"])
+                return {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "row"}}}
+
+        g = FakeGithub()
+        fields = {"Status": {"id": "statusfield", "options": [
+            {"id": "todo", "name": "Todo"}, {"id": "progress", "name": "In Progress"},
+            {"id": "done", "name": "Done"}]}}
+        rows = {("issue", 7): {"id": "row", "s": {"name": "In Progress"}}}
+        with tempfile.TemporaryDirectory() as folder:
+            reg = Path(folder) / "registry.json"
+            reg.write_text(json.dumps({"missions": []}), encoding="utf-8")
+            with (patch.object(sync, "get_project", return_value=("project", fields)),
+                  patch.object(sync, "create_fields"),
+                  patch.object(sync, "read_items", return_value=rows)):
+                sync.synchronize(g, "Khaey", 3, reg, False)
+        self.assertEqual(len(g.updates), 1)
+        self.assertEqual(g.updates[0]["value"], {"singleSelectOptionId": "todo"})
 
     def test_priority_and_domain_bounded(self):
         self.assertEqual(sync.priority({"title":"P1 — corriger la validation"}), "P1")

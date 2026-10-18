@@ -135,17 +135,22 @@ jobs:
           wait "$build_pid" || status=1
           wait "$browser_pid" || status=1
           exit "$status"
-      - name: Discover the expected 64 Playwright tests
+      - name: Discover the expected 108 Playwright tests
         working-directory: dao-frontend
         shell: bash
         run: |
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright test discovery" bash -euo pipefail -c '
             npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
           '
-          grep -Eq 'Total: 66 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
+          grep -Eq 'Total: 108 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run targeted workspace navigation on desktop and mobile
         working-directory: dao-frontend
-        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Workspace navigation on desktop + mobile" npm run test:e2e -- tests/e2e/workspace-navigation.spec.ts --reporter=line
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/playwright-results.json
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Workspace navigation on desktop + mobile" npm run test:e2e -- tests/e2e/workspace-navigation.spec.ts --reporter=line,json
+      - name: Annotate Playwright failures (readable without raw logs)
+        if: always()
+        run: node "$GITHUB_WORKSPACE/.github/scripts/playwright-failure-annotations.mjs" "$RUNNER_TEMP/playwright-results.json" "Workspace navigation E2E"
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4

@@ -185,6 +185,32 @@
       "agent": "DAO Pilot 7",
       "role": "PILOT",
       "watchdog": false
+    },
+    {
+      "issue": 213,
+      "agent": "DAO DOW",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 221,
+      "agent": "DAO COP",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 226,
+      "agent": "DAO DEV 20",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
+    },
+    {
+      "issue": 231,
+      "agent": "DAO DEV 20",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
     }
   ]
 }
