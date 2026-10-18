@@ -1,5 +1,17 @@
 # D.A.O — instructions for every Work/Codex session
 
+## QUOTA GUARD — economie Work/Codex/Claude (17 octobre 2026)
+
+**Instruction proprietaire pour tous les agents : livrer plus avec moins de quota, sans reduire les preuves.** Dans le selecteur Work/Codex, **privilegier GPT-6 Luna pour le triage repetitif, GPT-6 Sol / effort faible pour le code courant, moyen si difficulte demontree ; reserver Astra / effort faible aux problemes complexes averes**. Pour Claude, prendre le modele/effort le plus leger capable de la phase. C'est une recommandation de reglage utilisateur, **pas un changement automatique de modele ni une garantie de quota** ; ne pas supposer un modele disponible.
+
+- A chaque reprise : une lecture ciblee du dernier checkpoint de son issue, vrai main/CI exact-SHA et PR concernees ; ne pas reparcourir tout l'historique ou le depot.
+- Une phase = un objectif et des fichiers limites. Grouper les lectures, privilegier diff/recherche ciblee ; eviter sorties massives, analyses generales, refactors non demandes et agents paralleles redondants.
+- Ne jamais relancer tests, builds, E2E ou CI deja PASS sur le **meme SHA et les memes entrees**. Une nouvelle modification invalidante exige de nouveaux checks. Respecter l'integralite des 3 checks GitHub obligatoires et des tests Auth/RLS.
+- Aucun polling CI serre : verifier aux changements d'etat pertinents (avant merge, apres deploiement), puis noter `PENDING` et le run si inacheve. Aucun rerun pour gagner du temps sans cause technique.
+- Apres deux echecs identiques sans fait nouveau, arreter la boucle, documenter le blocage prouve et continuer les travaux independants. Si le quota chute, publier immediatement le WIP non sensible sur sa propre branche + checkpoint court ; **jamais de faux PASS ni de bypass des protections**.
+
+Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
+
 ## Current coordinator — DAO PILOT 7 (17 October 2026)
 
 Owner decision: PILOT 6 has ended coordination due to conversation limits;
@@ -66,15 +78,21 @@ and Pilot coordination alike. Full Auth/RLS, required CI/E2E, migrations,
 release and infrastructure authorization gates remain intact.
 Report actual evidence and blockers; do not claim a live check from old logs.
 
-**New-agent registration is mandatory before the agent's first owned feature PR:**
-confirm its official name, canonical issue and coordinator; publish a reviewed
-update to `.github/dao-monitor-agents.json` and verify the automatic DAO Monitor
-Telegram onboarding event after the registry PR reaches `main`. Do not confuse
-a GitHub mission enrollment with creating/starting a ChatGPT Chat/Work session,
-nor with adding a human Telegram group member. See `docs/dao-monitor.md`.
+**One-time onboarding for NEW agents only:** before an agent's FIRST owned
+feature PR, confirm its official name, canonical issue and coordinator; merge
+its initial registration in `.github/dao-monitor-agents.json`, then verify
+the automatic DAO Monitor onboarding event. **For an agent ALREADY listed in
+the registry, a new authorized issue is immediately actionable:** its owner
+may open feature PRs and start CI with `Owner issue: #N` while a Pilot-owned
+registry update for that new issue is pending. Registry bookkeeping happens
+in parallel and must not become a cross-owner delivery gate. Reconcile the
+new issue mapping into the registry before claiming final Monitor attribution.
+Never confuse a GitHub mission enrollment with starting a ChatGPT/Work session
+or adding a human Telegram group member. See `docs/dao-monitor.md`.
 
 In each owned PR body, declare `Owner issue: #N` on its own normal-text line,
-using the canonical registered owner issue. Other issue links are context;
+using the canonical authorized owner issue. Registration of an existing agent's
+new issue may be completed in parallel. Other issue links are context;
 conflicting Refs/Fixes/Closes remain ambiguous. See `docs/dao-monitor.md`.
 
 Use `docs/ai-context/WORK_CHECKPOINTS.md` for every agent's code/ops task:
