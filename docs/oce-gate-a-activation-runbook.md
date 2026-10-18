@@ -53,3 +53,31 @@ Toute étape en échec déclenche le retour arrière automatique (§7).
 
 ## 9. Limites assumées
 Le moteur OCE ne va pas en PROD. Aucune date d'ouverture annoncée sans preuve réelle (§6). Les budgets de transport sont ceux du lot 1 (10 s, CPM 35 s, 3 tentatives bornées pour erreurs retryables, disjoncteur 5 échecs/30 s) — non mesurés en live avant la qualification.
+
+## Incident 18/10/2026 — échec Gate B et correction d'activation
+
+Le run [#39143985110](https://github.com/Khaey/Dao/actions/runs/39143985110)
+a échoué avec `gateway activation failed and rollback incomplete`. Les
+contrôles read-only après échec [#39144303439](https://github.com/Khaey/Dao/actions/runs/39144303439)
+ont retrouvé OCE sain, bind public inchangé, guard/gateway/socket inactifs.
+Le smoke DEV [#39144377729](https://github.com/Khaey/Dao/actions/runs/39144377729)
+est PASS. Ces vérifications ne prouvent pas le chemin exact qui a échoué.
+
+**Correction soumise à CI, non preuve de réparation live** : l'activation fige
+les chemins Compose et le digest immuable *avant* mutation et les réutilise
+pendant le rollback, même si un conteneur a été partiellement recréé ou a
+disparu. Le rollback tente indépendamment l'arrêt de chaque service et la
+restauration Compose, puis vérifie état OCE, digest, bind initial et services.
+Le délai maximum du wrapper root (600 s), du transport SSH (12 minutes pour
+`oce-gateway-apply`) et du job (15 minutes) laisse un budget au rollback.
+Les futurs échecs retournent uniquement les codes fermés `phase` et
+`rollback` — jamais stdout/stderr sensibles.
+
+**STOP** : ne pas relancer `apply` avec la version installée précédente.
+Le merge et le déploiement applicatif DEV ne remplacent **pas** l'upgrade
+root installé. Avant toute seconde tentative : revue/CI verte sur HEAD exact,
+upgrade OPS root via le mécanisme de release manifest signé/haché, contrôle
+`ops-status` et nouveau `oce-gateway-plan`, puis décision de reprise de
+maintenance et qualification live distincte. Si `rollback` n'est pas
+`verified`, considérer la disponibilité OCE non garantie et utiliser le
+runbook de récupération root sans réessayer l'activation.
