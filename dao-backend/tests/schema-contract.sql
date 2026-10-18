@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018051000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -186,6 +186,15 @@ BEGIN
      OR has_table_privilege('authenticated','public.notification_preferences','UPDATE')
      OR has_table_privilege('anon','public.notification_preferences','SELECT') THEN
     RAISE EXCEPTION 'schema contract: notification preferences must stay RPC-only';
+  END IF;
+  IF has_function_privilege('authenticated','dao_private.dry_run_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.generate_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
+     OR has_function_privilege('service_role','dao_private.dry_run_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
+     OR has_function_privilege('service_role','dao_private.generate_invitation_expiry_reminders(integer,timestamptz)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: reminder engine must stay private and unscheduled';
+  END IF;
+  IF to_regclass('public.project_invitations_pending_expiry_s2') IS NULL THEN
+    RAISE EXCEPTION 'schema contract: pending invitation expiry index missing';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
     WHERE table_schema='public' AND table_name='projects' AND column_name='client_id' AND is_nullable='YES')
