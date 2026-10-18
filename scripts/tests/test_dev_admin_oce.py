@@ -36,6 +36,37 @@ class DevAdminOceAuditTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue()), report)
         self.assertNotIn('private-value', output.getvalue())
 
+    def test_gateway_failed_phase_is_allowlisted_and_private_data_redacted(self):
+        permitted = {
+            "oce_gateway_host_error": "gateway activation failed and rollback incomplete",
+            "phase": "compose_recreate", "rollback": "postcheck_failed",
+        }
+        self.assertEqual(admin.gateway_failure_report(json.dumps(permitted)), {
+            "reason": permitted["oce_gateway_host_error"],
+            "phase": "compose_recreate", "rollback": "postcheck_failed",
+        })
+        for extra in (
+            {**permitted, "stderr": "private-value"},
+            {**permitted, "phase": "password=private-value"},
+            {**permitted, "rollback": "private-value"},
+        ):
+            self.assertEqual(admin.gateway_failure_report(json.dumps(extra)),
+                             {"reason": "unclassified"})
+        with patch.object(admin.Path, 'is_file', return_value=True), patch.object(
+            admin.os, 'access', return_value=True
+        ), patch.object(admin.subprocess, 'run',
+                        return_value=types.SimpleNamespace(returncode=1, stdout="secret",
+                                                          stderr=json.dumps(permitted))) as run, patch(
+            'sys.stdout', new_callable=io.StringIO
+        ) as output:
+            with self.assertRaises(ValueError):
+                admin.oce_gateway_apply()
+        self.assertEqual(json.loads(output.getvalue()), {"oce_gateway_apply": "failed",
+                                                       "reason": permitted["oce_gateway_host_error"],
+                                                       "phase": "compose_recreate",
+                                                       "rollback": "postcheck_failed"})
+        self.assertEqual(run.call_args.kwargs["timeout"], 600)
+
     def test_gateway_failure_reasons_are_closed_and_bounded(self):
         for reason in ('oce health timeout', 'gateway service not ready',
                        'gateway activation failed and rollback incomplete'):
