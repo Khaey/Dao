@@ -6,7 +6,7 @@ import { signOut } from './support/collaboration';
 
 async function openSettings(page: Page) {
   const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
-  await expect(menu.or(page.getByRole('link', { name: 'Paramètres', exact: true })).filter({ visible: true })).toBeVisible();
+  await expect.poll(async () => (await menu.isVisible()) || (await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).count()) > 0).toBe(true);
   if (await menu.isVisible()) await menu.click();
   await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/app\/settings$/);
@@ -54,7 +54,7 @@ test('Paramètres double rôle : compte commun après bascule', async ({ page, e
   await checkSettings(page, e2eDualRole, true, false);
   await login(page, e2eDualRole!);
   const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
-  await expect(menu.or(page.getByRole('link', { name: 'Paramètres', exact: true })).filter({ visible: true })).toBeVisible();
+  await expect.poll(async () => (await menu.isVisible()) || (await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).count()) > 0).toBe(true);
   if (await menu.isVisible()) await menu.click();
   await page.getByRole('button', { name: 'Artisan', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/app$/);
