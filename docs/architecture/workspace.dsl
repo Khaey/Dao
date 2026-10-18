@@ -23,6 +23,7 @@ model {
 
       collaboration = component "Collaboration chantier" "Membres, rôles projet, permissions privées et affectation aux lots." "Next.js / RPC"
       messaging = component "Messagerie privée chantier" "Fil texte par chantier et professionnel confirmé, historique immuable et notifications internes." "Next.js / API / RPC / RLS"
+      notifications = component "Notifications personnelles — socle S1" "API personnelle, événements transactionnels, droits vivants et lecture idempotente ; canal distinct de l'outbox e-mail." "API / RPC / RLS"
       invitations = component "Invitations chantier" "Token one-shot hashé et boîte du destinataire ; expiration, preview, accept/refuse/revoke." "Next.js / RPC"
       teamCreation = component "Création avec équipe existante" "Création atomique projet + lots principaux + invitations." "Next.js / RPC"
 
@@ -158,6 +159,8 @@ model {
   dao.web.documents -> dao.web.api "Upload/download contrôlé"
   dao.web.invitations -> dao.web.api "Issue/revoke/send"
   dao.web.messaging -> dao.web.api "Liste, ouvre, envoie et marque lu"
+  dao.web.notifications -> dao.web.api "Liste et marque ses propres événements, sans payload privé"
+  dao.web.rpc -> dao.web.notifications "Persiste les événements confirmés dans leur transaction"
   dao.web.review -> dao.web.api "Décision de revue"
   dao.web.publications -> dao.web.api "Publication"
   dao.web.bids -> dao.web.api "Cycle offre"

@@ -1,5 +1,14 @@
 # D.A.O — Current State
 
+## DEV 20 — #231 notifications internes S1 (18 octobre 2026)
+
+Lot A : contrat/projection/tests en PR #233. Lot B : backend personnel
+JWT, événements transactionnels review/invitations, visibilité vivante et
+réutilisation des notifications messages. Voir [contrat S1](../notifications-s1.md)
+et l'[issue canonique #231](https://github.com/Khaey/Dao/issues/231).
+Travail en cours : aucune migration DEV appliquée, revue COP SQL et preuve
+Supabase réel/CI encore requises ; ne pas annoncer le centre livré en DEV.
+
 ## OPT 2 — navigation mobile partagée, #115 (2026-10-14)
 
 Le shell mobile utilise une barre compacte avec l’espace du rôle courant,
