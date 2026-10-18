@@ -13,8 +13,7 @@ begin
   end if;
   return new;
 end; $$;
-create trigger professional_content_changed before update on public.contractor_profiles
-  for each row execute function dao_private.professional_content_changed();
+-- The existing trigger remains attached to the replaced function.
 
 create or replace function dao_private.professional_command(p_action text,p_input jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
