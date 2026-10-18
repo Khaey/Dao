@@ -48,22 +48,21 @@ export default function PublicationDetail() {
     })();
   }, [id,revision]);
 
-  if (error) return <p role="alert">{error}</p>;
-  if (!publication) return <p>Chargement…</p>;
+  if (error) return <section className="mx-auto max-w-5xl"><p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p></section>;
+  if (!publication) return <section aria-busy="true" className="mx-auto max-w-5xl space-y-4"><span className="sr-only">Chargement…</span><div className="h-24 animate-pulse rounded-2xl bg-black/5" /><div className="h-48 animate-pulse rounded-2xl bg-black/5" /></section>;
   return <section className="mx-auto max-w-5xl space-y-6">
-    <div>
-      <p className="text-sm font-semibold text-teal">DAO publié</p>
-      <h1 className="mt-1 text-3xl font-bold">{publication.safe_title}</h1>
-      <p className="mt-2 text-black/60">{publication.safe_description}</p>
-      <div className="mt-3 flex gap-2"><Badge>{publicationVisibilityLabel[publication.visibility] ?? publication.visibility}</Badge><Badge>{publicationStatusLabel[publication.status] ?? publication.status}</Badge></div>
-    </div>
-    <Card>
-      <h2 className="font-semibold">Lots proposés</h2>
-      <div className="mt-4 space-y-3">{lots.map((lot) => <article key={lot.id} className="rounded-xl bg-sand/70 p-4">
-        <h3 className="font-semibold">{lot.safe_title}</h3>
-        <p className="mt-2 text-sm text-black/60">{lot.safe_scope}</p>
-        {availability[lot.id]&&<Badge tone="red">Retiré de la publication</Badge>}
-        {lot.technical_scope?.length>0&&<div className="mt-4"><h4 className="font-semibold">Sous-lots techniques</h4>{lot.technical_scope.map((sub:any)=><div key={sub.id} className="mt-2 border-l-2 border-teal/20 pl-3"><p className="font-semibold">{sub.title}</p><p className="text-sm">{sub.scope}</p>{sub.budget_millimes!=null&&<p className="text-sm">{Number(sub.budget_millimes)/1000} TND</p>}</div>)}</div>}
+    <header className="space-y-3">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">DAO publié</p>
+      <h1 className="break-words text-3xl font-bold tracking-tight text-ink sm:text-4xl">{publication.safe_title}</h1>
+      {publication.safe_description && <p className="max-w-3xl whitespace-pre-wrap leading-relaxed text-black/60">{publication.safe_description}</p>}
+      <div className="flex flex-wrap gap-2"><Badge tone="teal">{publicationStatusLabel[publication.status] ?? publication.status}</Badge><Badge>{publicationVisibilityLabel[publication.visibility] ?? publication.visibility}</Badge></div>
+    </header>
+    <Card className="p-5 sm:p-7">
+      <h2 className="text-xl font-bold tracking-tight text-ink">Lots proposés</h2>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">{lots.map((lot) => <article key={lot.id} className="rounded-2xl border border-black/[0.06] bg-sand/50 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 break-words font-bold text-ink">{lot.safe_title}</h3>{availability[lot.id]&&<Badge tone="red">Retiré de la publication</Badge>}</div>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-black/60">{lot.safe_scope}</p>
+        {lot.technical_scope?.length>0&&<div className="mt-4"><h4 className="text-xs font-bold uppercase tracking-wide text-black/45">Sous-lots techniques</h4>{lot.technical_scope.map((sub:any)=><div key={sub.id} className="mt-2 border-l-2 border-teal/25 pl-3"><p className="font-semibold text-ink">{sub.title}</p><p className="text-sm text-black/65">{sub.scope}</p>{sub.budget_millimes!=null&&<p className="text-sm font-medium tabular-nums">{Number(sub.budget_millimes)/1000} TND</p>}</div>)}</div>}
         {staffScope.manage&&!availability[lot.id]&&['published','suspended'].includes(publication.status)&&<WithdrawLot lot={lot} onWithdraw={()=>setRevision(r=>r+1)} />}
       </article>)}</div>
     </Card>
