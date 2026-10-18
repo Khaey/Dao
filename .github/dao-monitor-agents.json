@@ -204,6 +204,13 @@
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 231,
+      "agent": "DAO DEV 20",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
     }
   ]
 }
