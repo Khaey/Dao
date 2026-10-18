@@ -528,7 +528,7 @@ class Team20PauseTransferTests(unittest.TestCase):
     def test_paused_team_missions_have_current_owners(self):
         config = dm.configuration()
         expected = {
-            58: ("DAO DEV 2", "DEV"),
+            58: ("DAO COP", "DEV"),
             64: ("DAO OPT 3", "OPT"),
             115: ("DAO OPT 3", "OPT"),
             165: ("DAO OPT 3", "OPT"),
