@@ -98,5 +98,5 @@ test('Avis : navigation Admin visible et accès Client refusé', async ({ page, 
   if (await menu.isVisible()) await menu.click();
   await expect(page.getByRole('link', { name: 'Avis', exact: true })).toHaveCount(0);
   await page.goto('/app/dao/reviews');
-  await expect(page.getByRole('alert')).toContainText('Modération réservée à D.A.O.');
+  await expect(page.getByText('Action non autorisée pour cet avis.', { exact: true })).toBeVisible();
 });
