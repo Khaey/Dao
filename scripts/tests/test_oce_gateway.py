@@ -279,16 +279,97 @@ class HostEnvTests(unittest.TestCase):
 
     def test_compose_recreate_keeps_runtime_pin_override(self):
         calls = []
-        with patch.object(
-            host, "require_active_digest_pin", return_value=(*host.BASE_FILES, host.PIN_FILE)
+        sources = (*host.BASE_FILES, host.PIN_FILE)
+        image = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
+        with patch.object(host, "selected_compose_files", return_value=sources), patch.object(
+            host, "configured_app_image", return_value=image
         ), patch.object(host, "run", side_effect=lambda args, **kwargs: calls.append(args)):
-            host.compose_up_app()
+            host.compose_up_app(sources, image)
         self.assertEqual(len(calls), 1)
         args = calls[0]
         self.assertIn(str(host.PIN_FILE), args)
         self.assertEqual(args.count("-f"), 3)
         self.assertIn("--pull", args)
         self.assertIn("never", args)
+
+    def test_compose_restore_uses_frozen_pin_when_live_container_is_missing(self):
+        sources = (*host.BASE_FILES, host.PIN_FILE)
+        digest = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
+        with patch.object(host, "selected_compose_files", return_value=sources), patch.object(
+            host, "configured_app_image", return_value=digest
+        ), patch.object(host, "run") as runner, patch.object(
+            host, "require_active_digest_pin", side_effect=host.Halt("container absent")
+        ) as live_probe:
+            host.compose_up_app(sources, digest)
+        runner.assert_called_once()
+        live_probe.assert_not_called()
+
+    def test_compose_recreate_rejects_pin_change_before_docker_command(self):
+        sources = (*host.BASE_FILES, host.PIN_FILE)
+        digest = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
+        with patch.object(host, "selected_compose_files", return_value=sources), patch.object(
+            host, "configured_app_image", return_value=digest + "x"
+        ), patch.object(host, "run") as docker:
+            with self.assertRaisesRegex(host.Halt, "runtime pin changed"):
+                host.compose_up_app(sources, digest)
+        docker.assert_not_called()
+
+    def test_rollback_attempts_env_restore_after_service_stop_failure(self):
+        sources = host.BASE_FILES
+        actual_calls = []
+        def fake_run(args, **_kwargs):
+            actual_calls.append(args)
+            if args[2] == host.GATEWAY_SERVICE:
+                raise host.Halt("service unavailable")
+        with patch.object(host, "run", side_effect=fake_run), patch.object(
+            host, "restore_env"
+        ) as env_restore, patch.object(host, "compose_up_app") as compose, patch.object(
+            host, "wait_health"
+        ), patch.object(host, "health", return_value=True), patch.object(
+            host, "demo_enabled", return_value=True
+        ), patch.object(host, "pinned_app_active", return_value=True), patch.object(
+            host, "loopback_only", return_value=False
+        ), patch.object(host, "service_active", return_value=False):
+            result = host.rollback_activation(True, b"OE_BIND=0.0.0.0", object(),
+                                              False, False, sources, "digest", False)
+        self.assertEqual(result, "service_stop_failed")
+        self.assertEqual(len(actual_calls), 2)
+        env_restore.assert_called_once()
+        compose.assert_called_once_with(sources, "digest")
+
+    def test_failed_forward_compose_can_be_recovered_without_live_pin_check(self):
+        sources = host.BASE_FILES
+        restored = []
+        def fake_compose(files, digest):
+            restored.append((files, digest))
+            if len(restored) == 1:
+                raise host.Halt("command failed")
+        with patch.object(host, "require_root"), patch.object(
+            host, "validate_installed_files"
+        ), patch.object(host, "require_active_digest_pin", return_value=sources
+        ) as pin, patch.object(host, "configured_app_image", return_value="digest"), patch.object(
+            host, "health", return_value=True
+        ), patch.object(host, "pinned_app_active", return_value=True), patch.object(
+            host, "demo_enabled", return_value=True
+        ), patch.object(host, "dao_has_docker_socket_access", return_value=False), patch.object(
+            host, "harden_env_permissions"
+        ), patch.object(host, "env_meta", return_value=object()), patch.object(
+            host, "read_env", return_value=(b"OE_BIND=0.0.0.0", "0.0.0.0")
+        ), patch.object(host, "loopback_only", return_value=False), patch.object(
+            host, "service_active", return_value=False
+        ), patch.object(host, "backup_env"), patch.object(
+            host, "write_env_loopback"
+        ), patch.object(host, "restore_env") as restore, patch.object(
+            host, "compose_up_app", side_effect=fake_compose
+        ), patch.object(host, "run"), patch.object(host, "wait_health"):
+            with self.assertRaises(host.ApplyFailure) as failure:
+                host.apply()
+        self.assertEqual((failure.exception.phase, failure.exception.rollback),
+                         ("compose_recreate", "verified"))
+        self.assertEqual(len(restored), 2)
+        self.assertEqual(restored[0], restored[1])
+        pin.assert_called_once()
+        restore.assert_called_once()
 
     def test_direct_compose_digest_is_valid_active_pin(self):
         digest = "ghcr.io/datadrivenconstruction/openconstructionerp@sha256:" + "a" * 64
