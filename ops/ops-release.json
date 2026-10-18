@@ -1,8 +1,8 @@
 {
   "files": {
     "ops/dao-dev-admin.py": {
-      "sha256": "a4ef79c42fe871f1edb4a1011ac1ae0e3dabcb8f58939aab54ed148d337981b6",
-      "size": 24652
+      "sha256": "489ff04ff402dfd6d74f10f7be336e45a806ee400c102911911481733011edfa",
+      "size": 25721
     },
     "ops/dao-oce-backup.py": {
       "sha256": "f7547796feb2a28252668684be2560af2e67ae9f24a162b156b7bd9f006b3ec4",
@@ -25,8 +25,8 @@
       "size": 2277
     },
     "ops/oce-v1-gateway-host.py": {
-      "sha256": "7ea45222786718907ae2df40076642d946135f0752d333e7b952e0a5d8b92e26",
-      "size": 18182
+      "sha256": "c466953359ce256f2b0aabd57cf1ed4aae59b625bf1b75039a5aa0c7184b7af9",
+      "size": 21746
     },
     "ops/oce-v1-gateway-qualify.py": {
       "sha256": "b94bf64b317f5d4ab15de670ba283a58450b5a6aec35d01f496f8a1cb17df79a",
