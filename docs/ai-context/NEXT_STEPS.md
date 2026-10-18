@@ -1,5 +1,14 @@
 # D.A.O — Next Steps
 
+## DEV 20 — #231 notifications internes S1
+
+Terminer les lots backend/UX avec tests JWT réels et FULL E2E jetables.
+Ledger de schéma réconcilié après #229 ; terminer la CI exacte de #235 et son
+déploiement autorisé. Revue COP manuelle levée par décision propriétaire ;
+protections natives conservées. Raccourci secondaire ajouté sans modifier
+RoleNav (OPT3/#222), aucun travail concurrent repris.
+Aucune migration DEV/PROD ni opération VPS n'est couverte par ce mandat.
+
 ## OPT 2 — suivi mobile / Gestionnaire, #115
 
 Reprendre le dernier checkpoint [#115](https://github.com/Khaey/Dao/issues/115) pour

@@ -7,6 +7,8 @@ import { ProjectInvitationEmailService, invitationSecretColumns } from '../servi
 import { emailConfiguration, ResendEmailTransport } from '../services/ResendEmailTransport.js';
 import { createInvitationEmailHandler } from './invitationEmailHandler.js';
 import { createProfessionalHandler } from './professionalHandler.js';
+import { NotificationService } from '../services/NotificationService.js';
+import { createNotificationHandler } from './notificationHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -24,6 +26,11 @@ function requestScope(request: Request) {
     return { id: data.user.id };
   };
   return { url, db, resolveActor };
+}
+
+export function createNotificationApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNotificationHandler(new NotificationService(db), resolveActor);
 }
 
 export function createRequestApi(request: Request) {

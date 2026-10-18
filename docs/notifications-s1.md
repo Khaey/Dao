@@ -66,6 +66,12 @@ serveur puis propagé au client DB. Toutes les réponses sont `private, no-store
 sans logging de payload/acteur. Les erreurs sont des codes/copies fixes, jamais
 le message brut SQL, les paramètres, les tokens ou une URL signée.
 
+Observation S1 : compteurs mémoire agrégés des requêtes/erreurs et signal serveur
+`notifications_error` pour les erreurs UNAVAILABLE, avec catégorie fixe et nombre
+total d'erreurs uniquement. Aucun identifiant, contenu, URL ou message brut dans
+ce signal. L'observateur est substituable en test ; sa panne ne change pas le
+résultat d'une commande. Pas d'endpoint public de métriques ni de fournisseur ajouté.
+
 Pagination 1–50, ordre `(created_at DESC,id DESC)`, curseur composé
 `created_at~id` conservant les microsecondes PostgreSQL, aucune pagination offset
 instable. Liste, existence de page suivante et compteur utilisent le même filtre
@@ -85,8 +91,10 @@ d'attribution/contrats/paiements, des règles métier, de l'outbox ou de l'émet
 messages. Rollback d'une commande = rollback de la notification. Un retry métier
 ou un UPDATE sans transition ne crée pas de nouveau signal.
 
-**Revue sécurité indépendante DAO COP obligatoire sur tout SQL/permission avant
-fusion.** Base réelle/JWT et FULL E2E uniquement sur Supabase jetable de CI.
+**Le propriétaire a levé la revue COP manuelle pour #231 le 18 octobre 2026** :
+[décision consignée](https://github.com/Khaey/Dao/issues/231#issuecomment-6244470173).
+Cela ne constitue pas une approbation COP et ne change aucune protection native.
+Base réelle/JWT et FULL E2E restent obligatoires sur Supabase jetable de CI.
 Aucune migration appliquée directement sur DEV/PROD. Si DEV n'a pas le nouveau
 schéma, UI en erreur temporaire explicite, jamais compteur zéro inventé.
 Rollback non destructif : revenir à l'UI précédente sans supprimer l'historique ;
@@ -102,13 +110,29 @@ requêtes obsolètes sont ignorées après changement de filtre/session/workspac
 pas de cache local durable de notifications. Hors ligne : erreur claire et retry,
 pas de faux succès de lecture. Actions clavier/lecteur d'écran, cibles ≥44 px,
 1440/390/375 px, aucun débordement horizontal. `RoleNav.tsx` reste à OPT3/#222 ;
-menu dans un lot isolé après fusion/réconciliation de son HEAD.
+le lien « Notifications » utilise une navigation secondaire indépendante dans
+le shell, disponible sur desktop/mobile sans modifier sa branche ni ses menus.
 
-| Preuve | État au lot A |
+Les preuves CI exactes (SHA, run et résultat) sont publiées dans
+[le checkpoint canonique #231](https://github.com/Khaey/Dao/issues/231).
+Le tableau décrit les validations locales et la couverture automatisée du lot final.
+
+| Preuve | Couverture / résultat local |
 | --- | --- |
-| Contrat pur : routes allowlistées, expurgation, curseur/précision, limites, 0/1/50 | Tests ajoutés, exécution consignée dans la PR |
-| SQL réel : Client A/B, Artisan, double rôle, staff, anon, suspendu, UUID tiers, révocation, rollback, doublon | À réaliser au lot B ; PGlite ne remplace pas les JWT réels |
-| 100+ notifications : pagination exhaustive, compteur, idempotence de lecture et événement | À réaliser au lot B |
-| UX desktop/mobile 0/1/N, erreur réseau/retry, lecture/navigation, workspace, suspension | À réaliser au lot C, FULL E2E conservé |
-| Revue COP sur SQL et 3 checks exact-HEAD | Gates avant fusion du lot B |
+| Contrat pur : routes allowlistées, expurgation, curseur/précision, limites, 0/1/50 | PASS local, 5 tests au lot A |
+| SQL réel : Client A/B, Artisan, double rôle, staff, anon, suspendu, UUID tiers, révocation, rollback, doublon | Tests JWT ajoutés au lot B ; résultat exact dans #231 ; modèle PGlite PASS (ne remplace pas les JWT réels) |
+| 100+ notifications : pagination exhaustive, compteur, idempotence de lecture et événement | PASS PGlite, scénario JWT réel ajouté ; résultat CI dans #231 |
+| UX desktop/mobile 0/1/N, erreur réseau/retry, lecture/navigation, workspace, suspension | 5 scénarios × 2 viewports ; build local PASS, exécution FULL E2E documentée dans #231 |
+| Revue COP manuelle | Levée explicitement par le propriétaire ; protections natives conservées |
+| 3 checks exact-HEAD, dont schéma frais/réinitialisé et contrat grants S1 | Obligatoires avant fusion du lot final #235 |
 | Migration DEV et recette live | Non appliquée, non testée ; circuit distinct requis |
+
+Lot C : la découverte stricte passe de 96 à 106 exécutions, sans retirer les
+scénarios précédents. Les recettes UI d'erreur réseau/pagination interceptent
+uniquement l'API notifications après une vraie connexion ; elles ne valent pas
+preuve de sécurité SQL. Invitation/acceptation/message, suspension et workspace
+utilisent les vrais JWT/commandes sur la base jetable et des comptes distincts
+par scénario. Le raccourci de navigation du shell est également exercé, sans
+modification de `RoleNav.tsx`. Les artefacts ou logs d'erreur applicatifs ne recopient
+ni notification, ni identité, ni exception brute ; les codes HTTP d'erreurs sont
+fixes (`UNAUTHENTICATED`, `FORBIDDEN`, `BAD_REQUEST`, `UNAVAILABLE`).
