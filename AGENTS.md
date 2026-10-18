@@ -78,15 +78,21 @@ and Pilot coordination alike. Full Auth/RLS, required CI/E2E, migrations,
 release and infrastructure authorization gates remain intact.
 Report actual evidence and blockers; do not claim a live check from old logs.
 
-**New-agent registration is mandatory before the agent's first owned feature PR:**
-confirm its official name, canonical issue and coordinator; publish a reviewed
-update to `.github/dao-monitor-agents.json` and verify the automatic DAO Monitor
-Telegram onboarding event after the registry PR reaches `main`. Do not confuse
-a GitHub mission enrollment with creating/starting a ChatGPT Chat/Work session,
-nor with adding a human Telegram group member. See `docs/dao-monitor.md`.
+**One-time onboarding for NEW agents only:** before an agent's FIRST owned
+feature PR, confirm its official name, canonical issue and coordinator; merge
+its initial registration in `.github/dao-monitor-agents.json`, then verify
+the automatic DAO Monitor onboarding event. **For an agent ALREADY listed in
+the registry, a new authorized issue is immediately actionable:** its owner
+may open feature PRs and start CI with `Owner issue: #N` while a Pilot-owned
+registry update for that new issue is pending. Registry bookkeeping happens
+in parallel and must not become a cross-owner delivery gate. Reconcile the
+new issue mapping into the registry before claiming final Monitor attribution.
+Never confuse a GitHub mission enrollment with starting a ChatGPT/Work session
+or adding a human Telegram group member. See `docs/dao-monitor.md`.
 
 In each owned PR body, declare `Owner issue: #N` on its own normal-text line,
-using the canonical registered owner issue. Other issue links are context;
+using the canonical authorized owner issue. Registration of an existing agent's
+new issue may be completed in parallel. Other issue links are context;
 conflicting Refs/Fixes/Closes remain ambiguous. See `docs/dao-monitor.md`.
 
 Use `docs/ai-context/WORK_CHECKPOINTS.md` for every agent's code/ops task:
