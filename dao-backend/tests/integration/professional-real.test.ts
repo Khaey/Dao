@@ -62,10 +62,21 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     const anon=createClient(url,key,{auth:{persistSession:false}});assert.ok((await anon.rpc('professional_directory',{p_review:false})).error);
     assert.ok((await rpc('reviewer','professional_directory',{p_review:true})).some((row:any)=>row.id===cp.id));
   });
-  await t.test('web/contact edits moderate content without re-verifying; invalid URLs denied',async()=>{
+  await t.test('approved presentation update retains listing, status and isolation',async()=>{
+    const original=await dossier();
+    const changed=await rpc('pro','update_my_contractor_profile',{p_business_name:original.profile.business_name,p_contractor_type:original.profile.contractor_type,p_public_trade_name:original.profile.public_trade_name,p_public_presentation:'Présentation modifiée',p_years_experience:8,p_availability:'available',p_available_from:null,p_trade_ids:trades.map(t=>t.id)});
+    assert.equal(changed.verification_status,'verified');
+    const current=await dossier();assert.equal(current.profile.public_identity_status,'approved');assert.equal(current.details.review_status,'approved');
+    assert.equal((await publicProfile()).presentation,'Présentation modifiée');
+    assert.ok((await rpc('client','professional_directory',{p_review:false})).some((row:any)=>row.id===cp.id));
+    const retained=await cmd('pro','profile_submit',{});assert.equal(retained.already_published,true);
+    assert.ok((await users.other.db.rpc('professional_public_profile',{p_id:cp.id,p_preview:true})).error);
+  });
+  await t.test('web/contact edits preserve approved publication; invalid URLs denied',async()=>{
     assert.ok((await users.pro.db.rpc('professional_command',{p_action:'details',p_input:{website_url:'javascript:alert(1)'}})).error);
-    await cmd('pro','details',{show_phone:true});assert.equal((await dossier()).profile.verification_status,'verified');assert.ok((await users.client.db.rpc('professional_public_profile',{p_id:cp.id})).error);
-    await publish();assert.equal((await publicProfile()).professional_phone,'+21620000003');
+    await cmd('pro','details',{show_phone:true});assert.equal((await dossier()).profile.verification_status,'verified');
+    assert.equal((await dossier()).details.review_status,'approved');
+    assert.equal((await publicProfile()).professional_phone,'+21620000003');
     const anon=createClient(url,key,{auth:{persistSession:false}});assert.ok((await anon.rpc('professional_dossier',{p_id:cp.id})).error);
   });
   await t.test('international contact validation, owner API and DB constraint remain aligned',async()=>{
