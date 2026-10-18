@@ -91,7 +91,11 @@ test('PRO real JWT, private Storage, moderation, consent and revocation',async t
     const msg=(await invalidApi.json()).error;assert.match(msg,/numéro international|indicatif pays/i);assert.equal(msg.includes('contractor_profile_details'),false);
     assert.equal((await users.pro.db.rpc('professional_command',{p_action:'details',p_input:{whatsapp_phone:'33 (0)6'}})).error?.code,'22023');
     assert.equal((await users.other.db.rpc('professional_command',{p_action:'details',p_input:{professional_phone:'+226 70 12 34 56'}})).error?.code,'42501');
-    await publish();
+    const afterContacts=await dossier();
+    assert.equal(afterContacts.profile.verification_status,'verified','contact edits must not restart verification');
+    assert.equal(afterContacts.profile.public_identity_status,'approved','contact edits must not revoke public identity');
+    assert.equal(afterContacts.details.review_status,'approved','contact edits must not revoke the published profile');
+    assert.ok((await rpc('client','professional_directory',{p_review:false})).some((row:any)=>row.id===cp.id));
   });
   await t.test('real signed upload, server byte inspection, no direct Storage, revision race',async()=>{
     project=await cmd('pro','portfolio_save',{title:'Projet PRO',description:'Réalisé',trade_id:trades[0].id,publication_consent:true});
