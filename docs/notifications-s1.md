@@ -66,6 +66,12 @@ serveur puis propagé au client DB. Toutes les réponses sont `private, no-store
 sans logging de payload/acteur. Les erreurs sont des codes/copies fixes, jamais
 le message brut SQL, les paramètres, les tokens ou une URL signée.
 
+Observation S1 : compteurs mémoire agrégés des requêtes/erreurs et signal serveur
+`notifications_error` pour les erreurs UNAVAILABLE, avec catégorie fixe et nombre
+total d'erreurs uniquement. Aucun identifiant, contenu, URL ou message brut dans
+ce signal. L'observateur est substituable en test ; sa panne ne change pas le
+résultat d'une commande. Pas d'endpoint public de métriques ni de fournisseur ajouté.
+
 Pagination 1–50, ordre `(created_at DESC,id DESC)`, curseur composé
 `created_at~id` conservant les microsecondes PostgreSQL, aucune pagination offset
 instable. Liste, existence de page suivante et compteur utilisent le même filtre

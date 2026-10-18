@@ -37,3 +37,12 @@ test('provider/database failures and missing migration are expurgated, forbidden
     assert.ok(!JSON.stringify(await response.json()).includes('SECRET'));
   }
 });
+test('observation contains only fixed category/count and observer failures do not affect commands', async () => {
+  const seen: any[] = [];
+  const service = new NotificationService({ rpc: async () => ({ error: { code:'XX000',message:'SECRET email@example.invalid' } }) });
+  const handler = createNotificationHandler(service,async () => ({ id }),event => seen.push(event));
+  assert.equal((await handler(request())).status,503);assert.deepEqual(seen,[{category:'UNAVAILABLE'}]);
+  assert.ok(!JSON.stringify(seen).includes(id));assert.ok(!JSON.stringify(seen).includes('SECRET'));
+  const ok = new NotificationService({ rpc: async () => ({ data:{rows:[],workspace:'client',unread_count:0,has_more:false} }) });
+  assert.equal((await createNotificationHandler(ok,async () => ({id}),()=>{throw Error('Metrics offline');})(request())).status,200);
+});
