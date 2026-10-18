@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018040000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -149,6 +149,9 @@ BEGIN
       'public.list_conversation_messages(uuid,timestamptz,integer)',
       'public.send_conversation_message(uuid,text,uuid)',
       'public.mark_conversation_read(uuid)',
+      'public.my_notifications(integer,timestamptz,uuid,boolean)',
+      'public.my_unread_notification_count()',
+      'public.mark_my_notification_read(uuid)',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -263,7 +266,8 @@ BEGIN
     'public.moderate_contractor_review(uuid,text,text)',
     'public.professional_reviews(uuid,integer,integer)',
     'public.my_received_reviews()',
-    'public.review_moderation_queue()'
+    'public.review_moderation_queue()',
+    'public.review_moderation_page(text,integer,integer)'
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
       RAISE EXCEPTION 'review RPC grant mismatch: %',missing_name;

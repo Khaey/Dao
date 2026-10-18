@@ -15,10 +15,14 @@ import {
 } from './professional-display';
 import { formatRating, reviewCount, type RatingSummary } from '../lib/reviews';
 
-type Asset = { id: string; caption?: string | null; mime_type: string; asset_kind?: string | null; original_name?: string | null };
+type Asset = {
+  id: string; caption?: string | null; mime_type: string; asset_kind?: string | null; original_name?: string | null;
+  status?: string | null; public_consent?: boolean | null; // owner/staff preview only
+};
 type PortfolioProject = {
   id: string; title: string; description?: string | null; completed_year?: number | null;
   approximate_location?: string | null; trade?: string | null; assets?: Asset[] | null;
+  status?: string | null; publication_consent?: boolean | null; // owner/staff preview only
 };
 type Profile = {
   id: string; name: string; contractor_type?: string | null; presentation?: string | null; verification_status?: string | null;
@@ -27,10 +31,21 @@ type Profile = {
   office_address?: string | null; website_url?: string | null; professional_phone?: string | null; professional_email?: string | null;
   whatsapp_phone?: string | null; social_links?: string[] | null; trades?: string[] | null;
   areas?: Array<{ governorate: string; delegation?: string | null }> | null; logo_id?: string | null; portfolio?: PortfolioProject[] | null;
+  logo_status?: string | null; logo_public_consent?: boolean | null; // owner/staff preview only
   rating?: RatingSummary | null; // absent until the reviews migration is deployed
 };
 
 const assetKinds: Record<string, string> = { before: 'Avant', after: 'Après', brochure: 'Brochure PDF' };
+const previewFileStates: Record<string, string> = { ready: 'À contrôler', approved: 'Approuvé', rejected: 'Refusé' };
+const previewProjectStates: Record<string, string> = { draft: 'Brouillon', pending_review: 'En revue', published: 'Publié', hidden: 'Masqué' };
+
+/** Moderation state shown only in the owner/staff preview, and only when the server returns it. */
+function PreviewState({ label, status, consent, states }: { label: string; status?: string | null; consent?: boolean | null; states: Record<string, string> }) {
+  if (!status) return null;
+  return <p className="text-xs font-medium text-clay">
+    {label} : {states[status] || status}{typeof consent === 'boolean' && (consent ? ' · Consentement accordé' : ' · Consentement non accordé')}
+  </p>;
+}
 const hostOf = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 
 // Media are private files streamed through /api/professionals with access rechecked on every call:
@@ -95,7 +110,7 @@ function Lightbox({ url, alt, onClose }: { url: string; alt: string; onClose: ()
   </div>;
 }
 
-function MediaTile({ asset }: { asset: Asset }) {
+function MediaTile({ asset, preview }: { asset: Asset; preview: boolean }) {
   const pdf = asset.mime_type === 'application/pdf';
   const alt = asset.caption || asset.original_name || 'Média professionnel';
   const label = assetKinds[asset.asset_kind ?? ''] ?? 'Photo';
@@ -119,6 +134,7 @@ function MediaTile({ asset }: { asset: Asset }) {
     <div className="space-y-2">
       <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-ink">{label}</span>
       {asset.caption && <figcaption className="text-sm text-black/60">{asset.caption}</figcaption>}
+      {preview && <PreviewState label="Média" status={asset.status} consent={asset.public_consent} states={previewFileStates} />}
     </div>
     <button type="button" onClick={() => void download()} disabled={downloading}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-3 text-sm font-semibold text-ink transition hover:text-teal focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:opacity-60">
@@ -141,6 +157,7 @@ function MediaTile({ asset }: { asset: Asset }) {
       </button>}
     </div>
     {asset.caption && <figcaption className="text-sm text-black/60">{asset.caption}</figcaption>}
+    {preview && <PreviewState label="Média" status={asset.status} consent={asset.public_consent} states={previewFileStates} />}
     {open && url && <Lightbox url={url} alt={alt} onClose={() => setOpen(false)} />}
   </figure>;
 }
@@ -232,16 +249,20 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
   return <section className="mx-auto w-full max-w-6xl space-y-6">
     {!showPreview && <div className="-my-2">{backLink}</div>}
 
-    {showPreview && <p role="status" className="flex items-start gap-2.5 rounded-2xl border border-clay/20 bg-clay/10 p-4 text-sm text-clay">
+    {showPreview && <div role="status" className="flex items-start gap-2.5 rounded-2xl border border-clay/20 bg-clay/10 p-4 text-sm text-clay">
       <Info aria-hidden="true" size={18} className="mt-0.5 shrink-0" />
-      <span>Prévisualisation propriétaire / staff. Cette vue ne signifie pas que la fiche est publiée.</span>
-    </p>}
+      <div><strong className="block">APERÇU PRIVÉ — NON PUBLIÉ</strong>
+        <span>Prévisualisation propriétaire / staff. Les médias en revue ne sont pas visibles par les clients tant que leur publication n’est pas approuvée et consentie.</span></div>
+    </div>}
 
     <Card className="overflow-hidden p-0">
       <div aria-hidden="true" className="h-24 bg-[linear-gradient(120deg,rgba(15,118,110,0.18),rgba(247,245,239,0.9)_55%,rgba(217,119,69,0.16))] sm:h-32" />
       <div className="px-5 pb-6 sm:px-8 sm:pb-8">
         <div className="-mt-10 flex items-end justify-between gap-4 sm:-mt-12">
-          <ProfileLogo profile={profile} />
+          <div className="space-y-1.5">
+            <ProfileLogo profile={profile} />
+            {showPreview && <PreviewState label="Logo" status={profile.logo_status} consent={profile.logo_public_consent} states={previewFileStates} />}
+          </div>
           <span className={`mb-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${availability.pill}`}>
             <span aria-hidden="true" className={`h-2 w-2 rounded-full ${availability.dot}`} />{availabilityLabel(profile)}
           </span>
@@ -325,11 +346,12 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
             <p className="text-sm text-black/55">Réalisations déclarées par le professionnel et médias modérés. D.A.O. ne certifie pas la réalisation des travaux.</p>
           </div>
           {!portfolio.length && <Card className="flex items-center gap-3 text-sm text-black/60">
-            <ImageOff aria-hidden="true" size={20} className="shrink-0 text-black/35" />Aucune réalisation publiée pour le moment.
+            <ImageOff aria-hidden="true" size={20} className="shrink-0 text-black/35" />{showPreview ? 'Aucune réalisation à prévisualiser.' : 'Aucune réalisation publiée pour le moment.'}
           </Card>}
           {portfolio.map((project) => <Card key={project.id} className="space-y-4 sm:p-7">
             <div className="space-y-1.5">
               <h3 className="text-xl font-bold text-ink">{project.title}</h3>
+              {showPreview && <PreviewState label="Réalisation" status={project.status} consent={project.publication_consent} states={previewProjectStates} />}
               {[project.trade, project.approximate_location, project.completed_year].some(Boolean) && <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-black/55">
                 {project.trade && <span className="font-medium text-teal">{project.trade}</span>}
                 {project.approximate_location && <span className="inline-flex items-center gap-1"><MapPin aria-hidden="true" size={14} />{project.approximate_location}</span>}
@@ -338,12 +360,12 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
             </div>
             {project.description && <p className="whitespace-pre-wrap text-sm leading-relaxed text-black/70">{project.description}</p>}
             {(project.assets ?? []).length > 0 && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {(project.assets ?? []).map((asset) => <MediaTile key={asset.id} asset={asset} />)}
+              {(project.assets ?? []).map((asset) => <MediaTile key={asset.id} asset={asset} preview={showPreview} />)}
             </div>}
           </Card>)}
         </section>
 
-        {rating !== undefined && <ProfessionalReviews contractorId={profile.id} professionalName={profile.name} />}
+        {rating !== undefined && <ProfessionalReviews contractorId={profile.id} professionalName={profile.name} canReport={!showPreview} />}
 
         <Card className="space-y-4 sm:p-7">
           <h2 className="text-xl font-bold text-ink">Zones d’intervention</h2>

@@ -99,7 +99,8 @@ test('reviews: verified eligibility, closed tables, minimal public projection, m
     await ok('pro','respond_to_contractor_review',{p_review_id:reviewId,p_body:'Merci pour votre confiance !'});
     assert.equal((await ok('client2','professional_reviews',{p_contractor_id:cp.id,p_limit:10,p_offset:0})).items[0].response.body,'Merci pour votre confiance !');
     assert.equal((await ok('pro','my_received_reviews')).length,1);
-    await denied('client2','report_contractor_review',{p_review_id:reviewId,p_reason:'fake',p_details:''});
+    // Follow-up R2: any Client who can read the reviews may report (not the author).
+    await denied('client','report_contractor_review',{p_review_id:reviewId,p_reason:'fake',p_details:''});
     await denied('pro','report_contractor_review',{p_review_id:reviewId,p_reason:'bad',p_details:''},'22023');
     assert.equal((await ok('pro','report_contractor_review',{p_review_id:reviewId,p_reason:'fake',p_details:'Chantier inconnu'})).status,'open');
     // Author label publishes letters only: an email-derived or numeric display name falls back.
@@ -154,4 +155,20 @@ test('reviews: verified eligibility, closed tables, minimal public projection, m
     assert.equal((await ok('staff','review_moderation_queue')).find((item:any)=>item.id===created.id).project_origin,'contractor_existing_client');
   });
 
+
+  await t.test('follow-ups: client report, paged staff queue, edited-since-hidden marker, network names allowed',async()=>{
+    assert.equal((await ok('client2','report_contractor_review',{p_review_id:reviewId,p_reason:'fake',p_details:'Doute sur ce chantier'})).status,'open');
+    const page=await ok('staff','review_moderation_page',{p_filter:'reported',p_limit:1,p_offset:0});
+    assert.ok(page.total>=1);assert.equal(page.items.length,1);
+    await denied('client','review_moderation_page',{p_filter:'all',p_limit:10,p_offset:0});
+    await denied('staff','review_moderation_page',{p_filter:'bad',p_limit:10,p_offset:0},'22023');
+    await ok('staff','moderate_contractor_review',{p_review_id:reviewId,p_action:'hide',p_reason:'Vérification du chantier en cours'});
+    assert.ifError((await admin.from('project_members').update({status:'accepted',revoked_at:null}).eq('id',member.id)).error);
+    assert.equal((await ok('client','submit_contractor_review',review(3,'Photos envoyées sur WhatsApp au professionnel, finitions correctes.'))).status,'hidden');
+    const edited=await ok('staff','review_moderation_page',{p_filter:'edited',p_limit:10,p_offset:0});
+    assert.ok(edited.items.some((item:any)=>item.id===reviewId&&item.edited_since_hidden===true));
+    await ok('staff','moderate_contractor_review',{p_review_id:reviewId,p_action:'restore',p_reason:null});
+    assert.equal((await ok('staff','review_moderation_page',{p_filter:'edited',p_limit:10,p_offset:0})).items.some((item:any)=>item.id===reviewId),false);
+    await denied('client','submit_contractor_review',review(3,'Écrivez-moi sur wa.me/21620123456 pour la suite.'),'22023');
+  });
 });
