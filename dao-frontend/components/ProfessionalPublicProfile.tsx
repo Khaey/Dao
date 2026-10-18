@@ -281,7 +281,7 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
               ? <a href="#avis" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-ink underline-offset-4 hover:underline">
                 <Stars value={Number(rating.average ?? 0)} size={15} />{formatRating(rating.average)}<span className="font-normal text-black/55">· {reviewCount(rating.count)}</span>
               </a>
-              : <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-semibold text-black/60">Nouveau sur D.A.O.</span>)}
+              : <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-semibold text-black/60">Pas encore d’avis</span>)}
           </div>
           {trades.length > 0 && <ul aria-label="Métiers" className="flex flex-wrap gap-2 pt-1">
             {trades.map((trade) => <li key={trade} className="rounded-lg bg-sand px-2.5 py-1 text-sm font-medium text-ink">{trade}</li>)}

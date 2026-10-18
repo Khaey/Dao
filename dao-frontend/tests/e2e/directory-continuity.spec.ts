@@ -60,4 +60,20 @@ test('Annuaire : recherche, filtres et tri survivent à la fiche, au retour, au 
   // No review yet is stated as such, never as a fake "new" badge; card links are named after the professional.
   await expect(page.getByRole('link', { name: 'Bati Beta E2E', exact: true }).getByText('Pas encore d’avis')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+
+  // Opened from a project lot: the lot context and the search both survive a profile visit.
+  const project = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3', request = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd4';
+  await page.goto(`/app/professionals?project_id=${project}&request_id=${request}&q=Bati`);
+  await expect(page.getByText('Sélectionnez une fiche pour ce lot.')).toBeVisible();
+  const card = page.getByRole('link', { name: 'Bati Beta E2E', exact: true });
+  await expect(card).toHaveAttribute('href', `/app/professionals/${beta.id}?project_id=${project}&request_id=${request}`);
+  await card.click();
+  await expect(page).toHaveURL(new RegExp(`/app/professionals/${beta.id}\\?project_id=${project}`));
+  await page.goto(`/app/professionals?project_id=${project}&request_id=${request}`);
+  await expect(search).toHaveValue('Bati');
+  await expect(page.getByText('Sélectionnez une fiche pour ce lot.')).toBeVisible();
+  // A malformed context is dropped rather than forwarded to profile links.
+  await page.goto('/app/professionals?project_id=not-a-uuid&request_id=x');
+  await expect(page.getByText('Sélectionnez une fiche pour ce lot.')).toHaveCount(0);
+  await expect(page).not.toHaveURL(/project_id=/);
 });
