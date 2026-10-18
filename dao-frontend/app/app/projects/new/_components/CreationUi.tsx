@@ -75,7 +75,7 @@ export function SummaryBlock({ title, onEdit, editLabel, children }: { title: st
  */
 export function StepActions({ onPrevious, previousDisabled, primaryLabel, primaryDisabled, busy, primaryType = 'submit', onPrimary, note }: { onPrevious?: () => void; previousDisabled?: boolean; primaryLabel: string; primaryDisabled?: boolean; busy?: boolean; primaryType?: 'submit' | 'button'; onPrimary?: () => void; note?: string }) {
   const final = !/^Continuer$/.test(primaryLabel);
-  return <div className="sticky bottom-0 z-10 -mx-5 mt-8 border-t border-black/[0.08] bg-white/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5 sm:backdrop-blur-none">
+  return <div data-dao-bottom-bar className="sticky bottom-0 z-10 -mx-5 mt-8 border-t border-black/[0.08] bg-white/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-5 sm:backdrop-blur-none">
     <div className="flex items-center justify-between gap-3">
       {onPrevious ? <button type="button" className={cn(secondaryAction, 'min-w-11 px-3 sm:px-4')} disabled={previousDisabled} onClick={onPrevious}><ArrowLeft size={16} aria-hidden="true" /><span className="hidden min-[380px]:inline">Précédent</span><span className="sr-only min-[380px]:hidden">Précédent</span></button> : <span />}
       <button type={primaryType} onClick={onPrimary} className={cn(primaryAction, 'flex-1 sm:flex-none')} disabled={primaryDisabled || busy} aria-busy={busy || undefined}>{primaryLabel}{!final && !busy && <ArrowRight size={16} aria-hidden="true" />}</button>
