@@ -39,3 +39,13 @@ interrompu par OCE.
 Mapping durable + journal de synchronisation (migration en fichier, tests Auth/RLS sur base jetable),
 orchestration `ensure-*`, résumé technique exposé dans D.A.O, plan d'activation de la passerelle
 (Gate A non mutante). Aucune opération root/VPS/Cloudflare/secret n'est exécutée par ce lot.
+
+## Orchestration (lot 3, #58)
+
+`OceOrchestrator.sync(ref, plan)` pushes one lot planning in a fixed order: project → WBS → schedule → activities → dependencies → CPM calculation. The plan is validated locally first (unique stable codes, known WBS and activity references, real dates, no self/duplicate dependency, no cycle), with no I/O on failure.
+
+- Every write goes through the durable journal (`oce_begin_sync` / `oce_finish_sync`) with a deterministic idempotency key derived from the canonical content hash: replay is a no-op, a changed object produces a new key, a failed step is retried from where it stopped, a concurrent run is reported as `in_progress`.
+- Objects are tracked by stable D.A.O codes and content hash only (`oce_object_changed` / `oce_record_object`): unchanged objects cost no gateway call.
+- Failures record only the error kind/code (never message, payload or OCE identifier); the run stops at the first failure and reports it.
+- `summary(ref)` is the read-only technical summary; it never writes to D.A.O data.
+- Not wired to any route or scheduler yet: exposure in D.A.O follows once permissions are validated.
