@@ -223,6 +223,8 @@ reads the credential.
 
 ## Remaining implementation and qualification
 
+See `docs/oce-gate-a-activation-runbook.md` for the step-by-step Gate A checklist, owner decision point and rollback. Backend lots 1–3 (adapter, durable mapping/journal, orchestration) are merged.
+
 1. Backup/restore, immutable OCE runtime pin and the dedicated technical
    identity/secret rotation gate are complete; do not repeat them without a
    new cause.
