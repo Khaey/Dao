@@ -104,7 +104,7 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');
   const successorValue=await artisan.locator('option',{hasText:'Câblage E2E'}).first().getAttribute('value');
   await artisan.getByLabel('Commence après la fin de').selectOption(predecessorValue!);
-  await artisan.getByLabel('Ce travail',{exact:true}).selectOption(successorValue!);
+  await artisan.getByLabel('Ce travail').selectOption(successorValue!);
   await artisan.locator('input[type=file][accept*="pdf"]').setInputFiles({name:'devis-v2.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n%%EOF')});
   await expect(artisan.getByRole('status')).toContainText('Devis PDF joint et contrôlé');
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
