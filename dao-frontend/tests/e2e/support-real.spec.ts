@@ -6,6 +6,7 @@ import { login } from './support/flow';
 // answers and resolves it, the Client reads the answer. No mock. Skipped while the support routes (#271) are absent.
 test('Assistance réelle : demande Client, prise en charge staff, réponse lue par le Client', async ({ page, browser, e2eClient, e2eAdmin }) => {
   test.skip(!e2eClient || !e2eAdmin, 'E2E Supabase credentials are not available');
+  test.setTimeout(180_000); // two signed-in sessions (Client, then Admin) on the shared CI stack
   const subject = `Demande E2E ${randomUUID().slice(0, 8)}`;
   const question = `Question réelle ${subject}`;
   const answer = `Réponse staff ${subject}`;
