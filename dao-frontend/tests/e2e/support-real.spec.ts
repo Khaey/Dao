@@ -2,10 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from './support/fixtures';
 import { login } from './support/flow';
 
+// Each action fails fast with an explicit reason (locator, obstruction) instead of consuming the whole test budget.
+test.use({ actionTimeout: 20_000 });
+
 // Real end-to-end path on the disposable Supabase stack: Client creates a support request, staff takes it,
 // answers and resolves it, the Client reads the answer. No mock. Skipped while the support routes (#271) are absent.
 test('Assistance réelle : demande Client, prise en charge staff, réponse lue par le Client', async ({ page, browser, e2eClient, e2eAdmin }) => {
   test.skip(!e2eClient || !e2eAdmin, 'E2E Supabase credentials are not available');
+  test.setTimeout(180_000); // two signed-in sessions (Client, then Admin) on the shared CI stack
   const subject = `Demande E2E ${randomUUID().slice(0, 8)}`;
   const question = `Question réelle ${subject}`;
   const answer = `Réponse staff ${subject}`;
@@ -38,6 +42,8 @@ test('Assistance réelle : demande Client, prise en charge staff, réponse lue p
   await staff.getByLabel('Votre réponse').fill(answer);
   await staff.getByRole('button', { name: 'Envoyer la réponse' }).click();
   await expect(staff.getByText(answer, { exact: true })).toBeVisible();
+  // A staff reply moves the request to « waiting for the requester » on the server.
+  await expect(staff.getByText(/^Attribuée à /).locator('xpath=../..').getByText('En attente du demandeur', { exact: true })).toBeVisible();
   const status = staff.getByRole('form', { name: 'Statut de la demande' });
   await status.getByLabel('Statut').selectOption('resolved');
   await status.getByLabel('Motif (visible par le demandeur)').fill('Question traitée en E2E.');
