@@ -1,6 +1,7 @@
 name: DAO OCE Cloudflare check
 
 on:
+  workflow_call:
   workflow_dispatch:
     inputs:
       operation:
@@ -9,8 +10,6 @@ on:
         default: check
         type: choice
         options: [inputs, check, audit]
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: read

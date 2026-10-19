@@ -1,8 +1,8 @@
 name: DAO DEV operations
 
 on:
-  issue_comment:
-    types: [created]
+  # Only the dispatcher listens directly to comments; manual operations stay available.
+  workflow_call:
   workflow_dispatch:
     inputs:
       operation:
