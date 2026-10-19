@@ -285,6 +285,9 @@ class OCEClient:
             conn.close()
 
     def login(self) -> None:
+        # A rejected/expired bearer must never be sent to the login endpoint.
+        # The new token is accepted only after the technical identity is checked.
+        self.token = None
         status, data = self.request(
             "POST",
             "/api/v1/users/auth/login",
@@ -310,7 +313,14 @@ class OCEClient:
     def expect(self, method: str, path: str, statuses: set[int], payload=None, *, timeout: int = 10):
         status, data = self.request(method, path, payload, timeout=timeout)
         if status == 401:
-            raise SafeError(502, "oce_session_rejected")
+            # A 401 is an explicit refusal: the operation was not authorized
+            # by OCE. Re-authenticate and replay it at most once. A transport
+            # error on a write remains ambiguous and is never retried here.
+            self.login()
+            status, data = self.request(method, path, payload, timeout=timeout)
+            if status == 401:
+                self.token = None
+                raise SafeError(502, "oce_session_rejected")
         if status == 403:
             raise SafeError(502, "oce_permission_rejected")
         if status not in statuses:
@@ -355,11 +365,16 @@ def mapping_for(state: dict, body: dict) -> tuple[str, dict]:
 class Gateway:
     def __init__(self):
         self.credential = read_credential()
+        # GatewayServer is single-threaded and retains this instance for its
+        # lifetime; the bearer stays exclusively in service process memory.
+        self._oce_client: OCEClient | None = None
 
     def client(self) -> OCEClient:
-        client = OCEClient(self.credential)
-        client.login()
-        return client
+        if self._oce_client is None:
+            client = OCEClient(self.credential)
+            client.login()  # Never cache an unverified technical identity.
+            self._oce_client = client
+        return self._oce_client
 
     def oce_project(self, client: OCEClient, row: dict) -> dict:
         value = row.get("oce_project_id")
