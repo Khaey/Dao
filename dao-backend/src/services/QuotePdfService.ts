@@ -25,7 +25,7 @@ export class QuotePdfService {
   async export(versionId:string) {
     const versionResult=await this.db.from('bid_versions').select('id,version_no,submitted_at,quote_valid_until,quote_terms,material_references,contractor_profiles(business_name)').eq('id',versionId).single();
     if(versionResult.error||!versionResult.data)throw new DomainError('Quote not found','NOT_FOUND');
-    const itemsResult=await this.db.from('bid_items').select('id,price_millimes,duration_days,inclusions,exclusions,project_request_versions!bid_items_request_version_id_fkey(title)').eq('bid_version_id',versionId).order('created_at');
+    const itemsResult=await this.db.from('bid_items').select('id,price_millimes,duration_days,inclusions,exclusions,project_request_versions!bid_items_request_version_id_project_id_request_id_fkey(title)').eq('bid_version_id',versionId).order('created_at');
     if(itemsResult.error)throw itemsResult.error;
     const itemIds=(itemsResult.data??[]).map((item:any)=>item.id);
     const quoteResult=itemIds.length?await this.db.from('bid_quote_lines').select('bid_item_id,position,designation,unit,quantity_milli,unit_price_millimes,total_millimes').in('bid_item_id',itemIds).order('position'):{data:[],error:null};
