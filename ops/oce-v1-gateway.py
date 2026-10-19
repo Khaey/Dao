@@ -299,7 +299,12 @@ class OCEClient:
         if status != 200 or not isinstance(data, dict) or not isinstance(data.get("access_token"), str):
             raise SafeError(502, "oce_login_failed")
         self.token = data["access_token"]
-        status, me = self.request("GET", "/api/v1/users/me/")
+        try:
+            status, me = self.request("GET", "/api/v1/users/me/")
+        except Exception:
+            # A bearer is never retained unless identity verification completed.
+            self.token = None
+            raise
         if (
             status != 200
             or not isinstance(me, dict)
