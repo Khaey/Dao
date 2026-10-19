@@ -7,6 +7,7 @@ import { Bell, Check, CheckCheck, ClipboardCheck, Mail, MessageCircle, RefreshCw
 import { Button, Card } from '../../../components/ui';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead, NotificationApiError, type NotificationItem, type NotificationPage } from '../../../lib/notifications';
+import StaffSupportNotifications from './StaffSupportNotifications';
 
 const dates=new Intl.DateTimeFormat('fr-FR',{dateStyle:'medium',timeStyle:'short'});
 const workspaceLabels={client:'Espace Client',contractor:'Espace Artisan',staff:'Espace D.A.O'};
@@ -83,6 +84,10 @@ export default function NotificationsPage() {
     } finally {if(!controller.signal.aborted)setMarking(null);}
   }
   async function markAll(){const controller=new AbortController();markRequest.current?.abort();markRequest.current=controller;setMarking('all');setError('');try{const data=await markAllNotificationsRead(controller.signal);setAnnouncement(`${data?.marked??0} notification(s) marquée(s) comme lue(s).`);await load();}catch{if(!controller.signal.aborted)setError('Lecture groupée non enregistrée. Réessayez.');}finally{if(!controller.signal.aborted)setMarking(null);}}
+
+  // The general notification RPC intentionally hides staff records. Staff sees its
+  // own authenticated support queue instead, without changing private chat RLS.
+  if (page?.workspace === 'staff') return <StaffSupportNotifications />;
 
   return <section className="mx-auto w-full max-w-4xl space-y-6" aria-labelledby="notifications-title">
     <div className="flex flex-wrap items-start justify-between gap-4">
