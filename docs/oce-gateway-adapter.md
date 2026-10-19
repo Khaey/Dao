@@ -69,3 +69,4 @@ D.A.O pilote, OCE calcule, D.A.O affiche : aucun compte Admin ou Client ne se co
 - **Supervision** : `GET /api/oce/lot-plan?project_id&lot_id` → état `not_requested | pending | synced | failed` (code d'erreur assaini). `POST /api/oce/lot-plan` relance (admin / relecteur assigné uniquement).
 - **Extensible** : le plan est un `OcePlan` ; plannings détaillés, jalons et carnet de chantier ajoutent des WBS/activités/dépendances sans changer le déclencheur ni le contrat de la passerelle.
 - **Autorisation passerelle** : l'`authorize` du lot reste une opération root distincte (hors de ce code).
+- **Affichage (onglet Suivi du projet)** : `OceLotPlanning` — par lot, saisie des dates réelles (Client / gestion D.A.O), badge d'état (calcul en cours / calculé / indisponible), résumé technique (durée, activités, critiques, avancement) et relance du calcul. Le composant se masque pour qui n'a pas accès (403).
