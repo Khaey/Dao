@@ -29,11 +29,11 @@
       "size": 28626
     },
     "ops/oce-v1-gateway-qualify.py": {
-      "sha": "c8b0799ac8e165539b5a69f33948c355d07f26e2be22a26438cce5ad9f3beaf4",
+      "sha256": "c8b0799ac8e165539b5a69f33948c355d07f26e2be22a26438cce5ad9f3beaf4",
       "size": 9961
     },
     "ops/oce-v1-gateway.py": {
-      "sha": "95163fc03c0784d15287dda7d450decfc7ee7cfd441dd798f0084fce647ce473",
+      "sha256": "95163fc03c0784d15287dda7d450decfc7ee7cfd441dd798f0084fce647ce473",
       "size": 50405
     }
   },
