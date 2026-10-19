@@ -22,6 +22,7 @@ model {
       documents = component "Documents" "Upload Storage privé, grants et signed URLs après autorisation." "Next.js / Supabase Storage"
 
       collaboration = component "Collaboration chantier" "Membres, rôles projet, permissions privées et affectation aux lots." "Next.js / RPC"
+      siteExecution = component "Carnet d’exécution" "Journal append-only par lot attribué : progrès déclaratif, interventions, jalons, justificatifs privés et observations Client sans effet juridique." "Next.js / API / RPC / RLS"
       messaging = component "Messagerie privée chantier" "Fil texte par chantier et professionnel confirmé, historique immuable et notifications internes." "Next.js / API / RPC / RLS"
       notifications = component "Centre de notifications personnelles S1" "Liste responsive, compteur réel, lecture idempotente et événements transactionnels aux droits vivants ; canal distinct de l'outbox e-mail." "Next.js / API / RPC / RLS"
       invitations = component "Invitations chantier" "Token one-shot hashé et boîte du destinataire ; expiration, preview, accept/refuse/revoke." "Next.js / RPC"
@@ -114,6 +115,7 @@ model {
   client -> dao.web.documents "Gère les documents"
   client -> dao.web.teamCreation "Crée avec équipe existante"
   client -> dao.web.collaboration "Gère l'équipe chantier"
+  client -> dao.web.siteExecution "Consulte et observe les déclarations des lots attribués"
   client -> dao.web.messaging "Échange avec le professionnel confirmé"
   client -> dao.web.notifications "Consulte ses événements Client"
   client -> dao.web.review "Soumet/corrige le DAO"
@@ -124,6 +126,7 @@ model {
   contractor -> dao.web.bids "Prépare, suit, soumet ou retire une offre non attribuée"
   contractor -> dao.web.invitations "Consulte sa boîte et accepte/refuse une invitation"
   contractor -> dao.web.collaboration "Travaille sur un chantier accepté"
+  contractor -> dao.web.siteExecution "Déclare l’exécution de ses lots attribués"
   contractor -> dao.web.messaging "Échange avec le client confirmé"
   contractor -> dao.web.notifications "Consulte ses événements Artisan"
   contractor -> dao.web.contracts "Lit le contrat dont il est partie ; aucune action engageante"
@@ -152,6 +155,9 @@ model {
   dao.web.bids -> dao.web.awards "Alimente l'attribution"
   dao.web.compare -> dao.web.awards "Prépare l'attribution"
   dao.web.awards -> dao.web.contracts "Alimente une préparation technique réservée au service"
+  dao.web.awards -> dao.web.siteExecution "Autorise uniquement les lots activement attribués"
+  dao.web.collaboration -> dao.web.siteExecution "Exige les memberships acceptés et l’espace actif"
+  dao.web.siteExecution -> dao.web.documents "Référence seulement les documents approuvés et partagés"
   dao.web.contracts -> dao.web.subcontract "Permet la sous-traitance contrôlée" "Futur"
 
   dao.web.manager -> dao.web.managerReview "Expose les files de revue"
@@ -170,6 +176,7 @@ model {
   dao.web.publications -> dao.web.api "Publication"
   dao.web.bids -> dao.web.api "Cycle offre"
   dao.web.awards -> dao.web.api "Attribution"
+  dao.web.siteExecution -> dao.web.api "Liste et ajoute les événements autorisés"
   dao.web.profile -> dao.web.api "Mise à jour profil"
 
   dao.web.api -> dao.web.services "Valide et orchestre"
@@ -232,7 +239,7 @@ views {
     include dao.web.shell dao.web.auth dao.web.profile
     include dao.web.professionalDossier dao.web.professionalPublic dao.web.professionalMedia
     include dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
-    include dao.web.teamCreation dao.web.invitations dao.web.collaboration dao.web.messaging
+    include dao.web.teamCreation dao.web.invitations dao.web.collaboration dao.web.messaging dao.web.siteExecution
     include dao.web.review dao.web.publications dao.web.marketplace
     include dao.web.bids dao.web.compare dao.web.awards
     include dao.web.manager dao.web.managerReview dao.web.managerPublications dao.web.managerProfessionals dao.web.managerClients dao.web.notificationWorker dao.web.technicalSubLots
@@ -244,7 +251,7 @@ views {
   component dao.web "ClientWorkspace" "Détail de l'espace Client." {
     include client
     include dao.web.auth dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
-    include dao.web.teamCreation dao.web.invitations dao.web.collaboration dao.web.messaging
+    include dao.web.teamCreation dao.web.invitations dao.web.collaboration dao.web.messaging dao.web.siteExecution
     include dao.web.review dao.web.publications dao.web.compare dao.web.api dao.web.services dao.web.rpc
     include supabaseAuth supabaseDb supabaseStorage supabaseRls
     autoLayout lr
@@ -253,7 +260,7 @@ views {
   component dao.web "ContractorWorkspace" "Détail de l'espace Artisan / Entreprise." {
     include contractor
     include dao.web.auth dao.web.profile dao.web.marketplace dao.web.bids
-    include dao.web.invitations dao.web.collaboration dao.web.messaging dao.web.api dao.web.services dao.web.rpc
+    include dao.web.invitations dao.web.collaboration dao.web.messaging dao.web.siteExecution dao.web.documents dao.web.api dao.web.services dao.web.rpc
     include supabaseAuth supabaseDb supabaseRls
     autoLayout lr
   }
@@ -304,6 +311,16 @@ views {
     client -> dao.web.projects "Voit le motif"
     client -> dao.web.projects "Crée/corrige un nouveau draft"
     client -> dao.web.review "Resoumet"
+    autoLayout lr
+  }
+
+  dynamic dao.web "SiteExecutionFlow" "Déclaration d’exécution et observation sans réception juridique." {
+    contractor -> dao.web.siteExecution "Déclare progrès, intervention ou jalon"
+    dao.web.siteExecution -> dao.web.api "Envoie le JWT et la clé d’idempotence"
+    dao.web.api -> dao.web.services "Valide le DTO borné"
+    dao.web.services -> dao.web.rpc "Revalide award, membership et espace actif"
+    dao.web.rpc -> supabaseDb "Ajoute l’événement immuable"
+    client -> dao.web.siteExecution "Prend connaissance ou conteste avec motif"
     autoLayout lr
   }
 

@@ -488,3 +488,29 @@ The minimum-one-artisan rule applies only to the `client_existing_team`
 creation path. A marketplace-first client project may contain lots with no known
 professional and use the normal DAO search/publication workflow.
 
+## 24. Carnet d’exécution par lot attribué (P2.3, #289)
+
+Le suivi global `project_stage` et le paiement déclaratif existants restent
+distincts. Le carnet est disponible uniquement pour un chantier confirmé et un
+`award_item` actif dont le lot est `awarded` ou `contracted`. L’Artisan doit être
+à la fois titulaire de l’award et membre Contractor accepté du chantier ; une
+attribution seule ne crée aucun accès.
+
+L’Artisan habilité, dans son espace Contractor effectif, peut ajouter un progrès
+0–100 motivé, une intervention datée et un jalon technique. Le Client confirmé,
+dans son espace Client effectif, lit ces déclarations et peut enregistrer une
+prise de connaissance ou une contestation motivée. Les doubles rôles suivent
+`profiles.last_workspace`. Staff, concurrents, invités, membres révoqués, comptes
+suspendus, projets archivés et awards annulés n’obtiennent aucun droit implicite.
+
+Toutes les écritures sont append-only, horodatées par le serveur, attribuées à
+`auth.uid()` et idempotentes. Un jalon terminé ou annulé n’est pas rouvert. Les
+justificatifs sont uniquement des références vers des `documents` approuvés et
+partagés avec `project_members`; un document `owner_only` ne devient jamais
+visible par le carnet. Les lectures revalident les droits vivants.
+
+Une progression à 100 %, un jalon terminé ou une prise de connaissance Client
+ne vaut ni réception, ni acceptation juridique, ni paiement, ni modification du
+contrat ou de l’attribution. Le modèle fournit des codes événementiels stables
+mais n’exécute aucune synchronisation OCE.
+

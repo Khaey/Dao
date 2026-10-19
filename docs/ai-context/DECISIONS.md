@@ -730,3 +730,17 @@ La projection exclut les preuves brutes, références fournisseur, métadonnées
 internes et chemins Storage. L'interface distingue le contrat de référence des
 propositions d'avenant et les qualifie explicitement de non signés et non
 engageants. Elle n'expose aucune action de mutation, acceptation ou signature.
+
+## Exécution P2.3 — carnet déclaratif par award item (#289, 2026-10-19)
+
+La décision propriétaire « Option A — Suivi d’exécution des travaux » est
+réalisée sans recréer le suivi global ni le stockage documentaire. L’unité
+d’autorité est le vrai `award_item` actif, complété par un membership Contractor
+accepté et un chantier Client confirmé. Le rôle global ou staff seul ne suffit
+pas ; un double rôle agit selon son dernier espace explicitement sélectionné.
+
+Le journal, les liens de preuve et les observations Client sont immuables et
+idempotents. Les documents restent gouvernés par leurs droits privés existants.
+Les états et pourcentages sont déclaratifs et sans effet sur réception, contrat,
+award, paiement ou OCE. Le contrat technique détaillé et la matrice négative
+sont conservés dans `docs/site-execution-design.md`.

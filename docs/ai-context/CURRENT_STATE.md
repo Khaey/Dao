@@ -1136,3 +1136,21 @@ La recette visuelle authentifiée sur DEV reste à recevoir ; l'ouverture du
 navigateur Work a expiré. #112 reste ouverte pour cette réception ou un défaut
 prouvé. #91 reste passif ; pas de nouveau lot OPS/OCE/back-office/Monitor.
 Reprise et preuves exactes : [checkpoint PRO 12](https://github.com/Khaey/Dao/issues/112#issuecomment-6132912341).
+
+## DEV 2 — Carnet d’exécution P2.3 #289 (2026-10-19)
+
+Branche `feature/289-site-journal`, base `b2cfc3160ec936990f69165661814abd401d9f36`.
+PR #296 prête pour revue sur le head CI exact ; fusion interdite avant FULL E2E vert.
+Phase A publiée : matrice d’accès et contrat additif dans
+`docs/site-execution-design.md`. Le socle en cours ajoute un journal immuable par
+`award_item`, justificatifs référencés depuis `documents`, observations Client,
+RPC/RLS JWT et API typée. L’onglet Suivi conserve `ProjectTracking` et ajoute le
+carnet responsive ; aucune réception, signature, mutation contractuelle,
+finance ou opération OCE.
+
+Preuves courantes : replay PGlite 170/170, modèle collaboration 39/39,
+backend TypeScript et tests ciblés 4/4, build Next.js production PASS et
+intégration Supabase réelle 78/78. Playwright découvre 122 exécutions dans 29
+fichiers ; le FULL E2E reste à prouver par CI sur le SHA publié. Les 5 échecs de la suite backend
+globale locale sont exclusivement les sockets Unix OCE interdits par ce runtime
+(`listen EPERM`) et ne sont ni modifiés ni relancés dans #289.
