@@ -69,7 +69,7 @@ test('oce lot plan: explicit dates, owner/management access, service-only sync r
   await t.test('sync state is derived from the durable mapping: pending, failed, synced',async()=>{
     assert.equal((await get('owner')).sync.state,'pending');
     const m=await admin.rpc('oce_request_mapping',{p_project_id:project.id,p_request_id:request.id});assert.ifError(m.error);
-    const begin=async(op:string)=>{const b=await admin.rpc('oce_begin_sync',{p_mapping_id:m.data,p_operation:op,p_key:op+':'+randomUUID(),p_payload_hash:'h'});assert.ifError(b.error);return b.data.id;};
+    const begin=async(op:string)=>{const b=await admin.rpc('oce_begin_sync',{p_mapping_id:m.data,p_operation:op,p_key:op+':'+randomUUID(),p_payload_hash:'a'.repeat(64)});assert.ifError(b.error);return b.data.id;};
     assert.ifError((await admin.rpc('oce_finish_sync',{p_journal_id:await begin('ensure-project'),p_ok:false,p_error_kind:'transient',p_error_code:'unavailable'})).error);
     const failed=await get('owner');assert.equal(failed.sync.state,'failed');assert.equal(failed.sync.error_code,'unavailable');
     assert.ifError((await admin.rpc('oce_finish_sync',{p_journal_id:await begin('ensure-wbs'),p_ok:true})).error);
