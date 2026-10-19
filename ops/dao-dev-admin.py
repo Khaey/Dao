@@ -377,6 +377,71 @@ def oce_gateway_qualify():
     print(json.dumps(data, sort_keys=True))
 
 
+GATEWAY_SERVICE = 'dao-oce-gateway.service'
+GATEWAY_SOCKET = Path('/run/dao-oce-gateway/gateway.sock')
+APP_SERVICE = 'dao-dev.service'
+SYSTEMCTL = '/usr/bin/systemctl'
+OCE_FLAG = 'DAO_OCE_ENABLED'
+
+
+def service_active(name):
+    result = subprocess.run([SYSTEMCTL, 'is-active', '--quiet', name], timeout=10, check=False)
+    return result.returncode == 0
+
+
+def wait_active(name, seconds, socket_path=None):
+    import time
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if service_active(name) and (socket_path is None or socket_path.exists()):
+            return True
+        time.sleep(1)
+    return False
+
+
+def oce_gateway_restart():
+    """Restart only the fixed gateway unit (after a reviewed gateway file install)."""
+    if not service_active(GATEWAY_SERVICE):
+        raise ValueError('gateway service not active')
+    result = subprocess.run([SYSTEMCTL, 'restart', GATEWAY_SERVICE], timeout=60, check=False)
+    ready = result.returncode == 0 and wait_active(GATEWAY_SERVICE, 30, GATEWAY_SOCKET)
+    print(json.dumps({'oce_gateway_restart': 'complete' if ready else 'failed',
+                      'service_active': service_active(GATEWAY_SERVICE),
+                      'socket_ready': GATEWAY_SOCKET.exists()}, sort_keys=True))
+    if not ready:
+        raise ValueError('gateway restart failed')
+
+
+def drop_env_key(original, key):
+    kept = [line for line in original.splitlines()
+            if not re.match(r'^\s*(?:export\s+)?' + re.escape(key) + r'\s*=', line)]
+    return '\n'.join(kept).rstrip() + '\n'
+
+
+def oce_set_dev_flag(enabled):
+    """Enable/disable the server-side OCE adapter flag; revert the file if the app does not come back."""
+    if ENV.parent.stat().st_uid != 0 or ENV.parent.stat().st_mode & 0o022 or ENV.is_symlink():
+        raise ValueError('unsafe environment path ownership')
+    if enabled and not (service_active(GATEWAY_SERVICE) and GATEWAY_SOCKET.exists()):
+        raise ValueError('gateway not ready')
+    original = ENV.read_text()
+    updated = rewrite_env(original, {OCE_FLAG: '1'}, {OCE_FLAG}) if enabled else drop_env_key(original, OCE_FLAG)
+    changed = updated != original
+    if changed:
+        atomic_write(BACKUP, original)
+        atomic_write(ENV, updated)
+    restart = subprocess.run([SYSTEMCTL, 'restart', APP_SERVICE], timeout=60, check=False)
+    healthy = restart.returncode == 0 and wait_active(APP_SERVICE, 60)
+    if not healthy:
+        if changed:
+            atomic_write(ENV, original)
+            subprocess.run([SYSTEMCTL, 'restart', APP_SERVICE], timeout=60, check=False)
+        print(json.dumps({'oce_dev_flag': 'failed', 'reverted': changed}, sort_keys=True))
+        raise ValueError('application restart failed')
+    print(json.dumps({'oce_dev_flag': 'enabled' if enabled else 'disabled', 'changed': changed,
+                      'app_active': True, 'gateway_active': service_active(GATEWAY_SERVICE)}, sort_keys=True))
+
+
 def oce_integration_inventory():
     """Fixed inspect-only command; no Docker exec, stop, compose or credentials."""
     docker = shutil.which('docker')
@@ -560,14 +625,16 @@ def oce_audit():
     }, sort_keys=True))
 
 
-def rewrite_env(original, values):
-    if not isinstance(values, dict) or not values or set(values) - ALLOWED:
+def rewrite_env(original, values, allowed=ALLOWED):
+    if not isinstance(values, dict) or not values or set(values) - allowed:
         raise ValueError('unsupported or empty environment update')
     for key, value in values.items():
         if not isinstance(value, str) or not value or len(value) > 512 or any(c in value for c in '\r\n\x00'):
             raise ValueError('invalid environment value')
         if key == 'RESEND_API_KEY' and not re.fullmatch(r'[A-Za-z0-9_-]{8,256}', value):
             raise ValueError('invalid provider key format')
+        if key == 'DAO_OCE_ENABLED' and value != '1':
+            raise ValueError('unsupported OCE flag value')
         if key == 'DAO_PUBLIC_URL' and value != 'https://dao-dev.logiclab.fr':
             raise ValueError('unexpected DEV URL')
         if key == 'DAO_EMAIL_FROM' and not re.fullmatch(r'[A-Za-z0-9 ._+@<>-]{3,254}', value):
@@ -648,6 +715,12 @@ def main():
         oce_gateway_apply()
     elif operation == 'oce-gateway-qualify':
         oce_gateway_qualify()
+    elif operation == 'oce-gateway-restart':
+        oce_gateway_restart()
+    elif operation == 'oce-enable-dev':
+        oce_set_dev_flag(True)
+    elif operation == 'oce-disable-dev':
+        oce_set_dev_flag(False)
     elif operation == 'log-summary':
         p = subprocess.run(['/usr/bin/journalctl', '-u', 'dao-dev.service', '--since', '1 hour ago', '-n', '200', '-o', 'json', '--no-pager'], capture_output=True, text=True, timeout=15, check=True)
         counts = {}

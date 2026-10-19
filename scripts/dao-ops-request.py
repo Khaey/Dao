@@ -10,6 +10,7 @@ OPERATIONS = (
     'ops-status', 'ops-preflight', 'ops-upgrade', 'ops-rollback', 'backup-status',
     'oce-integration-inventory', 'oce-gateway-plan',
     'oce-gateway-apply', 'oce-gateway-qualify',
+    'oce-gateway-restart', 'oce-enable-dev', 'oce-disable-dev',
     'oce-status', 'oce-audit', 'oce-probe', 'oce-start', 'oce-stop',
 )
 

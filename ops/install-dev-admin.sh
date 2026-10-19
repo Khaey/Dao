@@ -16,7 +16,7 @@ tmp="$(mktemp /etc/sudoers.d/.dao-admin-XXXXXX)"
 trap 'rm -f "$tmp"' EXIT
 cat > "$tmp" <<'EOF'
 # D.A.O environment and safe diagnostics; existing service sudoers remain intact.
-dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-dev-admin env-sync, /usr/local/sbin/dao-dev-admin env-restore, /usr/local/sbin/dao-dev-admin log-summary, /usr/local/sbin/dao-dev-admin oce-audit, /usr/local/sbin/dao-dev-admin oce-integration-inventory, /usr/local/sbin/dao-dev-admin oce-gateway-plan, /usr/local/sbin/dao-dev-admin oce-gateway-apply, /usr/local/sbin/dao-dev-admin oce-gateway-qualify
+dao ALL=(root) NOPASSWD: /usr/local/sbin/dao-dev-admin env-sync, /usr/local/sbin/dao-dev-admin env-restore, /usr/local/sbin/dao-dev-admin log-summary, /usr/local/sbin/dao-dev-admin oce-audit, /usr/local/sbin/dao-dev-admin oce-integration-inventory, /usr/local/sbin/dao-dev-admin oce-gateway-plan, /usr/local/sbin/dao-dev-admin oce-gateway-apply, /usr/local/sbin/dao-dev-admin oce-gateway-qualify, /usr/local/sbin/dao-dev-admin oce-gateway-restart, /usr/local/sbin/dao-dev-admin oce-enable-dev, /usr/local/sbin/dao-dev-admin oce-disable-dev
 EOF
 chmod 0440 "$tmp"
 visudo -cf "$tmp"
