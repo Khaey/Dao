@@ -100,6 +100,13 @@ test('support center: real JWT isolation, staff lifecycle and append-only histor
     const unassigned = queue.find((item: any) => item.id === ticketId);
     assert.ok(unassigned);
     assert.equal(unassigned.assignee_label, null, 'an unassigned ticket must not receive the DAO team fallback label');
+    assert.equal(unassigned.unread_count, 1, 'a new requester ticket must alert authorized staff');
+    assert.ok((await rpc(reviewer.db, 'my_support_summary')).unread >= 1);
+    assert.equal((await rpc(operator.db, 'support_queue')).find((t: any) => t.id === ticketId).unread_count, 1);
+    await rpc(reviewer.db, 'mark_support_ticket_read', { p_ticket_id: ticketId });
+    assert.equal((await rpc(reviewer.db, 'support_queue')).find((t: any) => t.id === ticketId).unread_count, 0);
+    assert.equal((await rpc(operator.db, 'support_queue')).find((t: any) => t.id === ticketId).unread_count, 1,
+      'reviewer read must not silently mark admin read');
     await rpc(reviewer.db, 'assign_support_ticket_to_me', { p_ticket_id: ticketId });
     const key = randomUUID();
     const [one, two] = await Promise.all([1, 2].map(() => rpc(reviewer.db, 'reply_support_ticket', {
@@ -116,6 +123,18 @@ test('support center: real JWT isolation, staff lifecycle and append-only histor
     assert.deepEqual(events.data!.map(row => row.event_type).sort(), ['assigned', 'created', 'replied', 'status_changed', 'status_changed'].sort());
     assert.ok((await admin.from('support_messages').update({ body: 'tampered' }).eq('ticket_id', ticketId)).error);
     assert.ok((await admin.from('support_events').delete().eq('ticket_id', ticketId)).error);
+  });
+
+  await t.test('a later requester reply reopens only the staff unread receipt, not private messages', async () => {
+    const ticket = await create(clientA.db);
+    const current = (await rpc(reviewer.db, 'my_support_summary')).unread;
+    await rpc(reviewer.db, 'mark_support_ticket_read', { p_ticket_id: ticket.id });
+    assert.equal((await rpc(reviewer.db, 'my_support_summary')).unread, current - 1);
+    await rpc(clientA.db, 'reply_support_ticket', { p_ticket_id: ticket.id, p_body: 'Nouveau détail technique', p_idempotency_key: randomUUID() });
+    assert.equal((await rpc(reviewer.db, 'my_support_summary')).unread, current);
+    assert.equal((await rpc(reviewer.db, 'support_queue')).find((t: any) => t.id === ticket.id).unread_count, 1);
+    await denied(clientB.db, 'mark_support_ticket_read', { p_ticket_id: ticket.id });
+    await denied(clientB.db, 'support_queue');
   });
 
   await t.test('project association is live-authorized and a revoked session is refused', async () => {
