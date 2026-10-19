@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 
@@ -88,10 +87,7 @@ def gateway(method, path, body=None, *, expected=200, timeout=20):
     except Exception as exc:
         raise Halt("gateway response invalid") from exc
     if status != expected:
-        # Only non-secret diagnostics: fixed path, numeric status, short snake_case error code.
-        code = data.get("error") if isinstance(data, dict) else None
-        code = code if isinstance(code, str) and re.fullmatch(r"[a-z0-9_]{1,40}", code) else "none"
-        raise Halt("gateway status %d %s %s" % (status, path.strip("/").replace("/", " "), code))
+        raise Halt("gateway response status")
     return data
 
 
