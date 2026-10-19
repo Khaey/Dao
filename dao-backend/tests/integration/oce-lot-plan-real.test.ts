@@ -74,6 +74,8 @@ test('oce lot plan: explicit dates, owner/management access, service-only sync r
     const failed=await get('owner');assert.equal(failed.sync.state,'failed');assert.equal(failed.sync.error_code,'unavailable');
     assert.ifError((await admin.rpc('oce_finish_sync',{p_journal_id:await begin('ensure-wbs'),p_ok:true})).error);
     const ok=await get('assigned');assert.equal(ok.sync.state,'synced');assert.equal(ok.sync.error_code,null);
+    const same=await save('owner','2026-11-03','2026-12-18',true);assert.ifError(same.error);
+    assert.equal((await get('owner')).sync.state,'synced','replaying an identical plan keeps the synchronised state');
     await save('owner','2026-11-04','2026-12-18',true);
     assert.equal((await get('owner')).sync.state,'pending','a changed plan is pending again');
   });

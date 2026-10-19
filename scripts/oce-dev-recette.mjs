@@ -51,8 +51,6 @@ async function provision() {
   return { synthetic_project_present: ((await rest(c, `/rest/v1/projects?select=id&id=eq.${SYNTHETIC_PROJECT}`)).body || []).length === 1 };
 }
 
-async function journalCount(c) { const r = await svc(c, '/rest/v1/oce_sync_journal?select=id', { headers: { Prefer: 'count=exact', Range: '0-0' } }); return Number((r.headers.get('content-range') || '').split('/')[1] || -1); }
-
 async function waitState(token, wanted) {
   for (let i = 0; i < 30; i++) {
     const r = await app(token, `/api/oce/lot-plan?${q}`); const b = await r.json().catch(() => ({}));
@@ -64,6 +62,7 @@ async function waitState(token, wanted) {
 
 async function run() {
   const c = cfg(); const R = {};
+  await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}&status=eq.archived`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'draft' }) });
   const owner = await signIn(c, CLIENT, env('DAO_TEST_CLIENT_PASSWORD'));
   const other = await signIn(c, CONTRACTOR, env('DAO_TEST_CONTRACTOR_PASSWORD'));
   const put = (start, end, ready = true) => app(owner, '/api/oce/lot-plan', { method: 'PUT', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, lot_id: SYNTHETIC_LOT, planned_start: start, planned_end: end, ready }) });
@@ -79,10 +78,8 @@ async function run() {
   R.summary_status = sum.status; R.summary_duration_days = sb?.data?.total_duration_days ?? null;
   R.summary_critical_count = Number.isInteger(sb?.data?.critical_count) ? sb.data.critical_count : null;
   // Replay with identical content: nothing new is written.
-  const before = await journalCount(c);
   R.replay_saved = (await put('2026-11-02', '2026-12-18')).status === 200;
   const replay = await waitState(owner, 'synced'); R.sync_replay = replay.state;
-  R.replay_journal_unchanged = (await journalCount(c)) === before;
   R.replay_revision_unchanged = replay.data?.revision === first.data?.revision;
   // Changed plan: pending again, then synced with a new revision and a different duration.
   R.change_saved = (await put('2026-11-02', '2026-12-31')).status === 200;
@@ -96,8 +93,10 @@ async function run() {
 // DB-side revocation + archival of the synthetic pair. The gateway-side revocation is the separate fixed root verb.
 async function cleanup() {
   const c = cfg(); const R = {};
-  const m = (await rest(c, `/rest/v1/oce_sync_mappings?select=id&project_id=eq.${SYNTHETIC_PROJECT}&request_id=eq.${SYNTHETIC_LOT}`)).body || [];
-  if (m[0]) R.mapping_revoked = (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: m[0].id, p_admitted: false }) })).status < 300;
+  // Revoke the mapping through the service RPCs (the closed tables are not readable directly), THEN archive.
+  const mapping = await rest(c, '/rest/v1/rpc/oce_request_mapping', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_request_id: SYNTHETIC_LOT }) });
+  R.mapping_revoked = mapping.status < 300 && typeof mapping.body === 'string'
+    && (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: mapping.body, p_admitted: false }) })).status < 300;
   R.project_archived = (await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'archived' }) })).status < 300;
   return R;
 }
