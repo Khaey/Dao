@@ -20,6 +20,7 @@ if(fails)throw Error(JSON.stringify(results));
 await db.exec('create schema supabase_migrations;create table supabase_migrations.schema_migrations(version text primary key);');
 for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).filter(name=>name.endsWith('.sql')).sort())await db.query('insert into supabase_migrations.schema_migrations(version) values($1)',[f.split('_',1)[0]]);
 await db.exec(readFileSync(new URL('../supabase/seed.sql',import.meta.url),'utf8'));
+await test('bid sub-lots contract (#325)',async()=>{await db.exec('begin');try{await db.exec(readFileSync(new URL('./bid-sub-lots-contract.sql',import.meta.url),'utf8'));}finally{await db.exec('rollback');}});
 await test('shared fresh-database schema contract',()=>db.exec(readFileSync(new URL('./schema-contract.sql',import.meta.url),'utf8')));
 await test('add_project_request overloads resolve at exact four- and five-argument arities',async()=>{
  const functions=(await db.query(`select n.nspname as schema_name,p.pronargs::int as argument_count,p.pronargdefaults::int as default_count
@@ -51,7 +52,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,83);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,85);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.

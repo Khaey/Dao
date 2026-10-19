@@ -111,6 +111,14 @@ export async function replaceBidQuoteLines(s: BackendServices, actor: Authentica
   requireActor(actor);
   return s.bids.replaceQuoteLines(input);
 }
+export async function replaceBidSubLots(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.bids.replaceSubLots(input);
+}
+export async function replaceBidSubLotLinks(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.bids.replaceSubLotLinks(input);
+}
 export async function signedDownload(s: BackendServices, actor: AuthenticatedActor, id: string, expiresIn?: number) {
   requireActor(actor);
   return s.documents.signedDownloadForActor(actor.id, id, expiresIn);

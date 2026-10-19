@@ -24,6 +24,8 @@ type Offer = {
 };
 type Award = { id: string; request_id: string; bid_item_id: string; agreed_millimes: number; active: boolean };
 type QuoteDocument = { id:string; bid_version_id:string; original_name:string; size_bytes:number; status:string };
+type SubLotView = { bid_item_id:string; bid_version_id:string; node_key:string; position:number; title:string; scope:string|null; start_date:string|null; end_date:string|null; duration_days:number|null; budget_millimes:number|null };
+type SubLotLinkView = { bid_version_id:string; pred_kind:string; pred_ref:string; succ_kind:string; succ_ref:string };
 type QuoteLine = { id:string; bid_item_id:string; section:string; designation:string; unit:string; quantity_milli:number; unit_price_millimes:number; total_millimes:number; position:number };
 
 const cancellationReasons: Record<string, string> = { disagreement: 'Désaccord entre les parties', withdrawal: 'Désistement', financing: 'Problème de financement / paiement', unavailable: 'Indisponibilité', award_error: 'Erreur d’attribution', mutual_agreement: 'Accord amiable', deadline: 'Non-respect d’un délai', other: 'Autre' };
@@ -56,6 +58,8 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots,
   const [message, setMessage] = useState('');
   const [documents, setDocuments] = useState<Record<string,QuoteDocument[]>>({});
   const [quoteLines, setQuoteLines] = useState<Record<string,QuoteLine[]>>({});
+  const [subLotsByItem, setSubLotsByItem] = useState<Record<string,SubLotView[]>>({});
+  const [subLotLinksByVersion, setSubLotLinksByVersion] = useState<Record<string,SubLotLinkView[]>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,7 +103,7 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots,
       return;
     }
 
-    const [itemsResult, groupsResult, documentsResult, quoteResult] = await Promise.all([
+    const [itemsResult, groupsResult, documentsResult, quoteResult, subLotResult, subLotLinkResult] = await Promise.all([
       supabase
         .from('bid_items')
         .select('id,bid_version_id,request_id,request_version_id,price_millimes,duration_days,inclusions,exclusions')
@@ -107,10 +111,15 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots,
       supabase.from('bid_groups').select('id,bid_version_id,indivisible').in('bid_version_id', versionIds).eq('indivisible', true),
       supabase.from('bid_documents').select('id,bid_version_id,original_name,size_bytes,status').in('bid_version_id',versionIds).eq('status','approved'),
       supabase.from('bid_quote_lines').select('id,bid_item_id,section,designation,unit,quantity_milli,unit_price_millimes,total_millimes,position').in('bid_version_id',versionIds).order('position'),
+      supabase.from('bid_sub_lots').select('bid_item_id,bid_version_id,node_key,position,title,scope,start_date,end_date,duration_days,budget_millimes').in('bid_version_id',versionIds).order('position'),
+      supabase.from('bid_sub_lot_links').select('bid_version_id,pred_kind,pred_ref,succ_kind,succ_ref').in('bid_version_id',versionIds),
     ]);
     if (itemsResult.error || groupsResult.error || documentsResult.error || quoteResult.error) throw new Error('Les offres ne sont pas disponibles.');
     const documentsByVersion:Record<string,QuoteDocument[]>={};for(const document of documentsResult.data??[])(documentsByVersion[document.bid_version_id]??=[]).push(document as QuoteDocument);setDocuments(documentsByVersion);
     const quotesByItem:Record<string,QuoteLine[]>={};for(const line of quoteResult.data??[])(quotesByItem[line.bid_item_id]??=[]).push(line as QuoteLine);setQuoteLines(quotesByItem);
+    // Les sous-lots et liens sont des PROPOSITIONS : une lecture indisponible ne bloque jamais la comparaison ni l'attribution du lot.
+    const subLotsMap:Record<string,SubLotView[]>={};for(const row of subLotResult.error?[]:(subLotResult.data??[]))(subLotsMap[row.bid_item_id]??=[]).push(row as SubLotView);setSubLotsByItem(subLotsMap);
+    const linksMap:Record<string,SubLotLinkView[]>={};for(const row of subLotLinkResult.error?[]:(subLotLinkResult.data??[]))(linksMap[row.bid_version_id]??=[]).push(row as SubLotLinkView);setSubLotLinksByVersion(linksMap);
     const groupIds = (groupsResult.data ?? []).map((group: { id: string }) => group.id);
     const groupItemsResult = groupIds.length
       ? await supabase.from('bid_group_items').select('group_id,bid_item_id').in('group_id', groupIds)
@@ -248,6 +257,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
                 <div><p className="text-xs font-bold uppercase tracking-wide text-black/40">Inclus</p><p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{offer.inclusions}</p></div>
                 {offer.exclusions && <div><p className="text-xs font-bold uppercase tracking-wide text-black/40">Non inclus</p><p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-black/60">Exclusions : {offer.exclusions}</p></div>}
               </div>
+              {(subLotsByItem[offer.itemId]??[]).length>0&&<div className="mt-4 rounded-xl bg-sand/55 p-3" data-testid="offer-sub-lots"><p className="text-xs font-bold uppercase tracking-wide text-black/45">Décomposition technique proposée</p><ol className="mt-2 space-y-2">{(subLotsByItem[offer.itemId]??[]).map(sub=><li key={sub.node_key} className="rounded-lg bg-white p-2.5 text-sm"><p className="font-semibold text-ink">{sub.position}. {sub.title}</p>{sub.scope&&<p className="mt-0.5 whitespace-pre-wrap text-black/60">{sub.scope}</p>}<p className="mt-1 text-xs text-black/50">{sub.start_date&&sub.end_date?`Du ${new Date(sub.start_date).toLocaleDateString('fr-TN')} au ${new Date(sub.end_date).toLocaleDateString('fr-TN')} (${sub.duration_days} j)`:'Dates non renseignées'}{sub.budget_millimes!=null?` · ${formatTnd(Number(sub.budget_millimes))}`:''}</p></li>)}</ol>{(()=>{const own=new Map(Object.values(subLotsByItem).flat().filter(sub=>sub.bid_version_id===offer.versionId).map(sub=>[sub.node_key,sub.title]));const name=(kind:string,ref:string)=>kind==='proposal'?(own.get(ref)??'sous-lot'):kind==='lot'?'un lot du chantier':'un sous-lot officiel';const links=subLotLinksByVersion[offer.versionId]??[];return links.length>0?<><p className="mt-3 text-xs font-bold uppercase tracking-wide text-black/45">Enchaînements proposés</p><ul className="mt-1 space-y-1 text-sm text-black/65">{links.map(link=><li key={`${link.pred_kind}:${link.pred_ref}>${link.succ_kind}:${link.succ_ref}`}>{name(link.pred_kind,link.pred_ref)} → {name(link.succ_kind,link.succ_ref)}</li>)}</ul></>:null;})()}<p className="mt-2 text-xs text-black/45">Proposition de l’Artisan : elle ne modifie ni le lot ni son attribution, et le planning du chantier n’est établi qu’après attribution.</p></div>}
               <div className="mt-4 rounded-xl bg-sand/55 p-3"><p className="text-xs font-bold uppercase tracking-wide text-black/45">Devis</p>{details.length?<><div className="mt-2 overflow-x-auto"><table className="w-full min-w-[430px] text-left text-xs"><thead><tr className="text-black/45"><th className="pb-1 pr-2">Poste</th><th className="pb-1 pr-2">Qté</th><th className="pb-1 pr-2">PU</th><th className="pb-1 text-right">Total</th></tr></thead><tbody>{details.map(line=><tr key={line.id} className="border-t border-black/5"><td className="py-1.5 pr-2 font-medium text-ink">{line.designation} <span className="text-black/40">· {line.unit}</span></td><td className="py-1.5 pr-2 tabular-nums">{Number(line.quantity_milli)/1000}</td><td className="py-1.5 pr-2 tabular-nums">{formatTnd(Number(line.unit_price_millimes))}</td><td className="py-1.5 text-right font-semibold tabular-nums">{formatTnd(Number(line.total_millimes))}</td></tr>)}</tbody></table></div><p className="mt-2 text-xs text-black/50">Détail structuré disponible · total réconcilié avec l’offre.</p></>:<p className="mt-1 text-xs text-black/50">Pas de détail structuré : comparez le prix global et le périmètre annoncé.</p>}
               <div className="mt-2 flex flex-wrap gap-2"><Button className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void exportQuote(offer.versionId)}>Exporter le devis PDF</Button>{attached.map(document=><Button key={document.id} className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void downloadQuote(document.id)}>Voir {document.original_name}</Button>)}</div>{attached.length===0&&<p className="mt-2 text-xs text-black/50">Pas de devis PDF joint — l’offre reste complète en ligne.</p>}</div>
               <p className="mt-3 text-xs text-black/40">Version {offer.versionNo} · soumise le {new Date(offer.submittedAt).toLocaleDateString('fr-TN')}</p>
