@@ -145,5 +145,5 @@ test('Notifications : double rôle, changement réel de workspace sans conserver
   await expect(page.getByRole('heading',{name:'Assistance D.A.O. — 1 réponse non lue'})).toBeVisible();
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
   await page.getByRole('link',{name:'Voir mes demandes d’assistance'}).click();
-  await expect(page).toHaveURL(/\\/app\\/messages\\?onglet=assistance/);
+  await expect(page).toHaveURL(/\/app\/messages\?onglet=assistance/);
 });
