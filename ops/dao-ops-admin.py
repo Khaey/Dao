@@ -38,7 +38,7 @@ CATALOG = {
     'ops/oce-cloudflare.py': ('/usr/local/libexec/dao-oce-cloudflare.py', 'dao-oce-cloudflared.service'),
     'ops/dao-oce-backup.py': ('/usr/local/sbin/dao-oce-backup', 'dao-oce-backup.service'),
     'ops/oce-v1-gateway-host.py': ('/usr/local/sbin/dao-oce-gateway-host', 'dao-oce-gateway.service'),
-    'ops/oce-v1-gateway-qualify.py': ('/usr/local/sbin/dao-oce-gateway-qualify', 'dao-oce-gateway.service'),
+    'ops/oce-v1-gateway-qualify.py': ('/usr/local/sbin/dao-oce-gateway-qualify', None),  # one-shot tool; never run by the service
     'ops/oce-v1-gateway.py': ('/usr/local/libexec/dao-oce-gateway', 'dao-oce-gateway.service'),
     'ops/oce-v1-egress-guard.py': ('/usr/local/libexec/dao-oce-egress-guard', 'dao-oce-egress-guard.service'),
 }
