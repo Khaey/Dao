@@ -249,9 +249,10 @@ def read_credential() -> dict:
 
 
 class OCEClient:
-    def __init__(self, credential: dict):
+    def __init__(self, credential: dict, on_reject=None):
         self.credential = credential
         self.token: str | None = None
+        self.on_reject = on_reject
 
     def request(self, method: str, path: str, payload=None, *, timeout: int = 10) -> tuple[int, object]:
         raw = None
@@ -310,6 +311,8 @@ class OCEClient:
     def expect(self, method: str, path: str, statuses: set[int], payload=None, *, timeout: int = 10):
         status, data = self.request(method, path, payload, timeout=timeout)
         if status == 401:
+            if self.on_reject:
+                self.on_reject()
             raise SafeError(502, "oce_session_rejected")
         if status == 403:
             raise SafeError(502, "oce_permission_rejected")
@@ -353,12 +356,25 @@ def mapping_for(state: dict, body: dict) -> tuple[str, dict]:
 
 
 class Gateway:
+    SESSION_TTL_SECONDS = 240
+
     def __init__(self):
         self.credential = read_credential()
+        # The gateway serves one request at a time (UnixStreamServer), so a plain cache is safe.
+        self._token: str | None = None
+        self._token_at = 0.0
+
+    def _drop_session(self) -> None:
+        self._token = None
 
     def client(self) -> OCEClient:
-        client = OCEClient(self.credential)
+        """Reuse one authenticated OCE session: a login per operation trips OCE's login throttling."""
+        client = OCEClient(self.credential, on_reject=self._drop_session)
+        if self._token and time.monotonic() - self._token_at < self.SESSION_TTL_SECONDS:
+            client.token = self._token
+            return client
         client.login()
+        self._token, self._token_at = client.token, time.monotonic()
         return client
 
     def oce_project(self, client: OCEClient, row: dict) -> dict:
