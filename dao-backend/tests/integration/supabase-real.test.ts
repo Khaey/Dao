@@ -117,6 +117,11 @@ test('autonomous Supabase integration', async () => {
     const foreignDetail=await a.rpc('replace_bid_quote_lines',{p_bid_item_id:item,p_lines:[]});assert.ok(foreignDetail.error,'a competitor cannot edit detailed quote lines');
     assert.equal((await client.from('bid_quote_lines').select('id').eq('bid_item_id',item)).data?.length,0,'client cannot read draft quote details');
     await assert.rejects(()=>new BidService(a).submitForActor(submitted,actors.plumberA.contractorId));
+    const objectPath='bid/'+submitted+'/autonomous-'+suffix+'.pdf';
+    const upload=await admin.storage.from('dao-private').createSignedUploadUrl(objectPath); assert.ifError(upload.error); assert.ok(upload.data?.token);
+    const put=await createClient(url,pub).storage.from('dao-private').uploadToSignedUrl(objectPath,upload.data!.token,new Blob(['test'],{type:'application/pdf'})); assert.ifError(put.error);
+    const doc=await insert('bid_documents',{bid_version_id:submitted,project_id:project,contractor_id:actors.plumberB.contractorId,object_path:objectPath,original_name:'test.pdf',mime_type:'application/pdf',size_bytes:4,status:'approved'});
+    assert.equal((await client.from('bid_documents').select('id').eq('id',doc)).data?.length,0,'client cannot read a draft bid document');
     await new BidService(b).submitForActor(submitted,actors.plumberB.contractorId);
     await new BidService(a).submitForActor(submitted2,actors.plumberA.contractorId);
     assert.equal((await client.from('bid_quote_lines').select('id').eq('bid_item_id',item)).data?.length,1,'client can read submitted quote details');
@@ -140,10 +145,6 @@ test('autonomous Supabase integration', async () => {
     await insert('publication_recipients',{publication_id:invite,contractor_id:actors.plumberB.contractorId,source:'invitation'});
     assert.equal((await b.from('publications').select('id').eq('id',invite)).data?.length,1);
     assert.equal((await other.from('publications').select('id').eq('id',invite)).data?.length,0);
-    const objectPath='bid/'+submitted+'/autonomous-'+suffix+'.pdf';
-    const upload=await admin.storage.from('dao-private').createSignedUploadUrl(objectPath); assert.ifError(upload.error); assert.ok(upload.data?.token);
-    const put=await createClient(url,pub).storage.from('dao-private').uploadToSignedUrl(objectPath,upload.data!.token,new Blob(['test'],{type:'application/pdf'})); assert.ifError(put.error);
-    const doc=await insert('bid_documents',{bid_version_id:submitted,project_id:project,contractor_id:actors.plumberB.contractorId,object_path:objectPath,original_name:'test.pdf',mime_type:'application/pdf',size_bytes:4,status:'approved'});
     assert.equal((await client.from('bid_documents').select('id').eq('id',doc)).data?.length,1);
     assert.equal((await a.from('bid_documents').select('id').eq('id',doc)).data?.length,0);
     const immutableDocumentUpdate=await admin.from('bid_documents').update({original_name:'mutated.pdf'}).eq('id',doc);
