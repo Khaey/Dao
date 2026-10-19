@@ -13,7 +13,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 
 GATEWAY = "/usr/local/libexec/dao-oce-gateway"
 RUNUSER = "/usr/sbin/runuser"
@@ -53,22 +52,7 @@ def admin(action, project, lot):
     run([GATEWAY, action, project, lot], timeout=10)
 
 
-# The gateway opens a fresh OCE session per operation; space the calls that log in so the
-# qualification measures the contract instead of OCE's login throttling.
-LOGIN_SPACING_SECONDS = 13
-_last_login = [0.0]
-
-
-def pace():
-    wait = LOGIN_SPACING_SECONDS - (time.monotonic() - _last_login[0])
-    if wait > 0:
-        time.sleep(wait)
-    _last_login[0] = time.monotonic()
-
-
 def gateway(method, path, body=None, *, expected=200, timeout=20):
-    if expected == 200:
-        pace()
     args = [
         RUNUSER,
         "-u",
