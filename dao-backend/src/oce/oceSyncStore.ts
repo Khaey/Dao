@@ -11,6 +11,8 @@ export interface OceSyncStore {
   finish(journalId: string, ok: boolean, errorKind?: string, errorCode?: string): Promise<void>;
   objectChanged(mappingId: string, kind: ObjectKind, code: string, code2: string | null, hash: string): Promise<boolean>;
   recordObject(mappingId: string, kind: ObjectKind, code: string, code2: string | null, hash: string): Promise<void>;
+  /** Records the success of a complete synchronisation in which every step was already done (nothing was written). */
+  markSynced(mappingId: string): Promise<void>;
 }
 
 /** Canonical JSON (sorted keys) so the same content always hashes the same. */
@@ -47,6 +49,7 @@ export class SupabaseOceSyncStore implements OceSyncStore {
   async recordObject(mappingId: string, kind: ObjectKind, code: string, code2: string | null, hash: string) {
     await this.call('oce_record_object', { p_mapping_id: mappingId, p_kind: kind, p_code: code, p_code2: code2, p_hash: hash });
   }
+  async markSynced(mappingId: string) { await this.call('oce_mark_synced', { p_mapping_id: mappingId }); }
 }
 
 /** Test double mirroring the SQL semantics (replay, in progress, hash conflict, retry after failure). */
@@ -78,5 +81,11 @@ export class InMemoryOceSyncStore implements OceSyncStore {
   private k(m: string, kind: string, a: string, b: string | null) { return `${m}|${kind}|${a}|${b ?? ''}`; }
   async objectChanged(m: string, kind: ObjectKind, a: string, b: string | null, hash: string) { return this.objects.get(this.k(m, kind, a, b)) !== hash; }
   async recordObject(m: string, kind: ObjectKind, a: string, b: string | null, hash: string) { this.objects.set(this.k(m, kind, a, b), hash); }
+  synced = new Map<string, number>();
+  async markSynced(mappingId: string) {
+    const m = this.mappings.get(mappingId); if (!m) throw new Error('mapping_not_found');
+    if (m.revoked) throw Object.assign(new Error('mapping_revoked'), { code: '42501' });
+    this.synced.set(mappingId, (this.synced.get(mappingId) ?? 0) + 1);
+  }
   revoke(mappingId: string) { this.mappings.get(mappingId)!.revoked = true; }
 }

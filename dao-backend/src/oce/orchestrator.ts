@@ -103,6 +103,8 @@ export class OceOrchestrator {
     let result: { project_duration_days: number; critical_activity_codes: string[] } | undefined;
     const ok = await step('calculate-planning', undefined, { plan: planHash }, async () => { result = await this.gateway.calculatePlanning(ref); });
     if (ok && result) report.planning = { project_duration_days: result.project_duration_days, critical_activity_codes: result.critical_activity_codes };
+    // A complete replay writes no journal entry: record the success explicitly so the lot reads as synchronised.
+    if (report.ok && report.written === 0) await this.store.markSynced(mappingId);
     return report;
   }
 

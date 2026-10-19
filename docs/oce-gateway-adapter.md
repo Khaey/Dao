@@ -66,6 +66,7 @@ D.A.O pilote, OCE calcule, D.A.O affiche : aucun compte Admin ou Client ne se co
 
 - **Source de vérité** : `oce_lot_plans` (migration `20261019130000`) — dates de début/fin du lot saisies explicitement par le Client propriétaire ou la gestion D.A.O du projet. Un plan `ready` exige les deux dates ; rien n'est inventé (une WBS, une activité, aucune dépendance).
 - **Déclenchement** : `PUT /api/oce/lot-plan` avec `ready=true` enregistre via RPC (JWT utilisateur) puis lance `LotPlanSynchronizer` côté serveur (idempotent, journal durable, coalescé par lot). Un échec n'affecte jamais l'enregistrement du plan.
+- **Rejeu complet** : une synchronisation dont toutes les étapes sont déjà faites (retour à un contenu déjà synchronisé, relance sans changement) n'écrit aucune entrée de journal ; le succès est alors enregistré explicitement par `oce_mark_synced` (migration `20261019170000`, service_role uniquement) pour que l'état du lot soit `synced`.
 - **Supervision** : `GET /api/oce/lot-plan?project_id&lot_id` → état `not_requested | pending | synced | failed` (code d'erreur assaini). `POST /api/oce/lot-plan` relance (admin / relecteur assigné uniquement).
 - **Extensible** : le plan est un `OcePlan` ; plannings détaillés, jalons et carnet de chantier ajoutent des WBS/activités/dépendances sans changer le déclencheur ni le contrat de la passerelle.
 - **Autorisation passerelle** : l'`authorize` du lot reste une opération root distincte (hors de ce code).
