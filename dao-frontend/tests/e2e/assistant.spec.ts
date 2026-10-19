@@ -35,7 +35,9 @@ test('Assistant : FAQ publique, recherche et clavier, puis aide contextuelle con
   await expect(fab).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
 
-  // Messages & Assistance: deep link to the support tab, honest state while the support API is not deployed.
+  // Messages & Assistance: deep link to the support tab. The "not deployed" state is simulated explicitly (404 without
+  // a code, as a missing route answers), so this test does not depend on whether the support API (#271) is deployed.
+  await page.route('**/api/support/**', route => route.fulfill({ status: 404, contentType: 'text/html', body: 'Not Found' }));
   await page.goto('/app/messages?onglet=assistance');
   const assistanceTab = page.getByRole('tab', { name: 'Assistance D.A.O.' });
   const projectsTab = page.getByRole('tab', { name: /^Chantiers/ });

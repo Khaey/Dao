@@ -1,7 +1,7 @@
 import { supabaseBrowser } from './supabase-browser';
 
 // Typed client for the D.A.O. support API — contract v1 owned by DEV20 (#271, docs/messages-assistance.md).
-// Until the routes are deployed (404/501 or code `unavailable`), callers receive SupportUnavailable and the UI
+// Until the routes are deployed (404 without code, or 501), callers receive SupportUnavailable and the UI
 // shows an honest "not open yet" state: nothing is ever presented as sent when the server did not accept it.
 
 export const supportStatuses = ['open', 'waiting_staff', 'waiting_user', 'resolved', 'closed'] as const;
@@ -57,7 +57,8 @@ async function call<T>(path: string, init: { method?: 'GET' | 'POST'; body?: unk
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     const code = typeof body?.code === 'string' ? body.code : undefined;
-    if (code === 'unavailable' || (response.status === 404 && !code)) throw new SupportUnavailable();
+    // Only a missing route (404 without code) means "not deployed yet"; `unavailable` (503) is a temporary failure.
+    if (response.status === 404 && !code) throw new SupportUnavailable();
     throw new SupportError(code && errorMessages[code] ? errorMessages[code] : typeof body?.error === 'string' ? body.error : errorMessages.unavailable, code);
   }
   return (body && typeof body === 'object' && 'data' in body ? body.data : body) as T;
