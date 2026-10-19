@@ -97,7 +97,9 @@ test('support center: real JWT isolation, staff lifecycle and append-only histor
 
   await t.test('reviewer/admin queue is separate and lifecycle is audited', async () => {
     const queue = await rpc(reviewer.db, 'support_queue', { p_status: 'open', p_assignee: 'all' });
-    assert.ok(queue.some((item: any) => item.id === ticketId));
+    const unassigned = queue.find((item: any) => item.id === ticketId);
+    assert.ok(unassigned);
+    assert.equal(unassigned.assignee_label, null, 'an unassigned ticket must not receive the DAO team fallback label');
     await rpc(reviewer.db, 'assign_support_ticket_to_me', { p_ticket_id: ticketId });
     const key = randomUUID();
     const [one, two] = await Promise.all([1, 2].map(() => rpc(reviewer.db, 'reply_support_ticket', {
