@@ -122,6 +122,9 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | oce-gateway-plan | Fixed read-only gateway host plan; no service start, bind change or demo-access change | Installed helper |
 | oce-gateway-apply | Close public `:8080`, activate the fixed gateway and egress guard, verify both bypass denials | Explicit #58 authorization, successful private tunnel and favorable plan |
 | oce-gateway-qualify | Fixed live qualification of the private gateway with synthetic lots revoked afterwards; closed boolean report only | Gate B applied (`oce-gateway-apply` succeeded); explicit #58 owner authorization |
+| oce-gateway-restart | Restart only `dao-oce-gateway.service` after a reviewed gateway file install; reports service/socket readiness | Gateway active; explicit #58 owner authorization |
+| oce-enable-dev | Set `DAO_OCE_ENABLED=1` in the DEV env (backup kept) and restart the app; automatic revert if it does not come back | Gateway and socket ready; explicit #58 owner authorization |
+| oce-disable-dev | Remove `DAO_OCE_ENABLED` and restart the app (rollback of the adapter flag) | Explicit #58 owner authorization |
 
 Example with a credential authorized for Actions dispatch:
 

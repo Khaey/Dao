@@ -106,6 +106,9 @@ case "$operation" in
   oce-gateway-plan) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-plan ;;
   oce-gateway-apply) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-apply ;;
   oce-gateway-qualify) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-qualify ;;
+  oce-gateway-restart) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-restart ;;
+  oce-enable-dev) sudo -n /usr/local/sbin/dao-dev-admin oce-enable-dev ;;
+  oce-disable-dev) sudo -n /usr/local/sbin/dao-dev-admin oce-disable-dev ;;
   diagnostics) python3 dao-ops-diagnostics.py ;;
   ops-status) sudo -n /usr/local/sbin/dao-ops-admin status ;;
   ops-preflight) sudo -n /usr/local/sbin/dao-ops-admin preflight ;;
