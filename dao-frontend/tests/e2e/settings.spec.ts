@@ -11,7 +11,9 @@ async function openSettings(page: Page) {
   await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/app\/settings$/);
   await expect(page.locator('#mobile-workspace-menu')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Paramètres', exact: true })).toBeVisible();
+  // Dual-role switching rehydrates Auth + workspace asynchronously on the CI stack.
+  // Keep asserting the real heading, with a bounded allowance for that handshake.
+  await expect(page.getByRole('heading', { name: 'Paramètres', exact: true })).toBeVisible({ timeout: 15_000 });
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
 }
 
