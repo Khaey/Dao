@@ -32,10 +32,12 @@ export class DocumentService {
     return data.signedUrl;
   }
 
-  async signedUploadForActor(actorId: string, input: { bidVersionId: string; path: string; mimeType: string; sizeBytes: number }) {
+  async signedUploadForActor(actorId: string, input: { bidVersionId: string; originalName: string; mimeType: string; sizeBytes: number }) {
     if (!actorId) throw new DomainError('Authentication required', 'UNAUTHENTICATED');
     assertFile(input.mimeType, input.sizeBytes);
-    if (!input.path.startsWith('bid/' + input.bidVersionId + '/')) throw new DomainError('Invalid storage namespace', 'INVALID_PATH');
+    if (input.mimeType !== 'application/pdf' || !input.originalName.toLowerCase().endsWith('.pdf')) {
+      throw new DomainError('A PDF quote is required', 'INVALID_MIME');
+    }
     const { data: version, error: versionError } = await this.db
       .from('bid_versions')
       .select('id,contractor_id,status,contractor_profiles!inner(user_id)')
@@ -46,9 +48,43 @@ export class DocumentService {
     if (!version || contractor?.user_id !== actorId || version.status !== 'draft') {
       throw new DomainError('Upload is not authorized', 'FORBIDDEN');
     }
-    const { data, error } = await this.storage.from('dao-private').createSignedUploadUrl(input.path);
+    const path = `bid/${input.bidVersionId}/${randomUUID()}-${safeName(input.originalName)}`;
+    const { data: document, error: documentError } = await this.db.rpc('create_bid_quote_document', {
+      p_version_id: input.bidVersionId,
+      p_object_path: path,
+      p_original_name: input.originalName,
+      p_size_bytes: input.sizeBytes,
+    });
+    if (documentError) throw documentError;
+    const { data, error } = await this.storage.from('dao-private').createSignedUploadUrl(path);
     if (error) throw error;
-    return { path: input.path, token: data.token };
+    return { document, path, token: data.token };
+  }
+
+  async completeBidQuoteUpload(actorId: string, documentId: string) {
+    if (!actorId) throw new DomainError('Authentication required', 'UNAUTHENTICATED');
+    const { data: document, error } = await this.db.from('bid_documents').select('*').eq('id', documentId).single();
+    if (error || !document || document.status !== 'quarantined') throw new DomainError('Document access denied', 'FORBIDDEN');
+    const { data: blob, error: downloadError } = await this.storage.from('dao-private').download(document.object_path);
+    if (downloadError || !blob) throw new DomainError('Uploaded PDF cannot be verified', 'INVALID_PDF');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const signature = new TextDecoder().decode(bytes.slice(0, 5));
+    if (bytes.byteLength !== Number(document.size_bytes) || signature !== '%PDF-') {
+      await this.storage.from('dao-private').remove([document.object_path]);
+      await this.db.rpc('delete_owned_bid_quote_document', { p_document_id: documentId });
+      throw new DomainError('The uploaded file is not a valid PDF', 'INVALID_PDF');
+    }
+    const approved = await this.db.rpc('approve_owned_bid_quote_document', { p_document_id: documentId });
+    if (approved.error) throw approved.error;
+    return approved.data;
+  }
+
+  async deleteBidQuote(actorId: string, documentId: string) {
+    if (!actorId) throw new DomainError('Authentication required', 'UNAUTHENTICATED');
+    const { data, error } = await this.db.rpc('delete_owned_bid_quote_document', { p_document_id: documentId });
+    if (error) throw error;
+    if (data?.object_path) await this.storage.from('dao-private').remove([data.object_path]);
+    return data;
   }
 
   async signedDownloadForActor(actorId: string, id: string, expiresIn = 300) {

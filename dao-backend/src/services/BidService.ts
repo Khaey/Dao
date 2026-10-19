@@ -44,6 +44,22 @@ export class BidService {
     if (error) throw error;
     return data;
   }
+  async updateQuoteMetadata(input: Record<string, unknown>) {
+    const { data, error } = await this.db.rpc('update_bid_quote_metadata', {
+      p_version_id: input.version_id,
+      p_valid_until: input.valid_until || null,
+      p_terms: input.terms || null,
+      p_material_references: input.material_references || null,
+    });
+    if (error) throw error;
+    return data;
+  }
+  async replaceQuoteLines(input: Record<string, unknown>) {
+    if (!Array.isArray(input.lines)) throw new DomainError('Quote lines are required', 'BAD_REQUEST');
+    const { data, error } = await this.db.rpc('replace_bid_quote_lines', { p_bid_item_id: input.bid_item_id, p_lines: input.lines });
+    if (error) throw error;
+    return data;
+  }
   async withdraw(versionId: string) {
     if (!versionId) throw new DomainError('Offer version is required', 'BAD_REQUEST');
     const { data, error } = await this.db.rpc('withdraw_bid_version', { p_version_id: versionId });

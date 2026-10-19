@@ -113,9 +113,13 @@ test('autonomous Supabase integration', async () => {
     assert.equal((await client.from('bids').select('id').eq('id',bid)).data?.length,0);
     assert.equal((await b.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
     assert.equal((await a.from('bid_versions').select('id').eq('id',submitted2)).data?.length,1);
+    const detailed=await b.rpc('replace_bid_quote_lines',{p_bid_item_id:item,p_lines:[{section:'materials',designation:'Tube cuivre',unit:'m',quantity_milli:2500,unit_price_millimes:400}]});assert.ifError(detailed.error);assert.equal(Number(detailed.data?.[0]?.total_millimes),1000,'2.500 x 0.400 TND rounds exactly to 1.000 TND');
+    const foreignDetail=await a.rpc('replace_bid_quote_lines',{p_bid_item_id:item,p_lines:[]});assert.ok(foreignDetail.error,'a competitor cannot edit detailed quote lines');
+    assert.equal((await client.from('bid_quote_lines').select('id').eq('bid_item_id',item)).data?.length,0,'client cannot read draft quote details');
     await assert.rejects(()=>new BidService(a).submitForActor(submitted,actors.plumberA.contractorId));
     await new BidService(b).submitForActor(submitted,actors.plumberB.contractorId);
     await new BidService(a).submitForActor(submitted2,actors.plumberA.contractorId);
+    assert.equal((await client.from('bid_quote_lines').select('id').eq('bid_item_id',item)).data?.length,1,'client can read submitted quote details');
     const immutableVersionUpdate=await admin.from('bid_versions').update({expires_at:'2098-01-01T00:00:00Z'}).eq('id',submitted);
     assert.ok(immutableVersionUpdate.error,'submitted bid version update must be rejected');
     const immutableVersionDelete=await admin.from('bid_versions').delete().eq('id',submitted);
@@ -124,6 +128,8 @@ test('autonomous Supabase integration', async () => {
     assert.ok(immutableItemUpdate.error,'submitted bid item update must be rejected');
     const immutableItemDelete=await admin.from('bid_items').delete().eq('id',item);
     assert.ok(immutableItemDelete.error,'submitted bid item delete must be rejected');
+    const immutableQuoteUpdate=await admin.from('bid_quote_lines').update({designation:'mutated'}).eq('bid_item_id',item);
+    assert.ok(immutableQuoteUpdate.error,'submitted detailed quote update must be rejected');
     assert.equal((await client.from('bid_versions').select('id').eq('id',submitted)).data?.length,1);
     assert.equal((await other.from('bid_versions').select('id').eq('id',submitted)).data?.length,0);
     assert.equal((await other.from('publications').select('id').eq('id',publicPub)).data?.length,1);

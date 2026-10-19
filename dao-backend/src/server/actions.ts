@@ -9,6 +9,7 @@ import { AIService } from '../services/AIService.js';
 import { MessageService } from '../services/MessageService.js';
 import { ContractReadService } from '../services/ContractReadService.js';
 import { SiteExecutionService } from '../services/SiteExecutionService.js';
+import { QuotePdfService } from '../services/QuotePdfService.js';
 import { DomainError } from '../lib/errors.js';
 
 export type BackendServices = {
@@ -22,6 +23,7 @@ export type BackendServices = {
   messages: MessageService;
   contracts: ContractReadService;
   siteExecution: SiteExecutionService;
+  quotePdf: QuotePdfService;
 };
 
 export async function createProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
@@ -89,9 +91,25 @@ export async function awardRequest(s: BackendServices, actor: AuthenticatedActor
   requireActor(actor);
   return s.awards.award(input);
 }
-export async function signedUpload(s: BackendServices, actor: AuthenticatedActor, input: { bidVersionId: string; path: string; mimeType: string; sizeBytes: number }) {
+export async function signedUpload(s: BackendServices, actor: AuthenticatedActor, input: { bidVersionId: string; originalName: string; mimeType: string; sizeBytes: number }) {
   requireActor(actor);
   return s.documents.signedUploadForActor(actor.id, input);
+}
+export async function completeBidQuoteUpload(s: BackendServices, actor: AuthenticatedActor, documentId: string) {
+  requireActor(actor);
+  return s.documents.completeBidQuoteUpload(actor.id, documentId);
+}
+export async function deleteBidQuote(s: BackendServices, actor: AuthenticatedActor, documentId: string) {
+  requireActor(actor);
+  return s.documents.deleteBidQuote(actor.id, documentId);
+}
+export async function updateBidQuoteMetadata(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.bids.updateQuoteMetadata(input);
+}
+export async function replaceBidQuoteLines(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.bids.replaceQuoteLines(input);
 }
 export async function signedDownload(s: BackendServices, actor: AuthenticatedActor, id: string, expiresIn?: number) {
   requireActor(actor);
