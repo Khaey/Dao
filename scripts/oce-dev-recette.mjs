@@ -76,8 +76,8 @@ async function run() {
   R.plan_saved_ready = (await put('2026-11-02', '2026-12-18')).status === 200;
   const first = await waitState(owner, 'synced'); R.sync_first = first.state;
   const sum = await app(owner, `/api/oce/planning-summary?${q}`); const sb = await sum.json().catch(() => ({}));
-  R.summary_status = sum.status; R.summary_duration_days = sb?.data?.project_duration_days ?? null;
-  R.summary_critical_count = Array.isArray(sb?.data?.critical_activity_codes) ? sb.data.critical_activity_codes.length : null;
+  R.summary_status = sum.status; R.summary_duration_days = sb?.data?.total_duration_days ?? null;
+  R.summary_critical_count = Number.isInteger(sb?.data?.critical_count) ? sb.data.critical_count : null;
   // Replay with identical content: nothing new is written.
   const before = await journalCount(c);
   R.replay_saved = (await put('2026-11-02', '2026-12-18')).status === 200;
@@ -89,7 +89,7 @@ async function run() {
   const changed = await waitState(owner, 'synced'); R.sync_changed = changed.state;
   R.changed_revision_incremented = changed.data?.revision === (first.data?.revision ?? -1) + 1;
   const sum2 = await (await app(owner, `/api/oce/planning-summary?${q}`)).json().catch(() => ({}));
-  R.changed_duration_differs = sum2?.data?.project_duration_days !== undefined && sum2.data.project_duration_days !== R.summary_duration_days;
+  R.changed_duration_differs = sum2?.data?.total_duration_days !== undefined && sum2.data.total_duration_days !== R.summary_duration_days;
   return R;
 }
 
