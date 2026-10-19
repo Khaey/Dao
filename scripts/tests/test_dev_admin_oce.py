@@ -213,3 +213,91 @@ class DevAdminOceQualifyTests(unittest.TestCase):
         mod = importlib.util.module_from_spec(req)
         req.loader.exec_module(mod)
         self.assertIn('oce-gateway-qualify', mod.OPERATIONS)
+
+
+class DevAdminOceRuntimeTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.env, self.backup = base / 'dao-dev.env', base / 'dao-dev.env.previous'
+        self.env.write_text('RESEND_API_KEY=abc\n')
+        self.patches = [
+            patch.object(admin, 'ENV', self.env), patch.object(admin, 'BACKUP', self.backup),
+            patch.object(admin, 'atomic_write', side_effect=lambda p, t: Path(p).write_text(t)),
+            patch.object(admin.Path, 'stat', return_value=types.SimpleNamespace(st_uid=0, st_mode=0o40755)),
+            patch.object(admin.Path, 'is_symlink', return_value=False),
+        ]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+        self.tmp.cleanup()
+
+    def run_flag(self, enabled, *, gateway=True, restart_rc=0, app_active=True):
+        out = io.StringIO()
+        runs = []
+
+        def fake_run(args, **kw):
+            runs.append(args)
+            return types.SimpleNamespace(returncode=restart_rc)
+
+        with patch.object(admin, 'service_active', side_effect=lambda n: gateway if n == admin.GATEWAY_SERVICE else app_active), \
+             patch.object(admin.Path, 'exists', return_value=True), \
+             patch.object(admin, 'wait_active', return_value=app_active), \
+             patch.object(admin.subprocess, 'run', side_effect=fake_run), patch('sys.stdout', out):
+            try:
+                admin.oce_set_dev_flag(enabled)
+                err = None
+            except ValueError as exc:
+                err = str(exc)
+        return err, out.getvalue(), runs
+
+    def test_enable_writes_flag_backs_up_and_restarts_app(self):
+        err, out, runs = self.run_flag(True)
+        self.assertIsNone(err)
+        self.assertIn('DAO_OCE_ENABLED=1', self.env.read_text())
+        self.assertEqual(self.backup.read_text(), 'RESEND_API_KEY=abc\n')
+        self.assertEqual(runs, [[admin.SYSTEMCTL, 'restart', admin.APP_SERVICE]])
+        self.assertEqual(json.loads(out)['oce_dev_flag'], 'enabled')
+
+    def test_enable_refused_when_gateway_not_ready(self):
+        err, _, runs = self.run_flag(True, gateway=False)
+        self.assertEqual(err, 'gateway not ready')
+        self.assertEqual(runs, [])
+        self.assertNotIn('DAO_OCE_ENABLED', self.env.read_text())
+
+    def test_enable_reverts_env_if_app_does_not_return(self):
+        err, out, _ = self.run_flag(True, app_active=False)
+        self.assertEqual(err, 'application restart failed')
+        self.assertEqual(self.env.read_text(), 'RESEND_API_KEY=abc\n')
+        self.assertEqual(json.loads(out), {'oce_dev_flag': 'failed', 'reverted': True})
+
+    def test_disable_removes_only_the_flag(self):
+        self.env.write_text('RESEND_API_KEY=abc\nDAO_OCE_ENABLED=1\n')
+        err, out, _ = self.run_flag(False)
+        self.assertIsNone(err)
+        self.assertEqual(self.env.read_text(), 'RESEND_API_KEY=abc\n')
+        self.assertEqual(json.loads(out)['oce_dev_flag'], 'disabled')
+
+    def test_flag_value_must_be_one_and_env_sync_cannot_set_it(self):
+        with self.assertRaises(ValueError):
+            admin.rewrite_env('', {'DAO_OCE_ENABLED': '0'}, {'DAO_OCE_ENABLED'})
+        with self.assertRaises(ValueError):
+            admin.rewrite_env('', {'DAO_OCE_ENABLED': '1'})
+
+    def test_gateway_restart_requires_active_service_and_reports_ready(self):
+        out = io.StringIO()
+        with patch.object(admin, 'service_active', return_value=True), \
+             patch.object(admin, 'wait_active', return_value=True), \
+             patch.object(admin.Path, 'exists', return_value=True), \
+             patch.object(admin.subprocess, 'run', return_value=types.SimpleNamespace(returncode=0)) as run, \
+             patch('sys.stdout', out):
+            admin.oce_gateway_restart()
+        self.assertEqual(run.call_args.args[0], [admin.SYSTEMCTL, 'restart', admin.GATEWAY_SERVICE])
+        self.assertEqual(json.loads(out.getvalue())['oce_gateway_restart'], 'complete')
+        with patch.object(admin, 'service_active', return_value=False):
+            with self.assertRaises(ValueError):
+                admin.oce_gateway_restart()

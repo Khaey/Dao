@@ -39,7 +39,7 @@ CATALOG = {
     'ops/dao-oce-backup.py': ('/usr/local/sbin/dao-oce-backup', 'dao-oce-backup.service'),
     'ops/oce-v1-gateway-host.py': ('/usr/local/sbin/dao-oce-gateway-host', 'dao-oce-gateway.service'),
     'ops/oce-v1-gateway-qualify.py': ('/usr/local/sbin/dao-oce-gateway-qualify', None),  # one-shot tool; never run by the service
-    'ops/oce-v1-gateway.py': ('/usr/local/libexec/dao-oce-gateway', 'dao-oce-gateway.service'),
+    'ops/oce-v1-gateway.py': ('/usr/local/libexec/dao-oce-gateway', None),  # restarted explicitly by oce-gateway-restart
     'ops/oce-v1-egress-guard.py': ('/usr/local/libexec/dao-oce-egress-guard', 'dao-oce-egress-guard.service'),
 }
 LOCKS = ('/etc/dao/.admin.lock', '/etc/dao-oce-cloudflare/.lock', '/var/backups/dao-oce/.lock')
@@ -60,8 +60,11 @@ OLD_DAO_ADMIN_GRANT = ('# D.A.O environment and safe diagnostics; existing servi
     '/usr/local/sbin/dao-dev-admin oce-gateway-plan\n')
 MID_DAO_ADMIN_GRANT = OLD_DAO_ADMIN_GRANT.rstrip('\n') + \
     ', /usr/local/sbin/dao-dev-admin oce-gateway-apply\n'
-NEW_DAO_ADMIN_GRANT = MID_DAO_ADMIN_GRANT.rstrip('\n') + \
+MID2_DAO_ADMIN_GRANT = MID_DAO_ADMIN_GRANT.rstrip('\n') + \
     ', /usr/local/sbin/dao-dev-admin oce-gateway-qualify\n'
+NEW_DAO_ADMIN_GRANT = MID2_DAO_ADMIN_GRANT.rstrip('\n') + \
+    ', /usr/local/sbin/dao-dev-admin oce-gateway-restart, /usr/local/sbin/dao-dev-admin oce-enable-dev' \
+    ', /usr/local/sbin/dao-dev-admin oce-disable-dev\n'
 
 
 class Halt(Exception):
@@ -398,8 +401,8 @@ def reconcile_oce_grants():
     changed = []
     if reconcile_grant(OCE_PRIVATE_SUDOERS, OLD_OCE_PRIVATE_GRANT, NEW_OCE_PRIVATE_GRANT):
         changed.append('oce-private-provision')
-    if reconcile_grant(DAO_ADMIN_SUDOERS, (OLD_DAO_ADMIN_GRANT, MID_DAO_ADMIN_GRANT), NEW_DAO_ADMIN_GRANT):
-        changed.append('oce-gateway-qualify')
+    if reconcile_grant(DAO_ADMIN_SUDOERS, (OLD_DAO_ADMIN_GRANT, MID_DAO_ADMIN_GRANT, MID2_DAO_ADMIN_GRANT), NEW_DAO_ADMIN_GRANT):
+        changed.append('oce-runtime-ops')
     return changed
 
 
