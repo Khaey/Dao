@@ -45,6 +45,13 @@ async function mockSupport(page: Page, staff: boolean) {
 test('Assistance : créer une demande avec consentement à la page d’origine, suivre et répondre', async ({ page, e2eClient }) => {
   test.skip(!e2eClient, 'E2E Supabase credentials are not available');
   await login(page, e2eClient!);
+  // A temporary server failure (503 « unavailable ») is not presented as « not open yet »: it offers a retry.
+  await page.route('**/api/support/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Assistance temporairement indisponible.', code: 'unavailable' }) }));
+  await page.goto('/app/messages?onglet=assistance');
+  await expect(page.getByRole('alert')).toContainText('momentanément indisponible');
+  await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible();
+  await expect(page.getByText(/pas encore ouverte/)).toHaveCount(0);
+  await page.unroute('**/api/support/**');
   const requests = await mockSupport(page, false);
   await page.goto('/app/messages?onglet=assistance&nouvelle=1&origine=%2Fapp%2Fprojects');
   const form = page.getByRole('form', { name: 'Nouvelle demande à D.A.O.' });
