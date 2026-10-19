@@ -359,9 +359,9 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
               </p>}
             </div>
             {project.description && <p className="whitespace-pre-wrap text-sm leading-relaxed text-black/70">{project.description}</p>}
-            {(project.assets ?? []).length > 0 && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {(project.assets ?? []).length > 0 ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {(project.assets ?? []).map((asset) => <MediaTile key={asset.id} asset={asset} preview={showPreview} />)}
-            </div>}
+            </div> : <p className="flex items-center gap-2 rounded-xl bg-sand/60 px-3 py-2.5 text-sm text-black/50"><ImageOff aria-hidden="true" size={16} className="shrink-0" />Pas encore de photo publiée pour cette réalisation.</p>}
           </Card>)}
         </section>
 
