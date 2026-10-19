@@ -227,7 +227,7 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await proposed.getByRole('button', { name: 'Confirmer' }).click();
   expect((await decision).ok()).toBeTruthy();
   await expect(proposed).toContainText('Effectif');
-  await expect(globalPlan.getByTestId('plan-node').filter({ hasText: 'Câblage E2E' })).toContainText('Commence après : Rainures E2E');
+  await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Câblage E2E', { exact: true }) })).toContainText('Commence après : Rainures E2E');
   expect(await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=decision`)).toEqual([{ decision: 'confirmed' }]);
 
 });
