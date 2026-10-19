@@ -33,7 +33,7 @@ export default function NotificationShortcut() {
   }, [pathname]);
 
   return <nav aria-label="Notifications" className="fixed right-[68px] top-[10px] z-[41] lg:absolute lg:right-10 lg:top-1 lg:z-30">
-    <Link href="/app/notifications" aria-label={unread > 0 ? `Ouvrir mes notifications : ${unread} demande(s) d'assistance non lue(s)` : 'Ouvrir mes notifications'}
+    <Link href="/app/notifications" aria-label="Ouvrir mes notifications" title={unread > 0 ? `${unread} demande(s) d’assistance non lue(s)` : 'Mes notifications'}
       className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-teal transition hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
       <Bell size={19} aria-hidden="true" />
       {unread > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-clay px-1 text-[11px] font-bold text-white">{unread > 99 ? '99+' : unread}</span>}
