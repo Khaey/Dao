@@ -11,6 +11,7 @@ OPERATIONS = (
     'oce-integration-inventory', 'oce-gateway-plan',
     'oce-gateway-apply', 'oce-gateway-qualify',
     'oce-gateway-restart', 'oce-enable-dev', 'oce-disable-dev',
+    'oce-recette-admit', 'oce-recette-revoke',
     'oce-status', 'oce-audit', 'oce-probe', 'oce-start', 'oce-stop',
 )
 

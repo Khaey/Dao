@@ -62,9 +62,11 @@ MID_DAO_ADMIN_GRANT = OLD_DAO_ADMIN_GRANT.rstrip('\n') + \
     ', /usr/local/sbin/dao-dev-admin oce-gateway-apply\n'
 MID2_DAO_ADMIN_GRANT = MID_DAO_ADMIN_GRANT.rstrip('\n') + \
     ', /usr/local/sbin/dao-dev-admin oce-gateway-qualify\n'
-NEW_DAO_ADMIN_GRANT = MID2_DAO_ADMIN_GRANT.rstrip('\n') + \
+MID3_DAO_ADMIN_GRANT = MID2_DAO_ADMIN_GRANT.rstrip('\n') + \
     ', /usr/local/sbin/dao-dev-admin oce-gateway-restart, /usr/local/sbin/dao-dev-admin oce-enable-dev' \
     ', /usr/local/sbin/dao-dev-admin oce-disable-dev\n'
+NEW_DAO_ADMIN_GRANT = MID3_DAO_ADMIN_GRANT.rstrip('\n') + \
+    ', /usr/local/sbin/dao-dev-admin oce-recette-admit, /usr/local/sbin/dao-dev-admin oce-recette-revoke\n'
 
 
 class Halt(Exception):
@@ -401,7 +403,7 @@ def reconcile_oce_grants():
     changed = []
     if reconcile_grant(OCE_PRIVATE_SUDOERS, OLD_OCE_PRIVATE_GRANT, NEW_OCE_PRIVATE_GRANT):
         changed.append('oce-private-provision')
-    if reconcile_grant(DAO_ADMIN_SUDOERS, (OLD_DAO_ADMIN_GRANT, MID_DAO_ADMIN_GRANT, MID2_DAO_ADMIN_GRANT), NEW_DAO_ADMIN_GRANT):
+    if reconcile_grant(DAO_ADMIN_SUDOERS, (OLD_DAO_ADMIN_GRANT, MID_DAO_ADMIN_GRANT, MID2_DAO_ADMIN_GRANT, MID3_DAO_ADMIN_GRANT), NEW_DAO_ADMIN_GRANT):
         changed.append('oce-runtime-ops')
     return changed
 

@@ -377,6 +377,32 @@ def oce_gateway_qualify():
     print(json.dumps(data, sort_keys=True))
 
 
+# Bounded recette admission (#58 / #301): ONE fixed synthetic project+lot pair, never a caller-supplied identifier.
+# The synthetic rows are created by the protected DEV fixture workflow with exactly these ids.
+RECETTE_GATEWAY = '/usr/local/libexec/dao-oce-gateway'
+RECETTE_PROJECT = '5eed0301-0000-4000-8000-0000000000a1'
+RECETTE_LOT = '5eed0301-0000-4000-8000-0000000000a2'
+
+
+def oce_recette_admission(action):
+    """Authorize or revoke the single synthetic recette pair on the private gateway; closed boolean report only."""
+    if action not in ('authorize', 'revoke'):
+        raise ValueError('recette action invalid')
+    gateway = Path(RECETTE_GATEWAY)
+    if not gateway.is_file() or not os.access(gateway, os.X_OK):
+        raise ValueError('gateway admin helper missing')
+    result = subprocess.run([str(gateway), action, RECETTE_PROJECT, RECETTE_LOT], capture_output=True, text=True, timeout=20, check=False)
+    key = 'mapping_authorized' if action == 'authorize' else 'mapping_revoked'
+    try:
+        data = json.loads(result.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        data = None
+    if result.returncode != 0 or not isinstance(data, dict) or data.get(key) is not True:
+        print(json.dumps({'oce_recette_admission': 'failed', 'action': action}, sort_keys=True))
+        raise ValueError('recette admission failed')
+    print(json.dumps({'oce_recette_admission': action, 'synthetic_pair': True}, sort_keys=True))
+
+
 GATEWAY_SERVICE = 'dao-oce-gateway.service'
 GATEWAY_SOCKET = Path('/run/dao-oce-gateway/gateway.sock')
 APP_SERVICE = 'dao-dev.service'
@@ -717,6 +743,10 @@ def main():
         oce_gateway_qualify()
     elif operation == 'oce-gateway-restart':
         oce_gateway_restart()
+    elif operation == 'oce-recette-admit':
+        oce_recette_admission('authorize')
+    elif operation == 'oce-recette-revoke':
+        oce_recette_admission('revoke')
     elif operation == 'oce-enable-dev':
         oce_set_dev_flag(True)
     elif operation == 'oce-disable-dev':
