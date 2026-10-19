@@ -14,6 +14,17 @@ export async function adminRows<T = any>(table: string, query: string): Promise<
   if (!response.ok) throw new Error(`Collaboration fixture read failed (${response.status})`);
   return response.json();
 }
+export async function adminInsert<T = any>(table: string, body: Record<string, unknown> | Record<string, unknown>[]): Promise<T[]> {
+  const { url, secret } = localConfig();
+  const response = await fetch(`${url}/rest/v1/${table}`, { method: 'POST', headers: { apikey: secret, Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify(body) });
+  if (!response.ok) throw new Error(`Collaboration fixture insert failed (${response.status})`);
+  return response.json();
+}
+export async function adminPatch(table: string, query: string, body: Record<string, unknown>) {
+  const { url, secret } = localConfig();
+  const response = await fetch(`${url}/rest/v1/${table}?${query}`, { method: 'PATCH', headers: { apikey: secret, Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(body) });
+  if (!response.ok) throw new Error(`Collaboration fixture update failed (${response.status})`);
+}
 export async function addLocalRole(userId: string, role: 'client' | 'contractor' | 'dao_reviewer' | 'dao_admin') {
   const { url, secret } = localConfig();
   const response = await fetch(`${url}/rest/v1/user_roles`, { method: 'POST', headers: { apikey: secret, Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ user_id: userId, role }) });

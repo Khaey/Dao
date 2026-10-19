@@ -295,7 +295,7 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright test discovery" bash -euo pipefail -c '
             npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
           '
-          grep -Eq 'Total: 120 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
+          grep -Eq 'Total: 122 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with configurable workers
         working-directory: dao-frontend
         env:

@@ -15,6 +15,7 @@ Le modèle suit C4 et produit plusieurs vues à partir du même modèle :
 - **Containers** — architecture runtime ;
 - **WebComponents** — grands domaines fonctionnels ;
 - **ClientProjectFlow** — préparation d'un chantier ;
+- **SiteExecutionFlow** — déclaration par lot attribué et observation Client ;
 - **InvitationFlow** — invitation artisan/entreprise ;
 - **ManagerReviewFlow** — revue Gestionnaire ;
 - **DevDeployment** — déploiement DEV actuel.
