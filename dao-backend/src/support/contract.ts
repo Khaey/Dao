@@ -36,8 +36,8 @@ export class SupportContractError extends Error {
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const idempotency = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
-const publicRoute = /^\/(?:$|login(?:\/|$)|register(?:\/|$)|app(?:\/|$))[A-Za-z0-9/_-]*$/;
-const faqId = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const publicRoute = /^\/(?:$|auth\/(?:login|register)$|invite$|app(?:\/[A-Za-z0-9/_-]*)?$)/;
+const faqId = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 function text(value: unknown, min: number, max: number): string {
   if (typeof value !== 'string') throw new SupportContractError();
@@ -97,4 +97,36 @@ export function statusInput(value: unknown) {
   const reason = input.reason == null ? null : text(input.reason, 4, 500);
   if (['resolved', 'closed'].includes(input.status) && !reason) throw new SupportContractError();
   return { status: input.status as SupportStatus, reason };
+}
+
+type SupportCursor = { before: string; id: string };
+
+export function supportCursor(value: string | null): SupportCursor | null {
+  if (value === null) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<string, unknown>;
+    if (Object.keys(decoded).length !== 2 || typeof decoded.before !== 'string' || !supportId(decoded.id)
+        || !Number.isFinite(Date.parse(decoded.before))) throw new Error('invalid cursor');
+    return { before: decoded.before, id: decoded.id as string };
+  } catch { throw new SupportContractError(); }
+}
+
+export function nextSupportCursor(item: Pick<SupportTicket, 'last_message_at'|'id'>): string {
+  return Buffer.from(JSON.stringify({ before: item.last_message_at, id: supportId(item.id) })).toString('base64url');
+}
+
+export function supportListQuery(query: URLSearchParams, staff = false) {
+  const allowed = staff ? ['limit', 'cursor', 'status', 'assignee'] : ['limit', 'cursor'];
+  if ([...query.keys()].some(key => !allowed.includes(key))) throw new SupportContractError();
+  const rawLimit = query.get('limit');
+  if (rawLimit !== null && !/^[1-9][0-9]?$/.test(rawLimit)) throw new SupportContractError();
+  const limit = rawLimit === null ? 20 : Number(rawLimit);
+  if (limit > 50) throw new SupportContractError();
+  const cursor = supportCursor(query.get('cursor'));
+  const status = query.get('status');
+  const assignee = query.get('assignee') ?? 'all';
+  if (!staff && (status !== null || assignee !== 'all')) throw new SupportContractError();
+  if (staff && status !== null && !supportStatuses.includes(status as SupportStatus)) throw new SupportContractError();
+  if (staff && !['all', 'me', 'unassigned'].includes(assignee)) throw new SupportContractError();
+  return { limit, cursor, status: status as SupportStatus | null, assignee };
 }
