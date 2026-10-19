@@ -54,6 +54,8 @@ test('Assistance : créer une demande avec consentement à la page d’origine, 
   await page.unroute('**/api/support/**');
   const requests = await mockSupport(page, false);
   await page.goto('/app/messages?onglet=assistance&nouvelle=1&origine=%2Fapp%2Fprojects');
+  // Desktop sidebar: unread D.A.O. replies are flagged on the « Messages & Assistance » entry (mobile menu is closed).
+  if (test.info().project.name !== 'mobile') await expect(page.getByRole('link', { name: /Messages & Assistance\s*1 réponse de D\.A\.O\. non lue/ })).toBeVisible();
   const form = page.getByRole('form', { name: 'Nouvelle demande à D.A.O.' });
   await form.getByRole('button', { name: 'Envoyer la demande' }).click();
   await expect(form.getByRole('alert')).toContainText('Indiquez un sujet');

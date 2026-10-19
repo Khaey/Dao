@@ -19,6 +19,7 @@ export default function RoleNav() {
   const [ready, setReady] = useState(false);
   const [workspace, setWorkspace] = useState<'client'|'contractor'>('client');
   const [switching, setSwitching] = useState(false);
+  const [supportUnread, setSupportUnread] = useState(0);
 
   useEffect(() => {
     const supabase = supabaseBrowser();
@@ -43,6 +44,15 @@ export default function RoleNav() {
   }, [router]);
 
   useEffect(() => { setOpen(false); }, [pathname]);
+  // Unread D.A.O. support replies (Client/Artisan). Silent when the support API is not deployed or fails.
+  const supportUser = ready && !roles.some(role => role === 'dao_admin' || role === 'dao_reviewer') && (roles.includes('client') || roles.includes('contractor'));
+  useEffect(() => {
+    if (!supportUser) return;
+    let active = true;
+    void import('../../lib/support-client').then(({ supportAvailability }) => supportAvailability())
+      .then(result => { if (active) setSupportUnread(result.state === 'available' ? result.summary.unread : 0); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [supportUser, pathname]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -117,6 +127,8 @@ export default function RoleNav() {
     return <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={active(item.href) ? 'page' : undefined}
       className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition lg:py-2.5', active(item.href) ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
       <Icon size={18} strokeWidth={1.8} className="shrink-0" /><span>{item.label}</span>
+      {item.href === '/app/messages' && supportUnread > 0 && <span className="ml-auto rounded-full bg-clay px-2 py-0.5 text-xs font-bold text-white">
+        {supportUnread}<span className="sr-only"> réponse{supportUnread > 1 ? 's' : ''} de D.A.O. non lue{supportUnread > 1 ? 's' : ''}</span></span>}
     </Link>;
   });
   const account = <div className="shrink-0 border-t border-black/5 pt-3">
