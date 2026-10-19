@@ -78,6 +78,9 @@ test('oce lot plan: explicit dates, owner/management access, service-only sync r
     assert.equal((await get('owner')).sync.state,'synced','replaying an identical plan keeps the synchronised state');
     await save('owner','2026-11-04','2026-12-18',true);
     assert.equal((await get('owner')).sync.state,'pending','a changed plan is pending again');
+    const denied=await users.owner.db.rpc('oce_mark_synced',{p_mapping_id:m.data});assert.ok(denied.error,'mark-synced is service only');
+    assert.ifError((await admin.rpc('oce_mark_synced',{p_mapping_id:m.data})).error);
+    assert.equal((await get('owner')).sync.state,'synced','a complete replay marked as synchronised reads as synced');
   });
 
   await t.test('relaunch is reserved to D.A.O management, never the Client',async()=>{
