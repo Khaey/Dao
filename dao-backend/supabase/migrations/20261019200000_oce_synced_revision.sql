@@ -7,8 +7,7 @@ begin;
 
 alter table public.oce_sync_mappings add column synced_revision integer check (synced_revision is null or synced_revision>0);
 
-drop function public.oce_mark_synced(uuid);
-drop function dao_private.oce_mark_synced(uuid);
+-- L'ancienne oce_mark_synced(uuid) (migration 20261019170000) est conservée : migration purement additive, elle n'est plus appelée.
 
 create function dao_private.oce_mark_synced(p_mapping_id uuid,p_revision integer) returns void
 language plpgsql security definer set search_path='' as $$
