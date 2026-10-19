@@ -11,6 +11,10 @@ import { NotificationService } from '../services/NotificationService.js';
 import { createNotificationHandler } from './notificationHandler.js';
 import { createOcePlanningHandler } from './ocePlanningHandler.js';
 import { createOceGateway } from '../oce/gatewayClient.js';
+import { createOceLotPlanHandler } from './oceLotPlanHandler.js';
+import { LotPlanSynchronizer } from '../oce/lotPlanSync.js';
+import { OceOrchestrator } from '../oce/orchestrator.js';
+import { SupabaseOceSyncStore } from '../oce/oceSyncStore.js';
 import { SupportService } from '../services/SupportService.js';
 import { createSupportHandler } from './supportHandler.js';
 
@@ -92,4 +96,23 @@ export function createOcePlanningApi(request: Request) {
   // One client per process so the circuit breaker keeps its state across requests.
   oceGateway ??= createOceGateway(process.env);
   return createOcePlanningHandler(db, resolveActor, oceGateway);
+}
+
+let lotPlanSynchronizer: LotPlanSynchronizer | undefined;
+/** Server-side synchroniser: uses the service client ONLY for the closed sync tables and the ready-plan read, after the user-scoped RPC authorized the call. */
+function oceSynchronizer() {
+  if (lotPlanSynchronizer) return lotPlanSynchronizer;
+  oceGateway ??= createOceGateway(process.env);
+  const service = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('DAO_SUPABASE_SECRET_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
+  lotPlanSynchronizer = new LotPlanSynchronizer(
+    async ref => { const { data, error } = await service.rpc('oce_lot_plan_for_sync', { p_project_id: ref.dao_project_id, p_request_id: ref.dao_lot_id }); if (error) throw new Error('oce_plan_read'); return data; },
+    new OceOrchestrator(oceGateway, new SupabaseOceSyncStore(service)),
+  );
+  return lotPlanSynchronizer;
+}
+
+/** Lot planning input and synchronisation supervision. Saving a ready plan synchronises with OCE automatically (#301). */
+export function createOceLotPlanApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createOceLotPlanHandler(db, resolveActor, ref => oceSynchronizer().run(ref));
 }
