@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Inbox, LifeBuoy, RefreshCw, UserCheck } from 'lucide-react';
 import { Card } from '../ui';
 import TicketThread, { StatusBadge } from './TicketThread';
@@ -15,6 +15,9 @@ const assigneeLabels: Record<NonNullable<QueueFilter['assignee']>, string> = { a
 function StatusForm({ ticket, onChanged }: { ticket: SupportTicket; onChanged: () => Promise<void> }) {
   const [status, setStatus] = useState<TicketStatus>(ticket.status);
   const [reason, setReason] = useState('');
+  // Follow server-side status changes (e.g. after a reply) without discarding a change the staff member started.
+  const dirty = useRef(false);
+  useEffect(() => { if (!dirty.current) setStatus(ticket.status); }, [ticket.status]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const needsReason = status === 'resolved' || status === 'closed';
@@ -22,16 +25,16 @@ function StatusForm({ ticket, onChanged }: { ticket: SupportTicket; onChanged: (
     event.preventDefault();
     if (needsReason && reason.trim().length < 4) { setError('Un motif (4 caractères minimum) est obligatoire pour résoudre ou fermer.'); return; }
     setSaving(true); setError('');
-    try { await setTicketStatus(ticket.id, status, reason.trim() || null); setReason(''); await onChanged(); }
+    try { await setTicketStatus(ticket.id, status, reason.trim() || null); setReason(''); dirty.current = false; await onChanged(); }
     catch (exception) { setError((exception as Error).message); } finally { setSaving(false); }
   }
   return <form onSubmit={save} className="space-y-3 rounded-2xl bg-sand/60 p-4" aria-label="Statut de la demande">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <label className="block flex-1 text-sm font-semibold text-ink">Statut<select value={status} onChange={(event) => setStatus(event.target.value as TicketStatus)} className={`${select} mt-1.5 w-full`}>
+      <label className="block flex-1 text-sm font-semibold text-ink">Statut<select value={status} onChange={(event) => { dirty.current = true; setStatus(event.target.value as TicketStatus); }} className={`${select} mt-1.5 w-full`}>
         {supportStatuses.map((value) => <option key={value} value={value}>{staffStatusLabels[value]}</option>)}</select></label>
       <button type="submit" disabled={saving || (status === ticket.status && !needsReason)} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-teal disabled:opacity-50">{saving ? 'Enregistrement…' : 'Mettre à jour'}</button>
     </div>
-    {needsReason && <label className="block text-sm font-semibold text-ink">Motif (visible par le demandeur)<textarea rows={2} maxLength={LIMITS.reason} value={reason} onChange={(event) => setReason(event.target.value)}
+    {needsReason && <label className="block text-sm font-semibold text-ink">Motif (visible par le demandeur)<textarea rows={2} maxLength={LIMITS.reason} value={reason} onChange={(event) => { dirty.current = true; setReason(event.target.value); }}
       className="mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none focus:border-teal focus:ring-4 focus:ring-teal/10" /></label>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
   </form>;
@@ -97,7 +100,7 @@ export default function SupportQueue() {
           {!selected.ticket.assignee_label && <button type="button" onClick={() => void claim()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink hover:border-teal hover:text-teal"><UserCheck aria-hidden="true" size={16} />Me l’attribuer</button>}</div>
       </div>
       <TicketThread ticket={selected.ticket} messages={selected.messages} viewer="staff" onSent={refreshSelected} />
-      <StatusForm key={`${selected.ticket.id}-${selected.ticket.status}`} ticket={selected.ticket} onChanged={refreshSelected} />
+      <StatusForm key={selected.ticket.id} ticket={selected.ticket} onChanged={refreshSelected} />
     </Card> : <>
       <div className="flex flex-col gap-2 sm:flex-row" role="group" aria-label="Filtres">
         <label><span className="sr-only">Statut</span><select aria-label="Statut" value={filter.status} onChange={(event) => setFilter((current) => ({ ...current, status: event.target.value as TicketStatus | '' }))} className={`${select} w-full sm:w-56`}>
