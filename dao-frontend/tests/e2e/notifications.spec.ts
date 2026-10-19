@@ -124,4 +124,26 @@ test('Notifications : double rôle, changement réel de workspace sans conserver
   await expect(page.getByLabel('0 notifications non lues',{exact:true})).toBeVisible();
   await switchWorkspace('Client');await expect(page.getByRole('heading',{name:'Invitation reçue',exact:true})).toBeVisible();
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
+
+  // Regression #302: an Artisan has an unread Assistance response in the left menu,
+  // and the same alert must be reachable via the global bell.
+  await switchWorkspace('Artisan');
+  const staff=await notificationActor(info,'dao_admin');
+  const created=await client.db.rpc('create_support_ticket',{
+    p_subject:'Assistance artisan dans la cloche',p_category:'technical',
+    p_body:'Problème synthétique',p_project_id:null,p_origin_route:'/app/messages',
+    p_origin_faq_id:null,p_idempotency_key:randomUUID(),
+  });
+  expect(created.error).toBeNull();
+  const response=await staff.db.rpc('reply_support_ticket',{
+    p_ticket_id:created.data.id,p_body:'Réponse synthétique D.A.O.',
+    p_idempotency_key:randomUUID(),
+  });
+  expect(response.error).toBeNull();
+  await page.reload();
+  await expect(page.getByTestId('support-bell-count')).toHaveText('1');
+  await expect(page.getByRole('heading',{name:'Assistance D.A.O. — 1 réponse non lue'})).toBeVisible();
+  await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'Voir mes demandes d’assistance'}).click();
+  await expect(page).toHaveURL(/\\/app\\/messages\\?onglet=assistance/);
 });
