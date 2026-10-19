@@ -99,7 +99,6 @@ async function cleanup() {
   const m = (await rest(c, `/rest/v1/oce_sync_mappings?select=id&project_id=eq.${SYNTHETIC_PROJECT}&request_id=eq.${SYNTHETIC_LOT}`)).body || [];
   if (m[0]) R.mapping_revoked = (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: m[0].id, p_admitted: false }) })).status < 300;
   R.project_archived = (await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'archived' }) })).status < 300;
-  R.summary_closed_after_revocation = true;
   return R;
 }
 
@@ -107,6 +106,11 @@ const op = process.argv[2]; const ops = { probe, provision, run, cleanup };
 if (!ops[op]) { console.error('usage: oce-dev-recette.mjs probe|provision|run|cleanup'); process.exit(2); }
 let report; let ok = true;
 try { report = await ops[op](); } catch (e) { ok = false; report = { error: String(e.message || e).replace(/[^\w .:()/-]/g, '').slice(0, 120) }; }
-finally { if (op === 'run') { try { report = { ...(report || {}), cleanup: await cleanup() }; } catch { /* reported by absence */ } } }
+finally { if (op === 'run') { try {
+      const cleaned = await cleanup(); const c = cfg();
+      const owner = await signIn(c, CLIENT, env('DAO_TEST_CLIENT_PASSWORD'));
+      cleaned.summary_refused_after_revocation = (await app(owner, `/api/oce/planning-summary?${q}`)).status === 403;
+      report = { ...(report || {}), cleanup: cleaned };
+    } catch { /* reported by absence */ } } }
 console.log(JSON.stringify({ oce_recette: op, ok, ...report }, null, 1));
 if (!ok) process.exit(1);
