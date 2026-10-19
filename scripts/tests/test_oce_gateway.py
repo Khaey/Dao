@@ -299,6 +299,17 @@ class GatewaySessionTests(unittest.TestCase):
             self.assertEqual(request.call_count, 3)
             self.assertIsNone(client.token)
 
+    def test_identity_transport_failure_never_keeps_unverified_token(self):
+        client = g.OCEClient(self.CREDENTIAL)
+        with patch.object(client, "request", side_effect=[
+            (200, {"access_token": "fresh"}),
+            g.SafeError(502, "oce_transport_failure"),
+        ]):
+            with self.assertRaises(g.SafeError) as error:
+                client.login()
+            self.assertEqual(error.exception.code, "oce_transport_failure")
+            self.assertIsNone(client.token)
+
     def test_login_never_sends_the_old_bearer(self):
         client = g.OCEClient(self.CREDENTIAL)
         client.token = "expired"
