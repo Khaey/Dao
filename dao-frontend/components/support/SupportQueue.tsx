@@ -5,7 +5,7 @@ import { ArrowLeft, Inbox, LifeBuoy, RefreshCw, UserCheck } from 'lucide-react';
 import { Card } from '../ui';
 import TicketThread, { StatusBadge } from './TicketThread';
 import {
-  assignToMe, formatSupportDate, getTicket, LIMITS, listQueue, setTicketStatus, staffStatusLabels, supportStatuses, SupportUnavailable,
+  assignToMe, formatSupportDate, getTicket, LIMITS, listQueue, markTicketRead, setTicketStatus, staffStatusLabels, supportStatuses, SupportUnavailable,
   ticketCategoryLabels, type QueueFilter, type SupportMessage, type SupportTicket, type TicketStatus,
 } from '../../lib/support-client';
 
@@ -49,6 +49,7 @@ export default function SupportQueue() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ ticket: SupportTicket; messages: SupportMessage[] } | null>(null);
   const [error, setError] = useState('');
+  const deepLinkOpened = useRef(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -63,8 +64,22 @@ export default function SupportQueue() {
 
   async function open(id: string) {
     setError('');
-    try { setSelected(await getTicket(id)); } catch (exception) { setError((exception as Error).message); }
+    try {
+      const detail = await getTicket(id);
+      setSelected(detail);
+      // Per-staff receipt: reading as one reviewer must not mark an admin's
+      // notification read. The server checks ticket access on every operation.
+      try { await markTicketRead(id); void load(); }
+      catch { setError('La lecture n’a pas pu être enregistrée. Réessayez en rouvrant la demande.'); }
+    } catch (exception) { setError((exception as Error).message); }
   }
+
+  useEffect(() => {
+    if (deepLinkOpened.current) return;
+    deepLinkOpened.current = true;
+    const id = new URLSearchParams(window.location.search).get('ticket');
+    if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) void open(id);
+  }, [load]);
   async function refreshSelected() { if (selected) { await open(selected.ticket.id); void load(); } }
   async function claim() {
     if (!selected) return;
