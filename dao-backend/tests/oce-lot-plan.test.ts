@@ -40,6 +40,23 @@ test('synchroniser: skips a lot without ready plan, syncs idempotently, reports 
   assert.equal((await broken.run(ref)).state, 'failed');
 });
 
+test('synchroniser: going back to a previously synchronised content reaches the gateway again (new revision = new generation)', async () => {
+  const gateway = new InMemoryOceGateway(); const store = new InMemoryOceSyncStore(); gateway.authorize(ref);
+  let current: any = { ...source, revision: 1 };
+  const sync = new LotPlanSynchronizer(async () => current, new OceOrchestrator(gateway, store));
+  assert.equal((await sync.run(ref)).state, 'synced');
+  current = { ...source, planned_end: '2026-12-31', revision: 2 };
+  assert.ok((await sync.run(ref)).report!.written > 0, 'a changed plan is written');
+  const before = gateway.calls.length;
+  current = { ...source, revision: 3 }; // same content as revision 1
+  const back = await sync.run(ref);
+  assert.equal(back.state, 'synced'); assert.ok(back.report!.written > 0, 'the revert is applied, not replayed from the old journal');
+  assert.ok(gateway.calls.length > before, 'the gateway is called again');
+  const same = gateway.calls.length;
+  const replay = await sync.run(ref); // same revision: complete replay, nothing written, success still recorded
+  assert.equal(replay.report!.written, 0); assert.equal(gateway.calls.length, same);
+});
+
 test('synchroniser coalesces a concurrent run of the same lot', async () => {
   const gateway = new InMemoryOceGateway(); gateway.authorize(ref);
   let release!: () => void; const gate = new Promise<void>(r => { release = r; });

@@ -57,7 +57,7 @@ test('oce lot plan: explicit dates, owner/management access, service-only sync r
     const read=async()=>{const r=await admin.rpc('oce_lot_plan_for_sync',{p_project_id:project.id,p_request_id:request.id});assert.ifError(r.error);return r.data;};
     assert.equal(await read(),null);
     const r=await save('owner','2026-11-02','2026-12-18',true);assert.ifError(r.error);assert.equal(r.data.status,'ready');
-    const data=await read();assert.deepEqual(Object.keys(data).sort(),['lot_title','planned_end','planned_start','region']);
+    const data=await read();assert.deepEqual(Object.keys(data).sort(),['lot_title','planned_end','planned_start','region','revision']);
     assert.equal(data.lot_title,'Gros œuvre');assert.equal(data.planned_start,'2026-11-02');assert.equal(data.planned_end,'2026-12-18');
   });
 

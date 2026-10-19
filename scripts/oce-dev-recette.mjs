@@ -63,6 +63,10 @@ async function waitState(token, wanted) {
 async function run() {
   const c = cfg(); const R = {};
   await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}&status=eq.archived`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'draft' }) });
+  // DB-side admission of the fixed synthetic pair (the previous cleanup revoked it; a revoked mapping refuses every sync step).
+  const mapping = await rest(c, '/rest/v1/rpc/oce_request_mapping', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_request_id: SYNTHETIC_LOT }) });
+  R.mapping_admitted = mapping.status < 300 && typeof mapping.body === 'string'
+    && (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: mapping.body, p_admitted: true }) })).status < 300;
   const owner = await signIn(c, CLIENT, env('DAO_TEST_CLIENT_PASSWORD'));
   const other = await signIn(c, CONTRACTOR, env('DAO_TEST_CONTRACTOR_PASSWORD'));
   const put = (start, end, ready = true) => app(owner, '/api/oce/lot-plan', { method: 'PUT', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, lot_id: SYNTHETIC_LOT, planned_start: start, planned_end: end, ready }) });
@@ -112,7 +116,7 @@ finally { if (op === 'run') { try {
       report = { ...(report || {}), cleanup: cleaned };
     } catch { /* reported by absence */ } } }
 // A recette only passes when every expected outcome is true; a missing or false outcome fails it (never vacuous).
-const EXPECT_RUN = ['unauthenticated_refused', 'unauthorized_plan_read_refused', 'unauthorized_plan_write_refused', 'unauthorized_summary_refused',
+const EXPECT_RUN = ['mapping_admitted', 'unauthenticated_refused', 'unauthorized_plan_read_refused', 'unauthorized_plan_write_refused', 'unauthorized_summary_refused',
   'plan_saved_ready', 'replay_saved', 'replay_revision_unchanged', 'change_saved', 'changed_revision_incremented', 'changed_duration_differs'];
 if (op === 'run' && ok) {
   const r = report || {};
