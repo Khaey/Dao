@@ -158,6 +158,12 @@ export function createDaoApi(
     async replaceBidQuoteLines(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.replaceBidQuoteLines(services, a, i))));
     },
+    async replaceBidSubLots(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.replaceBidSubLots(services, a, i))));
+    },
+    async replaceBidSubLotLinks(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.replaceBidSubLotLinks(services, a, i))));
+    },
     async signedDownload(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.signedDownload(services, a, String(i.documentId ?? i.document_id), Number(i.expiresIn) || 300))));
     },

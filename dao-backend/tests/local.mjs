@@ -20,6 +20,7 @@ if(fails)throw Error(JSON.stringify(results));
 await db.exec('create schema supabase_migrations;create table supabase_migrations.schema_migrations(version text primary key);');
 for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).filter(name=>name.endsWith('.sql')).sort())await db.query('insert into supabase_migrations.schema_migrations(version) values($1)',[f.split('_',1)[0]]);
 await db.exec(readFileSync(new URL('../supabase/seed.sql',import.meta.url),'utf8'));
+await test('bid sub-lots contract (#325)',async()=>{await db.exec('begin');try{await db.exec(readFileSync(new URL('./bid-sub-lots-contract.sql',import.meta.url),'utf8'));}finally{await db.exec('rollback');}});
 await test('shared fresh-database schema contract',()=>db.exec(readFileSync(new URL('./schema-contract.sql',import.meta.url),'utf8')));
 await test('add_project_request overloads resolve at exact four- and five-argument arities',async()=>{
  const functions=(await db.query(`select n.nspname as schema_name,p.pronargs::int as argument_count,p.pronargdefaults::int as default_count

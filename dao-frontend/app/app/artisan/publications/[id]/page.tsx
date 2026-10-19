@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { supabaseBrowser } from '../../../../../lib/supabase-browser';
 import { CalendarClock, CalendarDays, CheckCircle2, Clock, Download, FileText, Hammer, Lock, Package, Paperclip, Plus, Ruler, Send, Trash2, Wallet } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../../../../../components/ui';
+import { SubLotLinksEditor, SubLotsEditor } from '../../../../../components/artisan/BidSubLots';
+import { linksPayload, linksProblem, subLotsPayload, subLotsProblem, type LinkDraft, type Referent, type SubLotDraft } from '../../../../../lib/bid-sub-lots';
 
 type Publication = { id: string; project_id: string; visibility: string; status: string; published_at: string; safe_title: string; safe_description: string; project_type: string; surface_m2: number | null; desired_start_date: string | null; indicative_budget_millimes: number | null; submission_deadline: string | null; };
 type Lot = { id: string; request_version_id: string; trade_id: string; safe_title: string; safe_scope: string; technical_scope?:any[]; tradeName?: string; acceptsOffers?: boolean; result?: string };
@@ -49,9 +51,12 @@ export default function ArtisanPublicationDetail() {
   const [validUntil, setValidUntil] = useState('');
   const [quoteTerms, setQuoteTerms] = useState('');
   const [materialReferences, setMaterialReferences] = useState('');
+  const [subLots, setSubLots] = useState<Record<string, SubLotDraft[]>>({});
+  const [subLotLinks, setSubLotLinks] = useState<LinkDraft[]>([]);
+  const [referents, setReferents] = useState<Referent[]>([]);
 
   async function load() {
-    setLoading(true); setError(''); setLines({}); setIndivisible(false); setDocuments([]); setQuoteLines({});
+    setLoading(true); setError(''); setLines({}); setIndivisible(false); setDocuments([]); setQuoteLines({}); setSubLots({}); setSubLotLinks([]);
     const supabase = supabaseBrowser();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) { setError('Session expirée.'); setLoading(false); return; }
@@ -92,6 +97,16 @@ export default function ArtisanPublicationDetail() {
           for(const row of quoteResult.data??[]){const requestVersionId=itemById.get(row.bid_item_id);if(!requestVersionId)continue;(nextQuotes[requestVersionId]??=[]).push({id:row.id,section:row.section,designation:row.designation,unit:row.unit,quantity:String(Number(row.quantity_milli)/1000),unitPrice:String(Number(row.unit_price_millimes)/1000)});}
           setQuoteLines(nextQuotes);
         }
+        const [subLotResult, linkResult] = await Promise.all([
+          supabase.from('bid_sub_lots').select('bid_item_id,node_key,position,title,scope,start_date,end_date,budget_millimes,official_sub_lot_id').eq('bid_version_id', nextVersion.id).order('position'),
+          supabase.from('bid_sub_lot_links').select('pred_kind,pred_ref,succ_kind,succ_ref').eq('bid_version_id', nextVersion.id).order('created_at'),
+        ]);
+        if (!subLotResult.error) {
+          const requestVersionByItem = new Map((itemResult.data ?? []).map(item => [item.id, item.request_version_id])); const nextSubLots: Record<string, SubLotDraft[]> = {};
+          for (const row of subLotResult.data ?? []) { const requestVersionId = requestVersionByItem.get(row.bid_item_id); if (!requestVersionId) continue; (nextSubLots[requestVersionId] ??= []).push({ key: row.node_key, title: row.title, scope: row.scope ?? '', start: row.start_date ?? '', end: row.end_date ?? '', budget: row.budget_millimes == null ? '' : String(Number(row.budget_millimes) / 1000), officialId: row.official_sub_lot_id ?? '' }); }
+          setSubLots(nextSubLots);
+        }
+        if (!linkResult.error) setSubLotLinks((linkResult.data ?? []).map((row: any) => ({ predKind: row.pred_kind, predRef: row.pred_ref, succKind: row.succ_kind, succRef: row.succ_ref })));
         setLines(nextLines);
         const itemIds = (itemResult.data ?? []).map(item => item.id);
         const results = itemIds.length ? await supabase.from('bid_item_results').select('id,bid_item_id,status').in('bid_item_id', itemIds).order('id', { ascending: false }) : { data: [], error: null };
@@ -104,6 +119,8 @@ export default function ArtisanPublicationDetail() {
         if (!documentResult.error) setDocuments((documentResult.data ?? []) as QuoteDocument[]);
       }
     }
+    const referentResult = await supabase.rpc('bid_link_referents', { p_publication_id: id });
+    setReferents(referentResult.error ? [] : ((referentResult.data ?? []) as Referent[]));
     setPublication(p); setLots(nextLots); setVersion(nextVersion);
     setSelected(nextVersion
       ? nextLots.filter(lot => selectedRequestVersions.has(lot.request_version_id)).map(lot => lot.id)
@@ -169,13 +186,23 @@ export default function ArtisanPublicationDetail() {
         const details=quoteLines[lot.request_version_id]??[]; const detailedTotal=details.reduce((sum,item)=>sum+lineTotal(item),0); const manualPrice=decimalToMilli(line?.price??'');
         if (!line || (!details.length&&manualPrice==null) || !line.duration || !line.inclusions.trim()) throw new Error(`Complétez le prix, le délai et la proposition technique pour « ${lot.safe_title} ».`);
         if(details.some(item=>!item.designation.trim()||!item.unit.trim()||decimalToMilli(item.quantity)==null||decimalToMilli(item.unitPrice)==null))throw new Error(`Complétez toutes les lignes du devis détaillé pour « ${lot.safe_title} ».`);
+        const ownSubLots = subLots[lot.request_version_id] ?? [];
+        const subLotIssue = subLotsProblem(ownSubLots, details.length ? detailedTotal : manualPrice);
+        if (subLotIssue) throw new Error(`« ${lot.safe_title} » — ${subLotIssue}`);
         const itemResponse = await fetch('/api/bids/items', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ publication_id: id, version_id: versionId, publication_request_id: lot.id, price_millimes: details.length?detailedTotal:manualPrice, duration_days: Number(line.duration), inclusions: line.inclusions, exclusions: line.exclusions || null }) });
         const itemBody = await itemResponse.json();
         if (!itemResponse.ok) throw new Error(itemBody.error || 'Enregistrement de la ligne refusé.');
         itemIds.push(itemBody.data.id);
         const quoteResponse=await fetch('/api/bids/quote/lines',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({bid_item_id:itemBody.data.id,lines:details.map(item=>({section:item.section,designation:item.designation,unit:item.unit,quantity_milli:decimalToMilli(item.quantity),unit_price_millimes:decimalToMilli(item.unitPrice)}))})});
         const quoteBody=await quoteResponse.json();if(!quoteResponse.ok)throw new Error(quoteBody.error||'Enregistrement du devis détaillé refusé.');
+        const subLotResponse = await fetch('/api/bids/sub-lots', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ bid_item_id: itemBody.data.id, sub_lots: subLotsPayload(ownSubLots) }) });
+        const subLotBody = await subLotResponse.json(); if (!subLotResponse.ok) throw new Error(subLotBody.error || 'Enregistrement des sous-lots refusé.');
       }
+      const selectedKeys = new Set(selectedLots.flatMap(lot => (subLots[lot.request_version_id] ?? []).map(item => item.key)));
+      const linkIssue = linksProblem(subLotLinks, selectedKeys);
+      if (linkIssue) throw new Error(linkIssue);
+      const linksResponse = await fetch('/api/bids/sub-lot-links', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ version_id: versionId, links: linksPayload(subLotLinks) }) });
+      const linksBody = await linksResponse.json(); if (!linksResponse.ok) throw new Error(linksBody.error || 'Enregistrement des enchaînements refusé.');
       const metadataResponse=await fetch('/api/bids/quote/metadata',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({version_id:versionId,valid_until:validUntil||null,terms:quoteTerms||null,material_references:materialReferences||null})}); const metadataBody=await metadataResponse.json();if(!metadataResponse.ok)throw new Error(metadataBody.error||'Enregistrement des informations du devis refusé.');
       const packageResponse = await fetch('/api/bids/package', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ version_id: versionId, indivisible, item_ids: itemIds }) });
       const packageBody = await packageResponse.json();
@@ -197,7 +224,7 @@ export default function ArtisanPublicationDetail() {
       const response = await fetch('/api/bids', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ publication_id: id }) });
       const body = await response.json();
       if (!response.ok || !body.data?.id) throw new Error(body.error || 'Nouvelle version refusée.');
-      setVersion(body.data); setLines({}); setIndivisible(false); setMessage('Nouvelle version de votre offre prête à compléter.');
+      setVersion(body.data); setLines({}); setIndivisible(false); setSubLots({}); setSubLotLinks([]); setMessage('Nouvelle version de votre offre prête à compléter.');
     } catch (cause: any) { setError(cause?.message || 'Une erreur est survenue.'); } finally { setSaving(false); }
   }
   async function withdrawOffer(){
@@ -244,7 +271,9 @@ export default function ArtisanPublicationDetail() {
       <div className="mt-5 space-y-4">{selectedLots.map((lot) => { const line = lines[lot.request_version_id] ?? { price: '', duration: '', inclusions: '', exclusions: '' }; const details=quoteLines[lot.request_version_id]??[]; const detailTotal=details.reduce((sum,item)=>sum+lineTotal(item),0); return <div key={lot.id} className="rounded-xl border border-black/[0.08] p-4 sm:p-5"><h3 className="text-lg font-bold text-ink">{lot.safe_title}</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className={fieldLabel}>Prix proposé (TND)<Input className="mt-1.5 min-h-11 tabular-nums" type="text" inputMode="decimal" disabled={!editable||details.length>0} value={details.length?String(detailTotal/1000):line.price} onChange={(event) => updateLine(lot.request_version_id, 'price', event.target.value)} placeholder="Ex. 18500.000" />{details.length>0&&<span className="mt-1 block text-xs text-black/50">Calculé automatiquement depuis les postes.</span>}</label><label className={fieldLabel}>Délai (jours)<Input className="mt-1.5 min-h-11 tabular-nums" type="number" inputMode="numeric" min="1" step="1" disabled={!editable} value={line.duration} onChange={(event) => updateLine(lot.request_version_id, 'duration', event.target.value)} placeholder="Ex. 21" /></label></div>
       <div className="mt-4 rounded-xl bg-sand/50 p-3 sm:p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><h4 className="font-bold text-ink">Postes du devis détaillé</h4><p className="text-xs text-black/50">Facultatif. Le total des postes devient le prix du lot.</p></div>{editable&&<Button className="min-h-10 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>setQuoteLines(current=>({...current,[lot.request_version_id]:[...(current[lot.request_version_id]??[]),emptyQuoteLine()]}))}><Plus aria-hidden="true" size={15}/>Ajouter un poste</Button>}</div>
       {details.length>0&&<div className="mt-3 space-y-3">{details.map((detail,index)=><div key={detail.id} className="grid gap-2 rounded-xl bg-white p-3 md:grid-cols-12"><label className="text-xs font-semibold md:col-span-2">Catégorie<select className={area} disabled={!editable} value={detail.section} onChange={e=>updateQuoteLine(lot.request_version_id,detail.id,{section:e.target.value as QuoteLine['section']})}><option value="materials">Matériaux</option><option value="labor">Main-d’œuvre</option><option value="other">Autre</option></select></label><label className="text-xs font-semibold md:col-span-3">Désignation<Input className="mt-1.5" disabled={!editable} value={detail.designation} onChange={e=>updateQuoteLine(lot.request_version_id,detail.id,{designation:e.target.value})}/></label><label className="text-xs font-semibold md:col-span-2">Unité<Input className="mt-1.5" disabled={!editable} value={detail.unit} onChange={e=>updateQuoteLine(lot.request_version_id,detail.id,{unit:e.target.value})}/></label><label className="text-xs font-semibold md:col-span-2">Quantité<Input className="mt-1.5" inputMode="decimal" disabled={!editable} value={detail.quantity} onChange={e=>updateQuoteLine(lot.request_version_id,detail.id,{quantity:e.target.value})}/></label><label className="text-xs font-semibold md:col-span-2">PU TND<Input className="mt-1.5" inputMode="decimal" disabled={!editable} value={detail.unitPrice} onChange={e=>updateQuoteLine(lot.request_version_id,detail.id,{unitPrice:e.target.value})}/></label><div className="flex items-end justify-between gap-2 md:col-span-1"><span className="pb-2 text-xs font-bold tabular-nums">{formatTnd(lineTotal(detail))}</span>{editable&&<button type="button" aria-label={`Supprimer le poste ${index+1}`} className="mb-1 rounded-lg p-2 text-red-700 hover:bg-red-50" onClick={()=>setQuoteLines(current=>({...current,[lot.request_version_id]:current[lot.request_version_id].filter(item=>item.id!==detail.id)}))}><Trash2 size={15}/></button>}</div></div>)}<p className="text-right text-sm font-bold tabular-nums text-ink">Total du lot : {formatTnd(detailTotal)}</p></div>}</div>
+      <SubLotsEditor lotTitle={lot.safe_title} items={subLots[lot.request_version_id] ?? []} editable={editable} priceMillimes={details.length ? detailTotal : decimalToMilli(line.price)} officialOptions={(lot.technical_scope ?? []).map((s: any) => ({ id: s.id, title: s.title }))} onChange={(next) => setSubLots(current => ({ ...current, [lot.request_version_id]: next }))} />
       <label className={`mt-3 ${fieldLabel}`}>Proposition technique / inclusions<textarea disabled={!editable} value={line.inclusions} onChange={(event) => updateLine(lot.request_version_id, 'inclusions', event.target.value)} className={`${area} min-h-28`} placeholder="Fournitures, main-d’œuvre, essais, nettoyage…" /></label><label className={`mt-3 ${fieldLabel}`}>Exclusions / variantes<textarea disabled={!editable} value={line.exclusions} onChange={(event) => updateLine(lot.request_version_id, 'exclusions', event.target.value)} className={`${area} min-h-20`} placeholder="Optionnel" /></label></div>; })}</div>
+      {selectedLots.length > 0 && <SubLotLinksEditor links={subLotLinks} editable={editable} referents={referents} ownNodes={selectedLots.flatMap(lot => (subLots[lot.request_version_id] ?? []).map(item => ({ key: item.key, title: item.title, lotTitle: lot.safe_title })))} onChange={setSubLotLinks} />}
       {selectedLots.length>0&&<section className="mt-4 grid gap-3 rounded-xl border border-black/[0.08] p-4 sm:grid-cols-2"><label className={fieldLabel}>Validité annoncée du devis<Input className="mt-1.5" type="date" min={new Date().toISOString().slice(0,10)} disabled={!editable} value={validUntil} onChange={e=>setValidUntil(e.target.value)}/></label><label className={fieldLabel}>Matériaux / références<Input className="mt-1.5" disabled={!editable} value={materialReferences} onChange={e=>setMaterialReferences(e.target.value)} placeholder="Marques ou références proposées"/></label><label className={`${fieldLabel} sm:col-span-2`}>Conditions / garantie annoncées<textarea className={`${area} min-h-20`} disabled={!editable} value={quoteTerms} onChange={e=>setQuoteTerms(e.target.value)} placeholder="Conditions commerciales ou garantie, sans déduction fiscale automatique"/></label></section>}
       {selectedLots.length >= 2 && <label className="mt-4 flex min-h-11 items-start gap-3 rounded-xl bg-clay/[0.06] px-3.5 py-3 text-sm text-ink"><input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-teal" checked={indivisible} disabled={!editable} onChange={event => setIndivisible(event.target.checked)} /><span className="inline-flex items-start gap-1.5"><Package aria-hidden="true" size={15} className="mt-0.5 shrink-0 text-clay" />Package indivisible : tous les lots de cette offre ensemble</span></label>}
       {selectedLots.length > 0 && <div className="mt-6 flex flex-col gap-4 border-t border-black/5 pt-5 sm:flex-row sm:items-center sm:justify-between">

@@ -95,11 +95,24 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Quantité').fill('2');
   await artisan.getByLabel('PU TND').fill('13000');
   await expect(artisan.getByText('Total du lot :')).toContainText('26');
+  // #325 : décomposition technique proposée + enchaînement (proposition seulement, l'attribution reste par lot).
+  await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
+  await artisan.getByLabel('Sous-lot 1',{exact:true}).fill('Rainures E2E');
+  await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
+  await artisan.getByLabel('Sous-lot 2',{exact:true}).fill('Câblage E2E');
+  await artisan.getByRole('button',{name:'Ajouter un lien'}).click();
+  const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');
+  const successorValue=await artisan.locator('option',{hasText:'Câblage E2E'}).first().getAttribute('value');
+  await artisan.getByLabel('Commence après la fin de').selectOption(predecessorValue!);
+  await artisan.getByLabel('Ce travail',{exact:true}).selectOption(successorValue!);
   await artisan.locator('input[type=file][accept*="pdf"]').setInputFiles({name:'devis-v2.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n%%EOF')});
   await expect(artisan.getByRole('status')).toContainText('Devis PDF joint et contrôlé');
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByText(/Version 2 soumise/)).toBeVisible();
   await artisanContext.close();
+  const proposedSubLots=await adminRows('bid_sub_lots',`project_id=eq.${project.projectId}&select=title,position&order=position`);
+  expect(proposedSubLots).toEqual([{title:'Rainures E2E',position:1},{title:'Câblage E2E',position:2}]);
+  expect(await adminRows('bid_sub_lot_links',`project_id=eq.${project.projectId}&select=pred_kind,succ_kind,relationship_type,lag_days`)).toEqual([{pred_kind:'proposal',succ_kind:'proposal',relationship_type:'FS',lag_days:0}]);
 
   const secondArtisanContext = await browser.newContext();
   const secondArtisan = await secondArtisanContext.newPage();
@@ -137,6 +150,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(comparison.getByTestId('offer-card')).toHaveCount(2);
   await expect(comparison.getByText('Version révisée avec délai actualisé.', { exact: true })).toBeVisible();
   await expect(comparison.getByText('Tube cuivre', { exact: false })).toBeVisible();
+  await expect(comparison.getByTestId('offer-sub-lots')).toContainText('Rainures E2E');
+  await expect(comparison.getByTestId('offer-card').filter({hasText:'Seconde offre concurrente complète.'}).getByTestId('offer-sub-lots')).toHaveCount(0);
   await expect(comparison.getByRole('button',{name:'Voir devis-v2.pdf'})).toBeVisible();
   const exportResponse=page.waitForResponse(response=>response.url().includes('/api/bids/quote/export')&&response.request().method()==='GET');
   await comparison.getByTestId('offer-card').filter({hasText:'Version révisée avec délai actualisé.'}).getByRole('button',{name:'Exporter le devis PDF'}).click();
