@@ -58,7 +58,13 @@ export function validatePlan(plan: OcePlan) {
 export class OceOrchestrator {
   constructor(private readonly gateway: OceGateway, private readonly store: OceSyncStore) {}
 
-  async sync(ref: MappingRef, plan: OcePlan): Promise<SyncReport> {
+  /**
+   * `generation` identifies the plan revision being applied (monotonic, +1 per real change). It is part of every idempotency key:
+   * retries of one revision resume where they stopped, while going back to a previously synchronised content is a new
+   * generation and reaches the gateway again (otherwise the old journal would replay and the gateway would stay stale).
+   */
+  async sync(ref: MappingRef, plan: OcePlan, opts: { generation?: number } = {}): Promise<SyncReport> {
+    const gen = Number.isInteger(opts.generation) ? `:g${opts.generation}` : '';
     validatePlan(plan);
     const mappingId = await this.store.requestMapping(ref.dao_project_id, ref.dao_lot_id);
     const report: SyncReport = { ok: true, steps: [], written: 0, skipped: 0 };
@@ -69,7 +75,7 @@ export class OceOrchestrator {
       if (object && !(await this.store.objectChanged(mappingId, object.kind, object.a, object.b, hash))) {
         report.skipped++; report.steps.push({ operation, code, outcome: 'unchanged' }); return true;
       }
-      const began = await this.store.begin(mappingId, operation, `${operation}:${hash.slice(0, 40)}`, hash);
+      const began = await this.store.begin(mappingId, operation, `${operation}:${hash.slice(0, 40)}${gen}`, hash);
       if (began.state === 'in_progress') { report.ok = false; report.steps.push({ operation, code, outcome: 'in_progress' }); return false; }
       if (began.state === 'run') {
         try { await run(); } catch (error) {

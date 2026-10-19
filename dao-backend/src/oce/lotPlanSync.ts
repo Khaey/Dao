@@ -7,7 +7,7 @@ import type { OcePlan, SyncReport } from './orchestrator.js';
  * The shape is deliberately a plain OcePlan so detailed plannings, milestones and site-log data can later add
  * WBS/activities/dependencies without changing the trigger, the journal or the gateway contract.
  */
-export type LotPlanSource = { lot_title: string; region: string; planned_start: string; planned_end: string };
+export type LotPlanSource = { lot_title: string; region: string; planned_start: string; planned_end: string; revision?: number };
 
 export const LOT_WBS_CODE = 'LOT';
 export const LOT_ACTIVITY_CODE = 'LOT-1';
@@ -29,7 +29,7 @@ export class LotPlanSynchronizer {
   private readonly running = new Set<string>();
   constructor(
     private readonly readSource: (ref: MappingRef) => Promise<LotPlanSource | null>,
-    private readonly orchestrator: { sync(ref: MappingRef, plan: OcePlan): Promise<SyncReport> },
+    private readonly orchestrator: { sync(ref: MappingRef, plan: OcePlan, opts?: { generation?: number }): Promise<SyncReport> },
   ) {}
 
   async run(ref: MappingRef): Promise<LotSyncOutcome> {
@@ -39,7 +39,7 @@ export class LotPlanSynchronizer {
     try {
       const source = await this.readSource(ref);
       if (!source) return { state: 'skipped' };
-      const report = await this.orchestrator.sync(ref, buildLotPlan(source));
+      const report = await this.orchestrator.sync(ref, buildLotPlan(source), { generation: source.revision });
       return { state: report.ok ? 'synced' : 'failed', report };
     } catch {
       return { state: 'failed' };
