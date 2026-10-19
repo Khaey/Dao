@@ -530,3 +530,56 @@ class HostEnvTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GatewaySessionReuseTests(unittest.TestCase):
+    def make(self):
+        gateway = g.Gateway.__new__(g.Gateway)
+        gateway.credential = {"email": "x", "password": "y", "user_id": "u"}
+        gateway._token, gateway._token_at = None, 0.0
+        return gateway
+
+    def test_login_happens_once_within_ttl(self):
+        gateway = self.make()
+        calls = []
+
+        def fake_login(self):
+            calls.append(1)
+            self.token = "tok"
+
+        with patch.object(g.OCEClient, "login", fake_login):
+            first = gateway.client()
+            second = gateway.client()
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(second.token, first.token)
+
+    def test_rejected_session_forces_new_login(self):
+        gateway = self.make()
+        calls = []
+
+        def fake_login(self):
+            calls.append(1)
+            self.token = "tok"
+
+        with patch.object(g.OCEClient, "login", fake_login):
+            client = gateway.client()
+            with patch.object(g.OCEClient, "request", return_value=(401, None)):
+                with self.assertRaises(g.SafeError) as cm:
+                    client.expect("GET", "/x", {200})
+            self.assertEqual(cm.exception.code, "oce_session_rejected")
+            gateway.client()
+        self.assertEqual(len(calls), 2)
+
+    def test_expired_session_logs_in_again(self):
+        gateway = self.make()
+        calls = []
+
+        def fake_login(self):
+            calls.append(1)
+            self.token = "tok"
+
+        with patch.object(g.OCEClient, "login", fake_login):
+            gateway.client()
+            gateway._token_at -= g.Gateway.SESSION_TTL_SECONDS + 1
+            gateway.client()
+        self.assertEqual(len(calls), 2)
