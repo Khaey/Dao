@@ -348,7 +348,7 @@ QUALIFY_FLAGS = (
     'mapping_revocation_verified', 'dao_loopback_bypass_denied',
     'dao_container_bypass_denied', 'demo_access_preserved',
 )
-QUALIFY_REASON = re.compile(r'[a-z0-9_ ]{1,64}')
+QUALIFY_REASON = re.compile(r'[a-z0-9_ -]{1,96}')
 
 
 def oce_gateway_qualify():
