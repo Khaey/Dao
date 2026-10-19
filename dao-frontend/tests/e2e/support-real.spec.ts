@@ -33,8 +33,12 @@ test('Assistance réelle : demande Client, prise en charge staff, réponse lue p
   const staffContext = await browser.newContext();
   const staff = await staffContext.newPage();
   await login(staff, e2eAdmin!);
-  await staff.goto('/app/dao/support');
-  await staff.getByRole('button', { name: new RegExp(subject) }).click();
+  await staff.goto('/app/notifications');
+  await expect(staff.getByRole('heading', { name: 'Notifications d’assistance' })).toBeVisible();
+  const staffAlert = staff.getByRole('list', { name: 'Notifications d’assistance' }).getByRole('listitem').filter({ hasText: subject });
+  await expect(staffAlert).toContainText('Nouveau message');
+  await staffAlert.getByRole('link', { name: /Consulter/ }).click();
+  await expect(staff).toHaveURL(/\/app\/dao\/support\?ticket=/);
   await expect(staff.getByText(question, { exact: true })).toBeVisible();
   // The staff view never exposes project conversations, only this request.
   await staff.getByRole('button', { name: 'Me l’attribuer' }).click();
