@@ -59,6 +59,26 @@ export function createDaoApi(
     async updateProjectTracking(request: Request) {
       return run(() => actor(request).then(() => json(request).then(i => services.projects.tracking(i))));
     },
+    async siteExecutionSnapshot(request: Request) {
+      return run(() => actor(request).then(() => {
+        const query = new URL(request.url).searchParams;
+        return services.siteExecution.snapshot(query.get('project_id') ?? '', query.get('before'), Number(query.get('limit') ?? 30));
+      }));
+    },
+    async recordSiteExecution(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(input => {
+        if (input.kind === 'progress') return services.siteExecution.progress(input);
+        if (input.kind === 'intervention') return services.siteExecution.intervention(input);
+        if (input.kind === 'milestone') return services.siteExecution.createMilestone(input);
+        throw Object.assign(new Error('Invalid site execution kind'), { code: 'BAD_REQUEST' });
+      })));
+    },
+    async updateSiteMilestone(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(input => services.siteExecution.updateMilestone(input))));
+    },
+    async recordSiteObservation(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(input => services.siteExecution.observation(input))));
+    },
     async assignProjectMember(request: Request) {
       return run(() => actor(request).then(() => json(request).then(i => services.projects.assignMember(i))));
     },
