@@ -301,3 +301,45 @@ class DevAdminOceRuntimeTests(unittest.TestCase):
         with patch.object(admin, 'service_active', return_value=False):
             with self.assertRaises(ValueError):
                 admin.oce_gateway_restart()
+
+
+class DevAdminOceRecetteAdmissionTests(unittest.TestCase):
+    def run_action(self, action, stdout, returncode=0):
+        out = io.StringIO()
+        err = None
+        with patch.object(admin.Path, 'is_file', return_value=True), \
+             patch.object(admin.os, 'access', return_value=True), \
+             patch.object(admin.subprocess, 'run', return_value=types.SimpleNamespace(returncode=returncode, stdout=stdout, stderr='private')) as run, \
+             patch('sys.stdout', out):
+            try:
+                admin.oce_recette_admission(action)
+            except ValueError as exc:
+                err = str(exc)
+        return err, out.getvalue(), run
+
+    def test_admit_and_revoke_only_ever_target_the_fixed_synthetic_pair(self):
+        for action, key in (('authorize', 'mapping_authorized'), ('revoke', 'mapping_revoked')):
+            err, out, run = self.run_action(action, json.dumps({key: True}) + '\n')
+            self.assertIsNone(err)
+            self.assertEqual(run.call_args.args[0], [admin.RECETTE_GATEWAY, action, admin.RECETTE_PROJECT, admin.RECETTE_LOT])
+            self.assertEqual(json.loads(out), {'oce_recette_admission': action, 'synthetic_pair': True})
+
+    def test_no_caller_supplied_identifier_or_other_action_is_accepted(self):
+        with self.assertRaises(ValueError):
+            admin.oce_recette_admission('list')
+        self.assertEqual(admin.RECETTE_PROJECT, '5eed0301-0000-4000-8000-0000000000a1')
+        self.assertEqual(admin.RECETTE_LOT, '5eed0301-0000-4000-8000-0000000000a2')
+
+    def test_failure_is_closed_and_leaks_nothing(self):
+        err, out, _ = self.run_action('authorize', 'private-value', returncode=1)
+        self.assertEqual(err, 'recette admission failed')
+        self.assertEqual(json.loads(out), {'oce_recette_admission': 'failed', 'action': 'authorize'})
+        self.assertNotIn('private', out)
+
+    def test_dispatch_and_request_vocabulary_include_both_verbs(self):
+        source = (Path(__file__).parents[2] / 'ops' / 'dao-dev-admin.py').read_text()
+        self.assertIn("operation == 'oce-recette-admit'", source)
+        self.assertIn("operation == 'oce-recette-revoke'", source)
+        request = (Path(__file__).parents[2] / 'scripts' / 'dao-ops-request.py').read_text()
+        self.assertIn("'oce-recette-admit'", request)
+        self.assertIn("'oce-recette-revoke'", request)

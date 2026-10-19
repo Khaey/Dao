@@ -125,6 +125,8 @@ Use **DAO DEV operations**, `workflow_dispatch`, **main only**:
 | oce-gateway-restart | Restart only `dao-oce-gateway.service` after a reviewed gateway file install; reports service/socket readiness | Gateway active; explicit #58 owner authorization |
 | oce-enable-dev | Set `DAO_OCE_ENABLED=1` in the DEV env (backup kept) and restart the app; automatic revert if it does not come back | Gateway and socket ready; explicit #58 owner authorization |
 | oce-disable-dev | Remove `DAO_OCE_ENABLED` and restart the app (rollback of the adapter flag) | Explicit #58 owner authorization |
+| oce-recette-admit | Authorize on the private gateway the ONE fixed synthetic recette project+lot pair (ids hard-coded; no argument) | #301 owner mandate, DEV only |
+| oce-recette-revoke | Revoke that same fixed synthetic pair on the gateway (always run after a recette) | #301 owner mandate, DEV only |
 
 Example with a credential authorized for Actions dispatch:
 

@@ -109,6 +109,8 @@ case "$operation" in
   oce-gateway-restart) sudo -n /usr/local/sbin/dao-dev-admin oce-gateway-restart ;;
   oce-enable-dev) sudo -n /usr/local/sbin/dao-dev-admin oce-enable-dev ;;
   oce-disable-dev) sudo -n /usr/local/sbin/dao-dev-admin oce-disable-dev ;;
+  oce-recette-admit) sudo -n /usr/local/sbin/dao-dev-admin oce-recette-admit ;;
+  oce-recette-revoke) sudo -n /usr/local/sbin/dao-dev-admin oce-recette-revoke ;;
   diagnostics) python3 dao-ops-diagnostics.py ;;
   ops-status) sudo -n /usr/local/sbin/dao-ops-admin status ;;
   ops-preflight) sudo -n /usr/local/sbin/dao-ops-admin preflight ;;
