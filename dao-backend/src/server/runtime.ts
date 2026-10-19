@@ -11,6 +11,8 @@ import { NotificationService } from '../services/NotificationService.js';
 import { createNotificationHandler } from './notificationHandler.js';
 import { createOcePlanningHandler } from './ocePlanningHandler.js';
 import { createOceGateway } from '../oce/gatewayClient.js';
+import { SupportService } from '../services/SupportService.js';
+import { createSupportHandler } from './supportHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -33,6 +35,11 @@ function requestScope(request: Request) {
 export function createNotificationApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createNotificationHandler(new NotificationService(db), resolveActor);
+}
+
+export function createSupportApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createSupportHandler(new SupportService(db), resolveActor);
 }
 
 export function createRequestApi(request: Request) {
