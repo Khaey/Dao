@@ -2,8 +2,8 @@ import type { Page, Route } from '@playwright/test';
 import { test, expect } from './support/fixtures';
 import { login } from './support/flow';
 
-// The support API (#271, DEV20) is not deployed yet: these tests drive the UI against an explicit in-test mock of
-// contract v1 (docs/messages-assistance.md). They are UI tests, not a server end-to-end validation.
+// UI tests against an explicit in-test mock of support contract v1 (docs/messages-assistance.md), independent of
+// whether the real routes (#271, DEV20) are deployed. Server behaviour is covered by DEV20's integration tests.
 type Ticket = { id: string; reference: string; subject: string; category: string; status: string; project_id: null; created_at: string; updated_at: string; last_message_at: string; unread_count: number; assignee_label: string | null; requester_label?: string };
 const now = '2026-10-19T08:00:00.000Z';
 const ticket = (n: number, subject: string, extra: Partial<Ticket> = {}): Ticket => ({ id: `0000000${n}-0000-4000-8000-00000000000${n}`, reference: `AS-${n}`, subject, category: 'account', status: 'waiting_staff', project_id: null, created_at: now, updated_at: now, last_message_at: now, unread_count: 0, assignee_label: null, ...extra });
@@ -74,9 +74,11 @@ test('Assistance : créer une demande avec consentement à la page d’origine, 
 test('Assistance staff : file, attribution, réponse et résolution motivée', async ({ page, e2eAdmin }) => {
   test.skip(!e2eAdmin, 'E2E Supabase credentials are not available');
   await login(page, e2eAdmin!);
-  // Real server first: the support API is not deployed, the queue says so honestly.
+  // Route not deployed (simulated 404 without code): the queue says so honestly instead of showing an empty list.
+  await page.route('**/api/support/**', route => route.fulfill({ status: 404, contentType: 'text/html', body: 'Not Found' }));
   await page.goto('/app/dao/support');
   await expect(page.getByRole('heading', { name: 'File d’assistance pas encore ouverte' })).toBeVisible();
+  await page.unroute('**/api/support/**');
   await mockSupport(page, true);
   await page.getByRole('button', { name: 'Vérifier à nouveau' }).click();
   await page.getByRole('button', { name: /Invitation introuvable/ }).click();
