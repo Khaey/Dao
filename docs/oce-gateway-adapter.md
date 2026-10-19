@@ -59,3 +59,13 @@ orchestration `ensure-*`, résumé technique exposé dans D.A.O, plan d'activati
 - **Same refusal everywhere:** unauthorized, unknown, wrong pair, archived, withdrawn, revoked or not admitted all answer `403 FORBIDDEN`; the gateway is not called. Strict query (exactly the two UUIDs), GET only, `Cache-Control: private, no-store`.
 - **Nothing sensitive:** no OCE identifier, URL, body or credential in answers or logs; no privileged client; a gateway outage answers `503 UNAVAILABLE` and affects no other D.A.O function. One gateway client per process keeps the circuit breaker state.
 - Tests: `oce-planning-handler.test.ts` (handler) and `oce-summary-access-real.test.ts` (real JWT roles, admission/revocation/withdrawal/archiving/suspension).
+
+## Déclencheur serveur automatique (#301)
+
+D.A.O pilote, OCE calcule, D.A.O affiche : aucun compte Admin ou Client ne se connecte à OCE, l'identité technique reste dans la passerelle.
+
+- **Source de vérité** : `oce_lot_plans` (migration `20261019130000`) — dates de début/fin du lot saisies explicitement par le Client propriétaire ou la gestion D.A.O du projet. Un plan `ready` exige les deux dates ; rien n'est inventé (une WBS, une activité, aucune dépendance).
+- **Déclenchement** : `PUT /api/oce/lot-plan` avec `ready=true` enregistre via RPC (JWT utilisateur) puis lance `LotPlanSynchronizer` côté serveur (idempotent, journal durable, coalescé par lot). Un échec n'affecte jamais l'enregistrement du plan.
+- **Supervision** : `GET /api/oce/lot-plan?project_id&lot_id` → état `not_requested | pending | synced | failed` (code d'erreur assaini). `POST /api/oce/lot-plan` relance (admin / relecteur assigné uniquement).
+- **Extensible** : le plan est un `OcePlan` ; plannings détaillés, jalons et carnet de chantier ajoutent des WBS/activités/dépendances sans changer le déclencheur ni le contrat de la passerelle.
+- **Autorisation passerelle** : l'`authorize` du lot reste une opération root distincte (hors de ce code).
