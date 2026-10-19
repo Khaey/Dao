@@ -123,8 +123,15 @@ test('support center: real JWT isolation, staff lifecycle and append-only histor
       p_subject: 'Forged project link', p_category: 'project', p_body: 'No', p_project_id: project.data!.id,
       p_origin_route: null, p_origin_faq_id: null, p_idempotency_key: randomUUID(),
     });
-    const stale = clientB.db;
-    assert.ifError((await admin.auth.admin.deleteUser(clientB.id)).error);
+    const revokedEmail = `support-revoked-${randomUUID()}@example.invalid`;
+    const revokedPassword = `Support!${randomUUID()}`;
+    const revoked = await admin.auth.admin.createUser({ email: revokedEmail, password: revokedPassword, email_confirm: true });
+    assert.ifError(revoked.error);
+    const revokedAuth = createClient(url, publishable, options);
+    const revokedLogin = await revokedAuth.auth.signInWithPassword({ email: revokedEmail, password: revokedPassword });
+    assert.ifError(revokedLogin.error);
+    const stale = createClient(url, publishable, { ...options, global: { headers: { Authorization: `Bearer ${revokedLogin.data.session!.access_token}` } } });
+    assert.ifError((await admin.auth.admin.deleteUser(revoked.data.user!.id)).error);
     await denied(stale, 'my_support_summary');
   });
 });
