@@ -13,6 +13,8 @@ import { createOcePlanningHandler } from './ocePlanningHandler.js';
 import { createOceGateway } from '../oce/gatewayClient.js';
 import { createOceLotPlanHandler } from './oceLotPlanHandler.js';
 import { LotPlanSynchronizer } from '../oce/lotPlanSync.js';
+import { ProjectPlanSynchronizer } from '../oce/projectPlanSync.js';
+import { createOceProjectPlanHandler } from './oceProjectPlanHandler.js';
 import { OceOrchestrator } from '../oce/orchestrator.js';
 import { SupabaseOceSyncStore } from '../oce/oceSyncStore.js';
 import { SupportService } from '../services/SupportService.js';
@@ -111,8 +113,31 @@ function oceSynchronizer() {
   return lotPlanSynchronizer;
 }
 
-/** Lot planning input and synchronisation supervision. Saving a ready plan synchronises with OCE automatically (#301). */
+let projectPlanSynchronizer: ProjectPlanSynchronizer | undefined;
+/** Global project plan (#325): one OCE graph for all lots, keyed by the project's planning context. Same service-client discipline as the lot synchroniser. */
+function projectSynchronizer() {
+  if (projectPlanSynchronizer) return projectPlanSynchronizer;
+  oceGateway ??= createOceGateway(process.env);
+  const service = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('DAO_SUPABASE_SECRET_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
+  projectPlanSynchronizer = new ProjectPlanSynchronizer(
+    async projectId => { const { data, error } = await service.rpc('oce_project_plan_for_sync', { p_project_id: projectId }); if (error) throw new Error('oce_project_plan_read'); return data; },
+    new OceOrchestrator(oceGateway, new SupabaseOceSyncStore(service)),
+    async (projectId, revision, planning, errorCode) => {
+      const { error } = await service.rpc('oce_record_project_plan_result', { p_project_id: projectId, p_revision: revision, p_duration: planning?.duration ?? null, p_critical: planning?.critical ?? [], p_error: errorCode });
+      if (error) throw new Error('oce_project_plan_record');
+    },
+  );
+  return projectPlanSynchronizer;
+}
+
+/** Lot planning input and synchronisation supervision. Saving a ready plan synchronises with OCE automatically (#301), then refreshes the project's global plan (#325). */
 export function createOceLotPlanApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
-  return createOceLotPlanHandler(db, resolveActor, ref => oceSynchronizer().run(ref));
+  return createOceLotPlanHandler(db, resolveActor, async ref => { const outcome = await oceSynchronizer().run(ref); await projectSynchronizer().run(ref.dao_project_id); return outcome; });
+}
+
+/** Global project planning screen API (#325). */
+export function createOceProjectPlanApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createOceProjectPlanHandler(db, resolveActor, projectId => projectSynchronizer().run(projectId));
 }

@@ -98,8 +98,12 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   // #325 : décomposition technique proposée + enchaînement (proposition seulement, l'attribution reste par lot).
   await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
   await artisan.getByLabel('Sous-lot 1',{exact:true}).fill('Rainures E2E');
+  await artisan.getByTestId('bid-sub-lot').nth(0).getByLabel('Début',{exact:true}).fill('2027-01-10');
+  await artisan.getByTestId('bid-sub-lot').nth(0).getByLabel('Fin',{exact:true}).fill('2027-01-14');
   await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
   await artisan.getByLabel('Sous-lot 2',{exact:true}).fill('Câblage E2E');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Début',{exact:true}).fill('2027-01-15');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Fin',{exact:true}).fill('2027-01-20');
   await artisan.getByRole('button',{name:'Ajouter un lien'}).click();
   const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');
   const successorValue=await artisan.locator('option',{hasText:'Câblage E2E'}).first().getAttribute('value');
@@ -207,5 +211,23 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   expect(history.find(row => row.id === awards[0].id)).toEqual(expect.objectContaining({ active: false, agreed_millimes: 24000000 }));
   const cancelAudit = await adminRows('award_cancellations', `award_item_id=eq.${awards[0].id}&select=actor_id,created_at,reason,comment`);
   expect(cancelAudit).toEqual([{ actor_id: expect.any(String), created_at: expect.any(String), reason: 'other', comment: 'Désaccord documenté E2E' }]);
+
+  // #325 B : planning global. Le lien proposé n'est effectif qu'après attribution du lot ET confirmation du Client.
+  await page.goto(`/app/projects/${project.projectId}`);
+  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  const globalPlan = page.getByTestId('project-global-plan');
+  await expect(globalPlan).toBeVisible();
+  await expect(globalPlan.getByTestId('plan-lot')).toHaveCount(1);
+  await expect(globalPlan.getByTestId('plan-node')).toHaveCount(2);
+  const proposed = globalPlan.getByTestId('plan-link');
+  await expect(proposed).toHaveCount(1);
+  await expect(proposed).toContainText('À confirmer');
+  expect(await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
+  const decision = page.waitForResponse(response => response.url().includes('/api/oce/project-plan') && response.request().method() === 'POST');
+  await proposed.getByRole('button', { name: 'Confirmer' }).click();
+  expect((await decision).ok()).toBeTruthy();
+  await expect(proposed).toContainText('Effectif');
+  await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Câblage E2E', { exact: true }) })).toContainText('Commence après : Rainures E2E');
+  expect(await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=decision`)).toEqual([{ decision: 'confirmed' }]);
 
 });
