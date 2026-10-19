@@ -146,7 +146,7 @@ export default function ArtisanPublicationDetail() {
       const completed = await complete.json();
       if (!complete.ok) throw new Error(completed.error || 'Le contrôle du PDF a échoué.');
       setMessage('Devis PDF joint et contrôlé. Il sera figé avec cette version lors de la soumission.');
-      await load();
+      setDocuments(current=>[completed.data as QuoteDocument,...current.filter(document=>document.id!==completed.data.id)]);
     } catch (cause: any) { setError(cause?.message || 'Envoi du PDF impossible.'); } finally { setUploading(false); }
   }
   async function downloadQuote(documentId: string) {
@@ -154,7 +154,7 @@ export default function ArtisanPublicationDetail() {
   }
   async function deleteQuote(documentId: string) {
     setUploading(true); setError('');
-    try { const token=await getToken(); const response=await fetch('/api/documents/quote/delete',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({document_id:documentId})}); const body=await response.json(); if(!response.ok)throw new Error(body.error||'Suppression refusée.'); setMessage('Devis PDF retiré du brouillon.'); await load(); } catch(cause:any){setError(cause?.message||'Suppression impossible.');} finally {setUploading(false);}
+    try { const token=await getToken(); const response=await fetch('/api/documents/quote/delete',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({document_id:documentId})}); const body=await response.json(); if(!response.ok)throw new Error(body.error||'Suppression refusée.'); setMessage('Devis PDF retiré du brouillon.'); setDocuments(current=>current.filter(document=>document.id!==documentId)); } catch(cause:any){setError(cause?.message||'Suppression impossible.');} finally {setUploading(false);}
   }
   async function save(submit: boolean) {
     setSaving(true); setError(''); setMessage('');
