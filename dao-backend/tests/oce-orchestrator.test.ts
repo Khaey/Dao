@@ -55,10 +55,13 @@ test('first sync writes in dependency order and calculates once; replay is a no-
   const ops = first.steps.map(s => s.operation);
   assert.deepEqual(ops, ['ensure-project', 'ensure-wbs', 'ensure-wbs', 'ensure-schedule', 'upsert-activity', 'upsert-activity', 'upsert-activity', 'ensure-dependency', 'ensure-dependency', 'calculate-planning']);
   assert.ok(first.planning);
+  const mappingId = [...store.mappings.keys()][0];
+  assert.equal(store.synced.get(mappingId) ?? 0, 0, 'a sync that wrote steps is recorded by the journal, not marked');
   const before = gateway.calls.length;
   const second = await orch.sync(ref, plan());
   assert.equal(second.ok, true); assert.equal(second.written, 0);
   assert.equal(gateway.calls.length, before, 'no gateway call on replay');
+  assert.equal(store.synced.get(mappingId), 1, 'a complete replay is explicitly marked as synchronised');
   assert.ok(second.steps.every(s => s.outcome === 'unchanged'));
   assert.equal(store.mappings.size, 1);
 });

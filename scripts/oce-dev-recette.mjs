@@ -111,5 +111,14 @@ finally { if (op === 'run') { try {
       cleaned.summary_refused_after_revocation = (await app(owner, `/api/oce/planning-summary?${q}`)).status === 403;
       report = { ...(report || {}), cleanup: cleaned };
     } catch { /* reported by absence */ } } }
+// A recette only passes when every expected outcome is true; a missing or false outcome fails it (never vacuous).
+const EXPECT_RUN = ['unauthenticated_refused', 'unauthorized_plan_read_refused', 'unauthorized_plan_write_refused', 'unauthorized_summary_refused',
+  'plan_saved_ready', 'replay_saved', 'replay_revision_unchanged', 'change_saved', 'changed_revision_incremented', 'changed_duration_differs'];
+if (op === 'run' && ok) {
+  const r = report || {};
+  ok = EXPECT_RUN.every(k => r[k] === true) && r.sync_first === 'synced' && r.sync_replay === 'synced' && r.sync_changed === 'synced'
+    && r.summary_status === 200 && Number.isInteger(r.summary_duration_days) && r.summary_duration_days > 0
+    && r.cleanup?.mapping_revoked === true && r.cleanup?.project_archived === true && r.cleanup?.summary_refused_after_revocation === true;
+}
 console.log(JSON.stringify({ oce_recette: op, ok, ...report }, null, 1));
 if (!ok) process.exit(1);
