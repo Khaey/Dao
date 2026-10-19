@@ -209,6 +209,115 @@ class GatewayContractTests(unittest.TestCase):
         self.assertIn("LoadCredential=oce-gateway:", service)
         self.assertIn("2750 dao-oce-gateway dao", tmpfiles)
 
+
+class GatewaySessionTests(unittest.TestCase):
+    CREDENTIAL = {"email": "tech@example.invalid", "password": "not-a-real-secret", "user_id": "test-user"}
+
+    def test_gateway_reuses_a_single_verified_login(self):
+        with patch.object(g, "read_credential", return_value=self.CREDENTIAL), patch.object(
+            g.OCEClient, "login"
+        ) as login:
+            gateway = g.Gateway()
+            first = gateway.client()
+            self.assertIs(first, gateway.client())
+            self.assertIs(first, gateway.client())
+            login.assert_called_once()
+
+    def test_failed_login_is_not_cached(self):
+        with patch.object(g, "read_credential", return_value=self.CREDENTIAL), patch.object(
+            g.OCEClient, "login", side_effect=[g.SafeError(502, "oce_login_failed"), None]
+        ) as login:
+            gateway = g.Gateway()
+            with self.assertRaises(g.SafeError):
+                gateway.client()
+            self.assertIsNone(gateway._oce_client)
+            self.assertIsInstance(gateway.client(), g.OCEClient)
+            self.assertEqual(login.call_count, 2)
+
+    def test_expired_session_reauthenticates_once_and_retries_same_request(self):
+        client = g.OCEClient(self.CREDENTIAL)
+        client.token = "expired"
+        payload = {"dao_project_id": "synthetic"}
+        responses = [
+            (401, {"detail": "expired"}),
+            (200, {"access_token": "new-token"}),
+            (200, {"id": "test-user", "role": "editor", "is_active": True}),
+            (200, {"ok": True}),
+        ]
+        with patch.object(client, "request", side_effect=responses) as request:
+            self.assertEqual(client.expect("POST", "/operation", {200}, payload), {"ok": True})
+            self.assertEqual(
+                [(c.args[0], c.args[1]) for c in request.call_args_list],
+                [
+                    ("POST", "/operation"),
+                    ("POST", "/api/v1/users/auth/login"),
+                    ("GET", "/api/v1/users/me/"),
+                    ("POST", "/operation"),
+                ],
+            )
+            self.assertEqual(request.call_args_list[0].args[2], payload)
+            self.assertEqual(request.call_args_list[3].args[2], payload)
+            self.assertEqual(client.token, "new-token")
+
+    def test_second_401_fails_closed_and_invalidates_token(self):
+        client = g.OCEClient(self.CREDENTIAL)
+        client.token = "expired"
+        with patch.object(
+            client, "request", side_effect=[
+                (401, None),
+                (200, {"access_token": "new-token"}),
+                (200, {"id": "test-user", "role": "editor", "is_active": True}),
+                (401, None),
+            ]
+        ) as request:
+            with self.assertRaises(g.SafeError) as error:
+                client.expect("POST", "/operation", {200}, {})
+            self.assertEqual(error.exception.code, "oce_session_rejected")
+            self.assertEqual(request.call_count, 4)
+            self.assertIsNone(client.token)
+
+    def test_403_does_not_reauthenticate_or_retry(self):
+        client = g.OCEClient(self.CREDENTIAL)
+        client.token = "valid"
+        with patch.object(client, "request", return_value=(403, None)) as request:
+            with self.assertRaises(g.SafeError) as error:
+                client.expect("POST", "/operation", {200}, {})
+            self.assertEqual(error.exception.code, "oce_permission_rejected")
+            request.assert_called_once()
+
+    def test_identity_mismatch_blocks_replay_and_clears_token(self):
+        client = g.OCEClient(self.CREDENTIAL)
+        client.token = "expired"
+        with patch.object(client, "request", side_effect=[
+            (401, None),
+            (200, {"access_token": "new-token"}),
+            (200, {"id": "wrong-user", "role": "editor", "is_active": True}),
+        ]) as request:
+            with self.assertRaises(g.SafeError) as error:
+                client.expect("POST", "/operation", {200}, {})
+            self.assertEqual(error.exception.code, "oce_identity_mismatch")
+            self.assertEqual(request.call_count, 3)
+            self.assertIsNone(client.token)
+
+    def test_login_never_sends_the_old_bearer(self):
+        client = g.OCEClient(self.CREDENTIAL)
+        client.token = "expired"
+        snapshots = []
+
+        def respond(method, path, *_args, **_kwargs):
+            snapshots.append((path, client.token))
+            if path == "/api/v1/users/auth/login":
+                return 200, {"access_token": "fresh"}
+            return 200, {"id": "test-user", "role": "editor", "is_active": True}
+
+        with patch.object(client, "request", side_effect=respond):
+            client.login()
+        self.assertEqual(snapshots, [
+            ("/api/v1/users/auth/login", None),
+            ("/api/v1/users/me/", "fresh"),
+        ])
+
+
 class GuardTests(unittest.TestCase):
     def test_guard_targets_only_dao_uid_and_tcp_8080(self):
         calls = []
