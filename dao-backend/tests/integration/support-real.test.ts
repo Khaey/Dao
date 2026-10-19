@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { createSupportApi } from '../../src/server/runtime.js';
 
 test('support center: real JWT isolation, staff lifecycle and append-only history', async t => {
   const url = process.env.DAO_SUPABASE_URL!;
@@ -130,8 +131,11 @@ test('support center: real JWT isolation, staff lifecycle and append-only histor
     const revokedAuth = createClient(url, publishable, options);
     const revokedLogin = await revokedAuth.auth.signInWithPassword({ email: revokedEmail, password: revokedPassword });
     assert.ifError(revokedLogin.error);
-    const stale = createClient(url, publishable, { ...options, global: { headers: { Authorization: `Bearer ${revokedLogin.data.session!.access_token}` } } });
+    const staleToken = revokedLogin.data.session!.access_token;
     assert.ifError((await admin.auth.admin.deleteUser(revoked.data.user!.id)).error);
-    await denied(stale, 'my_support_summary');
+    const request = new Request('http://dao.test/api/support/summary', { headers: { Authorization: `Bearer ${staleToken}` } });
+    const response = await createSupportApi(request).summary(request);
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).code, 'unauthenticated');
   });
 });
