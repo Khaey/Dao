@@ -16,7 +16,8 @@ create table public.bid_quote_lines (
   unit text not null check(length(trim(unit)) between 1 and 40),
   quantity_milli bigint not null check(quantity_milli between 1 and 1000000000000),
   unit_price_millimes bigint not null check(unit_price_millimes between 0 and 1000000000000),
-  -- Half-up to the nearest millime; floor prevents a second numeric-to-bigint rounding.\n  total_millimes bigint generated always as (floor((quantity_milli::numeric * unit_price_millimes::numeric + 500) / 1000)::bigint) stored,
+  -- Half-up to the nearest millime; floor prevents a second numeric-to-bigint rounding.
+  total_millimes bigint generated always as (floor((quantity_milli::numeric * unit_price_millimes::numeric + 500) / 1000)::bigint) stored,
   foreign key(bid_item_id,bid_version_id) references public.bid_items(id,bid_version_id) on delete cascade,
   unique(bid_item_id,position)
 );
