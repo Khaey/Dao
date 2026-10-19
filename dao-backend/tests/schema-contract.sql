@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -21,7 +21,7 @@ DECLARE
     'profiles','project_members','project_invitations','project_private_details','project_request_versions',
     'project_requests','project_reviews','project_version_requests',
     'project_versions','projects','publication_recipients',
-    'publication_requests','publications','trades','user_roles'
+    'publication_requests','publications','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
   ];
   actual_versions text[];
   actual_tables text[];
@@ -156,6 +156,15 @@ BEGIN
       'public.update_my_notification_preferences(boolean)',
       'public.mark_my_visible_notifications_read(integer)',
       'public.my_notifications_s2(integer,timestamptz,uuid,boolean,boolean)',
+      'public.my_support_summary()',
+      'public.create_support_ticket(text,text,text,uuid,text,text,text)',
+      'public.list_my_support_tickets(integer,timestamptz,uuid)',
+      'public.get_support_ticket(uuid)',
+      'public.reply_support_ticket(uuid,text,text)',
+      'public.mark_support_ticket_read(uuid)',
+      'public.support_queue(integer,timestamptz,uuid,text,text)',
+      'public.assign_support_ticket_to_me(uuid)',
+      'public.set_support_ticket_status(uuid,text,text)',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -187,6 +196,19 @@ BEGIN
      OR has_table_privilege('authenticated','public.notification_preferences','UPDATE')
      OR has_table_privilege('anon','public.notification_preferences','SELECT') THEN
     RAISE EXCEPTION 'schema contract: notification preferences must stay RPC-only';
+  END IF;
+  IF has_table_privilege('authenticated','public.support_tickets','INSERT')
+     OR has_table_privilege('authenticated','public.support_tickets','UPDATE')
+     OR has_table_privilege('authenticated','public.support_messages','INSERT')
+     OR has_table_privilege('authenticated','public.support_messages','UPDATE')
+     OR has_table_privilege('authenticated','public.support_events','SELECT')
+     OR has_table_privilege('anon','public.support_tickets','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: support data must stay behind JWT-scoped RPCs';
+  END IF;
+  IF has_function_privilege('anon','public.my_support_summary()','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.my_support_summary()','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.my_support_summary()','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: support RPC facade grants differ';
   END IF;
   IF has_function_privilege('authenticated','dao_private.dry_run_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
      OR has_function_privilege('authenticated','dao_private.generate_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
