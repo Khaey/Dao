@@ -154,6 +154,12 @@ jobs:
       DAO_E2E_STATE_DIR: /tmp/dao-e2e-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
+      - name: Classify narrow SQL cleanup changes (fail closed)
+        id: ci-scope
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 scripts/ci-fast-path.py --base "${PR_BASE_SHA:-}" --head "$GITHUB_SHA" --output "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -267,7 +273,13 @@ jobs:
       - name: Guard FULL E2E target
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL E2E local-target guard" node tests/e2e/verify-supabase-target.mjs
+      - name: SQL-only PR validation summary (FULL E2E on main remains mandatory)
+        if: steps.ci-scope.outputs.mode == 'sql_cleanup'
+        run: |
+          echo "SQL housekeeping fast lane: fresh schema + complete replay + real Supabase integration PASS." >> "$GITHUB_STEP_SUMMARY"
+          echo "Desktop/mobile Playwright deferred to the mandatory FULL E2E run on protected main before DEV deployment." >> "$GITHUB_STEP_SUMMARY"
       - name: Build E2E frontend and install Playwright browser in parallel
+        if: steps.ci-scope.outputs.mode != 'sql_cleanup'
         shell: bash
         run: |
           set -euo pipefail
@@ -289,6 +301,7 @@ jobs:
           wait "$browser_pid" || status=1
           exit "$status"
       - name: Discover the expected 124 Playwright tests
+        if: steps.ci-scope.outputs.mode != 'sql_cleanup'
         working-directory: dao-frontend
         shell: bash
         run: |
@@ -297,15 +310,16 @@ jobs:
           '
           grep -Eq 'Total: 124 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with configurable workers
+        if: steps.ci-scope.outputs.mode != 'sql_cleanup'
         working-directory: dao-frontend
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/playwright-results.json
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, configured workers)" npm run test:e2e -- --reporter=line,json
       - name: Annotate Playwright failures (readable without raw logs)
-        if: always()
+        if: always() && steps.ci-scope.outputs.mode != 'sql_cleanup'
         run: node "$GITHUB_WORKSPACE/.github/scripts/playwright-failure-annotations.mjs" "$RUNNER_TEMP/playwright-results.json" "FULL Playwright E2E"
       - name: Upload Playwright artifacts
-        if: always()
+        if: always() && steps.ci-scope.outputs.mode != 'sql_cleanup'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-results-${{ github.run_id }}
