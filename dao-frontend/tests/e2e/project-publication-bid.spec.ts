@@ -62,6 +62,21 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(reviewer.getByRole('heading', { name: project.title })).toBeVisible();
   await reviewerContext.close();
 
+  // #340: a published chantier keeps its own status even while the latest DAO version remains approved.
+  await page.goto('/app/projects');
+  const clientProjectRow = page.getByTestId(`project-row-${project.projectId}`);
+  await expect(clientProjectRow.getByText('Publié', { exact: true })).toBeVisible();
+  await expect(clientProjectRow.getByText(/Version \d+ approuvée/)).toBeVisible();
+  await expect(clientProjectRow.getByText('Prêt à publier', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Filtrer par statut').selectOption('published');
+  await expect(clientProjectRow).toBeVisible();
+  await page.goto('/app');
+  const dashboardProject = page.locator(`a[href="/app/projects/${project.projectId}"]`);
+  await expect(dashboardProject.getByText('Publié', { exact: true })).toBeVisible();
+  await page.goto(`/app/projects/${project.projectId}`);
+  await expect(page.getByText('Publié', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Prêt à publier', { exact: true })).toHaveCount(0);
+
   const artisanContext = await browser.newContext();
   const artisan = await artisanContext.newPage();
   await login(artisan, e2eArtisan!);
@@ -95,6 +110,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Quantité').fill('2');
   await artisan.getByLabel('PU TND').fill('13000');
   await expect(artisan.getByText('Total du lot :')).toContainText('26');
+  await expect(artisan.getByRole('button',{name:'Supprimer le poste 1'})).toBeInViewport();
+  expect(await artisan.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
   // #325 : décomposition technique proposée + enchaînement (proposition seulement, l'attribution reste par lot).
   await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
   await artisan.getByLabel('Sous-lot 1',{exact:true}).fill('Rainures E2E');

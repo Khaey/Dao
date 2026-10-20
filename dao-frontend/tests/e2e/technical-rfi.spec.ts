@@ -21,6 +21,10 @@ test('Questions techniques : onglet clavier, historique officiel et correction C
  test.skip(!e2eClient,'E2E Supabase credentials are not available');await login(page,e2eClient!);const commands=await mockRfi(page,true);
  await page.goto(`/app/messages?onglet=rfi&question=${questionId}`);
  await expect(page.getByRole('tab',{name:'Questions techniques'})).toHaveAttribute('aria-selected','true');
+ await expect(page.getByText('Chantier',{exact:true})).toBeVisible();
+ await expect(page.getByText('Rénovation maison',{exact:true})).toBeVisible();
+ await expect(page.getByText('Lot',{exact:true})).toBeVisible();
+ await expect(page.getByText('Électricité',{exact:true})).toBeVisible();
  await expect(page.getByText('Prévoir une section de 6 mm².',{exact:true})).toBeVisible();
  await expect(page.getByText(/Impact possible sur le devis/)).toBeVisible();
  await page.getByLabel('Publier une clarification officielle').fill('Correction officielle : prévoir 10 mm².');
@@ -29,6 +33,19 @@ test('Questions techniques : onglet clavier, historique officiel et correction C
  await expect(page.getByText('Correction officielle : prévoir 10 mm².',{exact:true})).toBeVisible();
  expect(commands.find(command=>command.path.endsWith('/clarifications'))?.body).toMatchObject({body:'Correction officielle : prévoir 10 mm².',impacts_scope:true});
  await page.getByRole('tab',{name:'Questions techniques'}).focus();await page.keyboard.press('Home');await expect(page.getByRole('tab',{name:'Chantiers'})).toBeFocused();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
+});
+
+test('Questions techniques : la liste identifie clairement chantier et lot et peut être actualisée',async({page,e2eClient})=>{
+ test.skip(!e2eClient,'E2E Supabase credentials are not available');await login(page,e2eClient!);const commands=await mockRfi(page,true);
+ await page.goto('/app/messages?onglet=rfi');
+ await expect(page.getByText('Chantier',{exact:true})).toBeVisible();
+ await expect(page.getByText('Rénovation maison',{exact:true})).toBeVisible();
+ await expect(page.getByText('Lot',{exact:true})).toBeVisible();
+ await expect(page.getByText('Électricité',{exact:true})).toBeVisible();
+ const before=commands.filter(command=>command.path==='/api/rfi'&&command.method==='GET').length;
+ await page.getByRole('button',{name:'Actualiser'}).click();
+ await expect.poll(()=>commands.filter(command=>command.path==='/api/rfi'&&command.method==='GET').length).toBeGreaterThan(before);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
 });
 

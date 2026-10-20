@@ -6,11 +6,11 @@ import { ArrowRight, ClipboardCheck, FilePenLine, FolderKanban, FolderPlus, Hour
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { Badge, Card } from '../../components/ui';
 import { stageLabels } from '../../lib/collaboration';
-import { effectiveProjectStatus } from '../../lib/utils';
+import { effectiveProjectStatus, displayProjectStatus, approvedVersionLabel } from '../../lib/utils';
 import { DossierMeter, dossierStepText, dossierSummary, primaryAction, secondaryAction, StatusPill } from './projects/_components/ProjectUi';
 import ReviewInvitation from './_components/ReviewInvitation';
 
-type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number; client_id: string | null; initiator_id:string; project_origin:string; project_stage: string };
+type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number; client_id: string | null; initiator_id:string; project_origin:string; project_stage: string; projectStatus: string; versionStatus?: string | null; versionNo?: number | null };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
 const formatTnd = (value?: number | null) => value == null ? 'Budget à préciser' : new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(Number(value) / 1000);
 
@@ -29,7 +29,7 @@ export default function Dashboard() {
     setName(profileName ?? user.user?.user_metadata?.display_name ?? user.user?.email?.split('@')[0] ?? '');
     const latest = new Map<string, any>(); for (const version of versions.data ?? []) if (!latest.has(version.project_id)) latest.set(version.project_id, version);
     const lotCounts = new Map<string, number>(); for (const request of requests.data ?? []) lotCounts.set(request.project_id, (lotCounts.get(request.project_id) ?? 0) + 1);
-    setRows((projects.data ?? []).filter(project=>{if(!user.user)return false;return contractorMode?(project.client_id!==user.user.id||(project.project_origin==='contractor_existing_client'&&project.initiator_id===user.user.id)):project.client_id===user.user.id}).map(project => { const version = latest.get(project.id); return { ...project, status: effectiveProjectStatus(project.status, version?.status), title: version?.title, lots: lotCounts.get(project.id) ?? 0 }; }));
+    setRows((projects.data ?? []).filter(project=>{if(!user.user)return false;return contractorMode?(project.client_id!==user.user.id||(project.project_origin==='contractor_existing_client'&&project.initiator_id===user.user.id)):project.client_id===user.user.id}).map(project => { const version = latest.get(project.id); return { ...project, status: effectiveProjectStatus(project.status, version?.status), projectStatus: project.status, versionStatus: version?.status ?? null, versionNo: version?.version_no ?? null, title: version?.title, lots: lotCounts.get(project.id) ?? 0 }; }));
     setLoading(false);
   })(); }, []);
   const stats = useMemo(() => ({ total: rows.length, drafts: rows.filter(row => row.status === 'draft').length, clientReview: rows.filter(row => row.status === 'client_review').length, daoReview: rows.filter(row => row.status === 'dao_review').length, open: rows.filter(row => ['open', 'published', 'approved'].includes(row.status)).length }), [rows]);
@@ -114,10 +114,10 @@ export default function Dashboard() {
             : <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{rows.slice(0, 6).map(row => <Link href={`/app/projects/${row.id}`} key={row.id} className="group block rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
               <Card className="flex h-full flex-col gap-4 p-4 transition group-hover:-translate-y-0.5 group-hover:border-teal/30 group-hover:shadow-md motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold text-teal">{typeLabels[row.project_type] ?? 'Projet'}</p><StatusPill status={row.status} /></div>
+                  <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold text-teal">{typeLabels[row.project_type] ?? 'Projet'}</p><StatusPill status={displayProjectStatus(row.status)} /></div>
                   <h3 className="line-clamp-2 font-bold leading-snug text-ink group-hover:text-teal">{row.title || 'Projet sans titre'}</h3>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-black/50"><DossierMeter status={row.status} /><span className="truncate">{dossierSummary(row.status)}</span></div>
+                <div className="flex items-center gap-2 text-xs text-black/50"><DossierMeter status={row.status} /><span className="truncate">{dossierSummary(row.status)}</span></div>{['open','published','closed'].includes(row.projectStatus) && approvedVersionLabel(row.versionStatus, row.versionNo) && <p className="text-xs text-black/55">{approvedVersionLabel(row.versionStatus, row.versionNo)}</p>}
                 <div className="mt-auto flex items-center justify-between border-t border-black/5 pt-3 text-xs text-black/55"><span>{row.lots ?? 0} lot{(row.lots ?? 0) > 1 ? 's' : ''} · {stageLabels[row.project_stage] ?? ''}</span><span className="font-semibold tabular-nums text-ink">{formatTnd(row.indicative_budget_millimes)}</span></div>
               </Card>
             </Link>)}</div>}
