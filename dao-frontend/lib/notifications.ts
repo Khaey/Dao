@@ -37,6 +37,13 @@ export async function fetchNotifications(filter: 'all'|'unread'|'action', cursor
   if(clean.next_cursor!==data.next_cursor)throw new NotificationApiError(503);
   return clean;
 }
+/** Only the unread count is needed by the global bell; no event text is fetched. */
+export async function fetchUnreadNotificationCount(signal: AbortSignal): Promise<number> {
+  const data = await request('GET', '?limit=1&unread=true', signal);
+  if (!data || !Number.isSafeInteger(data.unread_count) || data.unread_count < 0
+      || !['client', 'contractor', 'staff'].includes(data.workspace)) throw new NotificationApiError(503);
+  return data.unread_count;
+}
 export async function markNotificationRead(id: string, signal: AbortSignal) {
   const data=await request('PATCH','',signal,{id});
   if(data?.acknowledged!==true)throw new NotificationApiError(503);

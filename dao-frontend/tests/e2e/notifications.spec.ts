@@ -15,6 +15,8 @@ test('Notifications : invitation réelle, acceptation, lecture et nouveau messag
   await login(page,pro.user);await page.goto('/app/notifications');
   await expect(page.getByRole('heading',{name:'Invitation reçue',exact:true})).toBeVisible();
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
+  // This event is an internal invitation, not Support: the global bell must include it.
+  await expect(page.getByTestId('support-bell-count')).toHaveText('1');
   await expect(page.getByRole('list',{name:'Notifications personnelles'})).not.toContainText(project.title);
   await page.getByRole('link',{name:'Consulter : Invitation reçue'}).click();await expect(page).toHaveURL(/\/app\/invitations$/);
   await page.getByRole('button',{name:'Accepter',exact:true}).click();await expect(page).toHaveURL(new RegExp('/app/projects/'+project.projectId+'$'));
