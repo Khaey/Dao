@@ -80,9 +80,9 @@ export default function MessagesPage() {
       </div>
     </div>
     <div role="tablist" aria-label="Type de messages" onKeyDown={onTabKey} className="flex gap-1 rounded-2xl border border-black/[0.06] bg-white p-1">
-      {([['chantiers', 'Conversations', MessageCircle], ['assistance', 'Assistance D.A.O.', LifeBuoy], ['rfi','Questions techniques',HelpCircle]] as const).map(([key, label, Icon]) => <button key={key} ref={tabRefs[key]} type="button" role="tab" id={`tab-${key}`}
+      {([['chantiers', 'Chantiers', MessageCircle], ['assistance', 'Assistance D.A.O.', LifeBuoy], ['rfi','Questions techniques',HelpCircle]] as const).map(([key, label, Icon]) => <button key={key} ref={tabRefs[key]} type="button" role="tab" id={`tab-${key}`}
         aria-selected={tab === key} aria-controls={`panel-${key}`} tabIndex={tab === key ? 0 : -1} onClick={() => selectTab(key)}
-        className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/25 ${tab === key ? 'bg-ink text-white' : 'text-black/60 hover:bg-sand hover:text-ink'}`}>
+        className={`inline-flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/25 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${tab === key ? 'bg-ink text-white' : 'text-black/60 hover:bg-sand hover:text-ink'}`}>
         <Icon aria-hidden="true" size={16} />{label}
         {key === 'chantiers' && unread > 0 && <span className={`rounded-full px-1.5 text-xs font-bold ${tab === key ? 'bg-white text-ink' : 'bg-clay text-white'}`} aria-label={`${unread} non lu${unread > 1 ? 's' : ''}`}>{unread}</span>}
       </button>)}
