@@ -28,7 +28,7 @@ test('Questions techniques : onglet clavier, historique officiel et correction C
  await page.getByRole('button',{name:/Publier pour tous/}).click();
  await expect(page.getByText('Correction officielle : prévoir 10 mm².',{exact:true})).toBeVisible();
  expect(commands.find(command=>command.path.endsWith('/clarifications'))?.body).toMatchObject({body:'Correction officielle : prévoir 10 mm².',impacts_scope:true});
- await page.getByRole('tab',{name:'Questions techniques'}).focus();await page.keyboard.press('Home');await expect(page.getByRole('tab',{name:'Conversations'})).toBeFocused();
+ await page.getByRole('tab',{name:'Questions techniques'}).focus();await page.keyboard.press('Home');await expect(page.getByRole('tab',{name:'Chantiers'})).toBeFocused();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
 });
 
