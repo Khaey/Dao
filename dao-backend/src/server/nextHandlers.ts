@@ -24,6 +24,20 @@ export function createDaoApi(
     async contractDetail(request: Request, contractId: string) {
       return run(() => actor(request).then(() => services.contracts.detail(contractId)));
     },
+    async precontractAgreementSnapshot(request: Request) {
+      return run(() => actor(request).then(() => {
+        const awardId = new URL(request.url).searchParams.get('award_id') ?? '';
+        return services.precontractAgreements.snapshot(awardId);
+      }));
+    },
+    async mutatePrecontractAgreement(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(input => {
+        if (input.action === 'propose') return services.precontractAgreements.propose(input);
+        if (input.action === 'accept') return services.precontractAgreements.accept(input);
+        if (input.action === 'reject') return services.precontractAgreements.reject(input);
+        throw Object.assign(new Error('Invalid precontract agreement action'), { code: 'BAD_REQUEST' });
+      })));
+    },
     async listConversations(request: Request) {
       return run(() => actor(request).then(() => services.messages.listConversations()));
     },
