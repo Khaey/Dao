@@ -7,7 +7,7 @@ import type { OcePlan, SyncReport } from './orchestrator.js';
  * The shape is deliberately a plain OcePlan so detailed plannings, milestones and site-log data can later add
  * WBS/activities/dependencies without changing the trigger, the journal or the gateway contract.
  */
-export type LotPlanSource = { lot_title: string; region: string; planned_start: string; planned_end: string };
+export type LotPlanSource = { lot_title: string; region: string; planned_start: string; planned_end: string; revision?: number };
 
 export const LOT_WBS_CODE = 'LOT';
 export const LOT_ACTIVITY_CODE = 'LOT-1';
@@ -24,25 +24,43 @@ export function buildLotPlan(source: LotPlanSource): OcePlan {
 
 export type LotSyncOutcome = { state: 'skipped' | 'synced' | 'failed'; report?: SyncReport };
 
-/** Reads the ready plan (service-side) and replays it through the idempotent orchestrator. Never throws to callers. */
+/**
+ * Reads the ready plan (service-side) and replays it through the idempotent orchestrator. Never throws to callers.
+ * A request that arrives while a run is in flight is not dropped: the run is repeated with a fresh read of the plan,
+ * so the last saved revision is always the one applied.
+ */
 export class LotPlanSynchronizer {
-  private readonly running = new Set<string>();
+  private readonly running = new Map<string, { dirty: boolean }>();
   constructor(
     private readonly readSource: (ref: MappingRef) => Promise<LotPlanSource | null>,
-    private readonly orchestrator: { sync(ref: MappingRef, plan: OcePlan): Promise<SyncReport> },
+    private readonly orchestrator: { sync(ref: MappingRef, plan: OcePlan, opts?: { generation?: number }): Promise<SyncReport> },
   ) {}
 
   async run(ref: MappingRef): Promise<LotSyncOutcome> {
     const key = `${ref.dao_project_id}:${ref.dao_lot_id}`;
-    if (this.running.has(key)) return { state: 'skipped' };
-    this.running.add(key);
+    const active = this.running.get(key);
+    if (active) { active.dirty = true; return { state: 'skipped' }; }
+    const slot = { dirty: false };
+    this.running.set(key, slot);
+    try {
+      let outcome: LotSyncOutcome = { state: 'skipped' };
+      for (let pass = 0; pass < 5; pass++) {
+        slot.dirty = false;
+        outcome = await this.once(ref);
+        if (!slot.dirty) break;
+      }
+      return outcome;
+    } finally { this.running.delete(key); }
+  }
+
+  private async once(ref: MappingRef): Promise<LotSyncOutcome> {
     try {
       const source = await this.readSource(ref);
       if (!source) return { state: 'skipped' };
-      const report = await this.orchestrator.sync(ref, buildLotPlan(source));
+      const report = await this.orchestrator.sync(ref, buildLotPlan(source), { generation: source.revision });
       return { state: report.ok ? 'synced' : 'failed', report };
     } catch {
       return { state: 'failed' };
-    } finally { this.running.delete(key); }
+    }
   }
 }

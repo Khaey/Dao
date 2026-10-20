@@ -57,7 +57,7 @@ test('oce lot plan: explicit dates, owner/management access, service-only sync r
     const read=async()=>{const r=await admin.rpc('oce_lot_plan_for_sync',{p_project_id:project.id,p_request_id:request.id});assert.ifError(r.error);return r.data;};
     assert.equal(await read(),null);
     const r=await save('owner','2026-11-02','2026-12-18',true);assert.ifError(r.error);assert.equal(r.data.status,'ready');
-    const data=await read();assert.deepEqual(Object.keys(data).sort(),['lot_title','planned_end','planned_start','region']);
+    const data=await read();assert.deepEqual(Object.keys(data).sort(),['lot_title','planned_end','planned_start','region','revision']);
     assert.equal(data.lot_title,'Gros œuvre');assert.equal(data.planned_start,'2026-11-02');assert.equal(data.planned_end,'2026-12-18');
   });
 
@@ -72,12 +72,20 @@ test('oce lot plan: explicit dates, owner/management access, service-only sync r
     const begin=async(op:string)=>{const b=await admin.rpc('oce_begin_sync',{p_mapping_id:m.data,p_operation:op,p_key:op+':'+randomUUID(),p_payload_hash:'a'.repeat(64)});assert.ifError(b.error);return b.data.id;};
     assert.ifError((await admin.rpc('oce_finish_sync',{p_journal_id:await begin('ensure-project'),p_ok:false,p_error_kind:'transient',p_error_code:'unavailable'})).error);
     const failed=await get('owner');assert.equal(failed.sync.state,'failed');assert.equal(failed.sync.error_code,'unavailable');
-    assert.ifError((await admin.rpc('oce_finish_sync',{p_journal_id:await begin('ensure-wbs'),p_ok:true})).error);
+    const rev=async()=>(await get('owner')).revision;
+    const mark=async(r:number)=>admin.rpc('oce_mark_synced',{p_mapping_id:m.data,p_revision:r});
+    const denied=await users.owner.db.rpc('oce_mark_synced',{p_mapping_id:m.data,p_revision:await rev()});assert.ok(denied.error,'mark-synced is service only');
+    assert.ifError((await mark(await rev())).error);
     const ok=await get('assigned');assert.equal(ok.sync.state,'synced');assert.equal(ok.sync.error_code,null);
     const same=await save('owner','2026-11-03','2026-12-18',true);assert.ifError(same.error);
     assert.equal((await get('owner')).sync.state,'synced','replaying an identical plan keeps the synchronised state');
+    const before=await rev();
     await save('owner','2026-11-04','2026-12-18',true);
     assert.equal((await get('owner')).sync.state,'pending','a changed plan is pending again');
+    assert.ifError((await mark(before)).error);
+    assert.equal((await get('owner')).sync.state,'pending','a sync that applied an older revision does not make the lot synchronised');
+    assert.ifError((await mark(await rev())).error);
+    assert.equal((await get('owner')).sync.state,'synced','synchronised once the current revision is applied');
   });
 
   await t.test('relaunch is reserved to D.A.O management, never the Client',async()=>{

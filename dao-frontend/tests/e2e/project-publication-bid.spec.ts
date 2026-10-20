@@ -86,12 +86,37 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
-  await artisan.getByLabel('Prix proposé (TND)').fill('26000');
   await artisan.getByLabel('Délai (jours)').fill('22');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');
+  await artisan.getByRole('button',{name:'Ajouter un poste'}).click();
+  await artisan.getByLabel('Catégorie').selectOption('materials');
+  await artisan.getByLabel('Désignation').fill('Tube cuivre');
+  await artisan.getByLabel('Unité').fill('m');
+  await artisan.getByLabel('Quantité').fill('2');
+  await artisan.getByLabel('PU TND').fill('13000');
+  await expect(artisan.getByText('Total du lot :')).toContainText('26');
+  // #325 : décomposition technique proposée + enchaînement (proposition seulement, l'attribution reste par lot).
+  await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
+  await artisan.getByLabel('Sous-lot 1',{exact:true}).fill('Rainures E2E');
+  await artisan.getByTestId('bid-sub-lot').nth(0).getByLabel('Début',{exact:true}).fill('2027-01-10');
+  await artisan.getByTestId('bid-sub-lot').nth(0).getByLabel('Fin',{exact:true}).fill('2027-01-14');
+  await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
+  await artisan.getByLabel('Sous-lot 2',{exact:true}).fill('Câblage E2E');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Début',{exact:true}).fill('2027-01-15');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Fin',{exact:true}).fill('2027-01-20');
+  await artisan.getByRole('button',{name:'Ajouter un lien'}).click();
+  const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');
+  const successorValue=await artisan.locator('option',{hasText:'Câblage E2E'}).first().getAttribute('value');
+  await artisan.getByLabel('Commence après la fin de').selectOption(predecessorValue!);
+  await artisan.getByLabel('Ce travail').selectOption(successorValue!);
+  await artisan.locator('input[type=file][accept*="pdf"]').setInputFiles({name:'devis-v2.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\n%%EOF')});
+  await expect(artisan.getByRole('status')).toContainText('Devis PDF joint et contrôlé');
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByText(/Version 2 soumise/)).toBeVisible();
   await artisanContext.close();
+  const proposedSubLots=await adminRows('bid_sub_lots',`project_id=eq.${project.projectId}&select=title,position&order=position`);
+  expect(proposedSubLots).toEqual([{title:'Rainures E2E',position:1},{title:'Câblage E2E',position:2}]);
+  expect(await adminRows('bid_sub_lot_links',`project_id=eq.${project.projectId}&select=pred_kind,succ_kind,relationship_type,lag_days`)).toEqual([{pred_kind:'proposal',succ_kind:'proposal',relationship_type:'FS',lag_days:0}]);
 
   const secondArtisanContext = await browser.newContext();
   const secondArtisan = await secondArtisanContext.newPage();
@@ -128,6 +153,13 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   const comparison = page.getByRole('heading', { name: 'Comparer et attribuer les offres' }).locator('..');
   await expect(comparison.getByTestId('offer-card')).toHaveCount(2);
   await expect(comparison.getByText('Version révisée avec délai actualisé.', { exact: true })).toBeVisible();
+  await expect(comparison.getByText('Tube cuivre', { exact: false })).toBeVisible();
+  await expect(comparison.getByTestId('offer-sub-lots')).toContainText('Rainures E2E');
+  await expect(comparison.getByTestId('offer-card').filter({hasText:'Seconde offre concurrente complète.'}).getByTestId('offer-sub-lots')).toHaveCount(0);
+  await expect(comparison.getByRole('button',{name:'Voir devis-v2.pdf'})).toBeVisible();
+  const exportResponse=page.waitForResponse(response=>response.url().includes('/api/bids/quote/export')&&response.request().method()==='GET');
+  await comparison.getByTestId('offer-card').filter({hasText:'Version révisée avec délai actualisé.'}).getByRole('button',{name:'Exporter le devis PDF'}).click();
+  expect((await exportResponse).headers()['content-type']).toContain('application/pdf');
   await expect(comparison.getByText('Fourniture, pose, essais et remise en état.', { exact: true })).toHaveCount(0);
   const selectedOffer = comparison.getByTestId('offer-card').filter({ hasText: 'Seconde offre concurrente complète.' });
   await selectedOffer.getByRole('button', { name: 'Attribuer cette offre' }).click();
@@ -179,5 +211,23 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   expect(history.find(row => row.id === awards[0].id)).toEqual(expect.objectContaining({ active: false, agreed_millimes: 24000000 }));
   const cancelAudit = await adminRows('award_cancellations', `award_item_id=eq.${awards[0].id}&select=actor_id,created_at,reason,comment`);
   expect(cancelAudit).toEqual([{ actor_id: expect.any(String), created_at: expect.any(String), reason: 'other', comment: 'Désaccord documenté E2E' }]);
+
+  // #325 B : planning global. Le lien proposé n'est effectif qu'après attribution du lot ET confirmation du Client.
+  await page.goto(`/app/projects/${project.projectId}`);
+  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  const globalPlan = page.getByTestId('project-global-plan');
+  await expect(globalPlan).toBeVisible();
+  await expect(globalPlan.getByTestId('plan-lot')).toHaveCount(1);
+  await expect(globalPlan.getByTestId('plan-node')).toHaveCount(2);
+  const proposed = globalPlan.getByTestId('plan-link');
+  await expect(proposed).toHaveCount(1);
+  await expect(proposed).toContainText('À confirmer');
+  expect(await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
+  const decision = page.waitForResponse(response => response.url().includes('/api/oce/project-plan') && response.request().method() === 'POST');
+  await proposed.getByRole('button', { name: 'Confirmer' }).click();
+  expect((await decision).ok()).toBeTruthy();
+  await expect(proposed).toContainText('Effectif');
+  await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Câblage E2E', { exact: true }) })).toContainText('Commence après : Rainures E2E');
+  expect(await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=decision`)).toEqual([{ decision: 'confirmed' }]);
 
 });

@@ -14,6 +14,10 @@ export function createDaoApi(
   }
 
   return {
+    async exportBidQuote(request: Request) {
+      try { await actor(request); const versionId=new URL(request.url).searchParams.get('version_id')??''; const pdf=await services.quotePdf.export(versionId); return new Response(pdf.bytes as BodyInit,{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${pdf.filename}"`,'Cache-Control':'private, no-store'}}); }
+      catch(error:any){return Response.json({error:error?.message??'Request failed',code:error?.code},{status:error?.code==='UNAUTHENTICATED'?401:error?.code==='NOT_FOUND'?404:403});}
+    },
     async listContracts(request: Request) {
       return run(() => actor(request).then(() => services.contracts.list()));
     },
@@ -142,6 +146,24 @@ export function createDaoApi(
     async signedUpload(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.signedUpload(services, a, i as never))));
     },
+    async completeBidQuoteUpload(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.completeBidQuoteUpload(services, a, String(i.document_id ?? '')))));
+    },
+    async deleteBidQuote(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.deleteBidQuote(services, a, String(i.document_id ?? '')))));
+    },
+    async updateBidQuoteMetadata(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.updateBidQuoteMetadata(services, a, i))));
+    },
+    async replaceBidQuoteLines(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.replaceBidQuoteLines(services, a, i))));
+    },
+    async replaceBidSubLots(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.replaceBidSubLots(services, a, i))));
+    },
+    async replaceBidSubLotLinks(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(i => actions.replaceBidSubLotLinks(services, a, i))));
+    },
     async signedDownload(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.signedDownload(services, a, String(i.documentId ?? i.document_id), Number(i.expiresIn) || 300))));
     },
@@ -187,7 +209,7 @@ async function run(operation: () => Promise<unknown>) {
     if (code === 'UNAUTHENTICATED') status = 401;
     else if (code === 'FORBIDDEN' || code === '42501' || code === 'PGRST116') status = 403;
     else if (code === 'NOT_FOUND') status = 404;
-    else if (code === 'BAD_REQUEST' || code === '22023' || code === 'INVALID_MIME' || code === 'INVALID_SIZE' || code === 'INVALID_PATH') status = 400;
+    else if (code === 'BAD_REQUEST' || code === '22023' || code === 'INVALID_MIME' || code === 'INVALID_SIZE' || code === 'INVALID_PATH' || code === 'INVALID_PDF') status = 400;
     else if (['23505', '23514', 'P0001', 'BID_DRAFT_METADATA_UNSUPPORTED'].includes(code)) status = 409;
     return Response.json({ error: error?.message ?? 'Request failed', code }, { status });
   }
