@@ -66,7 +66,7 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await page.goto('/app/projects');
   const clientProjectRow = page.getByTestId(`project-row-${project.projectId}`);
   await expect(clientProjectRow.getByText('Publié', { exact: true })).toBeVisible();
-  await expect(clientProjectRow.getByText(/Version \\d+ approuvée/)).toBeVisible();
+  await expect(clientProjectRow.getByText(/Version \d+ approuvée/)).toBeVisible();
   await expect(clientProjectRow.getByText('Prêt à publier', { exact: true })).toHaveCount(0);
   await page.goto('/app');
   const dashboardProject = page.locator(`a[href="/app/projects/${project.projectId}"]`);
