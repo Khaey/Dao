@@ -95,6 +95,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Quantité').fill('2');
   await artisan.getByLabel('PU TND').fill('13000');
   await expect(artisan.getByText('Total du lot :')).toContainText('26');
+  await expect(artisan.getByRole('button',{name:'Supprimer le poste 1'})).toBeInViewport();
+  expect(await artisan.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
   // #325 : décomposition technique proposée + enchaînement (proposition seulement, l'attribution reste par lot).
   await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
   await artisan.getByLabel('Sous-lot 1',{exact:true}).fill('Rainures E2E');
