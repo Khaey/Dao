@@ -19,6 +19,9 @@ import { OceOrchestrator } from '../oce/orchestrator.js';
 import { SupabaseOceSyncStore } from '../oce/oceSyncStore.js';
 import { SupportService } from '../services/SupportService.js';
 import { createSupportHandler } from './supportHandler.js';
+import { RfiService } from '../services/RfiService.js';
+import { createRfiHandler } from './rfiHandler.js';
+import { RfiDocumentService } from '../services/RfiDocumentService.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -46,6 +49,12 @@ export function createNotificationApi(request: Request) {
 export function createSupportApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createSupportHandler(new SupportService(db), resolveActor);
+}
+
+export function createRfiApi(request: Request) {
+  const { url, db, resolveActor } = requestScope(request);
+  const storage=createClient(url,env('DAO_SUPABASE_SECRET_KEY'),{auth:{persistSession:false,autoRefreshToken:false}}).storage;
+  return createRfiHandler(new RfiService(db),new RfiDocumentService(db,storage), resolveActor);
 }
 
 export function createRequestApi(request: Request) {

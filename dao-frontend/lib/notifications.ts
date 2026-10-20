@@ -27,6 +27,7 @@ export async function fetchNotifications(filter: 'all'|'unread'|'action', cursor
   const uuid='([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})';
   const raw=data.rows.map((r:any)=>{
     const pattern=r.kind==='project_message'?new RegExp('^/app/messages/'+uuid+'$','i')
+      :['rfi_question','rfi_clarification'].includes(r.kind)?new RegExp('^/app/messages\\?onglet=rfi&question='+uuid+'$','i')
       :r.kind==='invitation_accepted'?new RegExp('^/app/projects/'+uuid+'$','i')
       :new RegExp('^/app/projects/'+uuid+'/review$','i');
     const target=['invitation_received','invitation_expiring'].includes(r.kind)&&r.href==='/app/invitations'?r.id:typeof r.href==='string'?r.href.match(pattern)?.[1]:null;

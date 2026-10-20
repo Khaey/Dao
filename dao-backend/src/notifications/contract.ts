@@ -1,5 +1,5 @@
 /** Shared, pure S1 contract. Authorization belongs to JWT-scoped SQL RPCs. */
-export type NotificationKind = 'review_approved' | 'review_rejected' | 'invitation_received' | 'invitation_accepted' | 'project_message' | 'invitation_expiring';
+export type NotificationKind = 'review_approved' | 'review_rejected' | 'invitation_received' | 'invitation_accepted' | 'project_message' | 'invitation_expiring' | 'rfi_question' | 'rfi_clarification';
 export type NotificationWorkspace = 'client' | 'contractor' | 'staff';
 export type NotificationCursor = { created_at: string; id: string };
 export type NotificationItem = NotificationCursor & { kind: NotificationKind; read_at: string | null; title: string; href: string; action_required: boolean; expires_at: string | null };
@@ -12,6 +12,7 @@ const titles: Record<NotificationKind, string> = {
   review_approved: 'Dossier approuvé', review_rejected: 'Dossier à corriger',
   invitation_received: 'Invitation reçue', invitation_accepted: 'Invitation acceptée',
   project_message: 'Nouveau message', invitation_expiring: 'Invitation bientôt expirée',
+  rfi_question: 'Nouvelle question technique', rfi_clarification: 'Clarification technique publiée',
 };
 export class NotificationContractError extends Error {
   constructor(public readonly code: 'BAD_REQUEST' | 'INVALID_NOTIFICATION_DATA') {
@@ -51,6 +52,7 @@ export function notificationHref(kind: NotificationKind, targetId: unknown): str
     throw new NotificationContractError('INVALID_NOTIFICATION_DATA');
   if (kind === 'invitation_received' || kind === 'invitation_expiring') return '/app/invitations';
   if (kind === 'project_message') return `/app/messages/${targetId}`;
+  if (kind === 'rfi_question' || kind === 'rfi_clarification') return `/app/messages?onglet=rfi&question=${targetId}`;
   if (kind === 'invitation_accepted') return `/app/projects/${targetId}`;
   return `/app/projects/${targetId}/review`;
 }

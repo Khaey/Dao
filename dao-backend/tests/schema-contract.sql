@@ -17,7 +17,7 @@ DECLARE
     'contractor_reviews','contractor_review_responses','contractor_review_reports',
     'contracts','conversation_participants','conversations','delegations',
     'document_grants','documents','governorates','localities','messages',
-    'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts',
+    'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts','technical_questions','technical_clarifications','technical_rfi_reads','technical_rfi_receipts','technical_rfi_documents',
     'profiles','project_members','project_invitations','project_private_details','project_request_versions',
     'project_requests','project_reviews','project_version_requests',
     'project_versions','projects','publication_recipients',
@@ -165,6 +165,13 @@ BEGIN
       'public.support_queue(integer,timestamptz,uuid,text,text)',
       'public.assign_support_ticket_to_me(uuid)',
       'public.set_support_ticket_status(uuid,text,text)',
+      'public.create_rfi_question(uuid,text,text)',
+      'public.list_rfi_questions(integer,timestamp with time zone,uuid,uuid)',
+      'public.publish_rfi_clarification(uuid,text,boolean,text)',
+      'public.mark_rfi_read(uuid)',
+      'public.create_rfi_document(uuid,uuid,text,text,text,bigint)',
+      'public.approve_rfi_document(uuid)',
+      'public.delete_rfi_document(uuid)',
       'public.record_site_progress(uuid,text,integer,text,uuid[],text)',
       'public.record_site_intervention(uuid,date,text,integer,uuid[],text)',
       'public.create_site_milestone(uuid,text,date,text,text,text)',
@@ -223,6 +230,14 @@ BEGIN
      OR NOT has_function_privilege('authenticated','public.my_support_summary()','EXECUTE')
      OR has_function_privilege('authenticated','dao_private.my_support_summary()','EXECUTE') THEN
     RAISE EXCEPTION 'schema contract: support RPC facade grants differ';
+  END IF;
+  IF has_table_privilege('authenticated','public.technical_questions','INSERT')
+     OR has_table_privilege('authenticated','public.technical_clarifications','INSERT')
+     OR has_table_privilege('authenticated','public.technical_rfi_receipts','SELECT')
+     OR has_table_privilege('anon','public.technical_questions','SELECT')
+     OR has_function_privilege('anon','public.create_rfi_question(uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.create_rfi_question(uuid,text,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: RFI tables or RPC grants differ';
   END IF;
   IF has_function_privilege('authenticated','dao_private.dry_run_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
      OR has_function_privilege('authenticated','dao_private.generate_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')

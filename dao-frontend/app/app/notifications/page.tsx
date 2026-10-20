@@ -12,7 +12,7 @@ import { supportAvailability } from '../../../lib/support-client';
 
 const dates=new Intl.DateTimeFormat('fr-FR',{dateStyle:'medium',timeStyle:'short'});
 const workspaceLabels={client:'Espace Client',contractor:'Espace Artisan',staff:'Espace D.A.O'};
-const icons={review_approved:ClipboardCheck,review_rejected:ClipboardCheck,invitation_received:Mail,invitation_accepted:CheckCheck,project_message:MessageCircle,invitation_expiring:Bell};
+const icons={review_approved:ClipboardCheck,review_rejected:ClipboardCheck,invitation_received:Mail,invitation_accepted:CheckCheck,project_message:MessageCircle,invitation_expiring:Bell,rfi_question:MessageCircle,rfi_clarification:ClipboardCheck};
 
 export default function NotificationsPage() {
   const router=useRouter();
