@@ -49,6 +49,11 @@ test('Notifications : erreur réseau, retry et échec de marquage sans faux succ
     if(route.request().method()==='PATCH'){
       if(failMark){await route.abort('failed');return;}read=true;await route.fulfill({json:{data:{acknowledged:true}}});return;
     }
+    // The global bell asks for a count using limit=1. Do not consume the
+    // list-page's deliberate first network failure with that separate request.
+    if(new URL(route.request().url()).searchParams.get('limit')==='1'){
+      await route.fulfill({json:{data:{rows:[],workspace:'client',unread_count:0,next_cursor:null}}});return;
+    }
     if(failGet){failGet=false;await route.abort('failed');return;}
     await route.fulfill({json:{data:{rows:[{...row,read_at:read?at:null}],workspace:'client',unread_count:read?0:1,next_cursor:null}}});
   });
