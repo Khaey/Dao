@@ -1,6 +1,8 @@
 # Spécification : opérations de retrait de la passerelle OCE (suite de #325)
 
-Statut : **proposition, aucune modification de code ni de passerelle.** Propriétaire de la
+Owner issue: #325
+
+Statut : **spécification alignée sur la décision produit du propriétaire (#325, 20/10/2026) ; aucune modification de code ni de passerelle.** Propriétaire de la
 rédaction : DAO COP (#195). Décision et exécution : propriétaire du projet + OPS (#91), car le
 fichier concerné (`ops/oce-v1-gateway.py`) est dans le périmètre OPS/OCE et son déploiement passe
 par le manifeste figé `ops/ops-release.json`.
@@ -54,9 +56,17 @@ confirmer depuis le dépôt** (aucun appel de suppression n'existe dans la passe
 vérifier sur l'instance OCE de DEV (lecture de la spec OpenAPI, puis essai sur objet jetable de la
 recette). Si l'API ne le permet pas, voir la variante B.
 
-Variante B (si pas de DELETE) : reconstruire le planning du lot depuis zéro (nouvel enregistrement
-de planning, ancien archivé). Plus lourd, change les identifiants OCE, et exige un état de passerelle
-`schedule_generation`. À ne choisir que si A est impossible.
+Variante B (seulement si OCE n'offre pas `DELETE`) : **reconstruction versionnée du planning GLOBAL du
+projet**, jamais d'un lot isolé (le planning est unique, porté par le contexte `source.context_id`).
+Principe : rotation du contexte global. La passerelle crée un nouveau planning technique, D.A.O y
+rejoue **toutes** les WBS de lots, activités (lot et sous-lots attribués), dépendances inter-lots
+effectives et le calcul ; le journal et les associations (`oce_sync_mappings`, ledger, empreintes)
+sont rebasculés sur la nouvelle génération ; l'ancien planning est archivé, puis le nouveau est
+déclaré « à jour » seulement après calcul réussi. Impacts : identifiants OCE changent, charge OPS
+et fenêtre de reprise plus importantes, état `schedule_generation` dans la passerelle, aucune
+écriture partielle visible (bascule atomique côté D.A.O). Choix : variante A si `DELETE` est
+réellement supporté (plus petite option viable), B sinon, avec preuve par essai sur objets jetables.
+Ne pas implémenter B avant cette preuve.
 
 ## 3. Côté D.A.O (après acceptation et déploiement de la passerelle)
 
@@ -68,14 +78,27 @@ de planning, ancien archivé). Plus lourd, change les identifiants OCE, et exige
    (déjà suivi par `oce_record_object` : code + empreinte), retirer **dépendances puis activités**,
    puis `calculatePlanning`. Une étape en échec reprend à l'étape suivante au rejeu (journal durable
    existant).
-4. Base : décision de plan `withdrawn` (append-only, `seq`) pour un lien effectif ; le lien reste
-   effectif tant que le retrait OCE n'est pas confirmé (`retract_pending`), puis devient `withdrawn`.
-   Qui peut retirer : Client propriétaire ou gestion D.A.O, mêmes contrôles que `decide_plan_link`.
-   `confirmed_link_final` disparaît seulement quand le retrait est réellement livré.
-5. Annulation d'attribution d'un lot : retire les tâches `SL-…` de ce lot et les dépendances qui les
-   touchent ; l'activité de synthèse du lot et la WBS restent.
-6. UI : bouton « Retirer » sur un lien confirmé avec état « retrait en cours », jamais de retrait
-   optimiste.
+4. Base : décisions de plan append-only (`seq`) : `replaced`/`withdrawn` d'un lien effectif, ajout
+   d'un nouveau lien. Qui peut ajouter, retirer ou remplacer un lien confirmé : le Client
+   propriétaire du chantier et la gestion D.A.O déjà habilitée sur ce chantier, via les contrôles
+   existants de `decide_plan_link` ; **aucune extension des ACL/RLS**. L'Artisan propose seulement
+   et ne modifie ni le planning effectif ni les offres d'autrui.
+5. Une action métier unique « Modifier le lien » : retirer l'ancien lien, appliquer le nouveau et
+   recalculer en une seule commande côté serveur (une confirmation lisible seulement pour un
+   retrait pur ; aucune double confirmation pour une modification ordinaire). Commandes
+   idempotentes et rejouables, sans altérer les révisions concurrentes.
+6. Annulation ou réattribution **effective** d'un lot : réconciliation automatique du plan avec
+   l'attribution de référence : retrait des dépendances puis des tâches `SL-…` devenues obsolètes,
+   puis recalcul. L'historique commercial D.A.O n'est pas touché. Jamais de retrait d'une activité
+   encore utilisée par une attribution active, ni sur une simple tentative d'annulation refusée.
+7. Statuts visibles : « Mise à jour du planning… », « À réessayer » si OCE est indisponible,
+   « À jour » **seulement** après synchronisation et calcul prouvés sur la nouvelle révision. Aucun
+   retrait optimiste, aucune incohérence silencieuse. Le lien reste effectif tant que le retrait OCE
+   n'est pas confirmé (`retract_pending`).
+8. UI : depuis le Planning global, « Modifier le lien » / « Retirer le lien ». L'utilisateur ne voit
+   ni codes techniques, ni WBS, ni passerelle, ni versions OCE. La mention « lien confirmé
+   définitif » et `confirmed_link_final` ne disparaissent **qu'une fois la capacité de retrait
+   réellement déployée et recettée** ; d'ici là le comportement livré (lien définitif) est inchangé.
 
 ## 4. Sécurité et confidentialité
 - Aucun nouveau privilège : même socket Unix, même uid pair, même identité technique OCE ; aucune
@@ -106,10 +129,16 @@ additives. Ordre : (1) passerelle + tests Python, (2) déploiement DEV par OPS, 
 double, (4) synchronisation + base, (5) UI, (6) recette. Rien n'est actif tant que le contrat D.A.O
 n'appelle pas les nouvelles opérations ; l'état « lien définitif » reste en vigueur jusqu'à (4).
 
-## 7. Décisions demandées
-1. Propriétaire : accepter la variante A (deux opérations) ? 
-2. OPS : confirmer que l'API OCE permet `DELETE` pour relations et activités (ou choisir B).
-3. Propriétaire : qui peut retirer un lien confirmé (Client propriétaire + gestion D.A.O, ou gestion
-   D.A.O seule) ?
-4. Propriétaire : une annulation d'attribution doit-elle retirer automatiquement les tâches OCE
-   (proposé : oui) ?
+## 7. Décisions
+
+Tranchées par le propriétaire (#325, 20/10/2026) : souplesse et simplicité ; aucun lien irréversible
+à terme ; droits de retrait = Client propriétaire + gestion D.A.O habilitée sur le chantier ;
+annulation/réattribution effective réconcilie automatiquement le plan ; choix A/B laissé aux
+responsables (plus petite option viable, avec preuve).
+
+Reste **un seul prérequis ciblé, côté OPS (#91)** : vérifier sur l'instance OCE de DEV, par un
+opérateur habilité et uniquement sur des objets **jetables**, que `DELETE` fonctionne pour les
+relations et les activités avec l'identité technique de la passerelle (lecture de la spec OpenAPI
+puis essai jetable). Toute modification de la passerelle déployée ou nouveau privilège OPS exigera
+ensuite l'autorisation opérationnelle spécifique prévue ; la fusion de cette spécification ne
+déploie rien.
