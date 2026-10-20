@@ -13,7 +13,8 @@ export type ProjectPlanSource = {
   links: { id: string; pred_target: string | null; succ_target: string | null; state: string }[];
 };
 
-const hex = (id: string) => id.replace(/-/g, '').slice(0, 12);
+// Identifiant complet (32 hex) : deux identifiants distincts ne peuvent jamais produire le même code (≤ 50 caractères).
+const hex = (id: string) => id.replace(/-/g, '').toLowerCase();
 export const lotWbsCode = (lotId: string) => `L-${hex(lotId)}`;
 export const lotActivityCode = (lotId: string) => `LA-${hex(lotId)}`;
 export const nodeActivityCode = (nodeId: string) => `SL-${hex(nodeId)}`;

@@ -133,6 +133,12 @@ begin
   begin perform dao_private.oce_request_mapping(proj,gen_random_uuid()); raise exception 'random mapping accepted';
   exception when invalid_parameter_value then null; end;
 
+  -- Rattachement du contexte à un lot du projet (recette) : refusé pour un identifiant étranger au projet.
+  perform dao_private.oce_plan_context_bind(proj,r1);
+  if (select context_id from public.project_plan_contexts where project_id=proj)<>r1 then raise exception 'context must be bound to the lot'; end if;
+  begin perform dao_private.oce_plan_context_bind(proj,gen_random_uuid()); raise exception 'foreign context accepted';
+  exception when invalid_parameter_value then null; end;
+
   -- Résultat OCE : lu par l'écran uniquement s'il correspond à la révision courante.
   select revision into rev from public.project_plan_contexts where project_id=proj;
   perform dao_private.oce_record_project_plan_result(proj,rev,40,array['LOT-1'],null);

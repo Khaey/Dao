@@ -118,11 +118,11 @@ async function provisionGlobal(c) {
   const contractorUser = (users.users || []).find(u => (u.email || '').toLowerCase() === CONTRACTOR) || fail('TEST contractor not found');
   const profile = ((await pg(c, `/rest/v1/contractor_profiles?select=id&user_id=eq.${contractorUser.id}`)).body || [])[0] || fail('TEST contractor profile missing');
   const trade = ((await pg(c, '/rest/v1/trades?select=id&order=code&limit=1')).body || [])[0] || fail('reference data missing: trades');
-  const ins = async (table, row) => { const r = await pg(c, `/rest/v1/${table}`, { method: 'POST', headers: ign, body: JSON.stringify(row) }); if (r.status >= 300) fail(`synthetic insert failed: ${table} (${r.status})`); };
+  const ins = async (table, row, conflict) => { const r = await pg(c, `/rest/v1/${table}${conflict ? `?on_conflict=${conflict}` : ''}`, { method: 'POST', headers: ign, body: JSON.stringify(row) }); if (r.status >= 300) fail(`synthetic insert failed: ${table} (${r.status})`); };
   const lots = [[SYNTHETIC_LOT, 'Gros oeuvre'], [LOT2, 'Electricite'], [LOT3, 'Finitions']];
   for (const [lot, name] of lots) {
     await ins('project_requests', { id: lot, project_id: SYNTHETIC_PROJECT });
-    await ins('project_request_versions', { project_id: SYNTHETIC_PROJECT, request_id: lot, version_no: 1, title: `[SYNTHETIQUE] ${name}`, scope: 'Lot fictif de recette', trade_id: trade.id });
+    await ins('project_request_versions', { project_id: SYNTHETIC_PROJECT, request_id: lot, version_no: 1, title: `[SYNTHETIQUE] ${name}`, scope: 'Lot fictif de recette', trade_id: trade.id }, 'request_id,version_no');
   }
   const versions = {};
   for (const [lot] of lots) versions[lot] = ((await pg(c, `/rest/v1/project_request_versions?select=id&request_id=eq.${lot}&version_no=eq.1`)).body || [])[0]?.id || fail('request version missing');
@@ -158,8 +158,8 @@ async function runGlobal() {
   await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}&status=eq.archived`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'draft' }) });
   await provisionGlobal(c);
   // Le contexte du projet prend l'identifiant du lot de recette (seul couple admis par la passerelle).
-  const ctx = await rest(c, `/rest/v1/project_plan_contexts?project_id=eq.${SYNTHETIC_PROJECT}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ context_id: SYNTHETIC_LOT }) });
-  R.context_bound = ctx.status < 300;
+  const ctx = await rest(c, '/rest/v1/rpc/oce_plan_context_bind', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_context_id: SYNTHETIC_LOT }) });
+  R.context_bound = ctx.status < 300 && ctx.body === true;
   const mapping = await rest(c, '/rest/v1/rpc/oce_request_mapping', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_request_id: SYNTHETIC_LOT }) });
   R.mapping_admitted = mapping.status < 300 && typeof mapping.body === 'string'
     && (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: mapping.body, p_admitted: true }) })).status < 300;
@@ -190,7 +190,7 @@ async function runGlobal() {
   const base = await settle(rev0); const bs = base?.sync || {};
   R.sync_global = bs.state; R.global_duration_days = bs.duration_days ?? null; R.critical_count = bs.critical_codes?.length ?? 0;
   R.effective_links = (base?.links || []).filter(l => l.state === 'effective').length;
-  const nodeTitle = new Map((base?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '').slice(0, 12)}`, n.title]));
+  const nodeTitle = new Map((base?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '')}`, n.title]));
   const critTitles = (bs.critical_codes || []).map(k => nodeTitle.get(k) || (k.startsWith('LA-') ? 'lot' : '?'));
   R.critical_titles = critTitles.sort().join('|');
   R.critical_has_chain = ['Fondations', 'Dalle', 'Tirage de cables'].every(t => critTitles.includes(t));

@@ -15,8 +15,8 @@ type GlobalPlan = {
   sync: { state: 'none' | 'pending' | 'synced' | 'failed'; duration_days?: number | null; critical_codes: string[]; error_code?: string | null };
 };
 
-// Mêmes codes que dao-backend/src/oce/projectPlanSync.ts (12 premiers caractères hexadécimaux de l'identifiant).
-const hex = (id: string) => id.replace(/-/g, '').slice(0, 12);
+// Mêmes codes que dao-backend/src/oce/projectPlanSync.ts (identifiant complet, 32 caractères hexadécimaux).
+const hex = (id: string) => id.replace(/-/g, '').toLowerCase();
 const lotCode = (id: string) => `LA-${hex(id)}`;
 const nodeCode = (id: string) => `SL-${hex(id)}`;
 
