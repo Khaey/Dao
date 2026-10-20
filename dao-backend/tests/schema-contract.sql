@@ -398,3 +398,117 @@ BEGIN
       RAISE EXCEPTION 'review internal helper must not be executable by clients: %',missing_name;
     END IF;
   END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.set_my_workspace(text)',
+    'public.update_my_contractor_profile(text,text,text,text,integer,text,date,uuid[])',
+    'public.my_project_invitations()',
+    'public.respond_my_project_invitation(uuid,boolean)',
+    'public.my_bid_summaries()',
+    'public.withdraw_bid_version(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'artisan workflow RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='profiles' AND column_name='last_workspace')
+     OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bid_versions' AND column_name='withdrawn_at')
+     OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bid_versions' AND column_name='withdrawn_by') THEN
+    RAISE EXCEPTION 'artisan workflow persistence columns are missing';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='project_invitations' AND column_name='principal_request_id'
+  ) THEN
+    RAISE EXCEPTION 'schema contract: contractor invitations require principal_request_id support';
+  END IF;
+  IF NOT has_function_privilege('anon','public.preview_project_invitation(text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: token preview must be available before sign-in';
+  END IF;
+  IF NOT has_function_privilege('anon','public.project_invitation_registration_context(text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: invitation registration context must be available before sign-in';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='contractor_profiles'
+      AND column_name='contractor_type' AND (is_nullable<>'YES' OR column_default IS NOT NULL)
+  ) OR NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='contractor_profiles'
+      AND column_name='contractor_type' AND is_nullable='YES' AND column_default IS NULL
+  ) THEN
+    RAISE EXCEPTION 'schema contract: contractor_type must remain unset until explicit profile completion';
+  END IF;
+  IF has_function_privilege('anon','public.rls_auto_enable()','EXECUTE')
+     OR has_function_privilege('authenticated','public.rls_auto_enable()','EXECUTE')
+     OR has_function_privilege('service_role','public.rls_auto_enable()','EXECUTE')
+     OR NOT has_function_privilege('postgres','public.rls_auto_enable()','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: rls_auto_enable ACL must grant EXECUTE only to postgres';
+  END IF;
+
+  FOR state IN
+    SELECT * FROM (VALUES
+      ('public','projects','read_allowed'),
+      ('public','bid_versions','read_allowed'),
+      ('public','bid_items','read_allowed'),
+      ('public','publications','read_allowed'),
+      ('storage','objects','dao_no_direct_read'),
+      ('storage','objects','dao_no_direct_insert'),
+      ('storage','objects','dao_no_direct_update'),
+      ('storage','objects','dao_no_direct_delete')
+    ) AS required(schema_name,table_name,policy_name)
+  LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_policies p
+      WHERE p.schemaname=state.schema_name AND p.tablename=state.table_name
+        AND p.policyname=state.policy_name) THEN
+      RAISE EXCEPTION 'schema contract: critical policy %.%.% is missing', state.schema_name,state.table_name,state.policy_name;
+    END IF;
+  END LOOP;
+
+  FOR state IN
+    SELECT * FROM (VALUES
+      ('bid_versions','submitted_version_immutable'),
+      ('bid_documents','immutable_bid_document'),
+      ('bid_group_items','immutable_bid_group_items'),
+      ('bid_groups','immutable_bid_groups'),
+      ('bid_items','immutable_bid_items'),
+      ('bid_item_results','immutable_bid_item_results'),
+      ('award_cancellations','immutable_award_cancellations'),
+      ('award_items','protect_award_item')
+    ) AS required(table_name,trigger_name)
+  LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+      JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname=state.table_name
+        AND t.tgname=state.trigger_name AND NOT t.tgisinternal AND t.tgenabled='O') THEN
+      RAISE EXCEPTION 'schema contract: enabled immutability trigger %.% is missing', state.table_name,state.trigger_name;
+    END IF;
+  END LOOP;
+
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets b
+      WHERE b.id='dao-private' AND b.name='dao-private' AND NOT b.public
+        AND b.file_size_limit=20971520
+        AND b.allowed_mime_types @> ARRAY['application/pdf','image/jpeg','image/png','image/webp']::text[]
+        AND cardinality(b.allowed_mime_types)=4)
+     OR NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+       WHERE n.nspname='storage' AND c.relname='objects' AND c.relrowsecurity) THEN
+    RAISE EXCEPTION 'schema contract: private dao-private Storage bucket configuration or objects RLS is missing';
+  END IF;
+
+  IF (SELECT count(*) FROM public.trades
+      WHERE active AND (code,name_fr) IN (
+        ('general_contractor','Entreprise générale'),
+        ('plumbing','Plomberie'),
+        ('electrical','Électricité')
+      )) <> 3 THEN
+    RAISE EXCEPTION 'schema contract: canonical trade catalog rows are missing or incorrect';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.governorates WHERE code='E2E_TEST')
+     OR NOT EXISTS (SELECT 1 FROM public.delegations WHERE code='E2E_TEST_DELEGATION')
+     OR NOT EXISTS (SELECT 1 FROM public.localities l JOIN public.delegations d ON d.id=l.delegation_id
+       WHERE d.code='E2E_TEST_DELEGATION' AND l.name_fr='Localité E2E') THEN
+    RAISE EXCEPTION 'schema contract: synthetic E2E territory seed is missing';
+  END IF;
+
+  RAISE NOTICE 'schema contract passed: migrations, RLS, event trigger, RPCs, immutability, Storage, trades, and E2E seed';
+END
+$schema_contract$;
