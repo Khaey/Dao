@@ -200,14 +200,10 @@ async function runGlobal() {
   const longer = await settle((base?.revision ?? 0) + 1);
   R.duration_change_recomputed = longer?.sync?.state === 'synced' && (longer.sync.duration_days ?? 0) > (bs.duration_days ?? 0);
   R.duration_after_change = longer?.sync?.duration_days ?? null;
-  // Changement de predecesseur : on retire Dalle -> Tirage de cables.
-  await decide(id('f2'), 'rejected');
-  const relinked = await settle((longer?.revision ?? 0) + 1);
-  const crit2 = [...(relinked?.sync?.critical_codes || [])].sort().join('|');
-  R.predecessor_change_recomputed = relinked?.sync?.state === 'synced' && ((relinked.sync.duration_days ?? 0) !== (longer?.sync?.duration_days ?? 0) || crit2 !== [...(longer?.sync?.critical_codes || [])].sort().join('|'));
-  R.duration_after_unlink = relinked?.sync?.duration_days ?? null;
-  // Etat final propre pour une relance : liens restaures, lot 3 remis.
-  await decide(id('f2'), 'confirmed'); await putLot3('2027-02-28');
+  // Un lien effectif est definitif : la passerelle OCE n'a aucune operation de retrait de dependance.
+  const retire = await decide(id('f2'), 'rejected');
+  R.confirmed_link_final_refused = retire.status === 422 && retire.code === 'LINK_CONFIRMED_FINAL';
+  await putLot3('2027-02-28');
   return R;
 }
 
@@ -225,7 +221,7 @@ finally { if (op === 'run' || op === 'run-global') { try {
 const EXPECT_RUN = ['mapping_admitted', 'unauthenticated_refused', 'unauthorized_plan_read_refused', 'unauthorized_plan_write_refused', 'unauthorized_summary_refused',
   'plan_saved_ready', 'replay_saved', 'replay_revision_unchanged', 'change_saved', 'changed_revision_incremented', 'changed_duration_differs'];
 const EXPECT_GLOBAL = ['context_bound', 'mapping_admitted', 'unauthenticated_refused', 'artisan_read_refused', 'artisan_decision_refused', 'lot3_plan_saved', 'links_confirmed', 'cycle_rejected',
-  'critical_has_chain', 'parallel_task_not_critical', 'duration_change_recomputed', 'predecessor_change_recomputed'];
+  'critical_has_chain', 'parallel_task_not_critical', 'duration_change_recomputed', 'confirmed_link_final_refused'];
 if (op === 'run-global' && ok) {
   const r = report || {};
   ok = EXPECT_GLOBAL.every(k => r[k] === true) && r.lots >= 3 && r.lots_awarded >= 3 && r.effective_links >= 3 && r.sync_global === 'synced'

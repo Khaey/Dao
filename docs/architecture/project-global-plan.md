@@ -9,3 +9,5 @@ D.A.O reste la source de vérité ; OCE (passerelle privée) calcule le chemin c
 - **Synchronisation** : `ProjectPlanSynchronizer` (`src/oce/projectPlanSync.ts`) → un seul graphe (WBS par lot, activité de lot `summary`, tâches par sous-lot daté, dépendances FS) via `OceOrchestrator`. Résultat (durée, codes critiques) enregistré dans `project_plan_results` si la révision est courante.
 - **API / écran** : `/api/oce/project-plan` (GET graphe, POST décision ou relance) ; composant `ProjectGlobalPlan` dans l'onglet Suivi du projet.
 - **Confidentialité** : lecture et décision réservées au Client propriétaire et à la gestion D.A.O ; aucun Artisan n'y accède.
+
+- **Limite connue** : le contrat de la passerelle OCE n'a pas d'opération de suppression (activité ou dépendance). Un lien effectif est donc définitif (`confirmed_link_final`), et une annulation d'attribution ne retire pas les activités déjà synchronisées. Lever cette limite demande une opération de retrait côté passerelle (périmètre OPS/OCE, décision propriétaire).

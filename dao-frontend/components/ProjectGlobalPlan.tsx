@@ -85,6 +85,7 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
     setBusy(false);
     if (result.status === 200 && result.data) { setPlan(result.data); setMessage(decision === 'confirmed' ? 'Lien confirmé. Le planning est recalculé.' : 'Lien rejeté.'); return; }
     setMessage(result.code === 'DEPENDENCY_CYCLE' ? 'Ce lien créerait une boucle : un travail ne peut pas dépendre, même indirectement, de lui-même.'
+      : result.code === 'LINK_CONFIRMED_FINAL' ? 'Un lien confirmé ne peut plus être retiré : le planning calculé en dépend.'
       : result.status === 403 ? 'Décision réservée au Client du projet et à la gestion D.A.O.' : 'Décision impossible pour le moment.');
   }
   async function relaunch() {
@@ -144,7 +145,6 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
               <button type="button" disabled={busy} className={primaryAction} onClick={() => void decide(link.id, 'confirmed')}>Confirmer</button>
               <button type="button" disabled={busy} className={secondaryAction} onClick={() => void decide(link.id, 'rejected')}>Rejeter</button></>}
             {canDecide && link.state === 'rejected' && <button type="button" disabled={busy} className={secondaryAction} onClick={() => void decide(link.id, 'confirmed')}>Reconsidérer</button>}
-            {canDecide && link.state === 'effective' && <button type="button" disabled={busy} className={secondaryAction} onClick={() => void decide(link.id, 'rejected')}>Retirer</button>}
           </span>
         </li>)}
       </ul>
