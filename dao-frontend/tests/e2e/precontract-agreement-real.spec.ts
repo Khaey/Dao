@@ -23,7 +23,9 @@ test('Accord avant contrat #346 réel : Client propose sur le vrai award, concur
   await card.getByRole('button', { name: 'Passer en revue DAO' }).click();
   await expect(card.getByText('Revue DAO', { exact: true })).toBeVisible();
   await card.getByRole('button', { name: 'Approuver' }).click();
+  await expect(reviewer.getByRole('heading', { name: project.title, exact: true })).toHaveCount(0);
   await reviewer.goto(`/app/dao/publications/new?project_id=${project.projectId}`);
+  await expect(reviewer.getByRole('button', { name: 'Publier le DAO' })).toBeEnabled();
   await reviewer.getByRole('button', { name: 'Publier le DAO' }).click();
   await expect(reviewer).toHaveURL(/\/app\/publications\/[^/]+/);
   const publicationId = reviewer.url().split('/').pop()!;
