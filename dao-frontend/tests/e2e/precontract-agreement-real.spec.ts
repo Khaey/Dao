@@ -3,6 +3,9 @@ import { createProjectWithMainLot, login } from './support/flow';
 import { actorCommand, adminRows } from './support/collaboration';
 import { recordE2EValue } from './support/state';
 
+// Bounded actions: a stuck step fails with its own locator instead of a bare test timeout.
+test.use({ actionTimeout: 20_000, navigationTimeout: 30_000 });
+
 // #346 B1 against the REAL backend delivered in #345/#348, through the actual product journey
 // (publish → bid → award), with no manual membership insertion.
 test('Accord avant contrat #346 réel : Client propose sur le vrai award, concurrent refusé', async ({ page, browser, e2eClient, e2eReviewer, e2eArtisan, e2eSecondArtisan }, info) => {
