@@ -22,4 +22,7 @@ begin
   end loop;
   if not exists(select 1 from pg_trigger where tgname='immutable_rfi_clarifications' and tgrelid='public.technical_clarifications'::regclass and not tgisinternal)
      or not exists(select 1 from pg_trigger where tgname='immutable_rfi_question_body' and tgrelid='public.technical_questions'::regclass and not tgisinternal) then raise exception 'RFI history immutability missing'; end if;
+  if not exists(select 1 from pg_policies where schemaname='public' and tablename='technical_rfi_documents' and policyname='rfi_documents_owner_quarantine') then
+    raise exception 'RFI pending document owner policy missing';
+  end if;
 end $rfi_contract$;
