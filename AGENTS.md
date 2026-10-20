@@ -12,19 +12,15 @@
 
 Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
 
-## Current coordinator — DAO PILOT 7 (17 October 2026)
+## Coordination actuelle — DAO PILOT 9 (20 octobre 2026)
 
-Owner decision: PILOT 6 has ended coordination due to conversation limits;
-**DAO PILOT 7** owns [issue #204](https://github.com/Khaey/Dao/issues/204)
-and the versioned [handoff](docs/ai-context/PILOT7_HANDOFF_20261017.md).
-The owner wants autonomous end-to-end deliveries, not serial approvals.
-All agents' existing owners and scopes are preserved; team DEV20/OPT20/Chat20/Chat21
-is suspended and their open scopes transferred per #204.
-UX S1 #198 / PR #202 and SSH deployment remediation #188/#200/#201 are **delivered**;
-UX S2 #203 is DAO DOW's priority. Do not reblock main over resolved #188.
-Historical PILOT 6 notes remain valid only to the extent they agree with #204
-and live exact-SHA GitHub evidence.
+**DAO PILOT 9 coordonne [#204](https://github.com/Khaey/Dao/issues/204)**, successeur de PILOT 8. Le dernier checkpoint #204 et le vrai `main` priment sur les anciens en-têtes de passation. Un owner par chantier ; COP seul possède [#325](https://github.com/Khaey/Dao/issues/325). Ne pas réactiver OPT20 ni TOW ni attribuer une mission nouvelle sans GO explicite du propriétaire.
 
+## Décision propriétaire du 19/10 — migrations DEV additives préautorisées
+
+**Pour TOUS les agents actifs et futurs sur une mission déjà approuvée**, une migration SQL **strictement additive et non destructrice**, nécessaire au périmètre attribué, peut être appliquée par l'agent sur la **cible DEV autorisée et vérifiée**, sans demander un « GO migration » supplémentaire. L'agent mène le préflight ciblé (identité de la cible, impact SQL, objets/données, RLS existante), exécute par une voie technique dont il détient les droits, contrôle le résultat et le ledger de migrations, puis vérifie les permissions/recettes DEV ; fournir un checkpoint exact. Aucun accès ou droit technique ne doit être supposé.
+
+La règle ne permet **ni PROD**, ni base/cible non confirmée, ni migration destructive/reset, ni modification des garanties Auth/RLS, ni manipulation de données client réelles, ni secrets/OPS/VPS/root/Cloudflare hors mandat, ni bypass CI/ruleset. Une version ledger Supabase divergente de celle du fichier Git ne doit jamais déclencher un replay aveugle ; publier la preuve et utiliser une réconciliation non destructive autorisée. Les agents ne demandent une décision que pour un **nouveau** risque, périmètre ou droit réellement manquant. Une mission livrée se conclut par DONE, pas par un nouveau GO.
 
 ## DECISION OWNER / PILOT 6 — AUTONOMIE PAR DEFAUT POUR TOUS (16 octobre 2026)
 

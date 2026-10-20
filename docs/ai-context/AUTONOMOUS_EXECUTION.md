@@ -11,6 +11,12 @@ Si une etape est deja autorisee mais bloquee par un controle obligatoire : ne pa
 Cette decision renforce le protocole 0A ci-dessous sans supprimer les controles de surete deja documentes. Pour Claude Code, `CLAUDE.md` pointe vers les memes sources ; GitHub est l'etat partage, pas la memoire d'une conversation.
 
 
+## Migrations additives sur DEV — décision propriétaire du 19/10/2026
+
+Toute mission **déjà autorisée** inclut, pour l'agent qui en est owner, les migrations SQL **additives non destructrices strictement nécessaires** sur une cible **DEV explicitement autorisée et techniquement identifiée**, sans demande de « GO migration » répétée. L'agent prend en charge préflight SQL et permissions, application via son accès effectivement disponible, contrôle de schéma/ledger, vérification Auth/RLS existantes et recette DEV, puis documente les preuves (nom du fichier, version réellement enregistrée, cible, vérifications). Ne jamais supposer la disponibilité d'un connecteur, d'un secret ou d'une autorisation d'accès.
+
+Interdits sans nouveau mandat précis : PROD ou cible ambiguë, migration destructive ou reset partagé, données client réelles, modification Auth/RLS, accès root/VPS/Cloudflare/OPS supplémentaire, opérations juridiques/financières, contournement des 3 checks requis. En cas de numéro de migration enregistré différent du fichier source, **pas de replay aveugle ni suppression de ledger** ; qualifier l'écart et suivre une réconciliation non destructive autorisée. Si le droit technique manque, signaler le blocage réel et avancer sur le travail indépendant, plutôt que demander un nouveau GO métier déjà accordé. Cette préautorisation ne crée aucune mission, ne change aucun owner et ne réactive ni OPT20 ni TOW.
+
 ## Quota guard / mode economie (decision proprietaire, 17/10/2026)
 
 Ces regles s'appliquent aux agents DEV2, OPT3, DOW, COP, TOW, Pilot et futurs agents sur Work, Codex et Claude. **L'autonomie A-Z reste la norme** ; l'optimisation ne justifie pas un nouveau GO ni un raccourci de securite.
