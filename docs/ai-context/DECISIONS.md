@@ -14,6 +14,19 @@
 
 # D.A.O — Decisions
 
+## D-045 — Accord Client–Artisan facultatif avant contrat (#345)
+
+Validé le 20 octobre 2026 : après attribution active et avant préparation du
+contrat, le Client et l’Artisan titulaire peuvent négocier puis accepter la
+même version immuable de conditions simples ou avancées. Chaque révision
+invalide fonctionnellement les accords de la version précédente tout en
+conservant l’historique append-only. Dates, sous-lots et échéanciers restent
+facultatifs. Les montants éventuels restent en millimes TND et leur somme doit
+égaler le prix attribué. Le résultat est une annexe technique non signée :
+aucun effet juridique, réception, dette ou mouvement financier. DEV 2 possède
+SQL/API/sécurité ; DOW possède exclusivement l’UX ; COP conserve OCE/planning.
+
+
 ## D-044 — Messagerie privée liée aux memberships actifs (#116)
 
 Le fil réutilise `conversations(project_id, contractor_id)`, les participants
