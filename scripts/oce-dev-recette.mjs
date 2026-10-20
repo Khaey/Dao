@@ -158,8 +158,8 @@ async function runGlobal() {
   await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}&status=eq.archived`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'draft' }) });
   await provisionGlobal(c);
   // Le contexte du projet prend l'identifiant du lot de recette (seul couple admis par la passerelle).
-  const ctx = await rest(c, `/rest/v1/project_plan_contexts?project_id=eq.${SYNTHETIC_PROJECT}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ context_id: SYNTHETIC_LOT }) });
-  R.context_bound = ctx.status < 300;
+  const ctx = await rest(c, '/rest/v1/rpc/oce_plan_context_bind', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_context_id: SYNTHETIC_LOT }) });
+  R.context_bound = ctx.status < 300 && ctx.body === true;
   const mapping = await rest(c, '/rest/v1/rpc/oce_request_mapping', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_request_id: SYNTHETIC_LOT }) });
   R.mapping_admitted = mapping.status < 300 && typeof mapping.body === 'string'
     && (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: mapping.body, p_admitted: true }) })).status < 300;
@@ -190,7 +190,7 @@ async function runGlobal() {
   const base = await settle(rev0); const bs = base?.sync || {};
   R.sync_global = bs.state; R.global_duration_days = bs.duration_days ?? null; R.critical_count = bs.critical_codes?.length ?? 0;
   R.effective_links = (base?.links || []).filter(l => l.state === 'effective').length;
-  const nodeTitle = new Map((base?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '').slice(0, 12)}`, n.title]));
+  const nodeTitle = new Map((base?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '')}`, n.title]));
   const critTitles = (bs.critical_codes || []).map(k => nodeTitle.get(k) || (k.startsWith('LA-') ? 'lot' : '?'));
   R.critical_titles = critTitles.sort().join('|');
   R.critical_has_chain = ['Fondations', 'Dalle', 'Tirage de cables'].every(t => critTitles.includes(t));
