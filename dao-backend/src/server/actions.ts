@@ -8,6 +8,7 @@ import { ProfileService } from '../services/ProfileService.js';
 import { AIService } from '../services/AIService.js';
 import { MessageService } from '../services/MessageService.js';
 import { ContractReadService } from '../services/ContractReadService.js';
+import { PrecontractAgreementService } from '../services/PrecontractAgreementService.js';
 import { SiteExecutionService } from '../services/SiteExecutionService.js';
 import { QuotePdfService } from '../services/QuotePdfService.js';
 import { DomainError } from '../lib/errors.js';
@@ -22,6 +23,7 @@ export type BackendServices = {
   ai: AIService;
   messages: MessageService;
   contracts: ContractReadService;
+  precontractAgreements: PrecontractAgreementService;
   siteExecution: SiteExecutionService;
   quotePdf: QuotePdfService;
 };

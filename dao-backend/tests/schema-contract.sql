@@ -7,12 +7,12 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','oce_lot_plans','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
     'bid_documents','bid_group_items','bid_groups','bid_items','bid_quote_lines','bid_sub_lot_links','bid_sub_lots','project_plan_contexts','project_plan_link_decisions','project_plan_results','bid_versions','bids',
-    'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions',
+    'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions','precontract_agreements','precontract_agreement_versions','precontract_agreement_acceptances','precontract_agreement_events',
     'contractor_profiles','contractor_service_areas','contractor_trades','contractor_profile_details','contractor_files',
     'contractor_reviews','contractor_review_responses','contractor_review_reports',
     'contracts','conversation_participants','conversations','delegations',
@@ -508,6 +508,67 @@ BEGIN
        WHERE d.code='E2E_TEST_DELEGATION' AND l.name_fr='Localité E2E') THEN
     RAISE EXCEPTION 'schema contract: synthetic E2E territory seed is missing';
   END IF;
+
+  -- P9-A1: tables stay closed; authenticated callers use only the bounded RPC contract.
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'precontract_agreements','precontract_agreement_versions',
+    'precontract_agreement_acceptances','precontract_agreement_events'
+  ]) LOOP
+    IF has_table_privilege('anon','public.'||missing_name,'SELECT')
+      OR has_table_privilege('authenticated','public.'||missing_name,'SELECT')
+      OR has_table_privilege('authenticated','public.'||missing_name,'INSERT')
+      OR has_table_privilege('authenticated','public.'||missing_name,'UPDATE')
+      OR has_table_privilege('authenticated','public.'||missing_name,'DELETE')
+      OR NOT EXISTS(
+        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='public' AND c.relname=missing_name AND c.relrowsecurity
+      ) THEN
+      RAISE EXCEPTION 'precontract agreement table exposure mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.propose_precontract_agreement(uuid,uuid,jsonb,uuid)',
+    'public.accept_precontract_agreement(uuid,uuid,uuid)',
+    'public.reject_precontract_agreement(uuid,uuid,text,uuid)',
+    'public.precontract_agreement_snapshot(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'precontract agreement RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'dao_private.precontract_party_for_award(uuid,uuid)',
+    'dao_private.precontract_award_reference(uuid)',
+    'dao_private.precontract_normalize_terms(uuid,jsonb)',
+    'dao_private.propose_precontract_agreement(uuid,uuid,jsonb,uuid)',
+    'dao_private.accept_precontract_agreement(uuid,uuid,uuid)',
+    'dao_private.reject_precontract_agreement(uuid,uuid,text,uuid)',
+    'dao_private.precontract_agreement_snapshot(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'precontract internal helper exposed: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR state IN
+    SELECT * FROM (VALUES
+      ('precontract_agreements','controlled_precontract_agreement_update'),
+      ('precontract_agreements','immutable_precontract_agreements'),
+      ('precontract_agreement_versions','immutable_precontract_versions'),
+      ('precontract_agreement_acceptances','immutable_precontract_acceptances'),
+      ('precontract_agreement_events','immutable_precontract_events')
+    ) AS required(table_name,trigger_name)
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+      JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname=state.table_name
+        AND t.tgname=state.trigger_name AND NOT t.tgisinternal AND t.tgenabled='O'
+    ) THEN
+      RAISE EXCEPTION 'precontract immutability trigger missing: %.%',state.table_name,state.trigger_name;
+    END IF;
+  END LOOP;
 
   RAISE NOTICE 'schema contract passed: migrations, RLS, event trigger, RPCs, immutability, Storage, trades, and E2E seed';
 END

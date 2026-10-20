@@ -514,3 +514,23 @@ ne vaut ni réception, ni acceptation juridique, ni paiement, ni modification du
 contrat ou de l’attribution. Le modèle fournit des codes événementiels stables
 mais n’exécute aucune synchronisation OCE.
 
+## 25. Accord précontractuel bilatéral P9-A1 (#345)
+
+- L’accord est facultatif, lié à un award actif et disponible uniquement avant
+  la création du contrat. Il ne remplace ni l’offre attribuée ni le contrat.
+- Client et Artisan peuvent proposer ou contre-proposer. Chaque proposition
+  crée une version immuable et hashée ; modifier une version exige de nouveaux
+  accords des deux parties.
+- L’état « convenu » exige l’acceptation de la même version par le Client et
+  l’Artisan titulaire. Un refus est motivé et conserve l’historique.
+- Le parcours simple fonctionne sans date, sous-lot ou échéancier. Les dates,
+  durées, modalités d’exécution, calendriers de sous-lots et échéances sont
+  facultatifs.
+- Une échéance chiffrée reste informative et la somme fournie doit égaler le
+  prix attribué. Aucune taxe, devise ou somme n’est déduite.
+- Toute version reste non engageante : aucune signature, réception, dette,
+  facture, autorisation bancaire ou transaction n’est créée. Les trois drapeaux
+  restent `non_engaging=true`, `legal_effect_enabled=false` et `contract_signed=false`.
+- Seuls le Client exact et l’Artisan titulaire, actifs et membres acceptés du
+  chantier, peuvent lire ou agir. Concurrents, tiers, simples membres, staff et
+  comptes suspendus sont refusés.
