@@ -31,7 +31,7 @@ export default function Projects() {
     setLoading(false);
   }
   useEffect(() => { void load(); }, []);
-  const filtered = useMemo(() => { const normalized = query.trim().toLocaleLowerCase('fr'); return rows.filter(row => (!status || row.status === status) && (!stage || row.project_stage === stage) && (!normalized || [row.title, row.location, typeLabels[row.project_type], statusLabel[row.status]].join(' ').toLocaleLowerCase('fr').includes(normalized))); }, [query, rows, status, stage]);
+  const filtered = useMemo(() => { const normalized = query.trim().toLocaleLowerCase('fr'); return rows.filter(row => (!status || displayProjectStatus(row.status) === status) && (!stage || row.project_stage === stage) && (!normalized || [row.title, row.location, typeLabels[row.project_type], statusLabel[displayProjectStatus(row.status)]].join(' ').toLocaleLowerCase('fr').includes(normalized))); }, [query, rows, status, stage]);
   const filtersActive = Boolean(query || status || stage);
   const clearFilters = () => { setQuery(''); setStatus(''); setStage(''); };
   const createLabel = contractor ? 'Ajouter un chantier client' : 'Nouveau chantier';
@@ -69,7 +69,7 @@ export default function Projects() {
         <div className="grid gap-3 sm:grid-cols-2 lg:contents">
           <div className="relative">
             <Filter size={15} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/45" />
-            <select aria-label="Filtrer par statut" className={`${fieldClass} pl-9`} value={status} onChange={event => setStatus(event.target.value)}><option value="">Tous les statuts</option>{['draft', 'client_review', 'dao_review', 'rejected', 'approved', 'open', 'published', 'archived'].map(value => <option key={value} value={value}>{statusLabel[value]}</option>)}</select>
+            <select aria-label="Filtrer par statut" className={`${fieldClass} pl-9`} value={status} onChange={event => setStatus(event.target.value)}><option value="">Tous les statuts</option>{['draft', 'client_review', 'dao_review', 'rejected', 'approved', 'published', 'archived'].map(value => <option key={value} value={value}>{statusLabel[value]}</option>)}</select>
           </div>
           <select aria-label="Filtrer par avancement des travaux" className={fieldClass} value={stage} onChange={event => setStage(event.target.value)}><option value="">Tous les avancements</option>{Object.entries(stageLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         </div>
