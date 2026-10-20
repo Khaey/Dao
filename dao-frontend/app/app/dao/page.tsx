@@ -107,7 +107,7 @@ export default function DaoManagerDashboard() {
         <Card><SectionHeading title="Dossiers à examiner" description="Les plus récents en premier. Ouvrez un dossier pour l’examiner." action={<Link href="/app/dao/review" className="inline-flex min-h-11 items-center text-sm font-semibold text-teal">Ouvrir la file <ArrowRight aria-hidden="true" size={15} className="ml-1" /></Link>} />
           {reviews.length === 0 ? <p className="mt-5 text-sm text-black/55">Aucune revue en attente.</p> : <ul className="mt-5 space-y-2">{reviews.slice(0, 6).map(project => <li key={project.id}><Link href={`/app/dao/projects/${project.id}`} className={row}>
             <span className="min-w-0"><span className="block truncate font-semibold">{project.version.title}</span><span className="mt-1 block text-xs text-black/45">Version {project.version.version_no}{project.client_name ? ` · ${project.client_name}` : ''}</span></span>
-            <span className="flex shrink-0 flex-col items-end gap-1.5"><Badge tone={tone(statusOf(project))}>{reviewStatusLabel[statusOf(project)] ?? statusLabel[statusOf(project)]}</Badge><AssignmentBadge state={stateOf(project)} name={project.reviewer_name} /></span>
+            <span className="flex min-w-0 max-w-[48%] flex-col items-end gap-1.5"><Badge tone={tone(statusOf(project))}>{reviewStatusLabel[statusOf(project)] ?? statusLabel[statusOf(project)]}</Badge><AssignmentBadge state={stateOf(project)} name={project.reviewer_name} /></span>
           </Link></li>)}</ul>}
           {reviews.length > 6 && <p className="mt-3 text-sm text-black/50">+ {reviews.length - 6} autre{reviews.length - 6 > 1 ? 's' : ''} dans la file.</p>}
         </Card>

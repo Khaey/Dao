@@ -156,9 +156,9 @@ export default function DaoReview() {
     {!loading && !loadError && <fieldset className="min-w-0">
       <legend className="sr-only">Filtrer la file</legend>
       <p className="sr-only" aria-live="polite">{counts.all} revue{counts.all > 1 ? 's' : ''} en attente : {counts.todo} à prendre en charge, {counts.mine} à vous, {counts.others} chez un autre gestionnaire.</p>
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1">
-        {views.map(item => <label key={item.id} className="shrink-0 cursor-pointer">
-          <input type="radio" name="review-view" value={item.id} checked={view === item.id} onChange={() => { setView(item.id); setConfirming(null); }} className="peer sr-only" />
+      <div className="flex gap-2 overflow-x-auto py-1">
+        {views.map(item => <label key={item.id} className="relative shrink-0 cursor-pointer">
+          <input type="radio" name="review-view" value={item.id} checked={view === item.id} onChange={() => { setView(item.id); setConfirming(null); }} className="peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0" />
           <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-black/60 transition hover:border-black/25 peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:ring-4 peer-focus-visible:ring-teal/30">
             {item.label}<span aria-hidden="true" className="text-xs tabular-nums opacity-70">{counts[item.id]}</span>
           </span>
@@ -201,7 +201,7 @@ function ReviewCard({ row, state, admin, busy, locked, comment, error, confirmin
         <p className="mt-1 text-xs text-black/50">Version du dossier {row.version_no} · {row.lots.length} lot{row.lots.length > 1 ? 's' : ''}{budget > 0 ? ` · ${formatTnd(budget)}` : ''}{row.created_at ? ` · soumise le ${formatDate(row.created_at)}` : ''}</p>
         <p className="mt-2 text-sm text-black/60">Pris en charge par : {row.reviewer_name || 'À prendre en charge'}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-2"><Badge tone={row.status === 'dao_review' ? 'teal' : 'clay'}>{reviewStatusLabel[row.status] ?? statusLabel[row.status] ?? row.status}</Badge><AssignmentBadge state={state} name={row.reviewer_name} /></div>
+      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2"><Badge tone={row.status === 'dao_review' ? 'teal' : 'clay'}>{reviewStatusLabel[row.status] ?? statusLabel[row.status] ?? row.status}</Badge><AssignmentBadge state={state} name={row.reviewer_name} /></div>
     </div>
     {row.description && <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm text-black/60">{row.description}</p>}
 

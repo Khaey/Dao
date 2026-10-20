@@ -4,7 +4,16 @@ import { createProjectWithMainLot, login } from './support/flow';
 
 // #338 — Gestionnaire journey: actionable dashboard, assignment-aware queue, guarded decisions, filter continuity.
 // Real Supabase flow; permissions remain server-side (claim_review / manages_project).
-const noHorizontalScroll = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+// On failure, names the elements sticking out so the overflow can be fixed without artifacts.
+const noHorizontalScroll = async (page: Page) => {
+  const report = await page.evaluate(() => {
+    const width = document.documentElement.clientWidth;
+    const culprits = [...document.querySelectorAll('body *')].filter((element) => element.getBoundingClientRect().right > width + 1)
+      .slice(0, 5).map((element) => `${element.tagName.toLowerCase()}.${String(element.getAttribute('class') ?? '').slice(0, 80)} → ${Math.round(element.getBoundingClientRect().right)}px`);
+    return { overflow: document.documentElement.scrollWidth - width, culprits };
+  });
+  expect(report.overflow, `${page.url()} déborde : ${report.culprits.join(' | ')}`).toBeLessThanOrEqual(0);
+};
 
 test('Gestionnaire #338 : file actionnable, prise en charge, lecture seule et retour filtré', async ({ page, browser, e2eClient, e2eReviewer, e2eOtherReviewer, e2eAdmin }, info) => {
   test.skip(!e2eClient || !e2eReviewer || !e2eOtherReviewer || !e2eAdmin, 'E2E Supabase credentials are not available');
