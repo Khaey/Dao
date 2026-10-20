@@ -118,11 +118,11 @@ async function provisionGlobal(c) {
   const contractorUser = (users.users || []).find(u => (u.email || '').toLowerCase() === CONTRACTOR) || fail('TEST contractor not found');
   const profile = ((await pg(c, `/rest/v1/contractor_profiles?select=id&user_id=eq.${contractorUser.id}`)).body || [])[0] || fail('TEST contractor profile missing');
   const trade = ((await pg(c, '/rest/v1/trades?select=id&order=code&limit=1')).body || [])[0] || fail('reference data missing: trades');
-  const ins = async (table, row) => { const r = await pg(c, `/rest/v1/${table}`, { method: 'POST', headers: ign, body: JSON.stringify(row) }); if (r.status >= 300) fail(`synthetic insert failed: ${table} (${r.status})`); };
+  const ins = async (table, row, conflict) => { const r = await pg(c, `/rest/v1/${table}${conflict ? `?on_conflict=${conflict}` : ''}`, { method: 'POST', headers: ign, body: JSON.stringify(row) }); if (r.status >= 300) fail(`synthetic insert failed: ${table} (${r.status})`); };
   const lots = [[SYNTHETIC_LOT, 'Gros oeuvre'], [LOT2, 'Electricite'], [LOT3, 'Finitions']];
   for (const [lot, name] of lots) {
     await ins('project_requests', { id: lot, project_id: SYNTHETIC_PROJECT });
-    await ins('project_request_versions', { project_id: SYNTHETIC_PROJECT, request_id: lot, version_no: 1, title: `[SYNTHETIQUE] ${name}`, scope: 'Lot fictif de recette', trade_id: trade.id });
+    await ins('project_request_versions', { project_id: SYNTHETIC_PROJECT, request_id: lot, version_no: 1, title: `[SYNTHETIQUE] ${name}`, scope: 'Lot fictif de recette', trade_id: trade.id }, 'request_id,version_no');
   }
   const versions = {};
   for (const [lot] of lots) versions[lot] = ((await pg(c, `/rest/v1/project_request_versions?select=id&request_id=eq.${lot}&version_no=eq.1`)).body || [])[0]?.id || fail('request version missing');
