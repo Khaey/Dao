@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { supabaseBrowser } from '../../../../../lib/supabase-browser';
-import { CalendarClock, CalendarDays, CheckCircle2, Clock, Download, FileText, Hammer, Lock, Package, Paperclip, Plus, Ruler, Send, Trash2, Wallet } from 'lucide-react';
+import { CalendarClock, CalendarDays, CheckCircle2, Clock, Download, FileText, Hammer, HelpCircle, Lock, Package, Paperclip, Plus, Ruler, Send, Trash2, Wallet } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../../../../../components/ui';
 import { SubLotLinksEditor, SubLotsEditor } from '../../../../../components/artisan/BidSubLots';
 import { linksPayload, linksProblem, subLotsPayload, subLotsProblem, type LinkDraft, type Referent, type SubLotDraft } from '../../../../../lib/bid-sub-lots';
@@ -257,6 +258,7 @@ export default function ArtisanPublicationDetail() {
         <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-teal">{lot.tradeName ?? 'Métier'}</p><h3 className="mt-1 break-words text-lg font-bold text-ink">{lot.safe_title}</h3></div>
           <label className={`inline-flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 text-sm font-semibold transition has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 ${checked ? 'border-teal/40 bg-white text-teal' : 'border-black/10 bg-white text-ink'}`}><input type="checkbox" className="h-5 w-5 accent-teal" checked={checked} disabled={!editable || !lot.acceptsOffers} onChange={(event) => setSelected((current) => event.target.checked ? [...current, lot.id] : current.filter((item) => item !== lot.id))} /> Répondre à ce lot</label></div>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-black/65">{lot.safe_scope}</p>
+        {lot.acceptsOffers&&<Link href={`/app/messages?onglet=rfi&lot=${encodeURIComponent(lot.id)}&nouvelle=1`} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-teal/25 bg-white px-3.5 text-sm font-semibold text-teal hover:border-teal"><HelpCircle size={16}/>Poser une question technique</Link>}
         {lot.technical_scope?.map((s:any)=><div key={s.id} className="mt-3 border-l-2 border-teal/25 pl-3"><h4 className="font-semibold text-ink">{s.title}</h4><p className="text-sm text-black/65">{s.scope}</p>{s.budget_millimes!=null&&<p className="text-sm font-medium tabular-nums">{Number(s.budget_millimes)/1000} TND</p>}</div>)}
         {(!lot.acceptsOffers || lot.result) && <div className="mt-3 flex flex-wrap items-center gap-2">{!lot.acceptsOffers && <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-black/60"><Lock aria-hidden="true" size={14} />Lot fermé aux nouvelles offres</p>}{lot.result === 'not_selected' && <Badge>Non retenue</Badge>}{lot.result === 'selected' && <Badge tone="teal">Offre retenue</Badge>}</div>}
       </article>; })}</div></Card>

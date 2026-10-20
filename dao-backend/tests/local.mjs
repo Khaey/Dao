@@ -23,6 +23,7 @@ await db.exec(readFileSync(new URL('../supabase/seed.sql',import.meta.url),'utf8
 await test('bid sub-lots contract (#325)',async()=>{await db.exec('begin');try{await db.exec(readFileSync(new URL('./bid-sub-lots-contract.sql',import.meta.url),'utf8'));}finally{await db.exec('rollback');}});
 await test('project plan contract (#325 B)',async()=>{await db.exec('begin');try{await db.exec(readFileSync(new URL('./project-plan-contract.sql',import.meta.url),'utf8'));}finally{await db.exec('rollback');}});
 await test('shared fresh-database schema contract',()=>db.exec(readFileSync(new URL('./schema-contract.sql',import.meta.url),'utf8')));
+await test('technical RFI schema and grants contract',()=>db.exec(readFileSync(new URL('./technical-rfi-contract.sql',import.meta.url),'utf8')));
 await test('add_project_request overloads resolve at exact four- and five-argument arities',async()=>{
  const functions=(await db.query(`select n.nspname as schema_name,p.pronargs::int as argument_count,p.pronargdefaults::int as default_count
  ,pg_get_userbyid(p.proowner) as owner,p.prosecdef as security_definer,p.proconfig as config,p.proacl::text as acl
@@ -53,7 +54,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,88);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,93);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -208,6 +209,36 @@ await test('publication uses the exact lot snapshot attached to the approved pro
 await test('publication keeps the approved snapshot instead of a later lot version',async()=>{
  const publication=await db.query('select id from public.publications where project_id=$1',[publicationProject]);eq(publication.rows.length,1);
  const publishedRequest=await db.query('select request_version_id from public.publication_requests where publication_id=$1',[publication.rows[0].id]);eq(publishedRequest.rows.length,1);eq(publishedRequest.rows[0].request_version_id,approvedRequestSnapshot);eq(publishedRequest.rows[0].request_version_id===latestRequestSnapshot,false);
+});
+const rfiPublication=(await db.query('select id from public.publications where project_id=$1',[publicationProject])).rows[0].id;
+const rfiPublicationRequest=(await db.query('select id from public.publication_requests where publication_id=$1',[rfiPublication])).rows[0].id;
+let rfiQuestion;
+await test('eligible artisan creates one idempotent private technical question',()=>as('proA',async()=>{
+ const first=(await db.query('select public.create_rfi_question($1,$2,$3) as value',[rfiPublicationRequest,'Quelle section de câble ?','rfi-create-0001'])).rows[0].value;
+ const replay=(await db.query('select public.create_rfi_question($1,$2,$3) as value',[rfiPublicationRequest,'Texte ignoré','rfi-create-0001'])).rows[0].value;
+ rfiQuestion=first.id;eq(replay.id,rfiQuestion);eq(first.mine,true);
+}));
+await test('question remains private before the official clarification',async()=>{
+ await as('proB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
+ await as('clientB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
+ await as('clientA',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items[0].id,rfiQuestion));
+});
+await test('owner publishes immutable clarification versions for every eligible artisan',()=>as('clientA',async()=>{
+ const first=(await db.query('select public.publish_rfi_clarification($1,$2,$3,$4) as value',[rfiQuestion,'Utiliser une section de 6 mm².',true,'rfi-answer-0001'])).rows[0].value;
+ const second=(await db.query('select public.publish_rfi_clarification($1,$2,$3,$4) as value',[rfiQuestion,'Correction officielle : 10 mm².',true,'rfi-answer-0002'])).rows[0].value;
+ eq(first.clarifications.length,1);eq(second.clarifications.length,2);eq(second.clarifications[0].body,'Utiliser une section de 6 mm².');eq(second.clarifications[1].version_no,2);
+}));
+await test('eligible competitor sees the same clarification with an anonymized author',()=>as('proB',async()=>{
+ const item=(await db.query('select public.list_rfi_questions() as value')).rows[0].value.items[0];eq(item.id,rfiQuestion);eq(item.author_label,'Soumissionnaire');eq(item.clarifications.length,2);
+}));
+await test('unrelated client and direct authenticated mutations stay blocked',async()=>{
+ await as('clientB',async()=>eq((await db.query('select * from public.technical_questions where id=$1',[rfiQuestion])).rows.length,0));
+ await as('proB',()=>denied(`update public.technical_questions set body='altéré' where id='${rfiQuestion}'`,'42501'));
+});
+await test('suspended artisan immediately loses RFI visibility',async()=>{
+ await db.query("update public.contractor_profiles set verification_status='suspended' where id=$1",[C.proB]);
+ await as('proB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
+ await db.query("update public.contractor_profiles set verification_status='verified' where id=$1",[C.proB]);
 });
 const A=await insert('awards',{project_id:P,contractor_id:C.proA});const A2=await insert('awards',{project_id:P,contractor_id:C.proB});const AQ=await insert('awards',{project_id:Q,contractor_id:C.proA});const AG=await insert('awards',{project_id:P,contractor_id:C.general});
 function awardSql(a,c,i,request,proj=P){return `insert into public.award_items(award_id,project_id,contractor_id,request_id,bid_item_id,agreed_millimes) values('${a}','${proj}','${c}','${request}','${i}',11500000)`}
