@@ -15,6 +15,8 @@ test('Notifications : invitation réelle, acceptation, lecture et nouveau messag
   await login(page,pro.user);await page.goto('/app/notifications');
   await expect(page.getByRole('heading',{name:'Invitation reçue',exact:true})).toBeVisible();
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
+  // This event is an internal invitation, not Support: the global bell must include it.
+  await expect(page.getByTestId('support-bell-count')).toHaveText('1');
   await expect(page.getByRole('list',{name:'Notifications personnelles'})).not.toContainText(project.title);
   await page.getByRole('link',{name:'Consulter : Invitation reçue'}).click();await expect(page).toHaveURL(/\/app\/invitations$/);
   await page.getByRole('button',{name:'Accepter',exact:true}).click();await expect(page).toHaveURL(new RegExp('/app/projects/'+project.projectId+'$'));
@@ -46,6 +48,11 @@ test('Notifications : erreur réseau, retry et échec de marquage sans faux succ
   await page.route('**/api/notifications*',async route=>{
     if(route.request().method()==='PATCH'){
       if(failMark){await route.abort('failed');return;}read=true;await route.fulfill({json:{data:{acknowledged:true}}});return;
+    }
+    // The global bell asks for a count using limit=1. Do not consume the
+    // list-page's deliberate first network failure with that separate request.
+    if(new URL(route.request().url()).searchParams.get('limit')==='1'){
+      await route.fulfill({json:{data:{rows:[],workspace:'client',unread_count:0,next_cursor:null}}});return;
     }
     if(failGet){failGet=false;await route.abort('failed');return;}
     await route.fulfill({json:{data:{rows:[{...row,read_at:read?at:null}],workspace:'client',unread_count:read?0:1,next_cursor:null}}});
