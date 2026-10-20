@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
-import { PrecontractUnavailable, readAgreement } from '../../lib/precontract';
+import { PrecontractError, PrecontractUnavailable, readAgreement } from '../../lib/precontract';
 
 /**
  * Entry to « Conditions et calendrier » for the active awards of a project the viewer may read (Client owner or
@@ -26,7 +26,7 @@ export default function AgreementLinks({ projectId, awardId, compact = false }: 
     if (!awards.length) return;
     let active = true;
     void readAgreement(awards[0]).then(() => { if (active) setLive(true); })
-      .catch(exception => { if (active) setLive(!(exception instanceof PrecontractUnavailable) && (exception as { code?: string }).code !== 'forbidden'); });
+      .catch(exception => { if (active) setLive(!(exception instanceof PrecontractUnavailable) && !(exception instanceof PrecontractError && exception.kind === 'forbidden')); });
     return () => { active = false; };
   }, [awards]);
   if (!awards.length || !live) return null;

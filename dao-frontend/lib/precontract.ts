@@ -1,99 +1,111 @@
 import { supabaseBrowser } from './supabase-browser';
 
 // Pre-contract agreement (« Conditions et calendrier ») — UI client for #346.
-// The backend, its rules and its DTO belong to DEV 2 (#345). This module is the ONLY place that knows the wire
-// format: when DEV 2 publishes the final DTO, adapt it here. Until the route is deployed (404 without code, 501),
+// Backend, rules and DTO: DEV 2, #345 / docs/product/precontract-agreement-v1.md (GET|POST /api/contracts/agreements).
+// This module is the only place that knows the wire format. Until the route is deployed (404 without code, 501),
 // callers get PrecontractUnavailable and the UI shows an explained, inactive state — never a fake action.
 
 export type PartyRole = 'client' | 'contractor';
-export type PaymentFrequency = 'unspecified' | 'daily' | 'weekly' | 'monthly' | 'milestone' | 'completion';
+export type PaymentMode = 'none' | 'daily' | 'weekly' | 'monthly' | 'milestone' | 'sub_lot' | 'lot_end' | 'project_end';
+export type Installment = { label: string; due_date?: string | null; amount_millimes: number };
+export type SubLotSchedule = { node_key: string; start_date?: string | null; end_date?: string | null; duration_days?: number | null };
 export type Terms = {
-  mode: 'simple' | 'advanced';
-  start_date: string | null; end_date: string | null; duration_days: number | null;
-  conditions: string | null;
-  payment: { frequency: PaymentFrequency; note: string | null };
-  sub_lots: { sub_lot_id: string; start_date: string | null; end_date: string | null }[];
+  planned_start_date?: string | null; duration_days?: number | null; execution_terms?: string | null;
+  payment_mode?: PaymentMode; installments?: Installment[]; sub_lot_schedule?: SubLotSchedule[];
 };
-export type VersionStatus = 'draft' | 'sent' | 'agreed' | 'rejected' | 'superseded';
-export type AgreementVersion = {
-  id: string; version_no: number; content_hash: string; author_role: PartyRole; status: VersionStatus; created_at: string;
-  terms: Terms; acceptances: { party_role: PartyRole; accepted_at: string }[];
-  rejection: { reason: string; party_role: PartyRole; created_at: string } | null;
-};
-export type AgreementEvent = { id: string; type: string; actor_role: PartyRole | 'dao'; version_no: number | null; reason: string | null; created_at: string };
-export type Agreement = {
-  award_id: string; contract_id: string | null; viewer_role: PartyRole; total_millimes: number;
-  lots: { request_id: string; title: string; agreed_millimes: number; sub_lots: { id: string; title: string }[] }[];
-  draft: AgreementVersion | null; current: AgreementVersion | null; agreed_version_id: string | null;
-  versions: AgreementVersion[]; events: AgreementEvent[];
-  can: { save_draft: boolean; send: boolean; accept: boolean; reject: boolean };
+export type ReferenceSubLot = { node_key: string; position?: number; title: string; scope?: string; start_date?: string; end_date?: string; duration_days?: number; budget_millimes?: number };
+export type ReferenceItem = { award_item_id: string; request_id: string; agreed_millimes: number; title: string; scope?: string; duration_days?: number | null; sub_lots: ReferenceSubLot[] };
+export type Reference = { award_id: string; project_id: string; currency: string; total_millimes: number; items: ReferenceItem[] };
+export type AgreementVersion = { id: string; version_no: number; content_hash: string; proposed_role: PartyRole; created_at: string; terms: Terms };
+export type Acceptance = { version_id: string; party_role: PartyRole; accepted_at: string };
+export type AgreementEvent = { id: string; version_id?: string; actor_role: PartyRole; event_type: 'proposed' | 'counter_proposed' | 'accepted' | 'agreed' | 'rejected'; reason?: string; created_at: string };
+export type Snapshot = {
+  agreement: { id: string; award_id: string; project_id: string; status: 'negotiating' | 'agreed' | 'rejected'; current_version_id: string; agreed_at: string | null } | null;
+  reference: Reference | null;
+  current_version: AgreementVersion | null;
+  versions: AgreementVersion[]; acceptances: Acceptance[]; events: AgreementEvent[];
+  permissions: { party_role: PartyRole; can_propose: boolean; can_accept: boolean; can_reject: boolean };
 };
 
 export const partyLabel: Record<PartyRole, string> = { client: 'Client', contractor: 'Artisan' };
-export const paymentLabels: Record<PaymentFrequency, string> = {
-  unspecified: 'Non précisée', daily: 'À la journée', weekly: 'Chaque semaine', monthly: 'Chaque mois', milestone: 'Par étape (jalon)', completion: 'À la fin des travaux',
+export const partyWith: Record<PartyRole, string> = { client: 'le Client', contractor: 'l’Artisan' };
+export const partyTo: Record<PartyRole, string> = { client: 'au Client', contractor: 'à l’Artisan' };
+export const paymentLabels: Record<PaymentMode, string> = {
+  none: 'Non précisée', daily: 'À la journée', weekly: 'Chaque semaine', monthly: 'Chaque mois', milestone: 'Par étape (jalon)',
+  sub_lot: 'À la fin de chaque sous-lot', lot_end: 'À la fin du lot', project_end: 'À la fin du chantier',
 };
-export const eventLabels: Record<string, string> = {
-  draft_saved: 'Brouillon enregistré', sent: 'Proposition envoyée', accepted: 'Version acceptée', rejected: 'Proposition refusée',
-  superseded: 'Version remplacée par une contre-proposition', agreed: 'Accord commun atteint',
+export const eventLabels: Record<AgreementEvent['event_type'], string> = {
+  proposed: 'Première proposition', counter_proposed: 'Contre-proposition', accepted: 'Version acceptée', agreed: 'Accord commun atteint', rejected: 'Proposition refusée',
 };
-export const emptyTerms = (): Terms => ({ mode: 'simple', start_date: null, end_date: null, duration_days: null, conditions: null, payment: { frequency: 'unspecified', note: null }, sub_lots: [] });
 
-const errorMessages: Record<string, string> = {
+const messages = {
   unauthenticated: 'Session expirée. Reconnectez-vous.',
   forbidden: 'Seuls le Client et l’Artisan attributaire de ce lot peuvent consulter ces conditions.',
-  not_found: 'Aucune attribution active ne correspond à ce dossier.',
-  version_conflict: 'Cette version n’est plus la dernière : l’autre partie a proposé une modification. Relisez la nouvelle version.',
-  invalid: 'Vérifiez les informations saisies.',
-  award_inactive: 'L’attribution de ce lot n’est plus active : les conditions ne peuvent plus être modifiées.',
   unavailable: 'Le service est momentanément indisponible. Réessayez dans un instant.',
 };
 
 export class PrecontractUnavailable extends Error { constructor() { super('unavailable'); } }
-export class PrecontractError extends Error { constructor(message: string, public readonly code?: string) { super(message); } }
+/** `conflict` (HTTP 409): the version moved or the action no longer applies — reload the snapshot. */
+export class PrecontractError extends Error { constructor(message: string, public readonly kind: 'forbidden' | 'conflict' | 'invalid' | 'other') { super(message); } }
 
-async function call<T>(init: { method: 'GET'; query: string } | { method: 'POST'; body: unknown }): Promise<T> {
+async function call<T>(init: { method: 'GET'; query: string } | { method: 'POST'; body: Record<string, unknown> }): Promise<T> {
   const { data } = await supabaseBrowser().auth.getSession();
-  if (!data.session) throw new PrecontractError(errorMessages.unauthenticated, 'unauthenticated');
+  if (!data.session) throw new PrecontractError(messages.unauthenticated, 'other');
   let response: Response;
   try {
-    response = await fetch(`/api/precontract${init.method === 'GET' ? init.query : ''}`, {
+    response = await fetch(`/api/contracts/agreements${init.method === 'GET' ? init.query : ''}`, {
       method: init.method, cache: 'no-store',
       headers: { Authorization: `Bearer ${data.session.access_token}`, ...(init.method === 'POST' ? { 'Content-Type': 'application/json' } : {}) },
       body: init.method === 'POST' ? JSON.stringify(init.body) : undefined,
     });
-  } catch { throw new PrecontractError(errorMessages.unavailable, 'unavailable'); }
+  } catch { throw new PrecontractError(messages.unavailable, 'other'); }
   if (response.status === 501) throw new PrecontractUnavailable();
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     const code = typeof body?.code === 'string' ? body.code : undefined;
     if (response.status === 404 && !code) throw new PrecontractUnavailable();
-    throw new PrecontractError(code && errorMessages[code] ? errorMessages[code] : typeof body?.error === 'string' ? body.error : errorMessages.unavailable, code);
+    const serverMessage = typeof body?.error === 'string' && body.error && body.error !== 'Request failed' ? body.error : '';
+    if (response.status === 401) throw new PrecontractError(messages.unauthenticated, 'other');
+    if (response.status === 403) throw new PrecontractError(messages.forbidden, 'forbidden');
+    if (response.status === 409) throw new PrecontractError(serverMessage || 'Cette version n’est plus à jour. Les conditions ont été rechargées.', 'conflict');
+    if (response.status === 400) throw new PrecontractError(serverMessage || 'Vérifiez les informations saisies.', 'invalid');
+    throw new PrecontractError(messages.unavailable, 'other');
   }
   return (body && typeof body === 'object' && 'data' in body ? body.data : body) as T;
 }
 
-const key = () => `ui-${crypto.randomUUID()}`;
-export const readAgreement = (awardId: string) => call<Agreement>({ method: 'GET', query: `?award_id=${encodeURIComponent(awardId)}` });
-const command = (action: string, input: Record<string, unknown>) => call<Agreement>({ method: 'POST', body: { action, input, idempotency_key: key() } });
-export const saveDraft = (awardId: string, baseVersionId: string | null, terms: Terms) => command('save_draft', { award_id: awardId, base_version_id: baseVersionId, terms });
-export const sendVersion = (awardId: string, versionId: string) => command('send', { award_id: awardId, version_id: versionId });
-export const acceptVersion = (awardId: string, version: AgreementVersion) => command('accept', { award_id: awardId, version_id: version.id, content_hash: version.content_hash });
-export const rejectVersion = (awardId: string, versionId: string, reason: string) => command('reject', { award_id: awardId, version_id: versionId, reason });
+const key = () => crypto.randomUUID();
+export const readAgreement = (awardId: string) => call<Snapshot>({ method: 'GET', query: `?award_id=${encodeURIComponent(awardId)}` });
+export const propose = (awardId: string, baseVersionId: string | null, terms: Terms) => call<unknown>({ method: 'POST', body: { action: 'propose', award_id: awardId, base_version_id: baseVersionId, terms, idempotency_key: key() } });
+export const accept = (agreementId: string, versionId: string) => call<unknown>({ method: 'POST', body: { action: 'accept', agreement_id: agreementId, version_id: versionId, idempotency_key: key() } });
+export const reject = (agreementId: string, versionId: string, reason: string) => call<unknown>({ method: 'POST', body: { action: 'reject', agreement_id: agreementId, version_id: versionId, reason, idempotency_key: key() } });
 
-/** Field-level differences between two term sets, as human labels — what changed in a counter-proposal. */
+/** Terms as sent to the server: only filled fields, nothing invented. */
+export function cleanTerms(terms: Terms): Terms {
+  const out: Terms = { payment_mode: terms.payment_mode ?? 'none' };
+  if (terms.planned_start_date) out.planned_start_date = terms.planned_start_date;
+  if (terms.duration_days) out.duration_days = terms.duration_days;
+  if (terms.execution_terms?.trim()) out.execution_terms = terms.execution_terms.trim();
+  const schedule = (terms.sub_lot_schedule ?? []).filter(row => row.start_date && row.end_date).map(row => ({ node_key: row.node_key, start_date: row.start_date, end_date: row.end_date }));
+  if (schedule.length) out.sub_lot_schedule = schedule;
+  if (terms.installments?.length) out.installments = terms.installments;
+  return out;
+}
+
+const fmtDate = (value?: string | null) => value ? new Intl.DateTimeFormat('fr-TN', { dateStyle: 'medium' }).format(new Date(`${value}T00:00:00`)) : 'Non précisée';
+const scheduleKey = (terms: Terms) => JSON.stringify([...(terms.sub_lot_schedule ?? [])].map(row => [row.node_key, row.start_date ?? null, row.end_date ?? null]).sort());
+const installmentKey = (terms: Terms) => JSON.stringify(terms.installments ?? []);
+
+/** Human differences between two term sets — what a counter-proposal changes. */
 export function termsDiff(before: Terms | null, after: Terms) {
-  const fmtDate = (value: string | null) => value ? new Intl.DateTimeFormat('fr-TN', { dateStyle: 'medium' }).format(new Date(`${value}T00:00:00`)) : 'Non précisée';
+  const base = before ?? {};
   const rows: { label: string; before: string; after: string; sensitive: boolean }[] = [];
   const add = (label: string, a: string, b: string, sensitive = false) => { if (a !== b) rows.push({ label, before: a, after: b, sensitive }); };
-  const base = before ?? emptyTerms();
-  add('Date de début', fmtDate(base.start_date), fmtDate(after.start_date), true);
-  add('Date de fin', fmtDate(base.end_date), fmtDate(after.end_date), true);
+  add('Date de début', fmtDate(base.planned_start_date), fmtDate(after.planned_start_date), true);
   add('Durée', base.duration_days ? `${base.duration_days} jours` : 'Non précisée', after.duration_days ? `${after.duration_days} jours` : 'Non précisée', true);
-  add('Modalité de paiement', paymentLabels[base.payment.frequency], paymentLabels[after.payment.frequency], true);
-  add('Précision sur le paiement', base.payment.note || '—', after.payment.note || '—', true);
-  add('Conditions essentielles', base.conditions || '—', after.conditions || '—');
-  const subKey = (terms: Terms) => JSON.stringify([...terms.sub_lots].sort((x, y) => x.sub_lot_id.localeCompare(y.sub_lot_id)));
-  if (subKey(base) !== subKey(after)) rows.push({ label: 'Calendrier des sous-lots', before: base.sub_lots.length ? 'Dates précédentes' : 'Aucune date', after: after.sub_lots.length ? 'Dates modifiées (voir le détail)' : 'Aucune date', sensitive: true });
+  add('Modalité de paiement', paymentLabels[base.payment_mode ?? 'none'], paymentLabels[after.payment_mode ?? 'none'], true);
+  add('Modalités d’exécution', base.execution_terms || '—', after.execution_terms || '—');
+  if (scheduleKey(base) !== scheduleKey(after)) rows.push({ label: 'Calendrier des sous-lots', before: (base.sub_lot_schedule ?? []).length ? 'Dates précédentes' : 'Aucune date', after: (after.sub_lot_schedule ?? []).length ? 'Nouvelles dates (voir le détail)' : 'Aucune date', sensitive: true });
+  if (installmentKey(base) !== installmentKey(after)) rows.push({ label: 'Échéances indicatives', before: `${(base.installments ?? []).length} échéance(s)`, after: `${(after.installments ?? []).length} échéance(s)`, sensitive: true });
   return rows;
 }
