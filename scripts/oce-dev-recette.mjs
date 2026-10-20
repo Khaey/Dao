@@ -105,11 +105,117 @@ async function cleanup() {
   return R;
 }
 
-const op = process.argv[2]; const ops = { probe, provision, run, cleanup };
-if (!ops[op]) { console.error('usage: oce-dev-recette.mjs probe|provision|run|cleanup'); process.exit(2); }
+// ---- #325 tranche B : recette du planning GLOBAL (>=3 lots, >=2 dependances inter-lots) ----
+// Memes regles : DEV protege, jeu fictif a identifiants fixes, TEST client/artisan seulement. Le contexte de planning du projet reutilise
+// le couple admis de la passerelle (le lot de recette), sans toucher aux scripts d'exploitation.
+const id = n => `5eed0301-0000-4000-8000-0000000000${n}`;
+const LOT2 = id('a3'), LOT3 = id('a4');
+const pg = (c, path, opt) => rest(c, path, opt);
+const ign = { Prefer: 'resolution=ignore-duplicates,return=minimal' };
+
+async function provisionGlobal(c) {
+  const users = await (await svc(c, '/auth/v1/admin/users?per_page=200')).json();
+  const contractorUser = (users.users || []).find(u => (u.email || '').toLowerCase() === CONTRACTOR) || fail('TEST contractor not found');
+  const profile = ((await pg(c, `/rest/v1/contractor_profiles?select=id&user_id=eq.${contractorUser.id}`)).body || [])[0] || fail('TEST contractor profile missing');
+  const trade = ((await pg(c, '/rest/v1/trades?select=id&order=code&limit=1')).body || [])[0] || fail('reference data missing: trades');
+  const ins = async (table, row) => { const r = await pg(c, `/rest/v1/${table}`, { method: 'POST', headers: ign, body: JSON.stringify(row) }); if (r.status >= 300) fail(`synthetic insert failed: ${table} (${r.status})`); };
+  const lots = [[SYNTHETIC_LOT, 'Gros oeuvre'], [LOT2, 'Electricite'], [LOT3, 'Finitions']];
+  for (const [lot, name] of lots) {
+    await ins('project_requests', { id: lot, project_id: SYNTHETIC_PROJECT });
+    await ins('project_request_versions', { project_id: SYNTHETIC_PROJECT, request_id: lot, version_no: 1, title: `[SYNTHETIQUE] ${name}`, scope: 'Lot fictif de recette', trade_id: trade.id });
+  }
+  const versions = {};
+  for (const [lot] of lots) versions[lot] = ((await pg(c, `/rest/v1/project_request_versions?select=id&request_id=eq.${lot}&version_no=eq.1`)).body || [])[0]?.id || fail('request version missing');
+  // Offre fictive de l'artisan TEST sur les 3 lots (une seule version soumise ; contenu immuable une fois soumise).
+  const bidVersion = id('b2');
+  const exists = ((await pg(c, `/rest/v1/bid_versions?select=id&id=eq.${bidVersion}`)).body || []).length === 1;
+  if (!exists) {
+    await ins('bids', { id: id('b1'), project_id: SYNTHETIC_PROJECT, contractor_id: profile.id });
+    await ins('bid_versions', { id: bidVersion, bid_id: id('b1'), project_id: SYNTHETIC_PROJECT, contractor_id: profile.id, version_no: 1, expires_at: '2099-01-01T00:00:00Z' });
+    const items = [[id('b3'), SYNTHETIC_LOT], [id('b4'), LOT2], [id('b5'), LOT3]];
+    for (const [item, lot] of items) await ins('bid_items', { id: item, bid_version_id: bidVersion, project_id: SYNTHETIC_PROJECT, request_version_id: versions[lot], request_id: lot, contractor_id: profile.id, price_millimes: 1000000, duration_days: 30, inclusions: 'fictif' });
+    const sub = (n, item, lot, pos, key, title, start, end) => ins('bid_sub_lots', { id: id(n), bid_version_id: bidVersion, bid_item_id: item, project_id: SYNTHETIC_PROJECT, request_id: lot, contractor_id: profile.id, node_key: id(key), position: pos, title, start_date: start, end_date: end });
+    await sub('d1', id('b3'), SYNTHETIC_LOT, 1, 'e1', 'Fondations', '2026-11-02', '2026-11-20');
+    await sub('d2', id('b3'), SYNTHETIC_LOT, 2, 'e2', 'Dalle', '2026-11-21', '2026-12-15');
+    await sub('d3', id('b3'), SYNTHETIC_LOT, 3, 'e3', 'Cloture (parallele)', '2026-11-02', '2026-11-10');
+    await sub('d4', id('b4'), LOT2, 1, 'e4', 'Tirage de cables', '2026-12-16', '2027-01-20');
+    const link = (n, pk, pr, sk, sr) => ins('bid_sub_lot_links', { id: id(n), bid_version_id: bidVersion, project_id: SYNTHETIC_PROJECT, contractor_id: profile.id, pred_kind: pk, pred_ref: pr, succ_kind: sk, succ_ref: sr });
+    await link('f1', 'proposal', id('e1'), 'proposal', id('e2'));      // intra-lot : Fondations -> Dalle
+    await link('f2', 'proposal', id('e2'), 'proposal', id('e4'));      // inter-lot 1 : Dalle (lot 1) -> Tirage de cables (lot 2)
+    await link('f3', 'proposal', id('e4'), 'lot', LOT3);              // inter-lot 2 : Tirage de cables (lot 2) -> lot 3
+    await link('f4', 'lot', LOT3, 'proposal', id('e1'));              // ferme une boucle : doit etre refuse a la confirmation
+    const sub2 = await pg(c, `/rest/v1/bid_versions?id=eq.${bidVersion}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'submitted', submitted_at: new Date().toISOString() }) });
+    if (sub2.status >= 300) fail('synthetic bid submission failed');
+  }
+  // Attribution PAR LOT (un award, trois lignes).
+  await ins('awards', { id: id('c1'), project_id: SYNTHETIC_PROJECT, contractor_id: profile.id });
+  for (const [n, item, lot] of [['c2', id('b3'), SYNTHETIC_LOT], ['c3', id('b4'), LOT2], ['c4', id('b5'), LOT3]])
+    await ins('award_items', { id: id(n), award_id: id('c1'), project_id: SYNTHETIC_PROJECT, request_id: lot, bid_item_id: item, agreed_millimes: 1000000, contractor_id: profile.id });
+}
+
+async function runGlobal() {
+  const c = cfg(); const R = {};
+  await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}&status=eq.archived`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'draft' }) });
+  await provisionGlobal(c);
+  // Le contexte du projet prend l'identifiant du lot de recette (seul couple admis par la passerelle).
+  const ctx = await rest(c, `/rest/v1/project_plan_contexts?project_id=eq.${SYNTHETIC_PROJECT}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ context_id: SYNTHETIC_LOT }) });
+  R.context_bound = ctx.status < 300;
+  const mapping = await rest(c, '/rest/v1/rpc/oce_request_mapping', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_request_id: SYNTHETIC_LOT }) });
+  R.mapping_admitted = mapping.status < 300 && typeof mapping.body === 'string'
+    && (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: mapping.body, p_admitted: true }) })).status < 300;
+  const owner = await signIn(c, CLIENT, env('DAO_TEST_CLIENT_PASSWORD'));
+  const other = await signIn(c, CONTRACTOR, env('DAO_TEST_CONTRACTOR_PASSWORD'));
+  const plan = async (token = owner) => { const r = await app(token, `/api/oce/project-plan?project_id=${SYNTHETIC_PROJECT}`); return { status: r.status, data: (await r.json().catch(() => ({}))).data }; };
+  const decide = async (link, decision) => { const r = await app(owner, '/api/oce/project-plan', { method: 'POST', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, link_id: link, decision }) }); return { status: r.status, code: (await r.json().catch(() => ({}))).code }; };
+  const putLot3 = end => app(owner, '/api/oce/lot-plan', { method: 'PUT', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, lot_id: LOT3, planned_start: '2027-01-21', planned_end: end, ready: true }) });
+  const settle = async (after) => {
+    for (let i = 0; i < 30; i++) { const p = await plan(); const s = p.data?.sync; if (p.data && p.data.revision >= after && (s?.state === 'synced' || s?.state === 'failed')) return p.data; await sleep(3000); }
+    return (await plan()).data;
+  };
+
+  R.unauthenticated_refused = (await app(null, `/api/oce/project-plan?project_id=${SYNTHETIC_PROJECT}`)).status === 401;
+  R.artisan_read_refused = (await plan(other)).status === 403;
+  R.artisan_decision_refused = (await app(other, '/api/oce/project-plan', { method: 'POST', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, link_id: id('f1'), decision: 'confirmed' }) })).status === 403;
+
+  const g0 = (await plan()).data || {};
+  R.lots = g0.lots?.length ?? 0; R.lots_awarded = (g0.lots || []).filter(l => l.awarded).length;
+  R.links_proposed = g0.links?.length ?? 0;
+  // Etat initial determine : plan du lot 3, chaine confirmee, liaison fermant la boucle refusee.
+  R.lot3_plan_saved = (await putLot3('2027-02-28')).status === 200;
+  const d1 = await decide(id('f1'), 'confirmed'), d2 = await decide(id('f2'), 'confirmed'), d3 = await decide(id('f3'), 'confirmed');
+  R.links_confirmed = d1.status === 200 && d2.status === 200 && d3.status === 200;
+  const cycle = await decide(id('f4'), 'confirmed');
+  R.cycle_rejected = cycle.status === 422 && cycle.code === 'DEPENDENCY_CYCLE';
+  const rev0 = (await plan()).data?.revision ?? 0;
+  const base = await settle(rev0); const bs = base?.sync || {};
+  R.sync_global = bs.state; R.global_duration_days = bs.duration_days ?? null; R.critical_count = bs.critical_codes?.length ?? 0;
+  R.effective_links = (base?.links || []).filter(l => l.state === 'effective').length;
+  const nodeTitle = new Map((base?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '').slice(0, 12)}`, n.title]));
+  const critTitles = (bs.critical_codes || []).map(k => nodeTitle.get(k) || (k.startsWith('LA-') ? 'lot' : '?'));
+  R.critical_titles = critTitles.sort().join('|');
+  R.critical_has_chain = ['Fondations', 'Dalle', 'Tirage de cables'].every(t => critTitles.includes(t));
+  R.parallel_task_not_critical = !critTitles.includes('Cloture (parallele)');
+  // Changement de duree (fin du lot 3) : recalcul.
+  await putLot3('2027-03-31');
+  const longer = await settle((base?.revision ?? 0) + 1);
+  R.duration_change_recomputed = longer?.sync?.state === 'synced' && (longer.sync.duration_days ?? 0) > (bs.duration_days ?? 0);
+  R.duration_after_change = longer?.sync?.duration_days ?? null;
+  // Changement de predecesseur : on retire Dalle -> Tirage de cables.
+  await decide(id('f2'), 'rejected');
+  const relinked = await settle((longer?.revision ?? 0) + 1);
+  const crit2 = [...(relinked?.sync?.critical_codes || [])].sort().join('|');
+  R.predecessor_change_recomputed = relinked?.sync?.state === 'synced' && ((relinked.sync.duration_days ?? 0) !== (longer?.sync?.duration_days ?? 0) || crit2 !== [...(longer?.sync?.critical_codes || [])].sort().join('|'));
+  R.duration_after_unlink = relinked?.sync?.duration_days ?? null;
+  // Etat final propre pour une relance : liens restaures, lot 3 remis.
+  await decide(id('f2'), 'confirmed'); await putLot3('2027-02-28');
+  return R;
+}
+
+const op = process.argv[2]; const ops = { probe, provision, run, cleanup, 'run-global': runGlobal };
+if (!ops[op]) { console.error('usage: oce-dev-recette.mjs probe|provision|run|run-global|cleanup'); process.exit(2); }
 let report; let ok = true;
 try { report = await ops[op](); } catch (e) { ok = false; report = { error: String(e.message || e).replace(/[^\w .:()/-]/g, '').slice(0, 120) }; }
-finally { if (op === 'run') { try {
+finally { if (op === 'run' || op === 'run-global') { try {
       const cleaned = await cleanup(); const c = cfg();
       const owner = await signIn(c, CLIENT, env('DAO_TEST_CLIENT_PASSWORD'));
       cleaned.summary_refused_after_revocation = (await app(owner, `/api/oce/planning-summary?${q}`)).status === 403;
@@ -118,6 +224,14 @@ finally { if (op === 'run') { try {
 // A recette only passes when every expected outcome is true; a missing or false outcome fails it (never vacuous).
 const EXPECT_RUN = ['mapping_admitted', 'unauthenticated_refused', 'unauthorized_plan_read_refused', 'unauthorized_plan_write_refused', 'unauthorized_summary_refused',
   'plan_saved_ready', 'replay_saved', 'replay_revision_unchanged', 'change_saved', 'changed_revision_incremented', 'changed_duration_differs'];
+const EXPECT_GLOBAL = ['context_bound', 'mapping_admitted', 'unauthenticated_refused', 'artisan_read_refused', 'artisan_decision_refused', 'lot3_plan_saved', 'links_confirmed', 'cycle_rejected',
+  'critical_has_chain', 'parallel_task_not_critical', 'duration_change_recomputed', 'predecessor_change_recomputed'];
+if (op === 'run-global' && ok) {
+  const r = report || {};
+  ok = EXPECT_GLOBAL.every(k => r[k] === true) && r.lots >= 3 && r.lots_awarded >= 3 && r.effective_links >= 3 && r.sync_global === 'synced'
+    && Number.isInteger(r.global_duration_days) && r.global_duration_days > 0 && r.critical_count >= 3
+    && r.cleanup?.mapping_revoked === true && r.cleanup?.project_archived === true;
+}
 if (op === 'run' && ok) {
   const r = report || {};
   ok = EXPECT_RUN.every(k => r[k] === true) && r.sync_first === 'synced' && r.sync_replay === 'synced' && r.sync_changed === 'synced'

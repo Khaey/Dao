@@ -8,7 +8,7 @@ on:
         type: choice
         required: true
         default: probe
-        options: [probe, provision, run, cleanup]
+        options: [probe, provision, run, run-global, cleanup]
 
 permissions:
   contents: read
