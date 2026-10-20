@@ -6,6 +6,7 @@ import { Badge, Button, Card } from '../../../../components/ui';
 import { commandBackoffice } from '../../../../lib/backoffice';
 import { projectApi } from '../../../../lib/collaboration';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
+import AgreementLinks from '../../../../components/precontract/AgreementLinks';
 
 type Lot = { id: string; request_version_id: string; safe_title: string };
 type Offer = {
@@ -22,7 +23,7 @@ type Offer = {
   groupId: string | null;
   result: string;
 };
-type Award = { id: string; request_id: string; bid_item_id: string; agreed_millimes: number; active: boolean };
+type Award = { id: string; award_id: string; request_id: string; bid_item_id: string; agreed_millimes: number; active: boolean };
 type QuoteDocument = { id:string; bid_version_id:string; original_name:string; size_bytes:number; status:string };
 type SubLotView = { bid_item_id:string; bid_version_id:string; node_key:string; position:number; title:string; scope:string|null; start_date:string|null; end_date:string|null; duration_days:number|null; budget_millimes:number|null };
 type SubLotLinkView = { bid_version_id:string; pred_kind:string; pred_ref:string; succ_kind:string; succ_ref:string };
@@ -70,7 +71,7 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots,
     const bidIds = (bidsResult.data ?? []).map((bid: { id: string }) => bid.id);
     const awardResult = await supabase
       .from('award_items')
-      .select('id,request_id,bid_item_id,agreed_millimes,active,bid_items!award_items_bid_item_id_fkey(bid_version_id)')
+      .select('id,award_id,request_id,bid_item_id,agreed_millimes,active,bid_items!award_items_bid_item_id_fkey(bid_version_id)')
       .eq('project_id', projectId);
     if (awardResult.error) throw new Error('Les attributions ne sont pas disponibles.');
     setAwards((awardResult.data ?? []).filter((row) => row.active) as Award[]);
@@ -227,6 +228,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
           <h3 id={`lot-${lot.id}`} className="min-w-0 flex-1 break-words text-lg font-bold tracking-tight text-ink">{lot.safe_title}</h3>
           <div className="flex flex-wrap items-center gap-2">
             {awarded && <Badge tone="teal">Lot attribué</Badge>}
+            {awarded && <AgreementLinks awardId={awarded.award_id} compact />}
             {awarded && <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className={`min-h-11 ${ghost}`} onClick={() => { setCancelling(awarded); setReason(''); setComment(''); }}>Annuler l’attribution</Button>}
           </div>
           <p className="w-full text-sm text-black/55">{lotOffers.length ? `${plural(lotOffers.length, 'offre')} · à partir de ${formatTnd(lowest)}` : 'En attente d’offres'}</p>
