@@ -68,6 +68,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(clientProjectRow.getByText('Publié', { exact: true })).toBeVisible();
   await expect(clientProjectRow.getByText(/Version \d+ approuvée/)).toBeVisible();
   await expect(clientProjectRow.getByText('Prêt à publier', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Filtrer par statut').selectOption('published');
+  await expect(clientProjectRow).toBeVisible();
   await page.goto('/app');
   const dashboardProject = page.locator(`a[href="/app/projects/${project.projectId}"]`);
   await expect(dashboardProject.getByText('Publié', { exact: true })).toBeVisible();
