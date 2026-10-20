@@ -218,6 +218,16 @@ await test('eligible artisan creates one idempotent private technical question',
  const replay=(await db.query('select public.create_rfi_question($1,$2,$3) as value',[rfiPublicationRequest,'Texte ignoré','rfi-create-0001'])).rows[0].value;
  rfiQuestion=first.id;eq(replay.id,rfiQuestion);eq(first.mine,true);
 }));
+let pendingRfiDocument;
+await test('RFI document owner can finalize only their own quarantined metadata',()=>as('proA',async()=>{
+ const row=(await db.query("select (d).id,(d).owner_id,(d).status from (select public.create_rfi_document($1,null,$2,'plan.pdf','application/pdf',128) d) created",[rfiQuestion,`rfi/${rfiQuestion}/plan.pdf`])).rows[0];
+ pendingRfiDocument=row.id;
+ eq(row.owner_id,U.proA);eq(row.status,'quarantined');
+ eq((await db.query('select id from public.technical_rfi_documents where id=$1',[pendingRfiDocument])).rows.length,1);
+}));
+await test('another artisan cannot observe quarantined RFI metadata',()=>as('proB',async()=>{
+ eq((await db.query('select id from public.technical_rfi_documents where id=$1',[pendingRfiDocument])).rows.length,0);
+}));
 await test('question remains private before the official clarification',async()=>{
  await as('proB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
  await as('clientB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
