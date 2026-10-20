@@ -14,7 +14,7 @@ import OceLotPlanning from '../../../../components/OceLotPlanning';
 import ProjectGlobalPlan from '../../../../components/ProjectGlobalPlan';
 import ReviewOpportunities from '../../../../components/reviews/ReviewOpportunities';
 import { emptyTeam, projectApi, stageLabels, Team } from '../../../../lib/collaboration';
-import { cn, effectiveProjectStatus, statusLabel } from '../../../../lib/utils';
+import { cn, effectiveProjectStatus, displayProjectStatus, approvedVersionLabel, statusLabel } from '../../../../lib/utils';
 import { DossierSteps, ErrorPanel, fieldClass, Pill, primaryAction, ProgressBar, readableStatus, secondaryAction, StatusPill } from '../_components/ProjectUi';
 
 type Trade = { id: string; name_fr: string };
@@ -301,7 +301,7 @@ export default function ProjectDetail() {
     <header className="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_2px_rgba(23,32,42,0.04)] sm:p-7">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2"><StatusPill status={effectiveStatus} />{!project.client_id && <Pill tone="clay">Client à confirmer</Pill>}</div>
+          <div className="flex flex-wrap items-center gap-2"><StatusPill status={displayProjectStatus(effectiveStatus)} />{['open', 'published', 'closed'].includes(project.status) && approvedVersionLabel(projectVersion?.status, projectVersion?.version_no) && <Pill tone="neutral">{approvedVersionLabel(projectVersion?.status, projectVersion?.version_no)}</Pill>}{!project.client_id && <Pill tone="clay">Client à confirmer</Pill>}</div>
           <h1 id="project-title" className="mt-3 break-words text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-3xl">{projectTitle}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink/70">{description}</p>
           <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink/70" aria-label="Informations du chantier">
