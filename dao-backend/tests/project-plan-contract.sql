@@ -99,10 +99,10 @@ begin
   perform public.decide_plan_link(proj,lb,'rejected');
   if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=lb::text)<>'rejected' then raise exception 'rejected link must read rejected'; end if;
 
-  -- Un lien rejeté peut être reconsidéré (décision la plus récente), les décisions elles-mêmes sont append-only.
-  perform public.decide_plan_link(proj,l1,'rejected');
-  if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=l1::text)<>'rejected' then raise exception 'latest decision must win'; end if;
-  perform public.decide_plan_link(proj,l1,'confirmed');
+  -- Un lien effectif est définitif (la passerelle OCE ne sait pas retirer une dépendance) ; les décisions sont append-only.
+  begin perform public.decide_plan_link(proj,l1,'rejected'); raise exception 'effective link retired';
+  exception when invalid_parameter_value then if sqlerrm<>'confirmed_link_final' then raise; end if; end;
+  if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=l1::text)<>'effective' then raise exception 'link must stay effective'; end if;
   begin update public.project_plan_link_decisions set decision='rejected'; raise exception 'decision updated';
   exception when check_violation then null; end;
   begin delete from public.project_plan_link_decisions; raise exception 'decision deleted';

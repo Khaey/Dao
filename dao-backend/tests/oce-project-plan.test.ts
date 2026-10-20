@@ -116,6 +116,8 @@ test('handler: decisions go through the database; a cycle is a readable 422; rel
   assert.equal(res.status, 200); assert.equal(good.calls[0][0], 'decide_plan_link'); await Promise.all(tasks); assert.deepEqual(synced, [P]);
   const cycle = await mk(db({ decide_plan_link: { error: { code: '23514', message: 'dependency_cycle' } } }))(req('POST', { project_id: P, link_id: N1, decision: 'confirmed' }));
   assert.equal(cycle.status, 422); assert.equal((await cycle.json()).code, 'DEPENDENCY_CYCLE');
+  const final = await mk(db({ decide_plan_link: { error: { code: '22023', message: 'confirmed_link_final' } } }))(req('POST', { project_id: P, link_id: N1, decision: 'rejected' }));
+  assert.equal(final.status, 422); assert.equal((await final.json()).code, 'LINK_CONFIRMED_FINAL');
   const denied = await mk(db({ decide_plan_link: { error: { code: '42501' } } }))(req('POST', { project_id: P, link_id: N1, decision: 'confirmed' })); assert.equal(denied.status, 403);
   const relaunch = await mk(db({ get_project_plan: { data: {} } }))(req('POST', { project_id: P })); assert.equal(relaunch.status, 202);
   const refused = await mk(db({ get_project_plan: { error: { code: '42501' } } }))(req('POST', { project_id: P })); assert.equal(refused.status, 403);

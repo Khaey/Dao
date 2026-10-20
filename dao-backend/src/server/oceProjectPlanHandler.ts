@@ -17,6 +17,7 @@ export function createOceProjectPlanHandler(
   const trigger = (projectId: string) => schedule(Promise.resolve().then(() => synchronize(projectId)).catch(() => undefined));
   const rpcError = (error: any) => error?.code === '42501' ? fail(403, 'FORBIDDEN', 'Accès au planning du projet refusé.')
     : error?.message === 'dependency_cycle' ? fail(422, 'DEPENDENCY_CYCLE', 'Ce lien créerait une boucle dans le planning.')
+    : error?.message === 'confirmed_link_final' ? fail(422, 'LINK_CONFIRMED_FINAL', 'Un lien confirmé ne peut plus être retiré : le planning calculé en dépend.')
     : error?.code === '22023' ? fail(422, 'UNPROCESSABLE', 'Lien non confirmable pour le moment.') : fail(503, 'UNAVAILABLE', 'Planning du projet temporairement indisponible.');
   return async (request: Request) => {
     try {
