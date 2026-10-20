@@ -339,7 +339,7 @@ create or replace function dao_private.propose_precontract_agreement(
 language plpgsql security definer set search_path='' as $$
 declare
   actor uuid:=auth.uid(); a public.awards; agreement public.precontract_agreements;
-  party_role text; reference jsonb; normalized_terms jsonb; body jsonb;
+  v_party_role text; reference jsonb; normalized_terms jsonb; body jsonb;
   version_id uuid; version_no integer; result jsonb;
 begin
   if actor is null or p_award_id is null or p_idempotency_key is null then
@@ -359,8 +359,8 @@ begin
   if not found then raise exception using errcode='42501',message='Attribution inaccessible'; end if;
   perform 1 from public.projects where id=a.project_id for update;
   select * into a from public.awards where id=p_award_id for update;
-  party_role:=dao_private.precontract_party_for_award(a.id,actor);
-  if not dao_private.account_active(actor) or party_role is null then
+  v_party_role:=dao_private.precontract_party_for_award(a.id,actor);
+  if not dao_private.account_active(actor) or v_party_role is null then
     raise exception using errcode='42501',message='Partie active requise';
   end if;
   if a.status<>'confirmed' or not exists(
@@ -406,7 +406,7 @@ begin
   insert into public.precontract_agreement_versions(
     agreement_id,version_no,content,content_hash,proposed_by,proposed_role
   ) values(
-    agreement.id,version_no,body,dao_private.contract_version_hash(body),actor,party_role
+    agreement.id,version_no,body,dao_private.contract_version_hash(body),actor,v_party_role
   ) returning id into version_id;
   update public.precontract_agreements
     set current_version_id=version_id,status='negotiating',agreed_at=null
@@ -414,14 +414,14 @@ begin
   insert into public.precontract_agreement_events(
     agreement_id,agreement_version_id,actor_id,actor_role,event_type,metadata
   ) values(
-    agreement.id,version_id,actor,party_role,
+    agreement.id,version_id,actor,v_party_role,
     case when version_no=1 then 'proposed' else 'counter_proposed' end,
     jsonb_build_object('version_no',version_no,'non_engaging',true)
   );
   result:=jsonb_build_object(
     'agreement_id',agreement.id,'version_id',version_id,'version_no',version_no,
     'status','negotiating','content_hash',dao_private.contract_version_hash(body),
-    'party_role',party_role,'non_engaging',true,'legal_effect_enabled',false
+    'party_role',v_party_role,'non_engaging',true,'legal_effect_enabled',false
   );
   insert into public.command_receipts(actor_id,idempotency_key,command,result)
     values(actor,p_idempotency_key::text,'propose_precontract_agreement',result);
@@ -435,7 +435,7 @@ create or replace function dao_private.accept_precontract_agreement(
 language plpgsql security definer set search_path='' as $$
 declare
   actor uuid:=auth.uid(); agreement public.precontract_agreements;
-  party_role text; accepted_count integer; result jsonb;
+  v_party_role text; accepted_count integer; result jsonb;
 begin
   if actor is null or p_agreement_id is null or p_version_id is null or p_idempotency_key is null then
     raise exception using errcode='22023',message='Accord, version et clé idempotente requis';
@@ -454,8 +454,8 @@ begin
   if not found then raise exception using errcode='42501',message='Accord inaccessible'; end if;
   perform 1 from public.projects where id=agreement.project_id for update;
   select * into agreement from public.precontract_agreements where id=p_agreement_id for update;
-  party_role:=dao_private.precontract_party_for_award(agreement.award_id,actor);
-  if not dao_private.account_active(actor) or party_role is null
+  v_party_role:=dao_private.precontract_party_for_award(agreement.award_id,actor);
+  if not dao_private.account_active(actor) or v_party_role is null
     or actor not in (agreement.client_id,agreement.contractor_user_id) then
     raise exception using errcode='42501',message='Partie active requise';
   end if;
@@ -466,10 +466,10 @@ begin
   end if;
   insert into public.precontract_agreement_acceptances(
     agreement_id,agreement_version_id,party_role,accepted_by
-  ) values(agreement.id,p_version_id,party_role,actor);
+  ) values(agreement.id,p_version_id,v_party_role,actor);
   insert into public.precontract_agreement_events(
     agreement_id,agreement_version_id,actor_id,actor_role,event_type
-  ) values(agreement.id,p_version_id,actor,party_role,'accepted');
+  ) values(agreement.id,p_version_id,actor,v_party_role,'accepted');
 
   select count(*) into accepted_count
   from public.precontract_agreement_acceptances x
@@ -481,13 +481,13 @@ begin
     insert into public.precontract_agreement_events(
       agreement_id,agreement_version_id,actor_id,actor_role,event_type,metadata
     ) values(
-      agreement.id,p_version_id,actor,party_role,'agreed',
+      agreement.id,p_version_id,actor,v_party_role,'agreed',
       jsonb_build_object('non_engaging',true,'contract_signed',false)
     );
   end if;
   result:=jsonb_build_object(
     'agreement_id',agreement.id,'version_id',p_version_id,
-    'party_role',party_role,
+    'party_role',v_party_role,
     'status',case when accepted_count=2 then 'agreed' else 'negotiating' end,
     'accepted_parties',accepted_count,
     'non_engaging',true,'legal_effect_enabled',false,'contract_signed',false
@@ -506,7 +506,7 @@ create or replace function dao_private.reject_precontract_agreement(
 language plpgsql security definer set search_path='' as $$
 declare
   actor uuid:=auth.uid(); agreement public.precontract_agreements;
-  party_role text; result jsonb;
+  v_party_role text; result jsonb;
 begin
   if actor is null or p_agreement_id is null or p_version_id is null
     or p_idempotency_key is null or length(btrim(coalesce(p_reason,''))) not between 1 and 2000 then
@@ -526,8 +526,8 @@ begin
   if not found then raise exception using errcode='42501',message='Accord inaccessible'; end if;
   perform 1 from public.projects where id=agreement.project_id for update;
   select * into agreement from public.precontract_agreements where id=p_agreement_id for update;
-  party_role:=dao_private.precontract_party_for_award(agreement.award_id,actor);
-  if not dao_private.account_active(actor) or party_role is null
+  v_party_role:=dao_private.precontract_party_for_award(agreement.award_id,actor);
+  if not dao_private.account_active(actor) or v_party_role is null
     or actor not in (agreement.client_id,agreement.contractor_user_id) then
     raise exception using errcode='42501',message='Partie active requise';
   end if;
@@ -539,9 +539,9 @@ begin
     where id=agreement.id;
   insert into public.precontract_agreement_events(
     agreement_id,agreement_version_id,actor_id,actor_role,event_type,reason
-  ) values(agreement.id,p_version_id,actor,party_role,'rejected',btrim(p_reason));
+  ) values(agreement.id,p_version_id,actor,v_party_role,'rejected',btrim(p_reason));
   result:=jsonb_build_object(
-    'agreement_id',agreement.id,'version_id',p_version_id,'party_role',party_role,
+    'agreement_id',agreement.id,'version_id',p_version_id,'party_role',v_party_role,
     'status','rejected','reason',btrim(p_reason),
     'non_engaging',true,'legal_effect_enabled',false,'contract_signed',false
   );
@@ -557,14 +557,14 @@ create or replace function dao_private.precontract_agreement_snapshot(
 language plpgsql stable security definer set search_path='' as $$
 declare
   actor uuid:=auth.uid(); agreement public.precontract_agreements;
-  party_role text; current_version public.precontract_agreement_versions;
+  v_party_role text; current_version public.precontract_agreement_versions;
   reference jsonb; can_propose boolean; result jsonb;
 begin
   if actor is null or p_award_id is null or not dao_private.account_active(actor) then
     raise exception using errcode='42501',message='Authentification active requise';
   end if;
-  party_role:=dao_private.precontract_party_for_award(p_award_id,actor);
-  if party_role is null then raise exception using errcode='42501',message='Attribution inaccessible'; end if;
+  v_party_role:=dao_private.precontract_party_for_award(p_award_id,actor);
+  if v_party_role is null then raise exception using errcode='42501',message='Attribution inaccessible'; end if;
   select * into agreement from public.precontract_agreements where award_id=p_award_id;
   can_propose:=exists(select 1 from public.awards a where a.id=p_award_id and a.status='confirmed')
     and not exists(select 1 from public.contracts c where c.award_id=p_award_id);
@@ -578,7 +578,7 @@ begin
       'acceptances','[]'::jsonb,
       'events','[]'::jsonb,
       'permissions',jsonb_build_object(
-        'party_role',party_role,'can_propose',can_propose,
+        'party_role',v_party_role,'can_propose',can_propose,
         'can_accept',false,'can_reject',false
       ),
       'non_engaging',true,'legal_effect_enabled',false,'contract_signed',false
@@ -626,11 +626,11 @@ begin
       from public.precontract_agreement_events e where e.agreement_id=agreement.id
     ),'[]'::jsonb),
     'permissions',jsonb_build_object(
-      'party_role',party_role,
+      'party_role',v_party_role,
       'can_propose',can_propose,
       'can_accept',can_propose and agreement.status='negotiating'
         and not exists(select 1 from public.precontract_agreement_acceptances x
-          where x.agreement_version_id=agreement.current_version_id and x.party_role=party_role),
+          where x.agreement_version_id=agreement.current_version_id and x.party_role=v_party_role),
       'can_reject',can_propose and agreement.status='negotiating'
     ),
     'non_engaging',true,'legal_effect_enabled',false,'contract_signed',false
