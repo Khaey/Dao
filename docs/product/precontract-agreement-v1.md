@@ -31,6 +31,8 @@ facture, réception, signature, dette ou mouvement financier n’est créé.
 
 ## API stable transmise à DOW
 
+L’interface « Conditions et calendrier » livrée par #347 consomme ce contrat sans répliquer les décisions serveur.
+
 Route authentifiée : **GET|POST /api/contracts/agreements**.
 
 ### Lecture
