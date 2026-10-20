@@ -42,6 +42,9 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await expect(reviewCard.getByText('Revue DAO', { exact: true })).toBeVisible();
   await reviewCard.getByLabel('Commentaire de revue').fill('À corriger : précisez le périmètre du lot.');
   await reviewCard.getByRole('button', { name: 'Refuser' }).click();
+  // A correction request is confirmed with the reason it sends to the client.
+  await expect(reviewCard.getByRole('group', { name: 'Confirmer la demande de corrections' })).toContainText('À corriger : précisez le périmètre du lot.');
+  await reviewCard.getByRole('button', { name: 'Confirmer la demande de corrections' }).click();
   await expect(reviewHeading).toHaveCount(0);
 
   await page.goto(`/app/projects/${project.projectId}`);
