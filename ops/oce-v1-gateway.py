@@ -929,6 +929,97 @@ class Gateway:
         relationships[relationship_key] = result["id"]
         return {"ok": True, "created": created, "updated": updated}
 
+    def delete_in_oce(self, client: OCEClient, path: str, still_present) -> None:
+        """Delete one OCE object and prove it is gone; never trust the status alone.
+
+        `still_present()` re-reads the mapped schedule. Ambiguous transport, 404 and
+        other outcomes are all settled by that readback, so replays are safe.
+        """
+        try:
+            status, _ = client.request("DELETE", path)
+        except AmbiguousWrite:
+            status = None
+        if status == 401:
+            if client.on_reject:
+                client.on_reject()
+            raise SafeError(502, "oce_session_rejected")
+        if status == 403:
+            raise SafeError(502, "oce_permission_rejected")
+        if status in (404, 405, 501) and still_present():
+            raise SafeError(502, "oce_delete_unsupported")
+        if status is not None and status not in (200, 202, 204, 404):
+            raise SafeError(502, "oce_operation_rejected")
+        if still_present():
+            raise SafeError(502, "oce_delete_not_effective" if status is not None else "oce_write_ambiguous")
+
+    def remove_dependency(self, state: dict, row: dict, body: dict) -> dict:
+        keys = {"dao_project_id", "dao_lot_id", "predecessor_activity_code", "successor_activity_code"}
+        exact_body(body, keys, keys)
+        pred_code = short_text(body["predecessor_activity_code"], "predecessor_activity_code", 50)
+        succ_code = short_text(body["successor_activity_code"], "successor_activity_code", 50)
+        if not CODE_RE.fullmatch(pred_code) or not CODE_RE.fullmatch(succ_code):
+            raise SafeError(400, "invalid_activity_code")
+        if pred_code == succ_code:
+            raise SafeError(400, "dependency_self_reference")
+        relationships = row.setdefault("relationships", {})
+        key = pred_code + "->" + succ_code
+        rel_id = relationships.get(key)
+        if rel_id is None:
+            return {"ok": True, "removed": False}
+        activities = row.get("activities", {})
+        pred_id, succ_id = activities.get(pred_code), activities.get(succ_code)
+        if not isinstance(rel_id, str) or not isinstance(pred_id, str) or not isinstance(succ_id, str):
+            raise SafeError(500, "gateway_state_invalid")
+        client = self.client()
+        schedule_id = self.schedule(client, row)["id"]
+
+        def listed():
+            return [r for r in self.list_relationships(client, schedule_id) if r.get("id") == rel_id]
+
+        current = listed()
+        if current:
+            item = current[0]
+            if (
+                item.get("schedule_id") != schedule_id
+                or item.get("predecessor_id") != pred_id
+                or item.get("successor_id") != succ_id
+            ):
+                raise SafeError(409, "dependency_ownership_mismatch")
+            self.delete_in_oce(client, "/api/v1/schedule/relationships/" + rel_id, lambda: bool(listed()))
+        del relationships[key]
+        return {"ok": True, "removed": bool(current)}
+
+    def remove_activity(self, state: dict, row: dict, body: dict) -> dict:
+        keys = {"dao_project_id", "dao_lot_id", "activity_code"}
+        exact_body(body, keys, keys)
+        code = short_text(body["activity_code"], "activity_code", 50)
+        if not CODE_RE.fullmatch(code):
+            raise SafeError(400, "invalid_activity_code")
+        activities = row.setdefault("activities", {})
+        act_id = activities.get(code)
+        if act_id is None:
+            return {"ok": True, "removed": False}
+        if not isinstance(act_id, str):
+            raise SafeError(500, "gateway_state_invalid")
+        for key in row.get("relationships", {}):
+            pred, _, succ = key.partition("->")
+            if code in (pred, succ):
+                raise SafeError(409, "activity_has_dependencies")
+        client = self.client()
+        schedule_id = self.schedule(client, row)["id"]
+
+        def listed():
+            return [a for a in self.list_activities(client, schedule_id) if a.get("id") == act_id]
+
+        current = listed()
+        if current:
+            item = current[0]
+            if item.get("schedule_id") != schedule_id or item.get("activity_code") != code:
+                raise SafeError(409, "activity_ownership_mismatch")
+            self.delete_in_oce(client, "/api/v1/schedule/activities/" + act_id, lambda: bool(listed()))
+        del activities[code]
+        return {"ok": True, "removed": bool(current)}
+
     def calculate(self, state: dict, row: dict, body: dict) -> dict:
         exact_body(body, {"dao_project_id", "dao_lot_id"}, {"dao_project_id", "dao_lot_id"})
         client = self.client()
@@ -1018,6 +1109,8 @@ class Gateway:
             "/v1/ensure-schedule": self.ensure_schedule,
             "/v1/upsert-activity": self.upsert_activity,
             "/v1/ensure-dependency": self.ensure_dependency,
+            "/v1/remove-dependency": self.remove_dependency,
+            "/v1/remove-activity": self.remove_activity,
             "/v1/calculate-planning": self.calculate,
             "/v1/planning-summary": self.planning_summary,
         }
@@ -1142,6 +1235,8 @@ def safe_operation_name(path: str) -> str:
         "/v1/ensure-schedule": "ensure-schedule",
         "/v1/upsert-activity": "upsert-activity",
         "/v1/ensure-dependency": "ensure-dependency",
+        "/v1/remove-dependency": "remove-dependency",
+        "/v1/remove-activity": "remove-activity",
         "/v1/calculate-planning": "calculate-planning",
         "/v1/planning-summary": "planning-summary",
     }.get(path, "denied")
