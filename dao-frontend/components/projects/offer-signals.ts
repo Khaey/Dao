@@ -80,7 +80,7 @@ export function useMyOffers(enabled: boolean, activeByVersion: Record<string, nu
     if (!enabled) { setRead({ summaries: [], ready: false, failed: false }); return; }
     let active = true;
     setRead({ summaries: [], ready: false, failed: false });
-    void supabaseBrowser().rpc('my_bid_summaries')
+    void Promise.resolve(supabaseBrowser().rpc('my_bid_summaries'))
       .then(({ data, error }) => { if (active) setRead({ summaries: error ? [] : (data ?? []) as Summary[], ready: true, failed: Boolean(error) }); })
       .catch(() => { if (active) setRead({ summaries: [], ready: true, failed: true }); });
     return () => { active = false; };
