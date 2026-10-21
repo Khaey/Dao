@@ -107,3 +107,26 @@ lot.
 Réception juridique, signature, pénalités, facturation, paiement, BOQ, mesures
 certifiées, modification des contrats/awards, notification nouvelle et toute
 interaction OCE/VPS restent exclus.
+
+## Extension P9-A2 — sous-lots et quantités réelles
+
+L’API existante `/api/projects/execution` utilise désormais la projection et
+les commandes `*_v2`, tout en conservant les RPC V1 pour compatibilité :
+
+- `progress` accepte un `bid_sub_lot_id` facultatif. La base vérifie que ce
+  sous-lot appartient exactement au `bid_item` du lot attribué ;
+- `intervention` accepte le même sous-lot et une quantité décimale facultative
+  en milli-unités (`executed_quantity_milli`, `quantity_unit`). Un
+  `quote_line_id` facultatif n’est accepté que s’il appartient au même poste de
+  l’offre attribuée et si son unité correspond exactement ;
+- le snapshot expose, sous chaque lot, ses vrais sous-lots issus de l’offre
+  retenue, leur dernier avancement et des cumuls séparés par poste/unité. Un
+  ratio n’est calculé que lorsqu’un poste de devis fournit le dénominateur ;
+  aucune unité ni aucun pourcentage hétérogène n’est additionné ;
+- l’observation Client `technical_validated`, avec réserve facultative, reste
+  liée à l’identifiant immuable de l’événement exact. Elle ne vaut ni réception,
+  ni acceptation juridique, ni autorisation de paiement.
+
+Une offre ancienne sans sous-lot continue à utiliser le suivi au niveau du lot.
+Les écritures restent réservées au lot activement attribué ; l’historique
+append-only n’est ni révisé ni supprimé lors d’une annulation/réattribution.

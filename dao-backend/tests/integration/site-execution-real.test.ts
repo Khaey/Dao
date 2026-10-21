@@ -92,6 +92,19 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
     duration_days: 5, inclusions: 'Pose', exclusions: null,
   }).select('id').single();
   assert.ifError(bidItem.error);
+  const subLot = await admin.from('bid_sub_lots').insert({
+    bid_version_id: bidVersion.data!.id, bid_item_id: bidItem.data!.id,
+    project_id: project.data!.id, request_id: request.data!.id,
+    contractor_id: contractorProfile.data!.id, node_key: randomUUID(), position: 1,
+    title: 'Pose du réseau', scope: 'Sous-lot attribué',
+  }).select('id').single();
+  assert.ifError(subLot.error);
+  const quoteLine = await admin.from('bid_quote_lines').insert({
+    bid_version_id: bidVersion.data!.id, bid_item_id: bidItem.data!.id, position: 1,
+    section: 'labor', designation: 'Canalisation posée', unit: 'm',
+    quantity_milli: 10_000, unit_price_millimes: 1_000,
+  }).select('id').single();
+  assert.ifError(quoteLine.error);
   assert.ifError((await admin.from('bid_versions').update({
     status: 'submitted', submitted_at: new Date().toISOString(),
   }).eq('id', bidVersion.data!.id)).error);
@@ -125,24 +138,33 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
 
   const progressKey = randomUUID();
   const progressArgs = {
-    p_award_item_id: awardItem.data!.id, p_status: 'in_progress', p_percent: 40,
+    p_award_item_id: awardItem.data!.id, p_bid_sub_lot_id: subLot.data!.id,
+    p_status: 'in_progress', p_percent: 40,
     p_reason: 'Réseau principal posé', p_document_ids: [document.data!.id], p_idempotency_key: progressKey,
   };
-  const progress = await contractor.db.rpc('record_site_progress', progressArgs);
+  const progress = await contractor.db.rpc('record_site_progress_v2', progressArgs);
   assert.ifError(progress.error);
-  const replay = await contractor.db.rpc('record_site_progress', progressArgs);
+  const replay = await contractor.db.rpc('record_site_progress_v2', progressArgs);
   assert.ifError(replay.error); assert.equal(replay.data.id, progress.data.id);
-  await denied(contractor.db, 'record_site_progress', { ...progressArgs, p_percent: 41 }, '22023');
-  await denied(contractor.db, 'record_site_progress', { ...progressArgs, p_idempotency_key: randomUUID(), p_percent: 101 }, '22023');
-  await denied(contractor.db, 'record_site_progress', { ...progressArgs, p_idempotency_key: randomUUID(), p_document_ids: [foreignDocument.data!.id] });
-  await denied(competitor.db, 'record_site_progress', { ...progressArgs, p_idempotency_key: randomUUID() });
-  await denied(contractor.db, 'record_site_progress', { ...progressArgs, p_idempotency_key: randomUUID(), p_award_item_id: randomUUID() });
+  await denied(contractor.db, 'record_site_progress_v2', { ...progressArgs, p_percent: 41 }, '22023');
+  await denied(contractor.db, 'record_site_progress_v2', { ...progressArgs, p_idempotency_key: randomUUID(), p_percent: 101 }, '22023');
+  await denied(contractor.db, 'record_site_progress_v2', { ...progressArgs, p_idempotency_key: randomUUID(), p_document_ids: [foreignDocument.data!.id] });
+  await denied(competitor.db, 'record_site_progress_v2', { ...progressArgs, p_idempotency_key: randomUUID() });
+  await denied(contractor.db, 'record_site_progress_v2', { ...progressArgs, p_idempotency_key: randomUUID(), p_bid_sub_lot_id: randomUUID() });
 
-  const intervention = await contractor.db.rpc('record_site_intervention', {
-    p_award_item_id: awardItem.data!.id, p_work_date: '2026-10-19', p_note: 'Pose et contrôle visuel',
-    p_percent: 45, p_document_ids: [document.data!.id], p_idempotency_key: randomUUID(),
+  const intervention = await contractor.db.rpc('record_site_intervention_v2', {
+    p_award_item_id: awardItem.data!.id, p_bid_sub_lot_id: subLot.data!.id,
+    p_work_date: '2026-10-19', p_note: 'Pose et contrôle visuel', p_percent: 45,
+    p_quote_line_id: quoteLine.data!.id, p_executed_quantity_milli: 2_500,
+    p_quantity_unit: 'm', p_document_ids: [document.data!.id], p_idempotency_key: randomUUID(),
   });
   assert.ifError(intervention.error);
+  await denied(contractor.db, 'record_site_intervention_v2', {
+    p_award_item_id: awardItem.data!.id, p_bid_sub_lot_id: subLot.data!.id,
+    p_work_date: '2026-10-19', p_note: 'Unité forgée', p_percent: null,
+    p_quote_line_id: quoteLine.data!.id, p_executed_quantity_milli: 1_000,
+    p_quantity_unit: 'kg', p_document_ids: [], p_idempotency_key: randomUUID(),
+  });
   const milestone = await contractor.db.rpc('create_site_milestone', {
     p_award_item_id: awardItem.data!.id, p_title: 'Essai réseau', p_target_date: null,
     p_status: 'planned', p_note: null, p_idempotency_key: randomUUID(),
@@ -162,6 +184,19 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
     p_event_id: progress.data.id, p_outcome: 'disputed', p_reason: 'Photo complémentaire demandée', p_idempotency_key: randomUUID(),
   });
   assert.ifError(observation.error);
+  const technical = await owner.db.rpc('record_site_observation', {
+    p_event_id: intervention.data.id, p_outcome: 'technical_validated',
+    p_reason: 'Validé techniquement avec réserve documentaire', p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(technical.error);
+  const detailed = await owner.db.rpc('site_execution_snapshot_v2', snapshotArgs);
+  assert.ifError(detailed.error);
+  assert.equal(detailed.data.lots[0].sub_lots[0].latest_progress.percent, 40);
+  assert.deepEqual(detailed.data.lots[0].sub_lots[0].quantities[0], {
+    quote_line_id: quoteLine.data!.id, unit: 'm', executed_quantity_milli: 2500,
+    reference_quantity_milli: 10000, ratio_percent: 25,
+  });
+  assert.equal(detailed.data.events.find((row: any) => row.id === intervention.data.id).quantity.designation, 'Canalisation posée');
   await denied(otherClient.db, 'record_site_observation', {
     p_event_id: progress.data.id, p_outcome: 'acknowledged', p_reason: null, p_idempotency_key: randomUUID(),
   });
@@ -179,13 +214,13 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
 
   const raceKey = randomUUID();
   const [raceProgress, raceCancel] = await Promise.all([
-    contractor.db.rpc('record_site_progress', { ...progressArgs, p_idempotency_key: raceKey, p_percent: 50 }),
+    contractor.db.rpc('record_site_progress_v2', { ...progressArgs, p_idempotency_key: raceKey, p_percent: 50 }),
     owner.db.rpc('cancel_award_item_atomic', {
       p_idempotency_key: randomUUID(), p_award_item_id: awardItem.data!.id,
       p_reason: 'mutual_agreement', p_comment: null,
     }),
   ]);
   assert.equal([raceProgress, raceCancel].filter(result => !result.error).length >= 1, true);
-  await denied(contractor.db, 'record_site_progress', { ...progressArgs, p_idempotency_key: randomUUID(), p_percent: 55 });
+  await denied(contractor.db, 'record_site_progress_v2', { ...progressArgs, p_idempotency_key: randomUUID(), p_percent: 55 });
   await denied(contractor.db, 'site_execution_snapshot', snapshotArgs);
 });
