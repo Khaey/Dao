@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CalendarClock, CheckCircle2, CircleDashed, History, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Badge, Button, Card } from '../ui';
+import InstallmentPanel from './InstallmentPanel';
 import { formatTnd } from '../../lib/contracts';
 import {
   accept, cleanTerms, eventLabels, partyLabel, partyTo, partyWith, paymentLabels, PrecontractError, PrecontractUnavailable, propose, readAgreement, reject, termsDiff,
-  type AgreementVersion, type PartyRole, type PaymentMode, type ReferenceSubLot, type Snapshot, type Terms,
+  type AgreementVersion, type PartyRole, type PaymentMode, type ReferenceSubLot, type Snapshot, type Terms, type Installment,
 } from '../../lib/precontract';
 
 const field = 'mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm text-ink outline-none transition focus:border-teal focus:ring-4 focus:ring-teal/10 disabled:bg-sand/60';
@@ -100,6 +101,8 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
 
     {agreed && <Card className="flex items-start gap-3 border-teal/25 bg-teal/[0.04] p-5"><CheckCircle2 aria-hidden="true" size={22} className="shrink-0 text-teal" /><div><h2 className="font-bold text-ink">Le Client et l’Artisan ont accepté la version {current.version_no}</h2><p className="mt-1 text-sm text-black/60">Conditions convenues — contrat non signé. Cette version (empreinte {shortHash(current.content_hash)}) pourra être reprise dans le dossier contractuel. Une nouvelle proposition demanderait de nouveaux accords.</p></div></Card>}
 
+    {agreed && (current.terms.installments ?? []).length > 0 && <InstallmentPanel awardId={awardId} />}
+
     {current && !editing && !review && <Card className="space-y-4 p-5 sm:p-6" aria-labelledby="current-version-title">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="current-version-title" className="text-lg font-bold text-ink">Version {current.version_no} — proposée par {current.proposed_role === me ? 'vous' : partyWith[current.proposed_role]}</h2><span className="text-xs text-black/50">{fmtStamp(current.created_at)} · empreinte {shortHash(current.content_hash)}</span></div>
       <TermsSummary terms={current.terms} subLots={subLots} />
@@ -130,7 +133,7 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
       {can.can_propose ? <Button type="button" onClick={startEditing}>Proposer des conditions</Button> : <p className="text-sm text-black/50">Aucune action n’est disponible pour vous.</p>}
     </Card>}
 
-    {editing && <TermsForm initial={editing} subLots={subLots} onCancel={() => setEditing(null)} onReview={terms => { setReview(terms); setEditing(null); }} />}
+    {editing && <TermsForm initial={editing} subLots={subLots} totalMillimes={reference?.total_millimes} onCancel={() => setEditing(null)} onReview={terms => { setReview(terms); setEditing(null); }} />}
 
     {review && <Card className="space-y-4 border-dashed p-5 sm:p-6" aria-labelledby="review-title">
       <div><h2 id="review-title" className="text-lg font-bold text-ink">Relisez votre proposition</h2><p className="mt-1 text-sm text-black/55">Rien n’est encore envoyé. Après l’envoi, {partyWith[them]} pourra l’accepter, la refuser ou contre-proposer.</p></div>
@@ -176,10 +179,22 @@ function Diff({ before, after, title }: { before: Terms | null; after: Terms; ti
   </section>;
 }
 
-function TermsForm({ initial, subLots, onReview, onCancel }: { initial: Terms; subLots: ReferenceSubLot[]; onReview: (terms: Terms) => void; onCancel: () => void }) {
+// Convert editable TND input to integer millimes without floating-point arithmetic.
+function parseMillimes(input: string): number | null {
+  const match = /^(\\d{1,12})(?:[.,](\\d{1,3}))?$/.exec(input.trim());
+  if (!match) return null;
+  const amount = Number(match[1]) * 1000 + Number((match[2] ?? '').padEnd(3, '0'));
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
+}
+const tndInput = (millimes: number) => Math.trunc(millimes / 1000) + '.' + String(millimes % 1000).padStart(3, '0');
+
+function TermsForm({ initial, subLots, totalMillimes, onReview, onCancel }: { initial: Terms; subLots: ReferenceSubLot[]; totalMillimes?: number; onReview: (terms: Terms) => void; onCancel: () => void }) {
   const [terms, setTerms] = useState<Terms>(initial);
   const [advanced, setAdvanced] = useState((initial.sub_lot_schedule ?? []).length > 0);
   const [problem, setProblem] = useState('');
+  const [showInstallments, setShowInstallments] = useState((initial.installments ?? []).length > 0);
+  const [installmentInputs, setInstallmentInputs] = useState((initial.installments ?? []).map(row => ({ label: row.label, due_date: row.due_date ?? '', amount_tnd: tndInput(row.amount_millimes) })));
+  const changeInstallment = (index: number, patch: Partial<{ label: string; due_date: string; amount_tnd: string }>) => setInstallmentInputs(values => values.map((row, i) => index === i ? { ...row, ...patch } : row));
   const set = (patch: Partial<Terms>) => setTerms(current => ({ ...current, ...patch }));
   const schedule = terms.sub_lot_schedule ?? [];
   const subDate = (key: string) => schedule.find(row => row.node_key === key) ?? { node_key: key, start_date: null, end_date: null };
@@ -188,20 +203,38 @@ function TermsForm({ initial, subLots, onReview, onCancel }: { initial: Terms; s
     event.preventDefault();
     const duration = terms.duration_days;
     if (duration != null && (!Number.isInteger(duration) || duration < 1 || duration > 3650)) { setProblem('La durée doit être un nombre entier de jours entre 1 et 3650.'); return; }
+    const values = installmentInputs.map(row => ({ label: row.label.trim(), due_date: row.due_date || null, amount_millimes: parseMillimes(row.amount_tnd) }));
+    if (values.some(row => !row.label || row.label.length > 160 || row.amount_millimes == null)) { setProblem('Chaque échéance doit avoir un intitulé et un montant TND valide (3 décimales maximum).'); return; }
+    if (values.length > 100) { setProblem('Limite de 100 échéances.'); return; }
+    const installments = values as Installment[];
+    if (installments.length && terms.payment_mode === 'none') { setProblem('Choisissez d’abord une modalité de paiement indicative.'); return; }
+    if (installments.length && totalMillimes != null && installments.reduce((sum, row) => sum + row.amount_millimes, 0) !== totalMillimes) { setProblem('La somme des échéances doit être égale au montant attribué.'); return; }
     if (advanced && schedule.some(row => !!row.start_date !== !!row.end_date)) { setProblem('Pour chaque sous-lot, indiquez le début et la fin, ou aucun des deux.'); return; }
     if (advanced && schedule.some(row => row.start_date && row.end_date && row.end_date < row.start_date)) { setProblem('Pour chaque sous-lot, la fin doit suivre le début.'); return; }
     setProblem('');
-    onReview(cleanTerms(advanced ? terms : { ...terms, sub_lot_schedule: [] }));
+    onReview(cleanTerms({ ...terms, installments, ...(!advanced ? { sub_lot_schedule: [] } : {}) }));
   }
   return <Card className="p-5 sm:p-6"><form onSubmit={submit} className="space-y-4" aria-labelledby="terms-form-title" noValidate>
     <div><h2 id="terms-form-title" className="text-lg font-bold text-ink">Votre proposition</h2><p className="mt-1 text-sm text-black/55">Tous les champs sont facultatifs. Le montant attribué ne change pas.</p></div>
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="block text-sm font-semibold text-ink">Date de début souhaitée<input type="date" className={field} value={terms.planned_start_date ?? ''} onChange={event => set({ planned_start_date: event.target.value || null })} /></label>
       <label className="block text-sm font-semibold text-ink">Durée des travaux (jours)<input type="number" inputMode="numeric" min={1} max={3650} step={1} className={field} value={terms.duration_days ?? ''} onChange={event => set({ duration_days: event.target.value === '' ? null : Number(event.target.value) })} /></label>
-      <label className="block text-sm font-semibold text-ink sm:col-span-2">Modalité de paiement de référence<select className={field} value={terms.payment_mode ?? 'none'} onChange={event => set({ payment_mode: event.target.value as PaymentMode, installments: [] })}>{Object.entries(paymentLabels).filter(([value]) => value !== 'sub_lot' || subLots.length > 0).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <label className="block text-sm font-semibold text-ink sm:col-span-2">Modalité de paiement de référence<select className={field} value={terms.payment_mode ?? 'none'} onChange={event => { set({ payment_mode: event.target.value as PaymentMode, installments: [] }); setInstallmentInputs([]); }}>{Object.entries(paymentLabels).filter(([value]) => value !== 'sub_lot' || subLots.length > 0).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <span className="mt-1 block text-xs font-normal text-black/50">Indicative uniquement : aucun paiement n’est déclenché.</span></label>
       <label className="block text-sm font-semibold text-ink sm:col-span-2">Modalités d’exécution<textarea rows={3} maxLength={4000} className={field} value={terms.execution_terms ?? ''} onChange={event => set({ execution_terms: event.target.value })} placeholder="Ex. : accès au chantier de 8 h à 17 h, eau et électricité fournies." /></label>
     </div>
+    {terms.payment_mode !== 'none' && <div className="rounded-xl border border-black/[0.08] p-4">
+      <button type="button" aria-expanded={showInstallments} onClick={() => setShowInstallments(value => !value)} className="min-h-11 text-sm font-semibold text-teal hover:underline">Échéancier indicatif (optionnel)</button>
+      {showInstallments && <div className="mt-3 space-y-3"><p className="text-xs text-black/60">Facultatif. Si vous définissez des échéances chiffrées, leur somme doit correspondre au montant attribué ({totalMillimes != null ? formatTnd(totalMillimes) : 'à vérifier'}). Aucune somme n’est exigible ou payée ici.</p>
+        {installmentInputs.map((item, index) => <div key={index} className="grid gap-2 rounded-lg bg-sand/50 p-3 sm:grid-cols-[minmax(0,1fr)_9rem_9rem_auto]">
+          <label className="text-xs font-semibold text-ink">Intitulé de l’échéance {index + 1}<input className={field} maxLength={160} value={item.label} onChange={event => changeInstallment(index, { label: event.target.value })} /></label>
+          <label className="text-xs font-semibold text-ink">Date indicative {index + 1}<input type="date" className={field} value={item.due_date} onChange={event => changeInstallment(index, { due_date: event.target.value })} /></label>
+          <label className="text-xs font-semibold text-ink">Montant (TND) — échéance {index + 1}<input inputMode="decimal" className={field} value={item.amount_tnd} placeholder="125.000" onChange={event => changeInstallment(index, { amount_tnd: event.target.value })} /></label>
+          <button type="button" className="min-h-11 self-end text-xs font-semibold text-red-700" onClick={() => setInstallmentInputs(values => values.filter((_, i) => i !== index))}>Supprimer</button>
+        </div>)}
+        {installmentInputs.length < 100 && <Button type="button" className={secondary} onClick={() => setInstallmentInputs(values => [...values, { label: '', due_date: '', amount_tnd: '' }])}>Ajouter une échéance</Button>}
+      </div>}
+    </div>}
     {subLots.length > 0 && <>
       <button type="button" aria-expanded={advanced} aria-controls="advanced-terms" onClick={() => setAdvanced(value => !value)} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-teal hover:underline">{advanced ? 'Masquer les options avancées' : 'Options avancées'}</button>
       {advanced && <fieldset id="advanced-terms" className="min-w-0 rounded-xl bg-sand/50 p-4"><legend className="sr-only">Calendrier des sous-lots</legend><p className="text-sm font-semibold text-ink">Calendrier des sous-lots de l’offre attribuée</p><div className="mt-2 space-y-3">{subLots.map(sub => <div key={sub.node_key} className="grid gap-2 rounded-xl bg-white p-3 sm:grid-cols-[minmax(0,1fr)_10rem_10rem] sm:items-end"><p className="min-w-0 break-words text-sm font-medium text-ink">{sub.title}</p>
