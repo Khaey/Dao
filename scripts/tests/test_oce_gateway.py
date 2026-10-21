@@ -528,6 +528,136 @@ class HostEnvTests(unittest.TestCase):
                     host.read_env()
 
 
+class FakeOce:
+    """Minimal OCE schedule store: activities, relationships, configurable DELETE behaviour."""
+
+    def __init__(self, delete_status=204, effective=True):
+        self.activities = {"a1": {"id": "a1", "activity_code": "A", "schedule_id": "s"},
+                           "a2": {"id": "a2", "activity_code": "B", "schedule_id": "s"}}
+        self.relationships = {"r1": {"id": "r1", "schedule_id": "s", "predecessor_id": "a1", "successor_id": "a2"}}
+        self.delete_status = delete_status
+        self.effective = effective
+        self.deleted = []
+
+    def request(self, method, path, payload=None, **_):
+        assert method == "DELETE"
+        store = self.relationships if "/relationships/" in path else self.activities
+        ident = path.rsplit("/", 1)[-1]
+        self.deleted.append(path)
+        if self.delete_status in (200, 202, 204) and self.effective:
+            store.pop(ident, None)
+        return self.delete_status, None
+
+
+class RemovalTests(unittest.TestCase):
+    P = "4efb6b4e-5d5f-4a7d-9d5d-2f1c7d3a8b11"
+    L = "61c23382-4234-4fa0-9e7a-6f2a1a6c6711"
+
+    def setup(self, oce):
+        gateway = object.__new__(g.Gateway)
+        row = {"activities": {"A": "a1", "B": "a2"}, "relationships": {"A->B": "r1"}}
+        patches = (
+            patch.object(gateway, "client", return_value=oce),
+            patch.object(gateway, "schedule", return_value={"id": "s"}),
+            patch.object(gateway, "list_relationships", side_effect=lambda c, sid: list(oce.relationships.values())),
+            patch.object(gateway, "list_activities", side_effect=lambda c, sid: list(oce.activities.values())),
+        )
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+        oce.on_reject = None
+        return gateway, row
+
+    def body(self, **extra):
+        return {"dao_project_id": self.P, "dao_lot_id": self.L, **extra}
+
+    def test_remove_dependency_deletes_then_updates_inventory(self):
+        oce = FakeOce()
+        gateway, row = self.setup(oce)
+        body = self.body(predecessor_activity_code="A", successor_activity_code="B")
+        self.assertEqual(gateway.remove_dependency({}, row, body), {"ok": True, "removed": True})
+        self.assertEqual(oce.deleted, ["/api/v1/schedule/relationships/r1"])
+        self.assertEqual(row["relationships"], {})
+        self.assertEqual(gateway.remove_dependency({}, row, body), {"ok": True, "removed": False})
+        self.assertEqual(len(oce.deleted), 1)
+
+    def test_remove_dependency_unknown_pair_is_idempotent_and_touches_nothing(self):
+        oce = FakeOce()
+        gateway, row = self.setup(oce)
+        out = gateway.remove_dependency({}, row, self.body(predecessor_activity_code="B", successor_activity_code="A"))
+        self.assertEqual(out, {"ok": True, "removed": False})
+        self.assertEqual(oce.deleted, [])
+        self.assertEqual(row["relationships"], {"A->B": "r1"})
+
+    def test_remove_activity_refused_while_dependencies_exist(self):
+        oce = FakeOce()
+        gateway, row = self.setup(oce)
+        with self.assertRaises(g.SafeError) as cm:
+            gateway.remove_activity({}, row, self.body(activity_code="B"))
+        self.assertEqual((cm.exception.status, cm.exception.code), (409, "activity_has_dependencies"))
+        self.assertEqual(oce.deleted, [])
+
+    def test_remove_activity_after_dependency(self):
+        oce = FakeOce()
+        gateway, row = self.setup(oce)
+        gateway.remove_dependency({}, row, self.body(predecessor_activity_code="A", successor_activity_code="B"))
+        self.assertEqual(gateway.remove_activity({}, row, self.body(activity_code="B")), {"ok": True, "removed": True})
+        self.assertEqual(row["activities"], {"A": "a1"})
+        self.assertNotIn("a2", oce.activities)
+
+    def test_unsupported_delete_is_reported_and_inventory_kept(self):
+        for status in (404, 405):
+            oce = FakeOce(delete_status=status)
+            gateway, row = self.setup(oce)
+            with self.assertRaises(g.SafeError) as cm:
+                gateway.remove_dependency({}, row, self.body(predecessor_activity_code="A", successor_activity_code="B"))
+            self.assertEqual(cm.exception.code, "oce_delete_unsupported")
+            self.assertEqual(row["relationships"], {"A->B": "r1"})
+
+    def test_ineffective_delete_keeps_inventory(self):
+        oce = FakeOce(delete_status=204, effective=False)
+        gateway, row = self.setup(oce)
+        with self.assertRaises(g.SafeError) as cm:
+            gateway.remove_dependency({}, row, self.body(predecessor_activity_code="A", successor_activity_code="B"))
+        self.assertEqual(cm.exception.code, "oce_delete_not_effective")
+        self.assertEqual(row["relationships"], {"A->B": "r1"})
+
+    def test_already_gone_in_oce_repairs_inventory(self):
+        oce = FakeOce()
+        oce.relationships.clear()
+        gateway, row = self.setup(oce)
+        out = gateway.remove_dependency({}, row, self.body(predecessor_activity_code="A", successor_activity_code="B"))
+        self.assertEqual(out, {"ok": True, "removed": False})
+        self.assertEqual(row["relationships"], {})
+        self.assertEqual(oce.deleted, [])
+
+    def test_foreign_relationship_is_never_deleted(self):
+        oce = FakeOce()
+        oce.relationships["r1"]["successor_id"] = "other"
+        gateway, row = self.setup(oce)
+        with self.assertRaises(g.SafeError) as cm:
+            gateway.remove_dependency({}, row, self.body(predecessor_activity_code="A", successor_activity_code="B"))
+        self.assertEqual(cm.exception.code, "dependency_ownership_mismatch")
+        self.assertEqual(oce.deleted, [])
+
+    def test_rejected_permission_and_strict_body(self):
+        oce = FakeOce(delete_status=403)
+        gateway, row = self.setup(oce)
+        with self.assertRaises(g.SafeError) as cm:
+            gateway.remove_dependency({}, row, self.body(predecessor_activity_code="A", successor_activity_code="B"))
+        self.assertEqual(cm.exception.code, "oce_permission_rejected")
+        with self.assertRaises(g.SafeError) as cm:
+            gateway.remove_activity({}, row, self.body(activity_code="A", oce_id="x"))
+        self.assertEqual(cm.exception.code, "extra_fields")
+        with self.assertRaises(g.SafeError):
+            gateway.remove_activity({}, row, self.body(activity_code="bad code"))
+
+    def test_operations_are_routed_and_named(self):
+        self.assertEqual(g.safe_operation_name("/v1/remove-dependency"), "remove-dependency")
+        self.assertEqual(g.safe_operation_name("/v1/remove-activity"), "remove-activity")
+        self.assertEqual(g.safe_operation_name("/v1/remove-project"), "denied")
+
+
 if __name__ == "__main__":
     unittest.main()
 
