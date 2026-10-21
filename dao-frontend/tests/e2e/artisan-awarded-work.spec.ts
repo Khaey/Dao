@@ -66,12 +66,29 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   const dashboard = artisan.getByRole('region', { name: 'Mes chantiers attribués' });
   await expect(dashboard).toContainText(lotTitle);
   await expect(dashboard).toContainText('Conditions à convenir');
+  // « Mes chantiers »: ONE table; the awarded chantier is a regular row (owner decision), never a link to the
+  // private project page for an Artisan without team membership.
   await artisan.goto('/app/projects');
-  const awardedList = artisan.getByRole('region', { name: 'Mes chantiers attribués' });
-  await expect(awardedList).toContainText(lotTitle);
-  await expect(awardedList.getByRole('link', { name: /Voir les conditions du lot/ })).toBeVisible();
+  await expect(artisan.getByRole('region', { name: 'Mes chantiers attribués' })).toHaveCount(0);
+  const row = artisan.locator(`[data-testid="project-row-${project.projectId}"]:visible`);
+  await expect(row).toContainText(`Lot retenu : ${lotTitle}`);
+  await expect(row).toContainText('Lot attribué');
+  await expect(row).toContainText('Montant attribué');
+  await expect(row.locator(`a[href="/app/projects/${project.projectId}"]`)).toHaveCount(0);
+  await artisan.getByRole('combobox', { name: 'Filtrer par mes offres' }).selectOption('won');
+  await expect(row).toBeVisible();
+  await artisan.getByRole('combobox', { name: 'Filtrer par mes offres' }).selectOption('lost');
+  await expect(row).toHaveCount(0);
+  await artisan.getByRole('button', { name: 'Effacer les filtres' }).first().click();
+  await artisan.getByRole('combobox', { name: 'Filtrer par statut' }).selectOption('awarded');
+  await expect(row).toBeVisible();
+  // « ⋯ » lists only real destinations (DAO), keyboard-closable.
+  await row.getByRole('button', { name: /^Autres actions/ }).click();
+  await expect(artisan.getByRole('link', { name: 'Voir le DAO' })).toBeVisible();
+  await artisan.keyboard.press('Escape');
+  await expect(artisan.getByRole('link', { name: 'Voir le DAO' })).toHaveCount(0);
   expect(await artisan.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
-  await awardedList.getByRole('link', { name: /Voir les conditions du lot/ }).click();
+  await row.getByRole('link', { name: /^Conditions — / }).click();
   await expect(artisan).toHaveURL(/\/app\/awards\/[^/]+\/conditions$/);
   await expect(artisan.getByRole('heading', { name: 'Conditions et calendrier' })).toBeVisible();
 
@@ -92,7 +109,7 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   await cancellation.getByRole('button', { name: 'Confirmer l’annulation' }).click();
   await expect(comparison.getByText('Lot attribué', { exact: true })).toHaveCount(0);
   await artisan.goto('/app/projects');
-  await expect(artisan.getByRole('region', { name: 'Mes chantiers attribués' })).toHaveCount(0);
+  await expect(artisan.locator(`[data-testid="project-row-${project.projectId}"]:visible`)).toHaveCount(0);
   await artisan.goto('/app/artisan/offers');
   // The lot is open again: the offer is back « en cours », labelled with the cancelled award.
   await artisan.getByRole('button', { name: /^En cours/ }).click();

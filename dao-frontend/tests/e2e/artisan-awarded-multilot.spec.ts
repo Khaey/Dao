@@ -57,10 +57,10 @@ test('Artisan #356 multi-lots : attribution partielle, lot du concurrent, catalo
   await expect(lotASection.getByText('Lot attribué', { exact: true })).toBeVisible();
 
   // Partial: Artisan 1 sees lot A only, the DAO stays listed with one lot still open, the offer stays « en cours ».
+  const rowOf = (who: typeof page) => who.locator(`[data-testid="project-row-${project.projectId}"]:visible`);
   await first.goto('/app/projects');
-  const firstAwarded = first.getByRole('region', { name: 'Mes chantiers attribués' });
-  await expect(firstAwarded).toContainText(lotA);
-  await expect(firstAwarded).not.toContainText(lotB);
+  await expect(rowOf(first)).toContainText(`Lot retenu : ${lotA}`);
+  await expect(rowOf(first)).not.toContainText(lotB);
   await first.goto('/app/artisan');
   const listed = first.locator(`a[href="/app/artisan/publications/${publicationId}"]`);
   await expect(listed).toHaveCount(1);
@@ -72,7 +72,7 @@ test('Artisan #356 multi-lots : attribution partielle, lot du concurrent, catalo
   await expect(firstOffer.getByText('1 lot en attente de décision', { exact: true })).toBeVisible();
   // Artisan 2 has nothing awarded yet and never sees Artisan 1's lot.
   await second.goto('/app/projects');
-  await expect(second.getByRole('region', { name: 'Mes chantiers attribués' })).toHaveCount(0);
+  await expect(rowOf(second)).toHaveCount(0);
 
   // Client awards lot B to the competitor: both lots decided.
   const lotBSection = comparison.getByRole('heading', { name: lotB, exact: true }).locator('xpath=../..');
@@ -81,11 +81,11 @@ test('Artisan #356 multi-lots : attribution partielle, lot du concurrent, catalo
   await expect(lotBSection.getByText('Lot attribué', { exact: true })).toBeVisible();
 
   await second.goto('/app/projects');
-  const secondAwarded = second.getByRole('region', { name: 'Mes chantiers attribués' });
-  await expect(secondAwarded).toContainText(lotB);
-  await expect(secondAwarded).not.toContainText(lotA);
+  await expect(rowOf(second)).toContainText(`Lot retenu : ${lotB}`);
+  await expect(rowOf(second)).not.toContainText(lotA);
   await first.goto('/app/projects');
-  await expect(first.getByRole('region', { name: 'Mes chantiers attribués' })).not.toContainText(lotB);
+  await expect(rowOf(first)).toHaveCount(1);
+  await expect(rowOf(first)).not.toContainText(lotB);
   // Catalogue: no lot open any more → removed for everyone; offers move to the results.
   await first.goto('/app/artisan');
   await expect(first.locator(`a[href="/app/artisan/publications/${publicationId}"]`)).toHaveCount(0);
