@@ -85,7 +85,7 @@ export function AwardedProjects({ projects, compact = false }: { projects: Award
   </section>;
 }
 
-function useLiveAgreements(awardIds: string[]) {
+export function useLiveAgreements(awardIds: string[]) {
   const [live, setLive] = useState<string[]>([]);
   const key = awardIds.join(',');
   useEffect(() => {
@@ -97,7 +97,7 @@ function useLiveAgreements(awardIds: string[]) {
 }
 
 /** Projects whose award-scoped journal answers for this viewer (hidden while the service fails, e.g. #355). */
-function useLiveJournals(projectIds: string[]) {
+export function useLiveJournals(projectIds: string[]) {
   const [live, setLive] = useState<string[]>([]);
   const key = projectIds.join(',');
   useEffect(() => {
