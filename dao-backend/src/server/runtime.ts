@@ -123,6 +123,12 @@ function oceSynchronizer() {
   return lotPlanSynchronizer;
 }
 
+/**
+ * Modifier / retirer / ajouter un lien (#325) : actif par défaut, car la passerelle déployée sait retirer (remove-dependency / remove-activity)
+ * et, intégration éteinte, rien n'est à retirer d'OCE. Interrupteur de repli : DAO_OCE_REMOVAL=0 (un lien effectif redevient définitif).
+ */
+const removalEnabled = () => process.env.DAO_OCE_REMOVAL !== '0';
+
 let projectPlanSynchronizer: ProjectPlanSynchronizer | undefined;
 /** Global project plan (#325): one OCE graph for all lots, keyed by the project's planning context. Same service-client discipline as the lot synchroniser. */
 function projectSynchronizer() {
@@ -131,7 +137,7 @@ function projectSynchronizer() {
   const service = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('DAO_SUPABASE_SECRET_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
   projectPlanSynchronizer = new ProjectPlanSynchronizer(
     async projectId => { const { data, error } = await service.rpc('oce_project_plan_for_sync', { p_project_id: projectId }); if (error) throw new Error('oce_project_plan_read'); return data; },
-    new OceOrchestrator(oceGateway, new SupabaseOceSyncStore(service)),
+    new OceOrchestrator(oceGateway, new SupabaseOceSyncStore(service), { removal: removalEnabled() }),
     async (projectId, revision, planning, errorCode) => {
       const { error } = await service.rpc('oce_record_project_plan_result', { p_project_id: projectId, p_revision: revision, p_duration: planning?.duration ?? null, p_critical: planning?.critical ?? [], p_error: errorCode });
       if (error) throw new Error('oce_project_plan_record');
@@ -149,5 +155,5 @@ export function createOceLotPlanApi(request: Request) {
 /** Global project planning screen API (#325). */
 export function createOceProjectPlanApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
-  return createOceProjectPlanHandler(db, resolveActor, projectId => projectSynchronizer().run(projectId));
+  return createOceProjectPlanHandler(db, resolveActor, projectId => projectSynchronizer().run(projectId), undefined, { linkEditing: removalEnabled() });
 }

@@ -6,7 +6,7 @@ declare
   pa uuid; pb uuid; proj uuid; r1 uuid; r2 uuid; r3 uuid; rv1 uuid; rv2 uuid; rv3 uuid; trade uuid; off1 uuid; off2 uuid;
   bida uuid; bidb uuid; va uuid; vb uuid; ia uuid; ib uuid; ic uuid; awa uuid; awb uuid;
   s1 uuid:=gen_random_uuid(); s2 uuid:=gen_random_uuid(); t1 uuid:=gen_random_uuid(); u1 uuid:=gen_random_uuid();
-  d jsonb; n integer; rev integer; l1 uuid; l2 uuid; l3 uuid; lb uuid; ctx uuid; m uuid;
+  d jsonb; n integer; rev integer; l1 uuid; l2 uuid; l3 uuid; lb uuid; ctx uuid; m uuid; m0 uuid; lm uuid; tf text; td text; tt text; tp text;
 begin
   insert into auth.users(id,email) values(c,'c@pp.test'),(c2,'c2@pp.test'),(a,'a@pp.test'),(b,'b@pp.test'),(stf,'s@pp.test');
   insert into public.user_roles(user_id,role) values(c,'client'),(c2,'client'),(a,'contractor'),(b,'contractor'),(stf,'dao_admin');
@@ -99,10 +99,11 @@ begin
   perform public.decide_plan_link(proj,lb,'rejected');
   if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=lb::text)<>'rejected' then raise exception 'rejected link must read rejected'; end if;
 
-  -- Un lien effectif est définitif (la passerelle OCE ne sait pas retirer une dépendance) ; les décisions sont append-only.
-  begin perform public.decide_plan_link(proj,l1,'rejected'); raise exception 'effective link retired';
-  exception when invalid_parameter_value then if sqlerrm<>'confirmed_link_final' then raise; end if; end;
-  if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=l1::text)<>'effective' then raise exception 'link must stay effective'; end if;
+  -- Aucun lien n'est irréversible (#325) : un lien effectif peut être rejeté puis reconfirmé ; les décisions restent append-only.
+  perform public.decide_plan_link(proj,l1,'rejected');
+  if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=l1::text)<>'rejected' then raise exception 'effective link must be retirable'; end if;
+  perform public.decide_plan_link(proj,l1,'confirmed');
+  if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=l1::text)<>'effective' then raise exception 'link must be reconfirmable'; end if;
   begin update public.project_plan_link_decisions set decision='rejected'; raise exception 'decision updated';
   exception when check_violation then null; end;
   begin delete from public.project_plan_link_decisions; raise exception 'decision deleted';
@@ -128,7 +129,7 @@ begin
   if dao_private.oce_project_plan_for_sync(gen_random_uuid()) is not null then raise exception 'unknown project must yield nothing'; end if;
 
   -- La correspondance OCE accepte le contexte du projet (pas un identifiant au hasard).
-  m:=dao_private.oce_request_mapping(proj,ctx);
+  m:=dao_private.oce_request_mapping(proj,ctx); m0:=m;
   if m is null then raise exception 'context mapping expected'; end if;
   begin perform dao_private.oce_request_mapping(proj,gen_random_uuid()); raise exception 'random mapping accepted';
   exception when invalid_parameter_value then null; end;
@@ -149,4 +150,81 @@ begin
   if (public.get_project_plan(proj)#>>'{sync,duration_days}')::int<>40 then raise exception 'older result must not overwrite'; end if;
   perform public.oce_save_lot_plan(proj,r2,'2027-01-21'::date,'2027-02-05'::date,true);
   if public.get_project_plan(proj)#>>'{sync,state}'<>'pending' then raise exception 'a change must make the result stale'; end if;
+
+  -- ===== Modifier / retirer / remplacer un lien (migration 20261021030000) =====
+  perform set_config('request.jwt.claim.sub',c::text,true);
+  d:=public.get_project_plan(proj);
+  select 'node:'||(nd.value->>'id') into tf from jsonb_array_elements(d->'nodes') nd where nd.value->>'title'='Fondations';
+  select 'node:'||(nd.value->>'id') into td from jsonb_array_elements(d->'nodes') nd where nd.value->>'title'='Dalle';
+  select 'node:'||(nd.value->>'id') into tt from jsonb_array_elements(d->'nodes') nd where nd.value->>'title'='Tirage de câbles';
+  select 'node:'||(nd.value->>'id') into tp from jsonb_array_elements(d->'nodes') nd where nd.value->>'title'='Peinture finale';
+  if tf is null or td is null or tt is null or tp is null then raise exception 'plan nodes missing'; end if;
+  select revision into rev from public.project_plan_contexts where project_id=proj;
+
+  -- Ajout par le Client : Tirage -> Peinture devient effectif et révise le plan.
+  d:=public.add_plan_link(proj,tt,tp);
+  select x->>'id' into lm from jsonb_array_elements(d->'links') x where (x->>'manual')::boolean and x->>'pred_target'=tt and x->>'succ_target'=tp;
+  if lm is null or (select x->>'state' from jsonb_array_elements(d->'links') x where x->>'id'=lm::text)<>'effective' then raise exception 'added link must be effective: %',d->'links'; end if;
+  if (select revision from public.project_plan_contexts where project_id=proj)<=rev then raise exception 'added link must bump the revision'; end if;
+  if (select count(*) from jsonb_array_elements(dao_private.oce_project_plan_for_sync(proj)->'links') x where x->>'state'='effective')<>4 then raise exception 'sync source must carry the added link'; end if;
+  begin perform public.add_plan_link(proj,tt,tp); raise exception 'duplicate accepted';
+  exception when invalid_parameter_value then if sqlerrm<>'link_duplicate' then raise; end if; end;
+  begin perform public.add_plan_link(proj,tp,tf); raise exception 'cycle accepted';
+  exception when check_violation then if sqlerrm<>'dependency_cycle' then raise; end if; end;
+  begin perform public.add_plan_link(proj,tf,'node:'||gen_random_uuid()::text); raise exception 'unknown target accepted';
+  exception when invalid_parameter_value then null; end;
+  begin perform public.add_plan_link(proj,tf,tf); raise exception 'self link accepted';
+  exception when invalid_parameter_value then null; end;
+
+  -- Remplacement en une action : Dalle -> Tirage (proposé par l'Artisan) devient Dalle -> Peinture ; un remplacement qui ferme une boucle ne change rien.
+  begin perform public.replace_plan_link(proj,l2,td,tf); raise exception 'cyclic replacement accepted';
+  exception when check_violation then if sqlerrm<>'dependency_cycle' then raise; end if; end;
+  if (select x->>'state' from jsonb_array_elements(public.get_project_plan(proj)->'links') x where x->>'id'=l2::text)<>'effective' then raise exception 'failed replacement must change nothing'; end if;
+  d:=public.replace_plan_link(proj,l2,td,tp);
+  if (select x->>'state' from jsonb_array_elements(d->'links') x where x->>'id'=l2::text)<>'rejected' then raise exception 'old link must be retired by a replacement'; end if;
+  if not exists(select 1 from jsonb_array_elements(d->'links') x where (x->>'manual')::boolean and x->>'pred_target'=td and x->>'succ_target'=tp and x->>'state'='effective') then raise exception 'new link must be effective'; end if;
+
+  -- Retrait d'un lien ajouté : il sort du plan ; retirer deux fois est refusé.
+  d:=public.remove_plan_link(proj,lm);
+  if exists(select 1 from jsonb_array_elements(d->'links') x where x->>'id'=lm::text) then raise exception 'removed added link must leave the plan'; end if;
+  begin perform public.remove_plan_link(proj,lm); raise exception 'double removal accepted';
+  exception when invalid_parameter_value then null; end;
+  d:=public.remove_plan_link(proj,l3);
+  if (select x->>'state' from jsonb_array_elements(d->'links') x where x->>'id'=l3::text)<>'rejected' then raise exception 'proposed link removal must reject it'; end if;
+
+  -- Historique append-only des liens ajoutés et de leurs retraits.
+  begin update public.project_plan_manual_links set pred_target=succ_target; raise exception 'manual link updated';
+  exception when check_violation then null; end;
+  begin delete from public.project_plan_manual_link_removals; raise exception 'removal deleted';
+  exception when check_violation then null; end;
+
+  -- Confidentialité : ni Artisan ni autre Client ne modifie le plan ; la gestion D.A.O le peut.
+  foreach m in array array[a,b,c2] loop
+    perform set_config('request.jwt.claim.sub',m::text,true);
+    begin perform public.add_plan_link(proj,tf,td); raise exception 'unauthorised add';
+    exception when insufficient_privilege then null; end;
+    begin perform public.remove_plan_link(proj,l1); raise exception 'unauthorised removal';
+    exception when insufficient_privilege then null; end;
+    begin perform public.replace_plan_link(proj,l1,tf,tp); raise exception 'unauthorised replacement';
+    exception when insufficient_privilege then null; end;
+  end loop;
+  perform set_config('request.jwt.claim.sub',stf::text,true);
+  perform public.remove_plan_link(proj,l1);
+
+  -- Un lot dont l'attribution est annulée sort du plan : ses liens ajoutés deviennent « non résolus » (donc retirés d'OCE par la réconciliation).
+  perform set_config('request.jwt.claim.sub',c::text,true);
+  perform public.cancel_award_item_atomic('plan-cancel-0001',(select id from public.award_items where award_id=awb and request_id=r2),'award_error',null);
+  d:=public.get_project_plan(proj);
+  if (select count(*) from jsonb_array_elements(dao_private.oce_project_plan_for_sync(proj)->'nodes') x where x->>'title'='Tirage de câbles')<>0 then raise exception 'cancelled award must remove its sub-lots from the plan'; end if;
+
+  -- Suivi des objets OCE appliqués (serveur) : liste puis oubli ; seuls activités et dépendances sont oubliables.
+  perform dao_private.oce_record_object(m0,'activity','A1',null,repeat('1',64));
+  perform dao_private.oce_record_object(m0,'activity','A2',null,repeat('2',64));
+  perform dao_private.oce_record_object(m0,'dependency','A1','A2',repeat('3',64));
+  if dao_private.oce_list_objects(m0)<>jsonb_build_object('activities',jsonb_build_array('A1','A2'),'dependencies',jsonb_build_array(jsonb_build_array('A1','A2'))) then raise exception 'objects list mismatch: %',dao_private.oce_list_objects(m0); end if;
+  perform dao_private.oce_forget_object(m0,'dependency','A1','A2');
+  perform dao_private.oce_forget_object(m0,'activity','A2',null);
+  if dao_private.oce_list_objects(m0)<>jsonb_build_object('activities',jsonb_build_array('A1'),'dependencies','[]'::jsonb) then raise exception 'forget mismatch'; end if;
+  begin perform dao_private.oce_forget_object(m0,'wbs','X',null); raise exception 'wbs forgotten';
+  exception when invalid_parameter_value then null; end;
 end $$;

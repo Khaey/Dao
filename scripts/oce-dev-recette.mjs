@@ -200,10 +200,52 @@ async function runGlobal() {
   const longer = await settle((base?.revision ?? 0) + 1);
   R.duration_change_recomputed = longer?.sync?.state === 'synced' && (longer.sync.duration_days ?? 0) > (bs.duration_days ?? 0);
   R.duration_after_change = longer?.sync?.duration_days ?? null;
-  // Un lien effectif est definitif : la passerelle OCE n'a aucune operation de retrait de dependance.
-  const retire = await decide(id('f2'), 'rejected');
-  R.confirmed_link_final_refused = retire.status === 422 && retire.code === 'LINK_CONFIRMED_FINAL';
+  // #325 : aucun lien n'est irreversible. Retirer, remplacer le predecesseur, ajouter puis retirer un lien ajoute, reconcilier un lot qui sort du plan.
+  const act = body => app(owner, '/api/oce/project-plan', { method: 'POST', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, ...body }) });
+  const nodeId = (data, title) => (data?.nodes || []).find(n => n.title === title)?.id;
+  const codesOf = data => (data?.sync?.critical_codes || []).slice().sort().join('|');
+  const critTitlesOf = data => { const m = new Map((data?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '')}`, n.title])); return (data?.sync?.critical_codes || []).map(k => m.get(k) || (k.startsWith('LA-') ? 'lot' : '?')); };
+  const summary = async () => { const r = await app(owner, `/api/oce/planning-summary?${q}`); return r.status === 200 ? (await r.json().catch(() => ({}))).data : null; };
+  R.link_editing_available = longer?.link_editing === true;
   await putLot3('2027-02-28');
+  let state = await settle((longer?.revision ?? 0) + 1);
+  const beforeRemoval = state;
+  // 1. Retirer le lien Dalle -> Tirage (inter-lots) : la dependance disparait d'OCE et le chemin critique est recalcule.
+  const removed = await act({ action: 'remove', link_id: id('f2') });
+  state = await settle((beforeRemoval?.revision ?? 0) + 1);
+  R.link_removed_ok = removed.status === 200;
+  R.link_removed_recomputed = state?.sync?.state === 'synced' && codesOf(state) !== codesOf(beforeRemoval) && (state?.links || []).find(l => l.id === id('f2'))?.state === 'rejected';
+  R.critical_after_removal = critTitlesOf(state).sort().join('|');
+  // 2. Changement de predecesseur en UNE action : Tirage de cables commence apres Fondations (au lieu de Dalle).
+  const fondations = nodeId(state, 'Fondations'), tirage = nodeId(state, 'Tirage de cables'), cloture = nodeId(state, 'Cloture (parallele)');
+  const replaced = await act({ action: 'replace', link_id: id('f1'), pred_target: `node:${fondations}`, succ_target: `node:${tirage}` });
+  const afterReplace = await settle((state?.revision ?? 0) + 1);
+  const t2 = critTitlesOf(afterReplace);
+  R.predecessor_change_ok = replaced.status === 200;
+  R.predecessor_change_recomputed = afterReplace?.sync?.state === 'synced' && t2.includes('Fondations') && t2.includes('Tirage de cables') && !t2.includes('Dalle');
+  R.critical_after_predecessor_change = t2.sort().join('|');
+  // 3. Ajouter un lien (Cloture -> Tirage), le recalcul le prend en compte, puis le retirer.
+  const added = await act({ action: 'add', pred_target: `node:${cloture}`, succ_target: `node:${tirage}` });
+  const afterAdd = await settle((afterReplace?.revision ?? 0) + 1);
+  const manual = (afterAdd?.links || []).filter(l => l.manual && l.state === 'effective');
+  R.manual_link_added = added.status === 200 && afterAdd?.sync?.state === 'synced' && manual.some(l => l.pred_target === `node:${cloture}`);
+  // Un doublon et une boucle sont refuses sans rien changer.
+  const dup = await act({ action: 'add', pred_target: `node:${cloture}`, succ_target: `node:${tirage}` });
+  const loop = await act({ action: 'add', pred_target: `node:${tirage}`, succ_target: `node:${fondations}` });
+  R.duplicate_and_cycle_refused = dup.status === 422 && loop.status === 422;
+  // 4. Reconciliation : le lot 3 sort du plan (non pret) => son lien et son activite sont retires d'OCE (le nombre d'activites baisse).
+  const actsBefore = (await summary())?.total_activities ?? null;
+  await app(owner, '/api/oce/lot-plan', { method: 'PUT', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, lot_id: LOT3, planned_start: '2027-01-21', planned_end: '2027-02-28', ready: false }) });
+  const afterObsolete = await settle((afterAdd?.revision ?? 0) + 1);
+  const actsAfter = (await summary())?.total_activities ?? null;
+  R.obsolete_activity_removed = afterObsolete?.sync?.state === 'synced' && Number.isInteger(actsBefore) && Number.isInteger(actsAfter) && actsAfter === actsBefore - 1;
+  R.activities_before_after = `${actsBefore}->${actsAfter}`;
+  // 5. Retablissement du jeu de recette (rejouable) : lien ajoute retire, liens d'origine reconfirmes, lot 3 de nouveau pret.
+  for (const l of manual) await act({ action: 'remove', link_id: l.id });
+  await decide(id('f1'), 'confirmed'); await decide(id('f2'), 'confirmed');
+  await putLot3('2027-02-28');
+  const restored = await settle((afterObsolete?.revision ?? 0) + 1);
+  R.links_restored = restored?.sync?.state === 'synced' && (restored?.links || []).filter(l => l.state === 'effective').length >= 3;
   return R;
 }
 
@@ -221,7 +263,8 @@ finally { if (op === 'run' || op === 'run-global') { try {
 const EXPECT_RUN = ['mapping_admitted', 'unauthenticated_refused', 'unauthorized_plan_read_refused', 'unauthorized_plan_write_refused', 'unauthorized_summary_refused',
   'plan_saved_ready', 'replay_saved', 'replay_revision_unchanged', 'change_saved', 'changed_revision_incremented', 'changed_duration_differs'];
 const EXPECT_GLOBAL = ['context_bound', 'mapping_admitted', 'unauthenticated_refused', 'artisan_read_refused', 'artisan_decision_refused', 'lot3_plan_saved', 'links_confirmed', 'cycle_rejected',
-  'critical_has_chain', 'parallel_task_not_critical', 'duration_change_recomputed', 'confirmed_link_final_refused'];
+  'critical_has_chain', 'parallel_task_not_critical', 'duration_change_recomputed', 'link_editing_available', 'link_removed_ok', 'link_removed_recomputed',
+  'predecessor_change_ok', 'predecessor_change_recomputed', 'manual_link_added', 'duplicate_and_cycle_refused', 'obsolete_activity_removed', 'links_restored'];
 if (op === 'run-global' && ok) {
   const r = report || {};
   ok = EXPECT_GLOBAL.every(k => r[k] === true) && r.lots >= 3 && r.lots_awarded >= 3 && r.effective_links >= 3 && r.sync_global === 'synced'
