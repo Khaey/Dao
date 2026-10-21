@@ -181,7 +181,7 @@ function Diff({ before, after, title }: { before: Terms | null; after: Terms; ti
 
 // Convert editable TND input to integer millimes without floating-point arithmetic.
 function parseMillimes(input: string): number | null {
-  const match = /^(\\d{1,12})(?:[.,](\\d{1,3}))?$/.exec(input.trim());
+  const match = /^([0-9]{1,12})(?:[.,]([0-9]{1,3}))?$/.exec(input.trim());
   if (!match) return null;
   const amount = Number(match[1]) * 1000 + Number((match[2] ?? '').padEnd(3, '0'));
   return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
