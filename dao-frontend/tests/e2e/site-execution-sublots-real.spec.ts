@@ -65,10 +65,10 @@ test('Suivi B2 réel : sous-lot attribué, quantité déclarée, confirmation te
   await intervention.locator('summary').click();
   await intervention.getByLabel('Sous-lot — facultatif').selectOption({ label: subLot });
   await intervention.getByLabel('Quantité', { exact: true }).fill('12,5');
+  await intervention.getByLabel('Rapport court').fill('Saignées du séjour réalisées.');
   await intervention.getByRole('button', { name: 'Ajouter l’intervention' }).click();
   await expect(artisan.getByRole('alert').filter({ hasText: 'Précisez l’unité' })).toBeVisible();
   await intervention.getByLabel('Unité', { exact: true }).fill('ml');
-  await intervention.getByLabel('Rapport court').fill('Saignées du séjour réalisées.');
   await intervention.getByRole('button', { name: 'Ajouter l’intervention' }).click();
   await expect(artisan.getByRole('status').filter({ hasText: 'Intervention ajoutée' })).toBeVisible();
   await expect(subLots).toContainText('12,5 ml déclarés');
