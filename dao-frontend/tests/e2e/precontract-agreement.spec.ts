@@ -148,14 +148,15 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   await page.unroute(a3Route);
 
   // #346 B3: explicit API mock, no financial transfer; server permissions drive buttons.
-  let installmentStatus: 'declared' | 'verified' | 'authorized' = 'declared';
+  let installmentStatus: 'declared' | 'verified' | 'authorized' | 'contested' = 'declared';
   await page.route('**/api/contracts/installments**', async request => {
     if (request.request().method() === 'POST') {
       const command = request.request().postDataJSON();
       expect(command.agreement_id).toBe(agreementId);
       expect(command.installment_no).toBe(1);
       expect(command.version_id).toBe(server.state.versions[2].id);
-      expect(command.event_type).toBe(installmentStatus === 'declared' ? 'verified' : 'authorized');
+      expect(installmentStatus === 'declared' ? ['verified', 'contested'] : ['authorized']).toContain(command.event_type);
+      if (command.event_type === 'contested') expect(command.reason).toBe('Étape à reprendre');
       installmentStatus = command.event_type;
       return request.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { status: installmentStatus, money_moved: false } }) });
     }
@@ -179,6 +180,14 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   await installments.getByRole('button', { name: 'Confirmer cette action' }).click();
   await expect(installments).toContainText('Autorisation enregistrée (sans paiement)');
   await expect(installments.getByRole('button', { name: 'Enregistrer une autorisation' })).toHaveCount(0);
+  // A client contestation requires an explicit reason; it is never treated as payment.
+  installmentStatus = 'declared';
+  await page.reload();
+  await installments.getByRole('button', { name: 'Contester' }).click();
+  await expect(installments.getByRole('button', { name: 'Confirmer cette action' })).toBeDisabled();
+  await installments.getByLabel('Motif de contestation').fill('Étape à reprendre');
+  await installments.getByRole('button', { name: 'Confirmer cette action' }).click();
+  await expect(installments).toContainText('Contestée par le Client');
     await expect(page.getByRole('button', { name: /^Accepter|^Refuser/ })).toHaveCount(0);
   await page.getByText(/^Historique/).click();
   await expect(page.getByText('Accord commun atteint · version 3')).toBeVisible();
