@@ -29,12 +29,15 @@ export function groupAwardedLotsByContractor(
   awardedLots: readonly AwardedLotForDossier[],
 ): ContractorLotDossier[] {
   const groups = new Map<string, { lots: Map<string, AwardedLotForDossier>; awards: Set<string> }>();
+  const seenLotIds = new Set<string>();
   for (const lot of awardedLots) {
     if (lot.projectId !== projectId) throw new Error('Cross-project award grouping is forbidden');
     if (!lot.requestId || !lot.awardId || !lot.contractorId) throw new Error('Incomplete award identity');
     if (!Number.isSafeInteger(lot.agreedMillimes) || lot.agreedMillimes < 0) {
       throw new Error('Invalid award amount in millimes');
     }
+    if (seenLotIds.has(lot.requestId)) throw new Error('Multiple active awards for the same lot');
+    seenLotIds.add(lot.requestId);
     let group = groups.get(lot.contractorId);
     if (!group) {
       group = { lots: new Map(), awards: new Set() };
