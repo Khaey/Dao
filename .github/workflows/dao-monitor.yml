@@ -1,7 +1,6 @@
 name: DAO Monitor
 on:
-  issue_comment:
-    types: [created]
+  workflow_call:
   pull_request:
     types: [opened, reopened, synchronize, closed]
   workflow_run:

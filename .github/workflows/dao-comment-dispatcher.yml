@@ -1,0 +1,70 @@
+# The one lightweight GitHub entrypoint for issue comments.
+# Existing commands and server-side authorization checks stay unchanged.
+name: DAO Comment Dispatcher
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dev-operations:
+    if: >-
+      github.repository == 'Khaey/Dao' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'Khaey' &&
+      github.event.issue.number == 91 &&
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/dao-ops ')
+    uses: ./.github/workflows/dev-operations.yml
+    secrets: inherit
+
+  oce-provision:
+    if: >-
+      github.repository == 'Khaey/Dao' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'Khaey' &&
+      github.event.issue.number == 58 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.login == 'Khaey' &&
+      github.event.comment.author_association == 'OWNER' &&
+      github.event.comment.body == '/dao-oce provision'
+    uses: ./.github/workflows/oce-private-provision.yml
+    secrets: inherit
+
+  oce-cloudflare:
+    if: >-
+      github.repository == 'Khaey/Dao' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'Khaey' &&
+      github.event.issue.number == 58 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.user.login == 'Khaey' &&
+      github.event.comment.author_association == 'OWNER' &&
+      contains(fromJSON('["/dao-oce inputs","/dao-oce check","/dao-oce audit"]'), github.event.comment.body)
+    uses: ./.github/workflows/oce-cloudflare-check.yml
+    secrets: inherit
+
+  oce-plan:
+    if: >-
+      github.repository == 'Khaey/Dao' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'Khaey' &&
+      github.event.issue.number == 58 &&
+      github.event.issue.pull_request == null &&
+      github.event.comment.body == '/dao-ops oce-gateway-plan'
+    uses: ./.github/workflows/vps-oce-plan.yml
+    secrets: inherit
+
+  monitor:
+    # Only explicit checkpoint markers reach the existing Telegram classifier.
+    # Other comments leave all jobs skipped: no runner, SSH, Cloudflare or alert.
+    if: >-
+      github.repository == 'Khaey/Dao' &&
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, 'DAO_MONITOR_V1')
+    uses: ./.github/workflows/dao-monitor.yml
+    secrets: inherit
