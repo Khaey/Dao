@@ -93,6 +93,12 @@
       "threshold_minutes": 90
     },
     {
+      "issue": 126,
+      "agent": "DAO COP",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
       "issue": 137,
       "agent": "DAO Chat 20",
       "role": "DEV",
@@ -127,6 +133,24 @@
       "threshold_minutes": 90
     },
     {
+      "issue": 165,
+      "agent": "DAO OPT 3",
+      "role": "OPT",
+      "watchdog": false
+    },
+    {
+      "issue": 180,
+      "agent": "DAO Pilot 6",
+      "role": "PILOT",
+      "watchdog": false
+    },
+    {
+      "issue": 187,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
       "issue": 193,
       "agent": "DAO DOW",
       "role": "DEV",
@@ -151,30 +175,6 @@
       "watchdog": false
     },
     {
-      "issue": 126,
-      "agent": "DAO COP",
-      "role": "PILOT",
-      "watchdog": false
-    },
-    {
-      "issue": 187,
-      "agent": "DAO DEV 2",
-      "role": "DEV",
-      "watchdog": false
-    },
-    {
-      "issue": 165,
-      "agent": "DAO OPT 3",
-      "role": "OPT",
-      "watchdog": false
-    },
-    {
-      "issue": 180,
-      "agent": "DAO Pilot 6",
-      "role": "PILOT",
-      "watchdog": false
-    },
-    {
       "issue": 203,
       "agent": "DAO DOW",
       "role": "DEV",
@@ -182,7 +182,7 @@
     },
     {
       "issue": 204,
-      "agent": "DAO Pilot 7",
+      "agent": "DAO Pilot 10",
       "role": "PILOT",
       "watchdog": false
     },
@@ -225,6 +225,48 @@
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 301,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 345,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 346,
+      "agent": "DAO CoPilot 4",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 356,
+      "agent": "DAO CoPilot 4",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 358,
+      "agent": "DAO CH2",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 360,
+      "agent": "DAO CH2",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 367,
+      "agent": "DAO DEV 2",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }

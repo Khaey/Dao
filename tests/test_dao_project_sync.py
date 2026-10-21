@@ -96,6 +96,17 @@ class ProjectSyncTests(unittest.TestCase):
         owners = {m["issue"]: m["agent"] for m in json.loads(registry.read_text(encoding="utf-8"))["missions"]}
         self.assertEqual(owners[243], "DAO DEV 20")
         self.assertEqual(owners[251], "DAO DEV 2")
+        # Owner fields of Project #3 must reflect the latest PILOT10 mandates,
+        # not historical issue bodies or the previous coordinator's registry.
+        self.assertEqual(owners[204], "DAO Pilot 10")
+        self.assertEqual(owners[360], "DAO CH2")
+        self.assertEqual(owners[358], "DAO CH2")
+        self.assertEqual(owners[356], "DAO CoPilot 4")
+        self.assertEqual(owners[346], "DAO CoPilot 4")
+        for issue in (301, 345, 367):
+            self.assertEqual(owners[issue], "DAO DEV 2")
+        self.assertEqual(sync.owner_issue("Owner issue: #360\n\nPR Client"), 360)
+
         self.assertEqual(sync.owner_issue("Owner issue: #243\n\nPhase A"), 243)
         self.assertEqual(sync.owner_issue("Owner issue: #251\n\nCorrectif Artisan"), 251)
 
