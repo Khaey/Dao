@@ -8,7 +8,7 @@ test.use({ actionTimeout: 20_000, navigationTimeout: 30_000 });
 
 // #346 B1 against the REAL backend delivered in #345/#348, through the actual product journey
 // (publish → bid → award), with no manual membership insertion.
-test('Accord avant contrat #346 réel : Client propose sur le vrai award, concurrent refusé', async ({ page, browser, e2eClient, e2eReviewer, e2eArtisan, e2eSecondArtisan }, info) => {
+test('Accord avant contrat #346 réel : Client propose, Artisan attributaire accepte la même version, concurrent refusé', async ({ page, browser, e2eClient, e2eReviewer, e2eArtisan, e2eSecondArtisan }, info) => {
   test.skip(!e2eClient || !e2eReviewer || !e2eArtisan || !e2eSecondArtisan, 'E2E Supabase credentials are not available');
   test.setTimeout(240_000);
   const lotTitle = `Lot accord réel ${info.project.name}`;
@@ -81,20 +81,19 @@ test('Accord avant contrat #346 réel : Client propose sur le vrai award, concur
   await expect(competitor.getByText('Pose de menuiseries intérieures.')).toHaveCount(0);
   await cc.close();
 
-  // Awarded Artisan: access depends on the server rule under discussion in #345 (accepted project membership,
-  // which a marketplace award does not create). Record what the server actually does; never work around it.
-  await artisan.goto(`/app/awards/${award.award_id}/conditions`);
-  const granted = artisan.getByText('Vous êtes l’Artisan attributaire', { exact: false });
-  const refused = artisan.getByRole('alert').filter({ hasText: 'Seuls le Client et l’Artisan attributaire' });
-  await expect(granted.or(refused)).toBeVisible();
-  const outcome = await granted.isVisible() ? 'granted' : 'refused';
-  info.annotations.push({ type: 'precontract-awarded-artisan', description: outcome === 'granted' ? 'Accès accordé à l’Artisan attributaire' : 'Accès refusé à l’Artisan attributaire sans appartenance au chantier — décision attendue dans #345' });
-  if (outcome === 'granted') {
-    await expect(artisan.getByText('Client vous propose la version 1', { exact: true })).toBeVisible();
-    await artisan.getByRole('button', { name: 'Accepter la version 1' }).click();
-    await artisan.getByRole('button', { name: 'Confirmer mon accord' }).click();
-    await expect(artisan.getByRole('heading', { name: 'Le Client et l’Artisan ont accepté la version 1' })).toBeVisible();
-    expect((await adminRows('precontract_agreements', `id=eq.${agreement.id}&select=status`))[0].status).toBe('agreed');
-  }
+  // Awarded Artisan (owner decision A, #345): access follows the active award, no team invitation needed.
+  // Entry from the selected offer, then acceptance of the SAME version: common agreement, still unsigned.
+  await artisan.goto(`/app/artisan/publications/${publicationId}`);
+  await artisan.getByRole('link', { name: /Conditions et calendrier/ }).click();
+  await expect(artisan).toHaveURL(`/app/awards/${award.award_id}/conditions`);
+  await expect(artisan.getByText('Client vous propose la version 1', { exact: true })).toBeVisible();
+  await artisan.getByRole('button', { name: 'Accepter la version 1' }).click();
+  await artisan.getByRole('button', { name: 'Confirmer mon accord' }).dblclick();
+  await expect(artisan.getByRole('heading', { name: 'Le Client et l’Artisan ont accepté la version 1' })).toBeVisible();
+  await expect(artisan.getByText(/Conditions convenues — contrat non signé/)).toBeVisible();
+  const [final] = await adminRows('precontract_agreements', `id=eq.${agreement.id}&select=status`);
+  expect(final.status).toBe('agreed');
+  expect((await adminRows('precontract_agreement_acceptances', `agreement_id=eq.${agreement.id}&select=party_role`)).map(row => row.party_role).sort()).toEqual(['client', 'contractor']);
+  expect(await adminRows('contracts', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
   await ac.close();
 });
