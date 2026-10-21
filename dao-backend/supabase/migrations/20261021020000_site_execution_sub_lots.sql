@@ -1,5 +1,34 @@
 begin;
 
+-- A2 marketplace: the active commercial award, not an unrelated team invitation,
+-- authorizes the awarded contractor to report progress on THAT award item.  An
+-- explicitly revoked contractor team membership still denies access.  Do not
+-- change project/document/team RLS or grant access to competing contractors.
+create or replace function dao_private.site_contractor_award_item(p_award_item_id uuid)
+returns boolean language sql stable security definer set search_path='' as $
+  select dao_private.site_actor_workspace('contractor')
+    and dao_private.account_active(auth.uid())
+    and exists(
+      select 1 from public.award_items ai
+      join public.awards a on a.id=ai.award_id and a.project_id=ai.project_id
+        and a.contractor_id=ai.contractor_id
+      join public.contractor_profiles cp on cp.id=ai.contractor_id and cp.user_id=auth.uid()
+      join public.projects p on p.id=ai.project_id
+      join public.project_requests r on r.id=ai.request_id and r.project_id=ai.project_id
+      join public.project_members cm on cm.project_id=p.id and cm.user_id=p.client_id
+        and cm.participation_role='client' and cm.status='accepted'
+      where ai.id=p_award_item_id and ai.active and a.status<>'cancelled'
+        and r.status in ('awarded','contracted') and p.client_id is not null
+        and p.confirmed_at is not null and p.status<>'archived'
+        and cp.verification_status<>'suspended'
+        and not exists (
+          select 1 from public.project_members revoked
+          where revoked.project_id=ai.project_id and revoked.user_id=auth.uid()
+            and revoked.participation_role='contractor' and revoked.status='revoked'
+        )
+    );
+$;
+
 -- P9-A2: additive sub-lot and executed-quantity detail on the existing #289
 -- append-only journal. Commercial awards remain strictly per lot.
 alter table public.site_log_events
