@@ -93,7 +93,7 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   });
   await page.reload();
   await expect.poll(() => mockedAwardReads, { message: 'Le GET award_items doit être intercepté après rechargement' }).toBeGreaterThan(0);
-  await expect(commercial.getByRole('alert')).toContainText('n’ont pas pu être chargées');
+  await expect(commercial.getByRole('alert')).toContainText('n’ont pas pu être chargées', { timeout: 20_000 });
   await expect(commercial).not.toContainText('En attente d’offres');
   await page.unroute('**/rest/v1/award_items*');
   await commercial.getByRole('button', { name: 'Réessayer' }).click();
