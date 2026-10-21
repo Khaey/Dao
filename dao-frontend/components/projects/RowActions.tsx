@@ -20,11 +20,16 @@ export default function RowActions({ title, primary, more }: { title: string; pr
     if (!open) return;
     const close = (event: MouseEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); toggle.current?.focus(); } };
-    // Fixed popover: escapes the scrollable table without being clipped; closes when the page moves.
-    const dismiss = () => setOpen(false);
+    // Fixed popover: escapes the scrollable table without being clipped. It follows its button when the page moves
+    // (late data, layout shift, mobile scroll) and closes only once the button has left the viewport.
+    const place = () => {
+      const rect = toggle.current?.getBoundingClientRect();
+      if (!rect || rect.bottom < 0 || rect.top > window.innerHeight) { setOpen(false); return; }
+      setPosition({ top: rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right) });
+    };
     document.addEventListener('mousedown', close); document.addEventListener('keydown', escape);
-    window.addEventListener('scroll', dismiss, true); window.addEventListener('resize', dismiss);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); window.removeEventListener('scroll', dismiss, true); window.removeEventListener('resize', dismiss); };
+    window.addEventListener('scroll', place, true); window.addEventListener('resize', place);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
   }, [open]);
   return <div ref={root} className="relative z-10 flex items-center justify-end gap-1">
     {primary ? <Link href={primary.href} aria-label={`${primary.label} — ${title}`} className="inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-xl bg-ink px-3.5 text-sm font-semibold text-white transition hover:bg-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal">{primary.label}</Link>
