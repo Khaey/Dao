@@ -72,9 +72,14 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   // Real marketplace awards do NOT create contractor team membership.  A2 must
   // work on the active awarded lot without inserting it as a test shortcut.
   const contractorMemberships = await admin.from('project_members').select('id')
-    .eq('project_id', project.data!.id).in('user_id', [contractor.id, competitor.id]);
+    .eq('project_id', project.data!.id).eq('user_id', contractor.id);
   assert.ifError(contractorMemberships.error);
   assert.equal(contractorMemberships.data?.length, 0);
+  // Even an ACCEPTED team member cannot negotiate or edit the competitor's award.
+  assert.ifError((await admin.from('project_members').insert({
+    project_id: project.data!.id, user_id: competitor.id,
+    participation_role: 'contractor', status: 'accepted',
+  })).error);
   assert.ifError((await admin.from('project_invitations').insert({
     project_id: project.data!.id, created_by: owner.id, expected_role: 'contractor',
     principal_request_id: request.data!.id,
