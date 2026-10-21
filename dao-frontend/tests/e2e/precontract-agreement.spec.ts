@@ -192,4 +192,37 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   await page.getByText(/^Historique/).click();
   await expect(page.getByText('Accord commun atteint · version 3')).toBeVisible();
   await noHorizontalScroll(page);
+
+  // P2.2-E1 / #383: the private contract details display readiness, not a fake legal signature.
+  // Use a mocked read-only DTO; server contract-reader version isolation has separate unit coverage.
+  const contractId = '11111111-1111-4111-8111-111111111111';
+  const contractVersionId = '22222222-2222-4222-8222-222222222222';
+  await page.route('**/api/contracts/' + contractId, request => request.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ data: {
+      contract: { id: contractId, award_id: awardId, current_version_id: contractVersionId,
+        project_id: 'project-1', status: 'ready', signature_mode: 'trusted_simple',
+        validated_at: '2026-10-21T10:00:00.000Z', legal_effect_enabled: false, non_engaging: true,
+        total_millimes: 12_500_000, created_at: '2026-10-20T09:00:00.000Z', cancellation_reason: null },
+      version: { id: contractVersionId, version_no: 1, content_hash: 'a'.repeat(64),
+        created_at: '2026-10-20T09:00:00.000Z' },
+      parties: [
+        { role: 'client', legal_name: 'Client démo' },
+        { role: 'contractor', legal_name: 'Artisan démo' },
+        { role: 'dao', legal_name: 'LogicLab Tunisie' },
+      ],
+      // Only the current version's client approval is returned: old Artisan approval is excluded.
+      acceptances: [{ party_role: 'client', method: 'trusted_simple', accepted_at: '2026-10-21T09:00:00.000Z' }],
+      items: [{ id: 'item-1', title: 'Menuiserie', scope: 'Pose de portes', duration_days: 4,
+        agreed_millimes: 12_500_000, inclusions: 'Pose', exclusions: null }],
+      amendments: [], archives: [], events: [],
+    } }),
+  }));
+  await page.goto('/app/contracts/' + contractId);
+  const signature = page.getByRole('region', { name: 'Préparer la signature du contrat' });
+  await expect(signature).toBeVisible();
+  await expect(signature).toContainText('Préparation du dossier : 4 étapes vérifiées sur 6');
+  await expect(signature).toContainText('Aucun accord technique sur la version courante');
+  await expect(signature).toContainText('Signature électronique non activée — contrat non signé.');
+  await expect(page.getByRole('button', { name: /Signer|Déclencher la signature/i })).toHaveCount(0);
+  await noHorizontalScroll(page);
 });
