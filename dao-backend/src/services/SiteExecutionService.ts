@@ -2,10 +2,11 @@ import { DomainError } from '../lib/errors.js';
 
 export type SiteProgressStatus = 'not_started' | 'in_progress' | 'completed';
 export type SiteMilestoneStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
-export type SiteObservationOutcome = 'acknowledged' | 'disputed';
+export type SiteObservationOutcome = 'acknowledged' | 'disputed' | 'technical_validated';
 
 export type RecordProgressInput = {
   award_item_id: string;
+  bid_sub_lot_id?: string | null;
   status: SiteProgressStatus;
   percent: number;
   reason: string;
@@ -15,9 +16,13 @@ export type RecordProgressInput = {
 
 export type RecordInterventionInput = {
   award_item_id: string;
+  bid_sub_lot_id?: string | null;
   work_date: string;
   note: string;
   percent?: number | null;
+  quote_line_id?: string | null;
+  executed_quantity_milli?: number | null;
+  quantity_unit?: string | null;
   document_ids?: string[];
   idempotency_key: string;
 };
@@ -62,6 +67,19 @@ function uuid(value: unknown, field: string) {
   return result;
 }
 
+function optionalUuid(value: unknown, field: string) {
+  return value == null || value === '' ? null : uuid(value, field);
+}
+
+function quantityMilli(value: unknown) {
+  if (value == null || value === '') return null;
+  const result = Number(value);
+  if (!Number.isSafeInteger(result) || result < 1 || result > 1_000_000_000_000) {
+    throw new DomainError('executed_quantity_milli must be a positive bounded integer', 'BAD_REQUEST');
+  }
+  return result;
+}
+
 function date(value: unknown, field: string, optional = false) {
   if (optional && (value == null || value === '')) return null;
   const result = requiredText(value, field);
@@ -100,7 +118,7 @@ export class SiteExecutionService {
       }
     }
     const pageSize = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 50) : 30;
-    const { data, error } = await this.db.rpc('site_execution_snapshot', {
+    const { data, error } = await this.db.rpc('site_execution_snapshot_v2', {
       p_project_id: projectId,
       p_before_created_at: cursor?.created_at ?? null,
       p_before_id: cursor?.id ?? null,
@@ -116,8 +134,9 @@ export class SiteExecutionService {
   }
 
   async progress(input: Record<string, unknown>) {
-    const { data, error } = await this.db.rpc('record_site_progress', {
+    const { data, error } = await this.db.rpc('record_site_progress_v2', {
       p_award_item_id: uuid(input.award_item_id, 'award_item_id'),
+      p_bid_sub_lot_id: optionalUuid(input.bid_sub_lot_id, 'bid_sub_lot_id'),
       p_status: requiredText(input.status, 'status'),
       p_percent: percent(input.percent),
       p_reason: requiredText(input.reason, 'reason'),
@@ -129,11 +148,15 @@ export class SiteExecutionService {
   }
 
   async intervention(input: Record<string, unknown>) {
-    const { data, error } = await this.db.rpc('record_site_intervention', {
+    const { data, error } = await this.db.rpc('record_site_intervention_v2', {
       p_award_item_id: uuid(input.award_item_id, 'award_item_id'),
+      p_bid_sub_lot_id: optionalUuid(input.bid_sub_lot_id, 'bid_sub_lot_id'),
       p_work_date: date(input.work_date, 'work_date'),
       p_note: requiredText(input.note, 'note'),
       p_percent: percent(input.percent, true),
+      p_quote_line_id: optionalUuid(input.quote_line_id, 'quote_line_id'),
+      p_executed_quantity_milli: quantityMilli(input.executed_quantity_milli),
+      p_quantity_unit: optionalText(input.quantity_unit),
       p_document_ids: documents(input.document_ids),
       p_idempotency_key: requiredText(input.idempotency_key, 'idempotency_key'),
     });
