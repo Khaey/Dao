@@ -161,7 +161,19 @@ export function CommercialPanel({ progress, stage, stageLabel }: { progress: Com
   return <section aria-label="Offres et attribution" className="mt-5 rounded-2xl border border-teal/15 bg-teal/[0.03] p-4 sm:p-5">
     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/65">Après publication</p>
     <p className="mt-1.5 text-sm font-semibold text-ink">{summary}</p>
-    {progress.contractorDossiers.length > 1 && <p className="mt-2 text-xs text-ink/65">{progress.contractorDossiers.length} Artisans retenus sur ce chantier ; chaque Artisan conserve ses propres lots et conditions.</p>}
+    {progress.contractorDossiers.some(group => group.lotIds.length > 1) && <div className="mt-3 rounded-xl border border-teal/15 bg-white/80 p-3" aria-label="Lots regroupés par Artisan">
+      <p className="text-xs font-semibold uppercase tracking-wider text-ink/65">Lots remportés par Artisan</p>
+      <ul className="mt-2 space-y-2">{progress.contractorDossiers.map(group => {
+        const winner = progress.byLot[group.lotIds[0]];
+        const name = winner?.name ?? 'Artisan retenu (identité publique indisponible)';
+        const total = (group.totalMillimes / 1000).toLocaleString('fr-TN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+        return <li key={group.contractorId} className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink">
+          <span><strong>{name}</strong> · {group.lotIds.length} lot{group.lotIds.length > 1 ? 's' : ''} attribué{group.lotIds.length > 1 ? 's' : ''}</span>
+          <span className="font-semibold tabular-nums">{total} DT</span>
+        </li>;
+      })}</ul>
+      <p className="mt-2 text-xs text-ink/55">Regroupement commercial informatif ; aucun contrat ni signature automatique.</p>
+    </div>}
     <ol className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6" aria-label="Étapes après publication">{steps.map(step => <li key={step.label} aria-current={step.state === 'current' ? 'step' : undefined} className={`min-w-0 rounded-xl border px-3 py-2 ${step.state === 'done' ? 'border-teal/25 bg-white' : step.state === 'current' ? 'border-clay/30 bg-white' : 'border-black/[0.06] bg-white/60'}`}>
       <span className={`flex items-center gap-1.5 text-xs font-semibold ${step.state === 'done' ? 'text-teal' : step.state === 'current' ? 'text-ink' : 'text-ink/55'}`}>{step.state === 'done' ? <CheckCircle2 aria-hidden="true" size={14} className="shrink-0" /> : step.state === 'current' ? <CircleDot aria-hidden="true" size={14} className="shrink-0 text-clay" /> : <CircleDashed aria-hidden="true" size={14} className="shrink-0" />}<span className="min-w-0 break-words">{step.label}</span></span>
       <span className="mt-0.5 block break-words text-xs text-ink/60">{step.detail}</span>
