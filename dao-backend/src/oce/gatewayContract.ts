@@ -41,6 +41,9 @@ export type EnsureDependencyInput = MappingRef & {
   predecessor_activity_code: string; successor_activity_code: string; relationship_type?: RelationshipType; lag_days?: number;
 };
 
+export type RemoveActivityInput = MappingRef & { activity_code: string };
+export type RemoveDependencyInput = MappingRef & { predecessor_activity_code: string; successor_activity_code: string };
+export type RemoveResult = { ok: true; removed: boolean };
 export type EnsureResult = { ok: true; created: boolean };
 export type EnsureDependencyResult = { ok: true; created: boolean; updated: boolean };
 export type PlanningResult = { ok: true; project_duration_days: number; critical_activity_codes: string[] };
@@ -59,6 +62,9 @@ export interface OceGateway {
   ensureSchedule(input: EnsureScheduleInput): Promise<EnsureResult>;
   upsertActivity(input: UpsertActivityInput): Promise<EnsureResult>;
   ensureDependency(input: EnsureDependencyInput): Promise<EnsureDependencyResult>;
+  /** Retraits bornés (#325) : un seul objet de l'inventaire de la passerelle, idempotent. Une activité n'est retirable qu'après ses dépendances. */
+  removeDependency(input: RemoveDependencyInput): Promise<RemoveResult>;
+  removeActivity(input: RemoveActivityInput): Promise<RemoveResult>;
   calculatePlanning(input: MappingRef): Promise<PlanningResult>;
   planningSummary(input: MappingRef): Promise<PlanningSummary>;
 }
@@ -138,6 +144,16 @@ export const requests = {
     if (!Number.isInteger(lag) || Math.abs(lag) > 2 ** 31 - 1) throw invalid('invalid_lag_days');
     return { ...ref(input), predecessor_activity_code: pred, successor_activity_code: succ, relationship_type: relation, lag_days: lag };
   },
+  removeDependency(input: RemoveDependencyInput) {
+    exact(input, ['dao_project_id', 'dao_lot_id', 'predecessor_activity_code', 'successor_activity_code'], ['dao_project_id', 'dao_lot_id', 'predecessor_activity_code', 'successor_activity_code']);
+    const pred = code(input.predecessor_activity_code, 'predecessor_activity_code'); const succ = code(input.successor_activity_code, 'successor_activity_code');
+    if (pred === succ) throw invalid('dependency_self_reference');
+    return { ...ref(input), predecessor_activity_code: pred, successor_activity_code: succ };
+  },
+  removeActivity(input: RemoveActivityInput) {
+    exact(input, ['dao_project_id', 'dao_lot_id', 'activity_code'], ['dao_project_id', 'dao_lot_id', 'activity_code']);
+    return { ...ref(input), activity_code: code(input.activity_code, 'activity_code') };
+  },
   mapping(input: MappingRef) {
     exact(input, ['dao_project_id', 'dao_lot_id'], ['dao_project_id', 'dao_lot_id']);
     return ref(input);
@@ -151,6 +167,7 @@ const shape = (ok: boolean) => { if (!ok) throw new OceGatewayError('protocol', 
 export const responses = {
   ok(data: any): { ok: true } { shape(data?.ok === true); return { ok: true }; },
   ensure(data: any): EnsureResult { shape(data?.ok === true && typeof data.created === 'boolean'); return { ok: true, created: data.created }; },
+  removal(data: any): RemoveResult { shape(data?.ok === true && typeof data.removed === 'boolean'); return { ok: true, removed: data.removed }; },
   dependency(data: any): EnsureDependencyResult {
     shape(data?.ok === true && typeof data.created === 'boolean' && typeof data.updated === 'boolean');
     return { ok: true, created: data.created, updated: data.updated };

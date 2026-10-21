@@ -18,7 +18,7 @@ export type OcePlan = {
   activities: OcePlanActivity[];
   dependencies: OcePlanDependency[];
 };
-export type SyncStep = { operation: SyncOperation; code?: string; outcome: 'done' | 'unchanged' | 'in_progress' | 'failed'; errorKind?: string; errorCode?: string };
+export type SyncStep = { operation: SyncOperation | 'remove-dependency' | 'remove-activity'; code?: string; outcome: 'done' | 'unchanged' | 'in_progress' | 'failed'; errorKind?: string; errorCode?: string };
 export type SyncReport = { ok: boolean; steps: SyncStep[]; written: number; skipped: number; planning?: { project_duration_days: number; critical_activity_codes: string[] } };
 
 export class OcePlanError extends Error { constructor(readonly code: string) { super(code); } }
@@ -55,8 +55,16 @@ export function validatePlan(plan: OcePlan) {
   for (const a of acts) if (visit(a)) bad('dependency_cycle');
 }
 
+export type OrchestratorOptions = {
+  /**
+   * Réconciliation par retrait (#325) : les dépendances puis les activités déjà appliquées dans OCE et absentes du plan courant sont retirées
+   * via la passerelle. Éteint par défaut tant que les opérations de retrait ne sont pas déployées (sinon comportement historique : rien n'est retiré).
+   */
+  removal?: boolean;
+};
+
 export class OceOrchestrator {
-  constructor(private readonly gateway: OceGateway, private readonly store: OceSyncStore) {}
+  constructor(private readonly gateway: OceGateway, private readonly store: OceSyncStore, private readonly options: OrchestratorOptions = {}) {}
 
   /**
    * `generation` identifies the plan revision being applied (monotonic, +1 per real change). It is part of every idempotency key:
@@ -68,6 +76,16 @@ export class OceOrchestrator {
     validatePlan(plan);
     const mappingId = await this.store.requestMapping(ref.dao_project_id, ref.dao_lot_id);
     const report: SyncReport = { ok: true, steps: [], written: 0, skipped: 0 };
+
+    // Retrait idempotent côté passerelle ; l'objet n'est oublié par D.A.O qu'après confirmation, et l'échec s'arrête à l'étape (reprise au prochain passage).
+    const remove = async (operation: 'remove-dependency' | 'remove-activity', code: string, run: () => Promise<unknown>, forget: () => Promise<void>) => {
+      try { await run(); } catch (error) {
+        const kind = error instanceof OceGatewayError ? error.kind : 'unknown';
+        const errCode = error instanceof OceGatewayError ? error.code : 'internal_error';
+        report.ok = false; report.steps.push({ operation, code, outcome: 'failed', errorKind: kind, errorCode: errCode }); return false;
+      }
+      await forget(); report.written++; report.steps.push({ operation, code, outcome: 'done' }); return true;
+    };
 
     const step = async (operation: SyncOperation, code: string | undefined, body: unknown, run: () => Promise<unknown>,
       object?: { kind: ObjectKind; a: string; b: string | null }) => {
@@ -92,6 +110,20 @@ export class OceOrchestrator {
       return true;
     };
 
+    // Retraits d'abord pour les dépendances (une activité ne se retire qu'une fois ses dépendances parties), puis les activités après les écritures.
+    let staleActivities: string[] = [];
+    if (this.options.removal) {
+      const tracked = await this.store.listObjects(mappingId);
+      const planDeps = new Set(plan.dependencies.map(d => `${d.predecessor_activity_code}>${d.successor_activity_code}`));
+      const planActs = new Set(plan.activities.map(a => a.activity_code));
+      staleActivities = tracked.activities.filter(code => !planActs.has(code));
+      const staleDependencies = tracked.dependencies.filter(([pred, succ]) => !planDeps.has(`${pred}>${succ}`));
+      for (const [pred, succ] of staleDependencies) {
+        if (!(await remove('remove-dependency', `${pred}>${succ}`, () => this.gateway.removeDependency({ ...ref, predecessor_activity_code: pred, successor_activity_code: succ }),
+          () => this.store.forgetObject(mappingId, 'dependency', pred, succ)))) return report;
+      }
+    }
+
     if (!(await step('ensure-project', undefined, plan.project, () => this.gateway.ensureProject({ ...ref, ...plan.project })))) return report;
     for (const w of plan.wbs) {
       if (!(await step('ensure-wbs', w.code, w, () => this.gateway.ensureWbs({ ...ref, ...w }), { kind: 'wbs', a: w.code, b: null }))) return report;
@@ -103,6 +135,9 @@ export class OceOrchestrator {
     for (const d of plan.dependencies) {
       if (!(await step('ensure-dependency', `${d.predecessor_activity_code}>${d.successor_activity_code}`, d,
         () => this.gateway.ensureDependency({ ...ref, ...d }), { kind: 'dependency', a: d.predecessor_activity_code, b: d.successor_activity_code }))) return report;
+    }
+    for (const code of staleActivities) {
+      if (!(await remove('remove-activity', code, () => this.gateway.removeActivity({ ...ref, activity_code: code }), () => this.store.forgetObject(mappingId, 'activity', code, null)))) return report;
     }
     // CPM is recomputed only when the plan content changed (key derives from the whole plan hash).
     const planHash = sha256({ wbs: plan.wbs, schedule: plan.schedule, activities: plan.activities, dependencies: plan.dependencies });

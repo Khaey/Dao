@@ -96,7 +96,8 @@ export class ProjectPlanSynchronizer {
       if (report.ok && report.planning) await this.recordResult(projectId, source.revision, { duration: report.planning.project_duration_days, critical: report.planning.critical_activity_codes }, null);
       else if (!report.ok) {
         const failed = report.steps.find(s => s.outcome === 'failed');
-        const raw = (failed?.errorKind ?? failed?.errorCode ?? 'sync_incomplete').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 64);
+        const removalFailure = failed?.operation === 'remove-dependency' || failed?.operation === 'remove-activity';
+        const raw = ((removalFailure ? failed?.errorCode : undefined) ?? failed?.errorKind ?? failed?.errorCode ?? 'sync_incomplete').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 64);
         await this.recordResult(projectId, source.revision, null, raw || 'sync_incomplete');
       }
       return { state: report.ok ? 'synced' : 'failed', report };

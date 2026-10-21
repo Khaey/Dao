@@ -11,6 +11,9 @@ export interface OceSyncStore {
   finish(journalId: string, ok: boolean, errorKind?: string, errorCode?: string): Promise<void>;
   objectChanged(mappingId: string, kind: ObjectKind, code: string, code2: string | null, hash: string): Promise<boolean>;
   recordObject(mappingId: string, kind: ObjectKind, code: string, code2: string | null, hash: string): Promise<void>;
+  /** Objects already applied in OCE for this mapping (D.A.O codes only): the basis of the removal reconciliation (#325). */
+  listObjects(mappingId: string): Promise<{ activities: string[]; dependencies: [string, string][] }>;
+  forgetObject(mappingId: string, kind: 'activity' | 'dependency', code: string, code2: string | null): Promise<void>;
   /** Records that a complete synchronisation applied plan `revision` (the lot reads as synchronised only once it reaches the current revision). */
   markSynced(mappingId: string, revision: number): Promise<void>;
 }
@@ -49,6 +52,13 @@ export class SupabaseOceSyncStore implements OceSyncStore {
   async recordObject(mappingId: string, kind: ObjectKind, code: string, code2: string | null, hash: string) {
     await this.call('oce_record_object', { p_mapping_id: mappingId, p_kind: kind, p_code: code, p_code2: code2, p_hash: hash });
   }
+  async listObjects(mappingId: string) {
+    const data = await this.call('oce_list_objects', { p_mapping_id: mappingId });
+    return { activities: (data?.activities ?? []) as string[], dependencies: (data?.dependencies ?? []) as [string, string][] };
+  }
+  async forgetObject(mappingId: string, kind: 'activity' | 'dependency', code: string, code2: string | null) {
+    await this.call('oce_forget_object', { p_mapping_id: mappingId, p_kind: kind, p_code: code, p_code2: code2 });
+  }
   async markSynced(mappingId: string, revision: number) { await this.call('oce_mark_synced', { p_mapping_id: mappingId, p_revision: revision }); }
 }
 
@@ -81,6 +91,16 @@ export class InMemoryOceSyncStore implements OceSyncStore {
   private k(m: string, kind: string, a: string, b: string | null) { return `${m}|${kind}|${a}|${b ?? ''}`; }
   async objectChanged(m: string, kind: ObjectKind, a: string, b: string | null, hash: string) { return this.objects.get(this.k(m, kind, a, b)) !== hash; }
   async recordObject(m: string, kind: ObjectKind, a: string, b: string | null, hash: string) { this.objects.set(this.k(m, kind, a, b), hash); }
+  async listObjects(m: string) {
+    const activities: string[] = []; const dependencies: [string, string][] = [];
+    for (const key of this.objects.keys()) {
+      const [mapping, kind, a, b] = key.split('|');
+      if (mapping !== m) continue;
+      if (kind === 'activity') activities.push(a); else if (kind === 'dependency') dependencies.push([a, b]);
+    }
+    return { activities: activities.sort(), dependencies: dependencies.sort() };
+  }
+  async forgetObject(m: string, kind: 'activity' | 'dependency', a: string, b: string | null) { this.objects.delete(this.k(m, kind, a, b)); }
   synced = new Map<string, number>(); syncedRevision = new Map<string, number>();
   async markSynced(mappingId: string, revision: number) {
     const m = this.mappings.get(mappingId); if (!m) throw new Error('mapping_not_found');
