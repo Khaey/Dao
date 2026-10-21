@@ -245,8 +245,8 @@ BEGIN
     'dao_private.site_execution_snapshot_v2(uuid,timestamp with time zone,uuid,integer)'
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE')
-      OR has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
-      RAISE EXCEPTION 'schema contract: site execution V2 helper exposed: %',missing_name;
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: site execution V2 internal grant mismatch: %',missing_name;
     END IF;
   END LOOP;
   IF has_function_privilege('anon','public.my_support_summary()','EXECUTE')

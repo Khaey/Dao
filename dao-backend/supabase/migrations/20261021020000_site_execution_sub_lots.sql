@@ -250,6 +250,11 @@ revoke all on function
   dao_private.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text),
   dao_private.site_execution_snapshot_v2(uuid,timestamptz,uuid,integer)
   from public,anon,authenticated;
+grant execute on function
+  dao_private.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text),
+  dao_private.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text),
+  dao_private.site_execution_snapshot_v2(uuid,timestamptz,uuid,integer)
+  to authenticated,service_role;
 revoke all on function
   public.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text),
   public.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text),
