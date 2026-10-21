@@ -7,12 +7,12 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','oce_lot_plans','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
     'bid_documents','bid_group_items','bid_groups','bid_items','bid_quote_lines','bid_sub_lot_links','bid_sub_lots','project_plan_contexts','project_plan_link_decisions','project_plan_manual_link_removals','project_plan_manual_links','project_plan_results','bid_versions','bids',
-    'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions','precontract_agreements','precontract_agreement_versions','precontract_agreement_acceptances','precontract_agreement_events',
+    'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions','precontract_agreements','precontract_agreement_versions','precontract_agreement_acceptances','precontract_agreement_events','precontract_installment_events',
     'contractor_profiles','contractor_service_areas','contractor_trades','contractor_profile_details','contractor_files',
     'contractor_reviews','contractor_review_responses','contractor_review_reports',
     'contracts','conversation_participants','conversations','delegations',
@@ -535,7 +535,8 @@ BEGIN
   -- P9-A1: tables stay closed; authenticated callers use only the bounded RPC contract.
   FOR missing_name IN SELECT unnest(ARRAY[
     'precontract_agreements','precontract_agreement_versions',
-    'precontract_agreement_acceptances','precontract_agreement_events'
+    'precontract_agreement_acceptances','precontract_agreement_events',
+    'precontract_installment_events'
   ]) LOOP
     IF has_table_privilege('anon','public.'||missing_name,'SELECT')
       OR has_table_privilege('authenticated','public.'||missing_name,'SELECT')
@@ -553,7 +554,9 @@ BEGIN
     'public.propose_precontract_agreement(uuid,uuid,jsonb,uuid)',
     'public.accept_precontract_agreement(uuid,uuid,uuid)',
     'public.reject_precontract_agreement(uuid,uuid,text,uuid)',
-    'public.precontract_agreement_snapshot(uuid)'
+    'public.precontract_agreement_snapshot(uuid)',
+    'public.precontract_installment_snapshot(uuid)',
+    'public.record_precontract_installment_event(uuid,uuid,integer,text,text,uuid)'
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE')
       OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
@@ -567,7 +570,10 @@ BEGIN
     'dao_private.propose_precontract_agreement(uuid,uuid,jsonb,uuid)',
     'dao_private.accept_precontract_agreement(uuid,uuid,uuid)',
     'dao_private.reject_precontract_agreement(uuid,uuid,text,uuid)',
-    'dao_private.precontract_agreement_snapshot(uuid)'
+    'dao_private.precontract_agreement_snapshot(uuid)',
+    'dao_private.precontract_latest_agreed_version(uuid)',
+    'dao_private.precontract_installment_snapshot(uuid)',
+    'dao_private.record_precontract_installment_event(uuid,uuid,integer,text,text,uuid)'
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE')
       OR has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
@@ -580,7 +586,8 @@ BEGIN
       ('precontract_agreements','immutable_precontract_agreements'),
       ('precontract_agreement_versions','immutable_precontract_versions'),
       ('precontract_agreement_acceptances','immutable_precontract_acceptances'),
-      ('precontract_agreement_events','immutable_precontract_events')
+      ('precontract_agreement_events','immutable_precontract_events'),
+      ('precontract_installment_events','immutable_precontract_installment_events')
     ) AS required(table_name,trigger_name)
   LOOP
     IF NOT EXISTS (

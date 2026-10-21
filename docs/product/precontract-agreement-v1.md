@@ -29,6 +29,9 @@ Artisan sur le même **version_id** et le même hash.
 Aucune commande ne modifie l’offre, l’attribution ou le contrat. Aucun paiement,
 facture, réception, signature, dette ou mouvement financier n’est créé.
 
+Le suivi ultérieur des échéances informatives est défini séparément dans
+[`precontract-installment-tracking-v1.md`](./precontract-installment-tracking-v1.md).
+
 ## API stable transmise à DOW
 
 L’interface « Conditions et calendrier » livrée par #347 consomme ce contrat sans répliquer les décisions serveur.

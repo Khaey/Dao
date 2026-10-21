@@ -211,8 +211,12 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
       planned_start_date: '2026-11-03',
       duration_days: 5,
       execution_terms: 'Accès confirmé',
-      payment_mode: 'none',
-      installments: [],
+      payment_mode: 'weekly',
+      installments: [{
+        label: 'Présentation de fin de semaine',
+        due_date: '2026-11-08',
+        amount_millimes: 100000,
+      }],
       sub_lot_schedule: [],
     },
     p_idempotency_key: randomUUID(),
@@ -251,12 +255,79 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
   assert.equal(snapshot.data.acceptances.length, 2);
   assert.equal(snapshot.data.legal_effect_enabled, false);
 
+  const initialSchedule = await contractor.db.rpc('precontract_installment_snapshot', snapshotArgs);
+  assert.ifError(initialSchedule.error);
+  assert.equal(initialSchedule.data.agreement_version_id, second.data.version_id);
+  assert.equal(initialSchedule.data.installments[0].status, 'pending');
+  assert.equal(initialSchedule.data.installments[0].can_declare, true);
+  assert.equal(initialSchedule.data.informational_only, true);
+  assert.equal(initialSchedule.data.money_moved, false);
+  await denied(competitor.db, 'precontract_installment_snapshot', snapshotArgs);
+
+  const declarationKey = randomUUID();
+  const declarationArgs = {
+    p_agreement_id: second.data.agreement_id,
+    p_version_id: second.data.version_id,
+    p_installment_no: 1,
+    p_event_type: 'declared',
+    p_reason: null,
+    p_idempotency_key: declarationKey,
+  };
+  const declaration = await contractor.db.rpc(
+    'record_precontract_installment_event', declarationArgs,
+  );
+  assert.ifError(declaration.error);
+  assert.equal(declaration.data.status, 'declared');
+  assert.equal(declaration.data.payment_recorded, false);
+  const declarationReplay = await contractor.db.rpc(
+    'record_precontract_installment_event', declarationArgs,
+  );
+  assert.ifError(declarationReplay.error);
+  assert.equal(declarationReplay.data.event_id, declaration.data.event_id);
+  await denied(contractor.db, 'record_precontract_installment_event', {
+    ...declarationArgs,
+    p_event_type: 'authorized',
+    p_idempotency_key: randomUUID(),
+  }, '23514');
+  await denied(competitor.db, 'record_precontract_installment_event', {
+    ...declarationArgs,
+    p_idempotency_key: randomUUID(),
+  });
+
+  const verified = await owner.db.rpc('record_precontract_installment_event', {
+    ...declarationArgs,
+    p_event_type: 'verified',
+    p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(verified.error);
+  const authorized = await owner.db.rpc('record_precontract_installment_event', {
+    ...declarationArgs,
+    p_event_type: 'authorized',
+    p_reason: 'Autorisation informative, aucun paiement',
+    p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(authorized.error);
+  assert.equal(authorized.data.status, 'authorized');
+  assert.equal(authorized.data.money_moved, false);
+  assert.equal(authorized.data.debt_created, false);
+
+  const authorizedSchedule = await owner.db.rpc(
+    'precontract_installment_snapshot', snapshotArgs,
+  );
+  assert.ifError(authorizedSchedule.error);
+  assert.equal(authorizedSchedule.data.installments[0].status, 'authorized');
+  assert.equal(authorizedSchedule.data.installments[0].can_authorize, false);
+  assert.equal(authorizedSchedule.data.events.length, 3);
+
   assert.ok((await admin.from('precontract_agreement_versions')
     .update({ content_hash: '0'.repeat(64) })
     .eq('id', second.data.version_id)).error);
   assert.ok((await admin.from('precontract_agreement_acceptances')
     .delete()
     .eq('agreement_id', second.data.agreement_id)).error);
+  assert.ok((await admin.from('precontract_installment_events')
+    .update({ event_type: 'verified' })
+    .eq('id', authorized.data.event_id)).error);
 
   const third = await owner.db.rpc('propose_precontract_agreement', {
     p_award_id: award.data!.id,
