@@ -69,11 +69,12 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
     title: 'Lot plomberie attribué', scope: 'Travaux attribués', budget_millimes: 100000,
   }).select('id').single();
   assert.ifError(requestVersion.error);
-  for (const user of [contractor, competitor]) {
-    assert.ifError((await admin.from('project_members').insert({
-      project_id: project.data!.id, user_id: user.id, participation_role: 'contractor', status: 'accepted',
-    })).error);
-  }
+  // Real marketplace awards do NOT create contractor team membership.  A2 must
+  // work on the active awarded lot without inserting it as a test shortcut.
+  const contractorMemberships = await admin.from('project_members').select('id')
+    .eq('project_id', project.data!.id).in('user_id', [contractor.id, competitor.id]);
+  assert.ifError(contractorMemberships.error);
+  assert.equal(contractorMemberships.data?.length, 0);
   assert.ifError((await admin.from('project_invitations').insert({
     project_id: project.data!.id, created_by: owner.id, expected_role: 'contractor',
     principal_request_id: request.data!.id,
@@ -165,6 +166,24 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
     p_quote_line_id: quoteLine.data!.id, p_executed_quantity_milli: 1_000,
     p_quantity_unit: 'kg', p_document_ids: [], p_idempotency_key: randomUUID(),
   });
+  // An explicitly revoked participation must still deny execution, without
+  // modifying the user's unrelated commercial award or general project RLS.
+  const membership = await admin.from('project_members').insert({
+    project_id: project.data!.id, user_id: contractor.id,
+    participation_role: 'contractor', status: 'accepted',
+  }).select('id').single();
+  assert.ifError(membership.error);
+  assert.ifError((await admin.from('project_members').update({
+    status: 'revoked', revoked_at: new Date().toISOString(),
+  }).eq('id', membership.data!.id)).error);
+  await denied(contractor.db, 'record_site_progress_v2', {
+    ...progressArgs, p_idempotency_key: randomUUID(),
+  });
+  await denied(contractor.db, 'site_execution_snapshot_v2', snapshotArgs);
+  assert.ifError((await admin.from('project_members').update({
+    status: 'accepted', revoked_at: null,
+  }).eq('id', membership.data!.id)).error);
+
   const milestone = await contractor.db.rpc('create_site_milestone', {
     p_award_item_id: awardItem.data!.id, p_title: 'Essai réseau', p_target_date: null,
     p_status: 'planned', p_note: null, p_idempotency_key: randomUUID(),
