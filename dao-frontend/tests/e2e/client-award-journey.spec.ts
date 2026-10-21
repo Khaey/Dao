@@ -69,6 +69,29 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   await expect(commercial.getByRole('list', { name: 'Étapes après publication' })).toContainText('Offre choisie');
   await expect(commercial.getByRole('link', { name: /Comparer et choisir/ })).toHaveCount(0);
   await expect(commercial.getByRole('link', { name: 'Voir les offres et l’attribution' })).toBeVisible();
+  // #360: post-publication journey from proven data only — nothing signed, works not started.
+  const steps = commercial.getByRole('list', { name: 'Étapes après publication' });
+  await expect(steps.getByRole('listitem').filter({ hasText: 'Contrat' })).toContainText('Non signé');
+  await expect(steps.getByRole('listitem').filter({ hasText: 'Travaux' })).toContainText('Pas commencés');
+  await expect(steps.getByRole('listitem').filter({ hasText: 'Clôture' })).toContainText('Non clôturé');
+  // Lots tab: the commercially awarded Artisan (from the active award) is shown, distinct from the optional team member.
+  await page.getByRole('button', { name: /^Lots/ }).click();
+  const lotRow = page.getByRole('row').filter({ hasText: lotTitle });
+  await expect(lotRow.getByText('Artisan retenu', { exact: true })).toBeVisible();
+  await expect(lotRow.getByText('Attribué', { exact: true })).toBeVisible();
+  await expect(lotRow.getByText('Statut à préciser')).toHaveCount(0);
+  await expect(lotRow.getByRole('link', { name: 'Voir l’offre retenue' })).toHaveAttribute('href', `/app/publications/${publicationId}#offres`);
+  await expect(lotRow.getByRole('link', { name: 'Trouver un professionnel' })).toHaveCount(0);
+  await expect(lotRow.getByText('Participant de l’équipe affecté au lot (optionnel)')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  // A failed read is explained with a retry, never shown as « en attente d’offres ».
+  await page.route('**/rest/v1/award_items*', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
+  await page.reload();
+  await expect(commercial.getByRole('alert')).toContainText('n’ont pas pu être chargées');
+  await expect(commercial).not.toContainText('En attente d’offres');
+  await page.unroute('**/rest/v1/award_items*');
+  await commercial.getByRole('button', { name: 'Réessayer' }).click();
+  await expect(commercial).toContainText('1 lot sur 1 attribué');
   await commercial.getByRole('link', { name: 'Définir les conditions avec l’Artisan' }).click();
   await expect(page).toHaveURL(/\/app\/awards\/[^/]+\/conditions$/);
   await expect(page.getByRole('heading', { name: 'Conditions et calendrier' })).toBeVisible();
