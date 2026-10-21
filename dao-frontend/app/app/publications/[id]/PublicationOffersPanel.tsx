@@ -208,12 +208,15 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
   async function downloadQuote(documentId:string){setError('');try{const {data}=await supabaseBrowser().auth.getSession();if(!data.session)throw new Error('Session expirée.');const response=await fetch('/api/documents/download',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${data.session.access_token}`},body:JSON.stringify({document_id:documentId})});const body=await response.json();if(!response.ok)throw new Error(body.error||'Téléchargement refusé.');window.open(body.data,'_blank','noopener,noreferrer');}catch(cause:any){setError(cause?.message||'Téléchargement impossible.');}}
   async function exportQuote(versionId:string){setError('');try{const {data}=await supabaseBrowser().auth.getSession();if(!data.session)throw new Error('Session expirée.');const response=await fetch(`/api/bids/quote/export?version_id=${encodeURIComponent(versionId)}`,{headers:{Authorization:`Bearer ${data.session.access_token}`}});if(!response.ok){const body=await response.json();throw new Error(body.error||'Export refusé.');}const url=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=url;link.download='devis-dao.pdf';link.click();URL.revokeObjectURL(url);}catch(cause:any){setError(cause?.message||'Export impossible.');}}
 
+  // #346: the staff motif lives next to the decision it justifies; it is sent only with that command (never
+  // shown as saved before the server confirms) and kept on screen if the command fails.
+  const assistField = <label className="mt-3 block text-sm font-semibold text-ink">Motif d’intervention au nom du Client<textarea rows={2} className={field} value={assistanceReason} onChange={e=>setAssistanceReason(e.target.value)} placeholder="Demande du client, échange ou référence utile" /><span className="mt-1 block text-xs font-normal text-black/55">Obligatoire. Ce motif sera enregistré lors de la confirmation.</span></label>;
   return <Card id="offres" className="scroll-mt-20 space-y-5 p-5 sm:p-7">
     <h2 className="text-2xl font-bold tracking-tight text-ink">Comparer et attribuer les offres</h2>
     <div className="flex items-start gap-2.5 rounded-2xl bg-sand/70 px-4 py-3 text-sm text-black/65"><Info aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-teal" /><p><strong className="text-ink">Attribuer une offre, c’est choisir l’Artisan d’un lot.</strong> Ce n’est ni une signature ni un contrat, et les travaux ne démarrent pas : les conditions et le calendrier se conviennent ensuite avec l’Artisan. Seule la version soumise actuelle de chaque offre est comparée.</p></div>
     {assisted&&<p className="text-sm font-medium text-teal">Actions pour le compte du client · Votre identité staff est conservée dans l’historique.</p>}
     {!canManage&&<p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Lecture seule : seul le gestionnaire affecté ou l’Admin peut attribuer ou annuler.</p>}
-    {assisted&&canManage&&<label className="block text-sm font-semibold text-ink">Contexte de la demande du client<textarea className={field} value={assistanceReason} onChange={e=>setAssistanceReason(e.target.value)} placeholder="Demande du client, échange ou référence utile" /></label>}
+    {assisted&&canManage&&!loading&&offers.length===0&&awards.length===0&&<p className="rounded-xl bg-sand/70 px-4 py-3 text-sm text-black/65">Aucune offre à attribuer pour le moment ; un motif d’intervention pourra être renseigné au moment de la décision.</p>}
     {loading && <div aria-busy="true" className="space-y-3"><span className="sr-only">Chargement des offres…</span>{[0, 1].map(item => <div key={item} className="h-40 animate-pulse rounded-2xl bg-black/5" />)}</div>}
     {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
     {message && <p role="status" className="flex items-start gap-2 rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal"><CheckCircle2 aria-hidden="true" size={17} className="mt-0.5 shrink-0" />{message}</p>}
@@ -229,7 +232,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
           <div className="flex flex-wrap items-center gap-2">
             {awarded && <Badge tone="teal">Lot attribué</Badge>}
             {awarded && <AgreementLinks awardId={awarded.award_id} compact />}
-            {awarded && <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className={`min-h-11 ${ghost}`} onClick={() => { setCancelling(awarded); setReason(''); setComment(''); }}>Annuler l’attribution</Button>}
+            {awarded && <Button disabled={!canManage || saving} className={`min-h-11 ${ghost}`} onClick={() => { setCancelling(awarded); setReason(''); setComment(''); }}>Annuler l’attribution</Button>}
           </div>
           <p className="w-full text-sm text-black/55">{lotOffers.length ? `${plural(lotOffers.length, 'offre')} · à partir de ${formatTnd(lowest)}` : 'En attente d’offres'}</p>
         </div>
@@ -266,9 +269,10 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
               <div className="mt-auto pt-4">
               {isWinner ? <p className="flex items-center gap-1.5 rounded-xl bg-teal/10 px-3 py-2.5 text-sm font-semibold text-teal"><CheckCircle2 aria-hidden="true" size={16} />Offre retenue · {formatTnd(Number(awarded.agreed_millimes))}</p> : declined ? <p className="text-sm font-semibold text-black/55">Non retenue</p> : !awarded && confirming === offer.itemId ? <div className="rounded-xl border border-clay/25 bg-clay/[0.05] p-3.5">
                 <p className="flex items-start gap-2 text-sm font-medium text-ink"><AlertTriangle aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-clay" />{offer.groupId ? 'Confirmer l’attribution de tous les lots de ce package indivisible ?' : 'Confirmer l’attribution de ce lot à cette offre ?'}</p>
+                {assisted && assistField}
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Button className="min-h-11" disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} onClick={() => void award(offer)}>{saving ? 'Attribution…' : 'Confirmer l’attribution'}</Button>
-                  <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className={`min-h-11 ${ghost}`} onClick={() => setConfirming(null)}>Annuler</Button>
+                  <Button disabled={saving} className={`min-h-11 ${ghost}`} onClick={() => setConfirming(null)}>Annuler</Button>
                 </div>
               </div> : !awarded && <Button disabled={!canManage || saving || (offer.groupId != null && offers.some(member => member.groupId === offer.groupId && (member.result === 'not_selected' || activeAward.has(member.requestId))))} className="min-h-11 w-full" onClick={() => setConfirming(offer.itemId)}>{offer.groupId ? 'Attribuer tout le package' : 'Attribuer cette offre'}</Button>}
               </div>
@@ -282,6 +286,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
       <p className="mt-1 text-sm text-black/60">Le lot redevient ouvert aux offres. Pour un package indivisible, tous ses lots seront rouverts ensemble.</p></div>
       <label className="block text-sm font-semibold text-ink">Motif d’annulation<select className={field} value={reason} onChange={event => setReason(event.target.value)}><option value="">Choisir un motif</option>{Object.entries(cancellationReasons).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label className="block text-sm font-semibold text-ink">Commentaire<textarea rows={3} className={field} value={comment} onChange={event => setComment(event.target.value)} required={reason === 'other'} /></label>
+      {assisted && assistField}
       <div className="flex flex-col gap-2 sm:flex-row"><Button className="min-h-11" disabled={!canManage || saving || (assisted&&!assistanceReason.trim()) || !reason || (reason === 'other' && !comment.trim())} onClick={() => void cancelAward()}>Confirmer l’annulation</Button><Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className={`min-h-11 ${ghost}`} onClick={() => setCancelling(null)}>Fermer</Button></div>
     </div>}
     {cancellations.length > 0 && <section className="border-t border-black/5 pt-5"><h3 className="font-bold text-ink">Historique des annulations</h3><ul className="mt-3 space-y-2">{cancellations.map(event => <li key={event.id} className="break-words rounded-xl bg-sand/60 px-3.5 py-2.5 text-sm text-black/70"><span className="font-semibold text-ink">{cancellationReasons[event.reason] ?? event.reason}</span> · {new Date(event.created_at).toLocaleString('fr-TN')}{assisted && ` · Auteur : ${event.actor_id}`}{event.comment && ` · ${event.comment}`}</li>)}</ul></section>}
