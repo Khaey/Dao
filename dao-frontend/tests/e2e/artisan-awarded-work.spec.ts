@@ -83,8 +83,12 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   await artisan.getByRole('combobox', { name: 'Filtrer par statut' }).selectOption('awarded');
   await expect(row).toBeVisible();
   // « ⋯ » lists only real destinations (DAO), keyboard-closable.
-  await row.getByRole('button', { name: /^Autres actions/ }).click();
-  await expect(artisan.getByRole('link', { name: 'Voir le DAO' })).toBeVisible();
+  // Late signals may re-render the list: retry opening until the menu is really open.
+  await expect(async () => {
+    const more = row.getByRole('button', { name: /^Autres actions/ });
+    if (await more.getAttribute('aria-expanded') !== 'true') await more.click();
+    await expect(artisan.getByRole('link', { name: 'Voir le DAO' })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await artisan.keyboard.press('Escape');
   await expect(artisan.getByRole('link', { name: 'Voir le DAO' })).toHaveCount(0);
   expect(await artisan.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
