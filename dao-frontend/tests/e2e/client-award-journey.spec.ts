@@ -74,6 +74,18 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   await expect(page.getByRole('heading', { name: 'Conditions et calendrier' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 
+  // « Mes chantiers »: the same row reflects the award and can be filtered by offers / status (#356).
+  await page.goto('/app/projects');
+  const row = page.locator(`[data-testid="project-row-${project.projectId}"]:visible`);
+  await expect(row).toContainText('Artisan choisi');
+  await page.getByRole('combobox', { name: 'Filtrer par offres' }).selectOption('awarded');
+  await expect(row).toBeVisible();
+  await page.getByRole('combobox', { name: 'Filtrer par offres' }).selectOption('none');
+  await expect(row).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'Filtrer par offres' }).selectOption('');
+  await page.getByRole('combobox', { name: 'Filtrer par statut' }).selectOption('awarded');
+  await expect(row).toBeVisible();
+
   // Another Client never reaches this chantier nor its offers.
   const oc = await browser.newContext(), other = await oc.newPage();
   await login(other, e2eOtherClient!);
