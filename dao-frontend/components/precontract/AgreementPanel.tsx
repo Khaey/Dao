@@ -206,7 +206,7 @@ function TermsForm({ initial, subLots, totalMillimes, onReview, onCancel }: { in
     const values = installmentInputs.map(row => ({ label: row.label.trim(), due_date: row.due_date || null, amount_millimes: parseMillimes(row.amount_tnd) }));
     if (values.some(row => !row.label || row.label.length > 160 || row.amount_millimes == null)) { setProblem('Chaque échéance doit avoir un intitulé et un montant TND valide (3 décimales maximum).'); return; }
     if (values.length > 100) { setProblem('Limite de 100 échéances.'); return; }
-    const installments = values as Installment[];
+    const installments: Installment[] = values.map(row => ({ label: row.label, due_date: row.due_date, amount_millimes: row.amount_millimes! }));
     if (installments.length && terms.payment_mode === 'none') { setProblem('Choisissez d’abord une modalité de paiement indicative.'); return; }
     if (installments.length && totalMillimes != null && installments.reduce((sum, row) => sum + row.amount_millimes, 0) !== totalMillimes) { setProblem('La somme des échéances doit être égale au montant attribué.'); return; }
     if (advanced && schedule.some(row => !!row.start_date !== !!row.end_date)) { setProblem('Pour chaque sous-lot, indiquez le début et la fin, ou aucun des deux.'); return; }
