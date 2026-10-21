@@ -104,15 +104,6 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
     budget_millimes: 100000,
   }).select('id').single();
   assert.ifError(requestVersion.error);
-  for (const user of [contractor, competitor]) {
-    assert.ifError((await admin.from('project_members').insert({
-      project_id: project.data!.id,
-      user_id: user.id,
-      participation_role: 'contractor',
-      status: 'accepted',
-    })).error);
-  }
-
   const bid = await admin.from('bids').insert({
     project_id: project.data!.id,
     contractor_id: contractorProfile.data!.id,
