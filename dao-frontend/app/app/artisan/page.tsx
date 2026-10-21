@@ -60,7 +60,7 @@ function deadlineLabel(deadline: string | null) {
 const select = 'min-h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-teal focus:ring-4 focus:ring-teal/10';
 
 export default function ArtisanDashboard() {
-  const [rows, setRows] = useState<(Publication & { lots: Lot[]; tradeNames: string[]; governorateName?: string; bidStatus?: string; acceptsOffers: boolean })[]>([]);
+  const [rows, setRows] = useState<(Publication & { lots: Lot[]; tradeNames: string[]; governorateName?: string; bidStatus?: string; acceptsOffers: boolean; openLots: number })[]>([]);
   const [trades, setTrades] = useState<{ id: string; name_fr: string }[]>([]);
   const [governorates, setGovernorates] = useState<{ id: string; name_fr: string }[]>([]);
   const [tradeFilter, setTradeFilter] = useState('');
@@ -102,12 +102,12 @@ export default function ArtisanDashboard() {
     const versionsResult = bidIds.length ? await supabase.from('bid_versions').select('bid_id,status,version_no').in('bid_id', bidIds).order('version_no', { ascending: false }) : { data: [], error: null } as any;
     // Same authoritative availability RPC used by the DAO detail, including withdrawn and awarded lots.
     // Bound concurrency avoids flooding PostgREST when many publications are accessible.
-    const availability = new Map<string, boolean>();
+    const availability = new Map<string, boolean>(); const openLots = new Map<string, number>();
     for (let offset=0; offset<publications.length; offset+=10) {
       const batch=publications.slice(offset,offset+10);
       const results=await Promise.all(batch.map(publication=>supabase.rpc('publication_lot_availability',{p_publication_id:publication.id})));
       if(results.some(result=>result.error)){setError('Impossible de vérifier la disponibilité des lots.');setLoading(false);return;}
-      batch.forEach((publication,index)=>availability.set(publication.id,(results[index].data??[]).some((lot:any)=>lot.accepts_offers===true)));
+      batch.forEach((publication,index)=>{const lots=(results[index].data??[]) as any[];availability.set(publication.id,lots.some(lot=>lot.accepts_offers===true));openLots.set(publication.id,lots.filter(lot=>lot.accepts_offers===true).length);});
     }
     const tradeMap = new Map((tradeResult.data ?? []).map((row: any) => [row.id, row.name_fr]));
     const governorateMap = new Map((governorateResult.data ?? []).map((row: any) => [row.id, row.name_fr]));
@@ -119,9 +119,12 @@ export default function ArtisanDashboard() {
     const lotMap = new Map<string, Lot[]>();
     for (const lot of (lotResult.data ?? []) as Lot[]) lotMap.set(lot.publication_id, [...(lotMap.get(lot.publication_id) ?? []), lot]);
     setTrades(tradeResult.data ?? []); setGovernorates(governorateResult.data ?? []);
-    setRows(publications.map((row) => {
+    // #356: « DAO disponibles » lists only publications where an offer is still possible (fail closed on unknown
+    // availability). Sent offers stay in « Mes offres »; publication statuses are never changed here.
+    const stillOpen = (row: Publication) => row.status === 'published' && availability.get(row.id) === true && (!row.submission_deadline || new Date(row.submission_deadline).getTime() > Date.now());
+    setRows(publications.filter(stillOpen).map((row) => {
       const lots = lotMap.get(row.id) ?? [];
-      return { ...row, lots, tradeNames: [...new Set(lots.map((lot) => tradeMap.get(lot.trade_id)).filter(Boolean) as string[])], governorateName: governorateMap.get(row.governorate_id), bidStatus: projectBidMap.get(row.id)||projectBidMap.get(row.project_id), acceptsOffers: availability.get(row.id)===true };
+      return { ...row, lots, tradeNames: [...new Set(lots.map((lot) => tradeMap.get(lot.trade_id)).filter(Boolean) as string[])], governorateName: governorateMap.get(row.governorate_id), bidStatus: projectBidMap.get(row.id)||projectBidMap.get(row.project_id), acceptsOffers: availability.get(row.id)===true, openLots: openLots.get(row.id) ?? 0 };
     }));
     setLoading(false);
   }
@@ -151,14 +154,14 @@ export default function ArtisanDashboard() {
       </div>
       <div className="flex min-h-6 flex-wrap items-center justify-between gap-2 text-sm text-black/55"><p aria-live="polite">{filtered.length} DAO{filtered.length !== rows.length ? ` sur ${rows.length}` : ''}</p>{filtersActive && <button type="button" onClick={() => { setQuery(''); setTradeFilter(''); setGovernorateFilter(''); setTypeFilter(''); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 font-semibold text-teal transition hover:bg-teal/5"><X aria-hidden="true" size={15} />Effacer les filtres</button>}</div>
     </div>}
-    {!error && (filtered.length === 0 ? <Card className="flex flex-col items-center gap-2 border-dashed py-12 text-center"><Search aria-hidden="true" size={24} className="text-black/25" /><h2 className="font-semibold text-ink">Aucun DAO accessible</h2><p className="max-w-sm text-sm text-black/55">Aucune publication ne correspond à vos accès et aux filtres sélectionnés.</p></Card>
+    {!error && (filtered.length === 0 ? <Card className="flex flex-col items-center gap-2 border-dashed py-12 text-center"><Search aria-hidden="true" size={24} className="text-black/25" /><h2 className="font-semibold text-ink">Aucun DAO accessible</h2><p className="max-w-sm text-sm text-black/55">Aucun DAO encore ouvert aux offres ne correspond à vos accès et aux filtres. Les DAO fermés ou attribués n’apparaissent plus ici ; vos offres restent dans « Mes offres ».</p></Card>
     : <div className="grid gap-4 lg:grid-cols-2">{filtered.map((row) => { const open = row.status==='published' && row.acceptsOffers && (!row.submission_deadline || new Date(row.submission_deadline).getTime()>Date.now()); const deadline = open ? deadlineLabel(row.submission_deadline) : { label:'Fermé', tone:'bg-red-50 text-red-700' }; const bid = row.bidStatus ? offerStatus[row.bidStatus] ?? { label: row.bidStatus, tone: 'neutral' as const } : null;
       return <Link key={row.id} href={`/app/artisan/publications/${row.id}`} className="group block rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/25"><Card className="flex h-full flex-col p-5 transition group-hover:-translate-y-0.5 group-hover:border-teal/25 group-hover:shadow-[0_12px_32px_rgba(23,32,42,0.08)] sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2"><Badge>{visibilityLabel[row.visibility]}</Badge><div className="flex flex-wrap gap-2"><Badge tone={bid?.tone ?? (open ? 'neutral' : 'red')}>{bid?.label ?? (!open ? 'Fermé' : verified ? 'À répondre' : 'Consultation uniquement')}</Badge>{bid && !open && <Badge tone="red">Fermé</Badge>}</div></div>
         <h2 className="mt-3 break-words text-lg font-bold tracking-tight text-ink group-hover:text-teal">{row.safe_title}</h2>
         {row.safe_description && <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-black/60">{row.safe_description}</p>}
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-black/60"><span className="inline-flex items-center gap-1.5"><Hammer aria-hidden="true" size={14} />{projectTypeLabel[row.project_type] ?? 'Projet'}</span>{row.surface_m2 && <span className="inline-flex items-center gap-1.5"><Ruler aria-hidden="true" size={14} />{row.surface_m2} m²</span>}{row.governorateName && <span className="inline-flex items-center gap-1.5"><MapPin aria-hidden="true" size={14} />{row.governorateName}</span>}</div>
-        {row.tradeNames.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{row.tradeNames.map(name => <span key={name} className="rounded-lg bg-sand px-2 py-1 text-xs font-medium text-ink/75">{name}</span>)}</div>}
+        {row.lots.length > 1 && row.openLots > 0 && row.openLots < row.lots.length && <p className="mt-2 text-xs font-semibold text-teal">{row.openLots} lot{row.openLots > 1 ? 's' : ''} sur {row.lots.length} encore ouvert{row.openLots > 1 ? 's' : ''} aux offres</p>}{row.tradeNames.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{row.tradeNames.map(name => <span key={name} className="rounded-lg bg-sand px-2 py-1 text-xs font-medium text-ink/75">{name}</span>)}</div>}
         <div aria-hidden="true" className="min-h-4 flex-1" /><div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${deadline.tone}`}><CalendarClock aria-hidden="true" size={13} />{deadline.label}</span><span className="text-sm font-bold tabular-nums text-ink">{formatTnd(row.indicative_budget_millimes)}</span></div>
       </Card></Link>; })}</div>)}
   </section>;

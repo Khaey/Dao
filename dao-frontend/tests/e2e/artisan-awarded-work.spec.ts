@@ -40,6 +40,9 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   await line.getByLabel('Proposition technique / inclusions').fill('Pose et joints');
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
+  // Open lot: still listed among « DAO disponibles ».
+  await artisan.goto('/app/artisan');
+  await expect(artisan.locator(`a[href="/app/artisan/publications/${publicationId}"]`)).toHaveCount(1);
   // Before the decision the offer is « en cours » and « Soumise ».
   await artisan.goto('/app/artisan/offers');
   await artisan.getByRole('button', { name: /^En cours/ }).click();
@@ -54,6 +57,10 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   await expect(comparison.getByText('Lot attribué', { exact: true })).toBeVisible();
   expect(await adminRows('project_members', `project_id=eq.${project.projectId}&user_id=eq.${e2eArtisan!.id}&select=id`)).toHaveLength(0);
 
+  // 1/1 lot awarded: the DAO leaves « DAO disponibles » (no « Fermé » card in the catalogue).
+  await artisan.goto('/app/artisan');
+  await expect(artisan.getByRole('heading', { name: 'DAO disponibles' })).toBeVisible();
+  await expect(artisan.locator(`a[href="/app/artisan/publications/${publicationId}"]`)).toHaveCount(0);
   // Dashboard and « Mes chantiers »: the awarded chantier is found without being a team member.
   await artisan.goto('/app');
   const dashboard = artisan.getByRole('region', { name: 'Mes chantiers attribués' });
