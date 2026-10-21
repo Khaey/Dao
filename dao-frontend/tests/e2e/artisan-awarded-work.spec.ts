@@ -66,6 +66,18 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   const dashboard = artisan.getByRole('region', { name: 'Mes chantiers attribués' });
   await expect(dashboard).toContainText(lotTitle);
   await expect(dashboard).toContainText('Conditions à convenir');
+  // #356: a temporary unreadable award source must not silently erase won lots from the dashboard.
+  const awardFailure = async (route: import('@playwright/test').Route) => {
+    if (route.request().method() === 'OPTIONS') return route.continue();
+    await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST000', message: 'temporary failure' }) });
+  };
+  await artisan.route('**/rest/v1/award_items*', awardFailure);
+  await artisan.goto('/app');
+  await expect(artisan.getByRole('alert').filter({ hasText: 'Vos chantiers attribués sont momentanément indisponibles' })).toBeVisible();
+  await expect(artisan.getByRole('region', { name: 'Mes chantiers attribués' })).toHaveCount(0);
+  await artisan.unroute('**/rest/v1/award_items*', awardFailure);
+  await artisan.getByRole('button', { name: 'Réessayer' }).click();
+  await expect(artisan.getByRole('region', { name: 'Mes chantiers attribués' })).toContainText(lotTitle);
   // « Mes chantiers »: ONE table; the awarded chantier is a regular row (owner decision), never a link to the
   // private project page for an Artisan without team membership.
   await artisan.goto('/app/projects');

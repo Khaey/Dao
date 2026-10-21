@@ -92,6 +92,11 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   await expect(page.getByRole('alert').filter({ hasText: 'entre 1 et 3650' })).toBeVisible();
   await page.getByLabel('Durée des travaux (jours)').fill('15');
   await page.getByLabel('Modalité de paiement de référence').selectOption('milestone');
+  // Optional installments in TND are normalized to integer millimes (exact awarded total).
+  await page.getByRole('button', { name: 'Échéancier indicatif (optionnel)' }).click();
+  await page.getByRole('button', { name: 'Ajouter une échéance' }).click();
+  await page.getByLabel('Intitulé de l’échéance 1').fill('Jalon menuiserie');
+  await page.getByLabel('Montant (TND) — échéance 1').fill('12500.000');
   // Advanced options stay folded until asked for; keyboard reachable.
   const advanced = page.getByRole('button', { name: 'Options avancées' });
   await expect(advanced).toHaveAttribute('aria-expanded', 'false');
@@ -108,6 +113,7 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   expect(server.requests.filter(request => request.action === 'propose')).toHaveLength(1);
   expect(server.requests[0]).toMatchObject({ award_id: awardId, base_version_id: null, terms: { planned_start_date: '2026-11-02', duration_days: 15, payment_mode: 'milestone', sub_lot_schedule: [{ node_key: '00000000-0000-4000-8000-00000000c0de', start_date: '2026-11-02', end_date: '2026-11-06' }] } });
   expect(server.requests[0].idempotency_key).toMatch(/^[0-9a-f-]{36}$/);
+  expect(server.requests[0].terms.installments).toMatchObject([{ label: 'Jalon menuiserie', amount_millimes: 12_500_000 }]);
   await expect(page.getByText('Confirmez votre accord sur votre proposition', { exact: true })).toBeVisible();
 
   // Artisan counter-proposes: the exact difference is shown, then a stale accept is refused and reloaded.
@@ -134,7 +140,55 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   expect(accepted).toMatchObject({ agreement_id: agreementId, version_id: server.state.versions[2].id });
   await expect(page.getByRole('heading', { name: 'Le Client et l’Artisan ont accepté la version 3' })).toBeVisible();
   await expect(page.getByText(/Conditions convenues — contrat non signé/)).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Accepter|^Refuser/ })).toHaveCount(0);
+  // On DEV without the A3 migration, the screen reports unavailability without fake payment actions.
+  const a3Route = '**/api/contracts/installments**';
+  await page.route(a3Route, request => request.fulfill({ status: 501, contentType: 'application/json', body: '{}' }));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Suivi des échéances indisponible' })).toBeVisible();
+  await page.unroute(a3Route);
+
+  // #346 B3: explicit API mock, no financial transfer; server permissions drive buttons.
+  let installmentStatus: 'declared' | 'verified' | 'authorized' | 'contested' = 'declared';
+  await page.route('**/api/contracts/installments**', async request => {
+    if (request.request().method() === 'POST') {
+      const command = request.request().postDataJSON();
+      expect(command.agreement_id).toBe(agreementId);
+      expect(command.installment_no).toBe(1);
+      expect(command.version_id).toBe(server.state.versions[2].id);
+      expect(installmentStatus === 'declared' ? ['verified', 'contested'] : ['authorized']).toContain(command.event_type);
+      if (command.event_type === 'contested') expect(command.reason).toBe('Étape à reprendre');
+      installmentStatus = command.event_type;
+      return request.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { status: installmentStatus, money_moved: false } }) });
+    }
+    return request.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: {
+      agreement_id: agreementId, agreement_version_id: server.state.versions[2].id, version_no: 3,
+      payment_mode: 'milestone', total_millimes: 12_500_000, currency: 'TND',
+      installments: [{ installment_no: 1, label: 'Jalon menuiserie', amount_millimes: 12_500_000,
+        status: installmentStatus, can_declare: false, can_verify: installmentStatus === 'declared',
+        can_contest: installmentStatus !== 'authorized', can_authorize: installmentStatus === 'verified' }],
+      events: [], permissions: { party_role: 'client' }, informational_only: true,
+      money_moved: false, payment_recorded: false, debt_created: false,
+    } }) });
+  });
+  await page.reload();
+  const installments = page.getByRole('region', { name: 'Suivi informatif des échéances' });
+  await expect(installments).toContainText('Aucun montant n’est transféré');
+  await installments.getByRole('button', { name: 'Vérifier', exact: true }).click();
+  await installments.getByRole('button', { name: 'Confirmer cette action' }).click();
+  await expect(installments).toContainText('Vérifiée par le Client');
+  await installments.getByRole('button', { name: 'Enregistrer une autorisation' }).click();
+  await installments.getByRole('button', { name: 'Confirmer cette action' }).click();
+  await expect(installments).toContainText('Autorisation enregistrée (sans paiement)');
+  await expect(installments.getByRole('button', { name: 'Enregistrer une autorisation' })).toHaveCount(0);
+  // A client contestation requires an explicit reason; it is never treated as payment.
+  installmentStatus = 'declared';
+  await page.reload();
+  await installments.getByRole('button', { name: 'Contester' }).click();
+  await expect(installments.getByRole('button', { name: 'Confirmer cette action' })).toBeDisabled();
+  await installments.getByLabel('Motif de contestation').fill('Étape à reprendre');
+  await installments.getByRole('button', { name: 'Confirmer cette action' }).click();
+  await expect(installments).toContainText('Contestée par le Client');
+    await expect(page.getByRole('button', { name: /^Accepter|^Refuser/ })).toHaveCount(0);
   await page.getByText(/^Historique/).click();
   await expect(page.getByText('Accord commun atteint · version 3')).toBeVisible();
   await noHorizontalScroll(page);
