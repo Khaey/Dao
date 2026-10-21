@@ -154,16 +154,40 @@ jobs:
       DAO_E2E_STATE_DIR: /tmp/dao-e2e-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
+      - name: Determine PR fast-path scope (fail closed)
+        id: ci_scope
+        env:
+          DAO_PR_BASE: ${{ github.event.pull_request.base.sha }}
+          DAO_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 scripts/ci-fast-path.py --base "$DAO_PR_BASE" --head "$DAO_PR_HEAD" --output "$GITHUB_OUTPUT"
+          else
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+            echo "DAO_CI_SCOPE=full (push main always FULL E2E)"
+          fi
+          mode="$(sed -n 's/^mode=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          echo "### DAO test scope: $mode" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$mode" = full ]; then
+            echo "FULL: fresh migrations, DB integration and all desktop/mobile Playwright tests." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$mode" = sql_cleanup ]; then
+            echo "SQL CLEANUP PR: fresh database, migrations and real integration; browser E2E deferred to mandatory main check." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "FAST PR: FULL E2E NOT EXECUTED on this PR; full E2E mandatory on main before DEV deploy." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: dao-frontend/package-lock.json
       - name: Install pinned Supabase CLI
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         uses: supabase/setup-cli@v1.6.1
         with:
           version: 2.118.0
       - name: Initialize complete validation timing summary
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         run: |
           {
             echo "### Fresh schema, integration, and FULL E2E timings"
@@ -172,17 +196,21 @@ jobs:
             echo "| --- | ---: |"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Install backend dependencies for integration
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Backend npm install for integration" npm ci --no-audit --no-fund
       - name: Install frontend dependencies
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install for E2E" npm ci --no-audit --no-fund
       - name: Stop any previous local stack and start from a fresh database
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         run: |
           supabase stop --no-backup || true
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,postgres-meta
       - name: Verify fresh migration ledger and schema contract
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         shell: bash
         run: |
@@ -194,6 +222,7 @@ jobs:
             supabase db query --local -o csv "$notification_contract_sql"
           '
       - name: Capture fresh-local DAO schema fingerprints before reset
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         shell: bash
         run: |
@@ -209,9 +238,11 @@ jobs:
             node tests/schema-parity-inventory.mjs summary "$final_inventory" | tee -a "$GITHUB_STEP_SUMMARY"
           '
       - name: Reset and replay all repository migrations and seed
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Supabase reset + complete migration replay + seed" supabase db reset --local
       - name: Verify reset migration ledger and schema contract
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         shell: bash
         run: |
@@ -230,6 +261,7 @@ jobs:
           path: ${{ runner.temp }}/dao-schema-parity-fresh-local.csv
           if-no-files-found: ignore
       - name: Export disposable local Supabase credentials for integration and E2E
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         shell: bash
         run: |
@@ -262,12 +294,15 @@ jobs:
             printf 'DAO_SUPABASE_SECRET_KEY=%s\n' "$service_role_key"
           } >> "$GITHUB_ENV"
       - name: Run real Supabase integration tests against the replayed local stack
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Real Supabase integration" npm run test:integration:real
       - name: Guard FULL E2E target
+        if: steps.ci_scope.outputs.mode == 'full'
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL E2E local-target guard" node tests/e2e/verify-supabase-target.mjs
       - name: Build E2E frontend and install Playwright browser in parallel
+        if: steps.ci_scope.outputs.mode == 'full'
         shell: bash
         run: |
           set -euo pipefail
@@ -289,6 +324,7 @@ jobs:
           wait "$browser_pid" || status=1
           exit "$status"
       - name: Discover the expected 144 Playwright tests
+        if: steps.ci_scope.outputs.mode == 'full'
         working-directory: dao-frontend
         shell: bash
         run: |
@@ -297,15 +333,16 @@ jobs:
           '
           grep -Eq 'Total: 144 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with configurable workers
+        if: steps.ci_scope.outputs.mode == 'full'
         working-directory: dao-frontend
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/playwright-results.json
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "FULL Playwright execution (desktop + mobile, configured workers)" npm run test:e2e -- --reporter=line,json
       - name: Annotate Playwright failures (readable without raw logs)
-        if: always()
+        if: always() && steps.ci_scope.outputs.mode == 'full'
         run: node "$GITHUB_WORKSPACE/.github/scripts/playwright-failure-annotations.mjs" "$RUNNER_TEMP/playwright-results.json" "FULL Playwright E2E"
       - name: Upload Playwright artifacts
-        if: always()
+        if: always() && steps.ci_scope.outputs.mode == 'full'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-results-${{ github.run_id }}
@@ -315,7 +352,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
       - name: Cleanup disposable E2E data
-        if: always()
+        if: always() && steps.ci_scope.outputs.mode == 'full'
         working-directory: dao-frontend
         run: node tests/e2e/cleanup-e2e.mjs
 
