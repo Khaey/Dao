@@ -170,6 +170,7 @@ export function CommercialPanel({ progress, stage, stageLabel }: { progress: Com
         return <li key={group.contractorId} className="flex flex-wrap items-center justify-between gap-2 text-sm text-ink">
           <span><strong>{name}</strong> · {group.lotIds.length} lot{group.lotIds.length > 1 ? 's' : ''} attribué{group.lotIds.length > 1 ? 's' : ''}</span>
           <span className="font-semibold tabular-nums">{total} DT</span>
+          <span className="flex w-full flex-wrap gap-2">{group.awardIds.map(awardId => <Link key={awardId} href={`/app/awards/${awardId}/conditions`} className="rounded-lg border border-teal/20 px-3 py-1.5 text-xs font-semibold text-teal hover:border-teal">Conditions de l’attribution</Link>)}</span>
         </li>;
       })}</ul>
       <p className="mt-2 text-xs text-ink/55">Regroupement commercial informatif ; aucun contrat ni signature automatique.</p>
