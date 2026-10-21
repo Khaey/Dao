@@ -75,16 +75,19 @@ type Summary = { id: string; project_id: string; status: string; validity: strin
 
 /** Artisan: state of HIS offers per chantier, from my_bid_summaries + his active/cancelled awards (#361 rules). */
 export function useMyOffers(enabled: boolean, activeByVersion: Record<string, number>, cancelledByVersion: Record<string, number>) {
-  const [summaries, setSummaries] = useState<Summary[] | null>(null);
+  const [read, setRead] = useState<{ summaries: Summary[]; ready: boolean; failed: boolean }>({ summaries: [], ready: false, failed: false });
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) { setRead({ summaries: [], ready: false, failed: false }); return; }
     let active = true;
-    void supabaseBrowser().rpc('my_bid_summaries').then(({ data, error }) => { if (active) setSummaries(error ? null : (data ?? []) as Summary[]); });
+    setRead({ summaries: [], ready: false, failed: false });
+    void Promise.resolve(supabaseBrowser().rpc('my_bid_summaries'))
+      .then(({ data, error }) => { if (active) setRead({ summaries: error ? [] : (data ?? []) as Summary[], ready: true, failed: Boolean(error) }); })
+      .catch(() => { if (active) setRead({ summaries: [], ready: true, failed: true }); });
     return () => { active = false; };
   }, [enabled]);
   const byProject: Record<string, MyOfferState> = {};
   const rank: Record<MyOfferState, number> = { none: 0, lost: 1, cancelled: 2, pending: 3, partial: 4, won: 5 };
-  for (const offer of summaries ?? []) {
+  for (const offer of read.summaries) {
     if (offer.status === 'draft') continue;
     const won = activeByVersion[offer.id] ?? 0;
     const pending = Math.max(0, offer.lot_count - offer.selected_count - offer.not_selected_count);
@@ -94,5 +97,5 @@ export function useMyOffers(enabled: boolean, activeByVersion: Record<string, nu
       : offer.not_selected_count > 0 ? 'lost' : 'none';
     if (rank[state] > rank[byProject[offer.project_id] ?? 'none']) byProject[offer.project_id] = state;
   }
-  return { byProject, ready: summaries !== null };
+  return { byProject, ready: read.ready, failed: read.failed };
 }
