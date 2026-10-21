@@ -206,7 +206,7 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
 
   assert.ifError((await admin.from('user_roles').insert({ user_id: contractor.id, role: 'client' })).error);
   assert.ifError((await admin.from('profiles').update({ last_workspace: 'client' }).eq('user_id', contractor.id)).error);
-  await denied(contractor.db, 'record_site_progress', { ...progressArgs, p_idempotency_key: randomUUID() });
+  await denied(contractor.db, 'record_site_progress_v2', { ...progressArgs, p_idempotency_key: randomUUID() });
   assert.ifError((await admin.from('profiles').update({ last_workspace: 'contractor' }).eq('user_id', contractor.id)).error);
   assert.ifError((await admin.from('account_states').insert({ user_id: contractor.id, status: 'suspended' })).error);
   await denied(contractor.db, 'site_execution_snapshot', snapshotArgs);
