@@ -140,6 +140,13 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   expect(accepted).toMatchObject({ agreement_id: agreementId, version_id: server.state.versions[2].id });
   await expect(page.getByRole('heading', { name: 'Le Client et l’Artisan ont accepté la version 3' })).toBeVisible();
   await expect(page.getByText(/Conditions convenues — contrat non signé/)).toBeVisible();
+  // On DEV without the A3 migration, the screen reports unavailability without fake payment actions.
+  const a3Route = '**/api/contracts/installments**';
+  await page.route(a3Route, request => request.fulfill({ status: 501, contentType: 'application/json', body: '{}' }));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Suivi des échéances indisponible' })).toBeVisible();
+  await page.unroute(a3Route);
+
   // #346 B3: explicit API mock, no financial transfer; server permissions drive buttons.
   let installmentStatus: 'declared' | 'verified' | 'authorized' = 'declared';
   await page.route('**/api/contracts/installments**', async request => {
