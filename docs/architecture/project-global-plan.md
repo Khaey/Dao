@@ -10,4 +10,18 @@ D.A.O reste la source de vérité ; OCE (passerelle privée) calcule le chemin c
 - **API / écran** : `/api/oce/project-plan` (GET graphe, POST décision ou relance) ; composant `ProjectGlobalPlan` dans l'onglet Suivi du projet.
 - **Confidentialité** : lecture et décision réservées au Client propriétaire et à la gestion D.A.O ; aucun Artisan n'y accède.
 
-- **Limite connue** : le contrat de la passerelle OCE n'a pas d'opération de suppression (activité ou dépendance). Un lien effectif est donc définitif (`confirmed_link_final`), et une annulation d'attribution ne retire pas les activités déjà synchronisées. Lever cette limite demande une opération de retrait côté passerelle (périmètre OPS/OCE, décision propriétaire).
+## Modifier, retirer, remplacer un lien (suite #325)
+
+Aucun lien n'est irréversible. Le Client propriétaire et la gestion D.A.O habilitée sur le chantier (jamais l'Artisan, aucune ACL/RLS élargie) disposent de trois actions, chacune en UNE commande :
+
+| Action | Commande | Effet |
+| --- | --- | --- |
+| Retirer le lien | `remove_plan_link` | lien proposé : décision `rejected` (append-only) ; lien ajouté : événement de retrait |
+| Ajouter un lien | `add_plan_link` | lien du Client (`project_plan_manual_links`, append-only), validé (extrémités planifiées, doublon, boucle) |
+| Modifier le lien (changement de prédécesseur) | `replace_plan_link` | valide le nouveau lien (boucle, doublon) PUIS retire l'ancien et ajoute le nouveau : tout ou rien |
+
+Le plan se recalcule seul : les dépendances absentes du plan sont retirées d'OCE par la passerelle (`remove-dependency`, puis `remove-activity` pour les tâches devenues obsolètes : annulation ou réattribution effective d'un lot, lot sorti du plan), `calculate-planning` est rejoué sur la nouvelle révision, et l'écran affiche « Mise à jour du planning… », « À réessayer » si OCE est indisponible, puis « À jour » seulement après synchronisation et calcul prouvés. Le suivi des objets déjà appliqués (`oce_sync_activities` / `oce_sync_dependencies`, codes D.A.O seulement) sert de base à la réconciliation ; un objet n'est oublié qu'après confirmation du retrait par la passerelle. L'historique commercial D.A.O n'est jamais touché.
+
+Repli : `DAO_OCE_REMOVAL=0` rétablit l'ancien comportement (lien effectif définitif, rien n'est retiré d'OCE). Spécification de la passerelle : `oce-gateway-removal-spec.md`.
+
+La suppression est prouvée par relecture côté passerelle : un `DELETE` OCE refusé (`oce_delete_unsupported`) ou sans effet (`oce_delete_not_effective`) laisse l'inventaire intact et l'écran sur « À réessayer ».

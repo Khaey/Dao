@@ -9,8 +9,10 @@ import { primaryAction, secondaryAction } from '../app/app/projects/_components/
 type LinkState = 'effective' | 'awaiting_confirmation' | 'unresolved' | 'rejected';
 type PlanLot = { id: string; title: string | null; planned_start: string | null; planned_end: string | null; ready: boolean; awarded: boolean; contractor: string | null };
 type PlanNode = { id: string; request_id: string; title: string; start_date: string | null; end_date: string | null };
-type PlanLink = { id: string; pred_target: string | null; succ_target: string | null; pred_label: string | null; succ_label: string | null; state: LinkState };
+type PlanLink = { id: string; manual?: boolean; pred_target: string | null; succ_target: string | null; pred_label: string | null; succ_label: string | null; state: LinkState };
 type GlobalPlan = {
+  /** Vrai seulement quand les retraits OCE sont réellement déployés : modifier / retirer / ajouter un lien est alors possible. */
+  link_editing?: boolean;
   revision: number; lots: PlanLot[]; nodes: PlanNode[]; links: PlanLink[];
   sync: { state: 'none' | 'pending' | 'synced' | 'failed'; duration_days?: number | null; critical_codes: string[]; error_code?: string | null };
 };
@@ -28,9 +30,9 @@ const linkText: Record<LinkState, { text: string; tone: 'neutral' | 'teal' | 'cl
 };
 const syncText = {
   none: { text: 'Rien à calculer', tone: 'neutral' as const },
-  pending: { text: 'Calcul en cours', tone: 'clay' as const },
-  synced: { text: 'Planning calculé', tone: 'teal' as const },
-  failed: { text: 'Calcul indisponible', tone: 'red' as const },
+  pending: { text: 'Mise à jour du planning…', tone: 'clay' as const },
+  synced: { text: 'À jour', tone: 'teal' as const },
+  failed: { text: 'À réessayer', tone: 'red' as const },
 };
 
 async function api(method: 'GET' | 'POST', body?: Record<string, unknown>, projectId?: string) {
@@ -54,6 +56,9 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
   const [hidden, setHidden] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  // Une seule action métier à la fois : ajouter un lien, modifier un lien (remplacement) ou confirmer un retrait.
+  const [editor, setEditor] = useState<{ mode: 'add' | 'replace'; linkId?: string; pred: string; succ: string } | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const result = await api('GET', undefined, projectId);
@@ -88,11 +93,33 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
       : result.code === 'LINK_CONFIRMED_FINAL' ? 'Un lien confirmé ne peut plus être retiré : le planning calculé en dépend.'
       : result.status === 403 ? 'Décision réservée au Client du projet et à la gestion D.A.O.' : 'Décision impossible pour le moment.');
   }
+  const errorText = (result: { status: number; code?: string }) =>
+    result.code === 'DEPENDENCY_CYCLE' ? 'Ce lien créerait une boucle : un travail ne peut pas dépendre, même indirectement, de lui-même.'
+    : result.code === 'LINK_DUPLICATE' ? 'Ce lien existe déjà dans le planning.'
+    : result.code === 'LINK_CONFIRMED_FINAL' || result.code === 'LINK_EDITING_UNAVAILABLE' ? 'La modification des liens n’est pas encore disponible.'
+    : result.status === 403 ? 'Action réservée au Client du projet et à la gestion D.A.O.' : 'Action impossible pour le moment.';
+  async function change(body: Record<string, unknown>, success: string) {
+    setBusy(true); setMessage('');
+    const result = await api('POST', { project_id: projectId, ...body });
+    setBusy(false);
+    if (result.status === 200 && result.data) { setPlan(result.data); setEditor(null); setRemoving(null); setMessage(success); return; }
+    setMessage(errorText(result));
+  }
   async function relaunch() {
     setBusy(true); setMessage('');
     const result = await api('POST', { project_id: projectId });
     setBusy(false); setMessage(result.status === 202 ? 'Nouveau calcul demandé.' : 'Relance impossible.'); await load();
   }
+
+  const canEdit = canDecide && plan.link_editing === true;
+  const options = [
+    ...plan.lots.filter(lot => lot.ready).map(lot => ({ value: `lot:${lot.id}`, label: `Lot · ${lot.title || 'Lot'}` })),
+    ...plan.nodes.filter(node => node.start_date).map(node => ({ value: `node:${node.id}`, label: node.title })),
+  ];
+  const picker = (label: string, value: string, onChange: (next: string) => void) => <label className="flex min-w-0 flex-col gap-1 text-xs text-ink/70">{label}
+    <select className="rounded-lg border border-black/15 bg-white px-2 py-2 text-sm text-ink" value={value} onChange={event => onChange(event.target.value)}>
+      <option value="">Choisir…</option>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </select></label>;
 
   return <Card data-testid="project-global-plan">
     <SectionHeading eyebrow="Planning global" title="Enchaînement de tous les lots"
@@ -134,18 +161,44 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
       })}
     </div>
 
-    {plan.links.length > 0 && <div className="mt-5" data-testid="plan-links">
-      <h3 className="font-semibold text-ink">Liens proposés par les Artisans</h3>
+    {(plan.links.length > 0 || canEdit) && <div className="mt-5" data-testid="plan-links">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold text-ink">Liens du planning</h3>
+        {canEdit && <button type="button" disabled={busy} className={secondaryAction} onClick={() => { setRemoving(null); setEditor({ mode: 'add', pred: '', succ: '' }); }}>Ajouter un lien</button>}
+      </div>
+      {editor && <div className="mt-2 rounded-xl border border-teal/30 bg-teal/5 p-3" data-testid="plan-link-editor">
+        <p className="text-sm font-medium text-ink">{editor.mode === 'add' ? 'Ajouter un lien' : 'Modifier le lien'}</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {picker('Doit être terminé', editor.pred, pred => setEditor({ ...editor, pred }))}
+          {picker('Avant que commence', editor.succ, succ => setEditor({ ...editor, succ }))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" disabled={busy || !editor.pred || !editor.succ || editor.pred === editor.succ} className={primaryAction}
+            onClick={() => void change(editor.mode === 'add'
+              ? { action: 'add', pred_target: editor.pred, succ_target: editor.succ }
+              : { action: 'replace', link_id: editor.linkId, pred_target: editor.pred, succ_target: editor.succ },
+              editor.mode === 'add' ? 'Lien ajouté. Le planning est mis à jour.' : 'Lien modifié. Le planning est mis à jour.')}>Enregistrer</button>
+          <button type="button" disabled={busy} className={secondaryAction} onClick={() => setEditor(null)}>Annuler</button>
+        </div>
+      </div>}
       <ul className="mt-2 space-y-2">
-        {plan.links.map(link => <li key={link.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/[0.08] p-3 text-sm" data-testid="plan-link">
-          <span className="min-w-0 text-ink"><span className="font-medium">{link.succ_label || 'Travail'}</span> commence après la fin de <span className="font-medium">{link.pred_label || 'travail'}</span></span>
+        {plan.links.filter(link => !(link.manual && link.state === 'rejected')).map(link => <li key={link.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/[0.08] p-3 text-sm" data-testid="plan-link">
+          <span className="min-w-0 text-ink"><span className="font-medium">{link.succ_label || 'Travail'}</span> commence après la fin de <span className="font-medium">{link.pred_label || 'travail'}</span>{link.manual && <span className="ml-1 text-xs text-ink/60">(ajouté par le Client)</span>}</span>
           <span className="flex flex-wrap items-center gap-2">
             <Badge tone={linkText[link.state].tone}>{linkText[link.state].text}</Badge>
             {canDecide && link.state === 'awaiting_confirmation' && <>
               <button type="button" disabled={busy} className={primaryAction} onClick={() => void decide(link.id, 'confirmed')}>Confirmer</button>
               <button type="button" disabled={busy} className={secondaryAction} onClick={() => void decide(link.id, 'rejected')}>Rejeter</button></>}
-            {canDecide && link.state === 'rejected' && <button type="button" disabled={busy} className={secondaryAction} onClick={() => void decide(link.id, 'confirmed')}>Reconsidérer</button>}
+            {canDecide && link.state === 'rejected' && !link.manual && <button type="button" disabled={busy} className={secondaryAction} onClick={() => void decide(link.id, 'confirmed')}>Reconsidérer</button>}
+            {canEdit && link.state === 'effective' && removing !== link.id && <>
+              <button type="button" disabled={busy} className={secondaryAction} onClick={() => { setRemoving(null); setEditor({ mode: 'replace', linkId: link.id, pred: link.pred_target ?? '', succ: link.succ_target ?? '' }); }}>Modifier le lien</button>
+              <button type="button" disabled={busy} className={secondaryAction} onClick={() => { setEditor(null); setRemoving(link.id); }}>Retirer le lien</button></>}
           </span>
+          {canEdit && removing === link.id && <div className="flex w-full flex-wrap items-center gap-2 rounded-lg bg-sand/60 p-2" role="group" aria-label="Retirer ce lien" data-testid="plan-link-remove">
+            <span className="text-sm text-ink">Retirer ce lien ? Le planning sera recalculé.</span>
+            <button type="button" disabled={busy} className={primaryAction} onClick={() => void change({ action: 'remove', link_id: link.id }, 'Lien retiré. Le planning est mis à jour.')}>Retirer</button>
+            <button type="button" disabled={busy} className={secondaryAction} onClick={() => setRemoving(null)}>Garder</button>
+          </div>}
         </li>)}
       </ul>
     </div>}

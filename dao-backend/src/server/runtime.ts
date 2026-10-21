@@ -123,8 +123,11 @@ function oceSynchronizer() {
   return lotPlanSynchronizer;
 }
 
-/** Retraits OCE (#325) : n'est actif que lorsque la passerelle déployée sait retirer (DAO_OCE_REMOVAL=1). Sinon un lien effectif reste définitif. */
-const removalEnabled = () => process.env.DAO_OCE_ENABLED === '1' && process.env.DAO_OCE_REMOVAL === '1';
+/**
+ * Modifier / retirer / ajouter un lien (#325) : actif par défaut, car la passerelle déployée sait retirer (remove-dependency / remove-activity)
+ * et, intégration éteinte, rien n'est à retirer d'OCE. Interrupteur de repli : DAO_OCE_REMOVAL=0 (un lien effectif redevient définitif).
+ */
+const removalEnabled = () => process.env.DAO_OCE_REMOVAL !== '0';
 
 let projectPlanSynchronizer: ProjectPlanSynchronizer | undefined;
 /** Global project plan (#325): one OCE graph for all lots, keyed by the project's planning context. Same service-client discipline as the lot synchroniser. */

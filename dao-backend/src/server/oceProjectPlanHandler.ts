@@ -5,7 +5,7 @@ const headers = { 'Cache-Control': 'private, no-store', Vary: 'Authorization' };
  * Planning global du projet (#325). GET = graphe commun (lots, sous-lots retenus, liens et états) + résultat OCE ;
  * POST {project_id, link_id, decision} = le Client / la gestion confirme ou rejette un lien ; POST {project_id} = relance ;
  * POST {project_id, action: 'remove' | 'add' | 'replace', ...} = retirer, ajouter ou remplacer un lien en UNE action (aucun lien irréversible).
- * `linkEditing` n'est vrai que lorsque les retraits OCE sont réellement déployés (DAO_OCE_REMOVAL=1) : sinon un lien effectif reste définitif.
+ * `linkEditing` est vrai par défaut ; le repli DAO_OCE_REMOVAL=0 le coupe : un lien effectif reste alors définitif.
  * L'autorisation est décidée par la base avec le JWT de l'appelant ; personne ne se connecte à OCE.
  */
 export function createOceProjectPlanHandler(

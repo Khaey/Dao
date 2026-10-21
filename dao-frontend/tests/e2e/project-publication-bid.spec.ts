@@ -247,4 +247,31 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Câblage E2E', { exact: true }) })).toContainText('Commence après : Rainures E2E');
   expect(await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=decision`)).toEqual([{ decision: 'confirmed' }]);
 
+  // #325 : aucun lien n'est irréversible. Retirer, rétablir, ajouter puis remplacer, chaque fois en UNE action métier.
+  const cablage = globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Câblage E2E', { exact: true }) });
+  await proposed.getByRole('button', { name: 'Retirer le lien' }).click();
+  await proposed.getByRole('group', { name: 'Retirer ce lien' }).getByRole('button', { name: 'Retirer', exact: true }).click();
+  await expect(proposed).toContainText('Rejeté');
+  await expect(cablage).not.toContainText('Commence après');
+  await proposed.getByRole('button', { name: 'Reconsidérer' }).click();
+  await expect(proposed).toContainText('Effectif');
+  await expect(cablage).toContainText('Commence après : Rainures E2E');
+  await globalPlan.getByRole('button', { name: 'Modifier le lien' }).click();
+  const editor = globalPlan.getByTestId('plan-link-editor');
+  await editor.getByLabel('Doit être terminé').selectOption({ label: 'Câblage E2E' });
+  await editor.getByLabel('Avant que commence').selectOption({ label: 'Rainures E2E' });
+  await editor.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Rainures E2E', { exact: true }) })).toContainText('Commence après : Câblage E2E');
+  await expect(cablage).not.toContainText('Commence après');
+  const decisions = await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=decision&order=seq.asc`);
+  expect(decisions.map(row => row.decision)).toEqual(['confirmed', 'rejected', 'confirmed', 'rejected']);
+  expect(await adminRows('project_plan_manual_links', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(1);
+  // Retirer le lien ajouté : il quitte le plan, l'historique reste (retrait append-only).
+  const added = globalPlan.getByTestId('plan-link').filter({ hasText: 'ajouté par le Client' });
+  await added.getByRole('button', { name: 'Retirer le lien' }).click();
+  await added.getByRole('group', { name: 'Retirer ce lien' }).getByRole('button', { name: 'Retirer', exact: true }).click();
+  await expect(added).toHaveCount(0);
+  await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Rainures E2E', { exact: true }) })).not.toContainText('Commence après');
+  expect(await adminRows('project_plan_manual_link_removals', `project_id=eq.${project.projectId}&select=link_id`)).toHaveLength(1);
+
 });
