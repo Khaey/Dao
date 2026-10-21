@@ -44,7 +44,11 @@ export default function Dashboard() {
     <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
       <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-teal">Tableau de bord artisan</p><h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Bonjour {name}</h1><p className="mt-2 max-w-xl text-sm text-black/55">Retrouvez vos chantiers clients, invitations et offres.</p></div>
     </div>
-    <AwardedProjects projects={awarded.projects} />
+    {!awarded.ready
+      ? <Card aria-busy="true" className="p-5"><p className="text-sm text-black/60">Chargement de vos attributions…</p></Card>
+      : awarded.failed
+        ? <Card className="space-y-3 p-5"><p role="alert" className="text-sm font-semibold text-red-700">Vos chantiers attribués sont momentanément indisponibles. Leur absence ne signifie pas que vous n’avez remporté aucun lot.</p><button type="button" onClick={() => window.location.reload()} className="min-h-11 rounded-xl border border-black/10 px-4 text-sm font-semibold text-teal">Réessayer</button></Card>
+        : <AwardedProjects projects={awarded.projects} />}
     <Card className="p-5 sm:p-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div><h2 className="text-xl font-bold text-ink">Mes chantiers clients</h2><p className="mt-1 text-sm text-black/55">Vos chantiers confirmés et ceux dont le client reste à confirmer.</p></div>
