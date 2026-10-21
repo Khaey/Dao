@@ -5,7 +5,7 @@ begin;
 -- explicitly revoked contractor team membership still denies access.  Do not
 -- change project/document/team RLS or grant access to competing contractors.
 create or replace function dao_private.site_contractor_award_item(p_award_item_id uuid)
-returns boolean language sql stable security definer set search_path='' as $
+returns boolean language sql stable security definer set search_path='' as $$
   select dao_private.site_actor_workspace('contractor')
     and dao_private.account_active(auth.uid())
     and exists(
@@ -27,7 +27,7 @@ returns boolean language sql stable security definer set search_path='' as $
             and revoked.participation_role='contractor' and revoked.status='revoked'
         )
     );
-$;
+$$;
 
 -- P9-A2: additive sub-lot and executed-quantity detail on the existing #289
 -- append-only journal. Commercial awards remain strictly per lot.
