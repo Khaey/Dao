@@ -20,6 +20,7 @@ export type ContractDetail = {
   version: { id: string; version_no: number; content_hash: string; created_at: string } | null;
   items: { id: string; agreed_millimes: number; title: string; scope: string; duration_days: number; inclusions: string; exclusions: string | null }[];
   parties: ContractParty[];
+  // Only approvals for contract.current_version_id are present (server-filtered).
   acceptances: { party_role: string; method: string; accepted_at: string }[];
   events: ContractEvent[];
   archives: { id: string; original_name: string; mime_type: string; size_bytes: number; content_hash: string; created_at: string }[];
