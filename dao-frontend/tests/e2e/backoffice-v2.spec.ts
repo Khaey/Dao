@@ -76,8 +76,8 @@ test('Back-office : attribution assistée et retrait motivé conservent offre et
    else await route.continue();
  });
  await artisan.reload();
- await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
- await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
+ // #356: a DAO with no lot still open to offers leaves « DAO disponibles » (offers stay in « Mes offres »).
+ await expect(card).toHaveCount(0);
  await artisan.unroute(availabilityEndpoint);
  // Closed lot on a still published DAO: the authoritative RPC rejects new offers.
  await artisan.route(availabilityEndpoint,async route=>{
@@ -85,8 +85,8 @@ test('Back-office : attribution assistée et retrait motivé conservent offre et
    else await route.continue();
  });
  await artisan.reload();
- await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
- await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
+ // #356: a DAO with no lot still open to offers leaves « DAO disponibles » (offers stay in « Mes offres »).
+ await expect(card).toHaveCount(0);
  await artisan.unroute(availabilityEndpoint);
  // Simulate an expired deadline without changing the stored fixture.
  const publicationEndpoint='**/rest/v1/publications*';
@@ -97,7 +97,7 @@ test('Back-office : attribution assistée et retrait motivé conservent offre et
    await route.fulfill({response,body:JSON.stringify(Array.isArray(body)?body.map(expired):expired(body))});
  });
  await artisan.reload();
- await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
+ await expect(card).toHaveCount(0);
  await artisan.unroute(publicationEndpoint);
  // An unverified professional can consult, but cannot respond even to an open DAO.
  const profileEndpoint='**/rest/v1/contractor_profiles*';

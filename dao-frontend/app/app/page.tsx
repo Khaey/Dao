@@ -9,6 +9,7 @@ import { stageLabels } from '../../lib/collaboration';
 import { effectiveProjectStatus, displayProjectStatus, approvedVersionLabel } from '../../lib/utils';
 import { DossierMeter, dossierStepText, dossierSummary, primaryAction, secondaryAction, StatusPill } from './projects/_components/ProjectUi';
 import ReviewInvitation from './_components/ReviewInvitation';
+import { AwardedProjects, useAwardedWork } from '../../components/artisan/AwardedWork';
 
 type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number; client_id: string | null; initiator_id:string; project_origin:string; project_stage: string; projectStatus: string; versionStatus?: string | null; versionNo?: number | null };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
@@ -16,6 +17,7 @@ const formatTnd = (value?: number | null) => value == null ? 'Budget à précise
 
 export default function Dashboard() {
   const [contractor, setContractor] = useState(false);
+  const awarded = useAwardedWork(contractor);
   const [name, setName] = useState(''); const [rows, setRows] = useState<Row[]>([]); const [loading, setLoading] = useState(true);
   useEffect(() => { void (async () => {
     const supabase = supabaseBrowser();
@@ -42,6 +44,7 @@ export default function Dashboard() {
     <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
       <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-teal">Tableau de bord artisan</p><h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Bonjour {name}</h1><p className="mt-2 max-w-xl text-sm text-black/55">Retrouvez vos chantiers clients, invitations et offres.</p></div>
     </div>
+    <AwardedProjects projects={awarded.projects} />
     <Card className="p-5 sm:p-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div><h2 className="text-xl font-bold text-ink">Mes chantiers clients</h2><p className="mt-1 text-sm text-black/55">Vos chantiers confirmés et ceux dont le client reste à confirmer.</p></div>
