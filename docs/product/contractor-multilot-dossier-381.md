@@ -34,3 +34,21 @@
 4. Contrat activé : création idempotente du dossier non signé ; ajout tardif préserve snapshot signé/accepté et propose une révision explicite.
 5. Annulation partielle, dépendances inter-lots et historique des versions ; aucune double attribution active ni perte de données.
 6. Tests API/JWT et RLS Supabase fraîche, E2E desktop/mobile, CI protégée sur HEAD, deploy-dev, recette Client et Artisan réels.
+
+## Parcours simplifié — arbitrage UX PILOT 10
+
+Les 6 jalons « Après publication » sont des **indicateurs**, pas 6 formulaires obligatoires. Pour le Client et l'Artisan, viser **zéro action supplémentaire** hors les consentements/signatures réellement requis.
+
+| Situation | Écran de synthèse | Action principale |
+| --- | --- | --- |
+| Un lot attribué à X | X, un lot, montant, statut | Continuer les conditions du lot si nécessaires |
+| Deux lots remportés par X | **Un groupe X**, deux lots, total, sans doubler les liens | Continuer le dossier X (si configuré et disponible) |
+| Deux Artisans X et Y | Un groupe par titulaire, lots séparés | Action contextuelle du groupe concerné uniquement |
+| Contrat désactivé | Pas de bloc contractualisation | Voir et suivre les lots auxquels l'utilisateur est autorisé |
+| Lot ajouté après version préparée/acceptée | Ancien contrat figé ; nouvelle attribution visible séparément | Proposer explicitement la suite documentaire, jamais modifier un contrat signé |
+
+Le panneau de regroupement n'affiche **aucun second bouton de signature**. Les liens « Définir les conditions avec l'Artisan » déjà existants restent la seule entrée précontractuelle tant que le dossier unifié n'a pas de véritable route et de droits prouvés. Les API par award et les versions immuables continuent à faire autorité.
+
+### Limites de la tranche frontend #382
+
+L'agrégation lit seulement les `award_items` actifs que le Client peut déjà consulter, puis exclut les awards annulés. Elle n'accorde aucune nouvelle permission et ne crée pas de contrat. **Le déclenchement automatique paramétrable est une autre tranche**, à concevoir après vérification d'un réglage existant, du service de confiance autorisé à préparer, de la compatibilité 1 contrat/award et des contraintes juridiques. Le SQL DEV partagé n'est pas modifié par cette PR.
