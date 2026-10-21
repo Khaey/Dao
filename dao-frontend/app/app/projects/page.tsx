@@ -7,6 +7,7 @@ import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { stageLabels } from '../../../lib/collaboration';
 import { effectiveProjectStatus, displayProjectStatus, approvedVersionLabel, statusLabel } from '../../../lib/utils';
 import { DossierMeter, dossierStepText, dossierSummary, ErrorPanel, fieldClass, Pill, primaryAction, StatusPill } from './_components/ProjectUi';
+import { AwardedProjects, useAwardedWork } from '../../../components/artisan/AwardedWork';
 
 type ProjectRow = { id: string; title: string; project_type: string; surface_m2?: number | null; status: string; desired_end_date?: string | null; indicative_budget_millimes?: number | null; location: string; lotCount: number; client_id: string | null; project_stage: string; projectStatus: string; versionStatus?: string | null; versionNo?: number | null; myRole?: string };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
@@ -24,6 +25,7 @@ const useWideLayout = () => useSyncExternalStore(subscribeWide, () => window.mat
 export default function Projects() {
   const wide = useWideLayout();
   const [contractor, setContractor] = useState(false);
+  const awarded = useAwardedWork(contractor);
   const [rows, setRows] = useState<ProjectRow[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [query, setQuery] = useState(''); const [status, setStatus] = useState(''); const [stage, setStage] = useState('');
   async function load() { setLoading(true); setError(''); const supabase = supabaseBrowser(); const { data: session } = await supabase.auth.getSession(); const userId = session.session?.user.id ?? null; if (userId) { const [{ data: roles }, { data: profile }] = await Promise.all([supabase.from('user_roles').select('role').eq('user_id', userId), supabase.from('profiles').select('last_workspace').eq('user_id', userId).maybeSingle()]); const hasContractor = Boolean(roles?.some(row => row.role === 'contractor')); const hasClient = Boolean(roles?.some(row => row.role === 'client')); setContractor(hasContractor && (!hasClient || profile?.last_workspace === 'contractor')); } const [projects, versions, requests, governors, delegations, localities, memberships] = await Promise.all([supabase.from('projects').select('id,project_type,status,desired_end_date,indicative_budget_millimes,surface_m2,created_at,client_id,project_stage').order('created_at', { ascending: false }), supabase.from('project_versions').select('project_id,title,status,governorate_id,delegation_id,locality_id,version_no').order('version_no', { ascending: false }), supabase.from('project_requests').select('id,project_id,status').neq('status', 'withdrawn'), supabase.from('governorates').select('id,name_fr'), supabase.from('delegations').select('id,name_fr'), supabase.from('localities').select('id,name_fr'), userId ? supabase.from('project_members').select('project_id,participation_role').eq('user_id', userId).eq('status', 'accepted') : Promise.resolve({ data: [] as { project_id: string; participation_role: string }[] })]); if (projects.error) { setError('Impossible de charger vos projets.'); setLoading(false); return; }
     const latest = new Map<string, any>(); for (const version of versions.data ?? []) if (!latest.has(version.project_id)) latest.set(version.project_id, version); const govMap = new Map((governors.data ?? []).map(row => [row.id, row.name_fr])); const delegationMap = new Map((delegations.data ?? []).map(row => [row.id, row.name_fr])); const localityMap = new Map((localities.data ?? []).map(row => [row.id, row.name_fr])); const ownRoleByProject = new Map((memberships.data ?? []).map(member => [member.project_id, member.participation_role]));
@@ -52,6 +54,7 @@ export default function Projects() {
       </div>
       {!loading && !isEmpty && <Link href="/app/projects/new" className={`${primaryAction} w-full sm:w-auto`}><Plus size={17} aria-hidden="true" />{createLabel}</Link>}
     </header>
+    {contractor && <AwardedProjects projects={awarded.projects} />}
 
     {!loading && rows.length > 0 && <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/[0.06] bg-white sm:grid-cols-4">
       {counters.map((item, index) => <div key={item.label} className={`px-4 py-3.5 sm:px-5 ${index % 2 ? 'border-l border-black/[0.06]' : ''} ${index > 1 ? 'border-t border-black/[0.06] sm:border-t-0' : ''} ${index === 2 ? 'sm:border-l' : ''}`}>

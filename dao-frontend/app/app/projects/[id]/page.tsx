@@ -16,6 +16,7 @@ import ReviewOpportunities from '../../../../components/reviews/ReviewOpportunit
 import { emptyTeam, projectApi, stageLabels, Team } from '../../../../lib/collaboration';
 import { cn, effectiveProjectStatus, displayProjectStatus, approvedVersionLabel, statusLabel } from '../../../../lib/utils';
 import { DossierSteps, ErrorPanel, fieldClass, Pill, primaryAction, ProgressBar, readableStatus, secondaryAction, StatusPill } from '../_components/ProjectUi';
+import { CommercialPanel, commercialLabel, useCommercialProgress } from '../../../../components/client/CommercialProgress';
 
 type Trade = { id: string; name_fr: string };
 type RequestView = { contractor_member_id?: string | null; id: string; status: string; created_at?: string; trade_id?: string; trade_name?: string; title?: string; scope?: string; budget_millimes?: number | null; version_no?: number; history: any[] };
@@ -216,6 +217,9 @@ export default function ProjectDetail() {
   async function refreshDocuments() { const { data } = await supabaseBrowser().from('documents').select('id,owner_id,share_scope,original_name,mime_type,size_bytes,status,created_at').eq('project_id', id).order('created_at', { ascending: false }); setDocuments(data ?? []); }
   useEffect(() => { const tab = new URLSearchParams(window.location.search).get('tab'); if (tabs.some(item => item.id === tab)) setActiveTab(tab as Tab); void load(); return () => { loadGeneration.current += 1; }; }, [id]);
 
+  // #346: commercial progress (chosen Artisan per lot) for the Client owner of a published chantier.
+  const publishedLike = Boolean(project && ['open', 'published', 'closed'].includes(project.status));
+  const commercial = useCommercialProgress(id, requests.filter(request => request.status !== 'withdrawn').map(request => request.id), publishedLike && team.is_client);
   async function call(path: string, method: string, body: Record<string, unknown>) { const { data } = await supabaseBrowser().auth.getSession(); if (!data.session) throw new Error('Session expirée.'); const response = await fetch(path, { method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token }, body: JSON.stringify(body) }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error ?? 'Opération refusée.'); return payload.data; }
   async function saveProject(event: FormEvent) { event.preventDefault(); setSaving(true); setError(''); setSuccess(''); if (projectForm.desired_start_date && projectForm.desired_end_date && projectForm.desired_end_date < projectForm.desired_start_date) { setError('La date de fin doit être postérieure ou égale à la date de début.'); setSaving(false); return; } try { const updatedVersion = await call('/api/projects', 'PATCH', { project_id: id, title: projectForm.title, description: projectForm.description, project_type: projectForm.project_type, surface_m2: projectForm.surface_m2 ? Number(projectForm.surface_m2) : null, desired_start_date: projectForm.desired_start_date || null, desired_end_date: projectForm.desired_end_date || null, indicative_budget_millimes: projectForm.indicative_budget_tnd == null || projectForm.indicative_budget_tnd === '' ? null : moneyToMillimes(String(projectForm.indicative_budget_tnd)) });
       // The command returns the authoritative version. Apply it immediately
@@ -301,7 +305,7 @@ export default function ProjectDetail() {
     <header className="rounded-2xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_2px_rgba(23,32,42,0.04)] sm:p-7">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2"><StatusPill status={displayProjectStatus(effectiveStatus)} />{['open', 'published', 'closed'].includes(project.status) && approvedVersionLabel(projectVersion?.status, projectVersion?.version_no) && <Pill tone="neutral">{approvedVersionLabel(projectVersion?.status, projectVersion?.version_no)}</Pill>}{!project.client_id && <Pill tone="clay">Client à confirmer</Pill>}</div>
+          <div className="flex flex-wrap items-center gap-2">{commercialLabel(commercial) ? <><Pill tone={commercialLabel(commercial)!.tone}>{commercialLabel(commercial)!.text}</Pill><Pill tone="neutral">{project.status === 'closed' ? 'Publication clôturée' : 'Publication en ligne'}</Pill></> : <StatusPill status={displayProjectStatus(effectiveStatus)} />}{['open', 'published', 'closed'].includes(project.status) && approvedVersionLabel(projectVersion?.status, projectVersion?.version_no) && <Pill tone="neutral">{approvedVersionLabel(projectVersion?.status, projectVersion?.version_no)}</Pill>}{!project.client_id && <Pill tone="clay">Client à confirmer</Pill>}</div>
           <h1 id="project-title" className="mt-3 break-words text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-3xl">{projectTitle}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink/70">{description}</p>
           <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink/70" aria-label="Informations du chantier">
@@ -315,6 +319,7 @@ export default function ProjectDetail() {
       <div className="mt-6 border-t border-black/[0.06] pt-5">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/65">Parcours du dossier</p>
         <div className="mt-3"><DossierSteps status={effectiveStatus} /></div>
+        {isClient && commercial && <CommercialPanel progress={commercial} stageLabel={stageLabels[project.project_stage] ?? 'Travaux non commencés'} />}
       </div>
     </header>
     {error && <p className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert"><AlertCircle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />{error}</p>}
