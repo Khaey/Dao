@@ -72,6 +72,7 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
   const versionNo = (id?: string) => versions.find(version => version.id === id)?.version_no;
   const previous = current ? versions.find(version => version.version_no === current.version_no - 1) ?? null : null;
   const acceptedBy = (version: AgreementVersion, role: PartyRole) => snapshot.acceptances.find(row => row.version_id === version.id && row.party_role === role);
+  const latestAgreed = versions.find(version => !!acceptedBy(version, 'client') && !!acceptedBy(version, 'contractor')) ?? null;
   const rejection = current && agreement?.status === 'rejected' ? [...snapshot.events].reverse().find(event => event.event_type === 'rejected' && event.version_id === current.id) : undefined;
   const agreed = agreement?.status === 'agreed' && current;
   const iAccepted = current ? !!acceptedBy(current, me) : false;
@@ -101,7 +102,7 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
 
     {agreed && <Card className="flex items-start gap-3 border-teal/25 bg-teal/[0.04] p-5"><CheckCircle2 aria-hidden="true" size={22} className="shrink-0 text-teal" /><div><h2 className="font-bold text-ink">Le Client et l’Artisan ont accepté la version {current.version_no}</h2><p className="mt-1 text-sm text-black/60">Conditions convenues — contrat non signé. Cette version (empreinte {shortHash(current.content_hash)}) pourra être reprise dans le dossier contractuel. Une nouvelle proposition demanderait de nouveaux accords.</p></div></Card>}
 
-    {agreed && (current.terms.installments ?? []).length > 0 && <InstallmentPanel awardId={awardId} />}
+    {latestAgreed && (latestAgreed.terms.installments ?? []).length > 0 && <InstallmentPanel awardId={awardId} />}
 
     {current && !editing && !review && <Card className="space-y-4 p-5 sm:p-6" aria-labelledby="current-version-title">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="current-version-title" className="text-lg font-bold text-ink">Version {current.version_no} — proposée par {current.proposed_role === me ? 'vous' : partyWith[current.proposed_role]}</h2><span className="text-xs text-black/50">{fmtStamp(current.created_at)} · empreinte {shortHash(current.content_hash)}</span></div>
