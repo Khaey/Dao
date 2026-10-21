@@ -38,6 +38,17 @@ export function createDaoApi(
         throw Object.assign(new Error('Invalid precontract agreement action'), { code: 'BAD_REQUEST' });
       })));
     },
+    async precontractInstallmentSnapshot(request: Request) {
+      return run(() => actor(request).then(() => {
+        const awardId = new URL(request.url).searchParams.get('award_id') ?? '';
+        return services.precontractAgreements.installmentSnapshot(awardId);
+      }));
+    },
+    async recordPrecontractInstallmentEvent(request: Request) {
+      return run(() => actor(request).then(() => json(request).then(input =>
+        services.precontractAgreements.recordInstallmentEvent(input)
+      )));
+    },
     async listConversations(request: Request) {
       return run(() => actor(request).then(() => services.messages.listConversations()));
     },

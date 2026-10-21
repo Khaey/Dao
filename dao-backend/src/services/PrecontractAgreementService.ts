@@ -24,6 +24,13 @@ function requiredText(value: unknown, field: string, max: number) {
   return value.trim();
 }
 
+function requiredInteger(value: unknown, field: string, min: number, max: number) {
+  if (!Number.isInteger(value) || Number(value) < min || Number(value) > max) {
+    throw new DomainError(field + ' must be an integer', 'BAD_REQUEST');
+  }
+  return Number(value);
+}
+
 function terms(value: unknown) {
   if (value == null) return {};
   if (typeof value !== 'object' || Array.isArray(value)) {
@@ -83,6 +90,37 @@ export class PrecontractAgreementService {
       p_agreement_id: requiredUuid(input.agreement_id, 'agreement_id'),
       p_version_id: requiredUuid(input.version_id, 'version_id'),
       p_reason: requiredText(input.reason, 'reason', 2000),
+      p_idempotency_key: requiredUuid(input.idempotency_key, 'idempotency_key'),
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async installmentSnapshot(awardId: string) {
+    const { data, error } = await this.db.rpc('precontract_installment_snapshot', {
+      p_award_id: requiredUuid(awardId, 'award_id'),
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async recordInstallmentEvent(input: Record<string, unknown>) {
+    const eventType = requiredText(input.event_type, 'event_type', 20);
+    if (!['declared', 'verified', 'contested', 'authorized'].includes(eventType)) {
+      throw new DomainError('event_type is invalid', 'BAD_REQUEST');
+    }
+    const reason = input.reason == null || input.reason === ''
+      ? null
+      : requiredText(input.reason, 'reason', 2000);
+    if (eventType === 'contested' && reason == null) {
+      throw new DomainError('reason is required for a contestation', 'BAD_REQUEST');
+    }
+    const { data, error } = await this.db.rpc('record_precontract_installment_event', {
+      p_agreement_id: requiredUuid(input.agreement_id, 'agreement_id'),
+      p_version_id: requiredUuid(input.version_id, 'version_id'),
+      p_installment_no: requiredInteger(input.installment_no, 'installment_no', 1, 100),
+      p_event_type: eventType,
+      p_reason: reason,
       p_idempotency_key: requiredUuid(input.idempotency_key, 'idempotency_key'),
     });
     if (error) throw error;

@@ -39,6 +39,17 @@ test('precontract service maps only the stable DTO to authenticated RPCs', async
     idempotency_key: key,
     accepted_by: 'forged',
   });
+  await service.installmentSnapshot(award);
+  await service.recordInstallmentEvent({
+    agreement_id: agreement,
+    version_id: version,
+    installment_no: 1,
+    event_type: 'authorized',
+    reason: 'Autorisation informative uniquement',
+    idempotency_key: key,
+    paid: true,
+    amount_millimes: 1,
+  });
   assert.deepEqual(fake.calls, [
     {
       name: 'propose_precontract_agreement',
@@ -54,6 +65,21 @@ test('precontract service maps only the stable DTO to authenticated RPCs', async
       args: {
         p_agreement_id: agreement,
         p_version_id: version,
+        p_idempotency_key: key,
+      },
+    },
+    {
+      name: 'precontract_installment_snapshot',
+      args: { p_award_id: award },
+    },
+    {
+      name: 'record_precontract_installment_event',
+      args: {
+        p_agreement_id: agreement,
+        p_version_id: version,
+        p_installment_no: 1,
+        p_event_type: 'authorized',
+        p_reason: 'Autorisation informative uniquement',
         p_idempotency_key: key,
       },
     },
@@ -92,5 +118,25 @@ test('precontract service rejects unsupported fields before the RPC', async () =
     terms: { payment_mode: 'weekly', paid: true },
     idempotency_key: key,
   }), /unsupported field/);
+  assert.equal(fake.calls.length, 0);
+});
+
+test('installment commands reject invalid transitions before the RPC', async () => {
+  const fake = database();
+  const service = new PrecontractAgreementService(fake.db);
+  await assert.rejects(() => service.recordInstallmentEvent({
+    agreement_id: agreement,
+    version_id: version,
+    installment_no: 0,
+    event_type: 'paid',
+    idempotency_key: key,
+  }), /event_type is invalid/);
+  await assert.rejects(() => service.recordInstallmentEvent({
+    agreement_id: agreement,
+    version_id: version,
+    installment_no: 1,
+    event_type: 'contested',
+    idempotency_key: key,
+  }), /reason is required/);
   assert.equal(fake.calls.length, 0);
 });
