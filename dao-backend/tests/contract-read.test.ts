@@ -30,7 +30,11 @@ const seed = {
   contract_versions: [{ id: versionId, contract_id: contractId, version_no: 1, content_hash: 'a'.repeat(64), created_at: '2026-10-13T00:00:00Z', content: { secret: 'must-not-leak' } }],
   contract_items: [{ id: 'item', contract_id: contractId, request_id: 'request', agreed_millimes: 1250000, title: 'Électricité', scope: 'Pose', duration_days: 4, inclusions: 'Main-d’œuvre', exclusions: null, created_at: '2026-10-13T00:00:00Z' }],
   contract_parties: [{ contract_id: contractId, role: 'client', legal_name: 'Client test' }, { contract_id: contractId, role: 'contractor', legal_name: 'Atelier test' }],
-  contract_acceptances: [{ contract_id: contractId, party_role: 'client', method: 'trusted_simple', accepted_at: '2026-10-13T12:00:00Z', evidence_hash: 'private', provider_reference: 'private' }],
+  contract_acceptances: [
+    { contract_id: contractId, contract_version_id: versionId, party_role: 'client', method: 'trusted_simple', accepted_at: '2026-10-13T12:00:00Z', evidence_hash: 'private', provider_reference: 'private' },
+    // Old contractor approval must not be counted as an approval of the current version.
+    { contract_id: contractId, contract_version_id: '00000000-0000-4000-8000-000000000001', party_role: 'contractor', method: 'trusted_simple', accepted_at: '2026-10-12T11:00:00Z', evidence_hash: 'old-secret' },
+  ],
   contract_events: [{ id: 'event', contract_id: contractId, event_type: 'status_changed', from_status: 'review', to_status: 'ready', reason: 'Contrôle', metadata: { private: true }, created_at: '2026-10-14T00:00:00Z' }],
   contract_archives: [{ id: 'archive', contract_id: contractId, original_name: 'contrat.pdf', mime_type: 'application/pdf', size_bytes: 100, content_hash: 'b'.repeat(64), object_path: 'private/path', created_at: '2026-10-14T00:00:00Z' }],
   contract_amendments: [{ id: amendmentId, contract_id: contractId, base_contract_version_id: versionId, status: 'accepted', legal_effect_enabled: false, created_at: '2026-10-14T00:00:00Z' }],
@@ -46,6 +50,7 @@ test('contract reader returns an explicit read-only projection without proof sec
   const detail: any = await service.detail(contractId);
   assert.equal(detail.contract.total_millimes, 1250000);
   assert.equal(detail.amendments[0].proposal.proposed_total_millimes, 1300000);
+  assert.deepEqual(detail.acceptances.map((row: Row) => row.party_role), ['client'], 'stale version contractor acceptance must stay hidden');
   assert.equal(detail.amendments[0].proposal.non_engaging, true);
   const serialized = JSON.stringify(detail);
   for (const forbidden of ['must-not-leak', 'private/path', 'provider_reference', 'evidence_hash', '"metadata"']) assert.equal(serialized.includes(forbidden), false, forbidden);

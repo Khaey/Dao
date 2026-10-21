@@ -64,7 +64,7 @@ export class ContractReadService {
       this.db.from('contract_versions').select('id,version_no,content_hash,created_at').eq('contract_id', contractId).eq('id', contract.current_version_id).maybeSingle(),
       this.db.from('contract_items').select('id,request_id,agreed_millimes,title,scope,duration_days,inclusions,exclusions').eq('contract_id', contractId).order('created_at'),
       this.db.from('contract_parties').select('role,legal_name').eq('contract_id', contractId).order('role'),
-      this.db.from('contract_acceptances').select('party_role,method,accepted_at,created_at').eq('contract_id', contractId).order('accepted_at'),
+      this.db.from('contract_acceptances').select('party_role,method,accepted_at,created_at').eq('contract_id', contractId).eq('contract_version_id', contract.current_version_id).order('accepted_at'),
       this.db.from('contract_events').select('id,event_type,from_status,to_status,reason,created_at').eq('contract_id', contractId).order('created_at'),
       this.db.from('contract_archives').select('id,original_name,mime_type,size_bytes,content_hash,created_at').eq('contract_id', contractId).order('created_at'),
       this.db.from('contract_amendments').select('id,base_contract_version_id,status,legal_effect_enabled,validated_at,validation_reason,rejected_at,rejection_reason,cancelled_at,cancellation_reason,created_at,updated_at').eq('contract_id', contractId).order('created_at', { ascending: false }),
