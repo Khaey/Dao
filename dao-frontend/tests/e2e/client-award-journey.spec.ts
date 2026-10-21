@@ -85,8 +85,14 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   await expect(lotRow.getByText('Participant de l’équipe affecté au lot (optionnel)')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   // A failed read is explained with a retry, never shown as « en attente d’offres ».
-  await page.route('**/rest/v1/award_items*', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' }));
+  let mockedAwardReads = 0;
+  await page.route('**/rest/v1/award_items*', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    mockedAwardReads += 1;
+    await route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"unavailable"}' });
+  });
   await page.reload();
+  await expect.poll(() => mockedAwardReads, { message: 'Le GET award_items doit être intercepté après rechargement' }).toBeGreaterThan(0);
   await expect(commercial.getByRole('alert')).toContainText('n’ont pas pu être chargées');
   await expect(commercial).not.toContainText('En attente d’offres');
   await page.unroute('**/rest/v1/award_items*');
