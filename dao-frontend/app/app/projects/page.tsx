@@ -85,7 +85,11 @@ export default function Projects() {
   const filtersActive = Boolean(query || status || offerFilter);
   const clearFilters = () => { setQuery(''); setStatus(''); setOfferFilter(''); };
   const createLabel = contractor ? 'Ajouter un chantier client' : 'Nouveau chantier';
-  const isEmpty = !loading && !error && lines.length === 0;
+  // Do not claim « Aucune candidature » or zero awarded lots while the Artisan's award/offer reads are unknown.
+  const commercialFailed = contractor && (awarded.failed || myOffers.failed);
+  const commercialLoading = contractor && !commercialFailed && (!awarded.ready || !myOffers.ready);
+  const busy = loading || commercialLoading;
+  const isEmpty = !busy && !error && !commercialFailed && lines.length === 0;
   const counters = [
     { label: 'Chantiers', value: lines.length },
     { label: 'En préparation', value: rows.filter(row => ['draft', 'rejected', 'client_review', 'dao_review'].includes(row.status)).length },
@@ -137,17 +141,17 @@ export default function Projects() {
         <h1 id="projects-title" className="mt-2 text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-3xl">Mes chantiers</h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink/70">{contractor ? 'Vos chantiers clients et les lots qui vous sont attribués, dans une seule liste.' : 'Retrouvez chaque dossier, son avancement et ses offres, puis ouvrez-le pour agir.'}</p>
       </div>
-      {!loading && !isEmpty && <Link href="/app/projects/new" className={`${primaryAction} w-full sm:w-auto`}><Plus size={17} aria-hidden="true" />{createLabel}</Link>}
+      {!busy && !commercialFailed && !isEmpty && <Link href="/app/projects/new" className={`${primaryAction} w-full sm:w-auto`}><Plus size={17} aria-hidden="true" />{createLabel}</Link>}
     </header>
 
-    {!loading && lines.length > 0 && <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/[0.06] bg-white sm:grid-cols-4">
+    {!busy && !commercialFailed && lines.length > 0 && <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-black/[0.06] bg-white sm:grid-cols-4">
       {counters.map((item, index) => <div key={item.label} className={`px-4 py-3.5 sm:px-5 ${index % 2 ? 'border-l border-black/[0.06]' : ''} ${index > 1 ? 'border-t border-black/[0.06] sm:border-t-0' : ''} ${index === 2 ? 'sm:border-l' : ''}`}>
         <dt className="text-xs font-medium text-ink/65">{item.label}</dt>
         <dd className="mt-1 text-xl font-bold tabular-nums tracking-tight text-ink">{item.value}</dd>
       </div>)}
     </dl>}
 
-    {(loading || lines.length > 0) && <div className="rounded-2xl border border-black/[0.06] bg-white p-3 sm:p-4">
+    {(busy || (!commercialFailed && lines.length > 0)) && <div className="rounded-2xl border border-black/[0.06] bg-white p-3 sm:p-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_14rem_15rem_auto] lg:items-center">
         <div className="relative">
           <Search size={17} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/45" />
@@ -170,8 +174,10 @@ export default function Projects() {
     </div>}
 
     {error && <ErrorPanel title="Vos chantiers n’ont pas pu être chargés" message={error} onRetry={() => void load()} />}
+    {!error && commercialFailed && <ErrorPanel title="Offres et attributions indisponibles" message="Impossible de vérifier vos candidatures et lots attribués. Aucun résultat commercial n'est affiché pour éviter un état erroné." onRetry={() => window.location.reload()} />}
 
-    {loading ? <div aria-busy="true" className="space-y-3"><span className="sr-only">Chargement de vos chantiers…</span>{[0, 1, 2].map(item => <div key={item} className="flex items-center gap-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5"><div className="min-w-0 flex-1 space-y-2.5"><div className="h-4 w-2/5 animate-pulse rounded bg-ink/[0.07]" /><div className="h-3 w-3/5 animate-pulse rounded bg-ink/[0.05]" /></div><div className="hidden h-6 w-28 animate-pulse rounded-full bg-ink/[0.06] sm:block" /></div>)}</div>
+    {busy ? <div aria-busy="true" className="space-y-3"><span className="sr-only">Chargement de vos chantiers…</span>{[0, 1, 2].map(item => <div key={item} className="flex items-center gap-4 rounded-2xl border border-black/[0.06] bg-white p-4 sm:p-5"><div className="min-w-0 flex-1 space-y-2.5"><div className="h-4 w-2/5 animate-pulse rounded bg-ink/[0.07]" /><div className="h-3 w-3/5 animate-pulse rounded bg-ink/[0.05]" /></div><div className="hidden h-6 w-28 animate-pulse rounded-full bg-ink/[0.06] sm:block" /></div>)}</div>
+      : commercialFailed ? null
       : isEmpty ? <div className="rounded-2xl border border-dashed border-black/15 bg-white px-6 py-14 text-center">
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sand text-teal"><Building2 size={22} aria-hidden="true" /></span>
         <h2 className="mt-4 text-lg font-bold text-ink">{contractor ? 'Aucun chantier client pour le moment' : 'Votre premier chantier commence ici'}</h2>
