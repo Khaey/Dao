@@ -138,8 +138,11 @@ non signé ».
 ## Sécurité et concurrence
 
 Les tables sont fermées au Data API. Seuls quatre RPC authentifiés sont exposés.
-Chaque commande résout l’acteur avec **auth.uid()**, vérifie les memberships,
-l’award actif et l’absence de contrat, sérialise avec le verrou projet, utilise
-une clé idempotente et écrit des événements append-only. Une révision, un refus,
+Chaque commande résout l’acteur avec **auth.uid()**, vérifie qu’il est le Client
+du chantier ou l’utilisateur du profil Artisan porté par l’attribution, puis
+contrôle l’award actif et l’absence de contrat. L’accès à cet accord ne dépend
+pas d’une invitation `project_members` distincte : l’attribution commerciale est
+la source d’autorité. Les commandes sérialisent avec le verrou projet, utilisent
+une clé idempotente et écrivent des événements append-only. Une révision, un refus,
 une acceptation ou une annulation d’award concurrente ne peut pas valider une
 version périmée.
