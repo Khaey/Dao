@@ -1,0 +1,34 @@
+name: DAO DEV professional catalog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/dev-professional-catalog.mjs
+      - .github/workflows/dev-professional-catalog.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dao-dev-professional-catalog
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    environment: dev
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Provision and verify 20 published synthetic professionals
+        env:
+          DAO_FIXTURE_TARGET: dev
+          DAO_SUPABASE_URL: ${{ secrets.DAO_SUPABASE_URL }}
+          DAO_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.DAO_SUPABASE_PUBLISHABLE_KEY }}
+          DAO_SUPABASE_SECRET_KEY: ${{ secrets.DAO_SUPABASE_SECRET_KEY }}
+          DAO_PROFESSIONAL_FIXTURE_PASSWORD: ${{ secrets.DAO_TEST_CONTRACTOR_PASSWORD }}
+        run: node scripts/dev-professional-catalog.mjs
