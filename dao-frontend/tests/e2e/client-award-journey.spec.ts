@@ -1,6 +1,7 @@
 import { test, expect } from './support/fixtures';
 import { createProjectWithMainLot, login } from './support/flow';
 import { recordE2EValue } from './support/state';
+import { groupAwardedLotsByContractor } from '../../lib/contractor-lot-dossiers';
 
 // #346 P0 (owner report): from their own chantier, a regular Client finds the offers, chooses one per lot, sees
 // that the lot is attributed (not only « Publié ») and reaches « Conditions et calendrier ». No Admin, no URL typed.
@@ -9,6 +10,31 @@ test.use({ actionTimeout: 20_000, navigationTimeout: 30_000 });
 test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et voir le lot attribué', async ({ page, browser, e2eClient, e2eOtherClient, e2eReviewer, e2eArtisan }, info) => {
   test.skip(!e2eClient || !e2eOtherClient || !e2eReviewer || !e2eArtisan, 'E2E Supabase credentials are not available');
   test.setTimeout(240_000);
+  // #381: contract-preparation grouping cannot combine unrelated contractors or chantiers.
+  const dossiers = groupAwardedLotsByContractor('p1', [
+    { projectId: 'p1', requestId: 'lot-a', awardId: 'award-a', contractorId: 'artisan-a', agreedMillimes: 8000000 },
+    { projectId: 'p1', requestId: 'lot-b', awardId: 'award-b', contractorId: 'artisan-a', agreedMillimes: 2100500 },
+    { projectId: 'p1', requestId: 'lot-c', awardId: 'award-c', contractorId: 'artisan-b', agreedMillimes: 3000000 },
+  ]);
+  expect(dossiers.map(d => [d.contractorId, d.lotIds.length, d.totalMillimes])).toEqual([
+    ['artisan-a', 2, 10100500],
+    ['artisan-b', 1, 3000000],
+  ]);
+  expect(() => groupAwardedLotsByContractor('p1', [
+    { projectId: 'p1', requestId: 'lot-a', awardId: 'a', contractorId: 'artisan-a', agreedMillimes: 1000 },
+    { projectId: 'p1', requestId: 'lot-a', awardId: 'b', contractorId: 'artisan-b', agreedMillimes: 1000 },
+  ])).toThrow(/Multiple active awards/);
+  expect(() => groupAwardedLotsByContractor('p1', [
+    { projectId: 'p2', requestId: 'lot-d', awardId: 'd', contractorId: 'artisan-a', agreedMillimes: 1000 },
+  ])).toThrow(/Cross-project/);
+  expect(groupAwardedLotsByContractor('p1', [
+    { projectId: 'p1', requestId: 'lot-a', awardId: 'award-a', contractorId: 'artisan-a', agreedMillimes: 1000 },
+    { projectId: 'p1', requestId: 'lot-b', awardId: 'award-a', contractorId: 'artisan-a', agreedMillimes: 2500 },
+  ])[0]).toEqual({ projectId: 'p1', contractorId: 'artisan-a', lotIds: ['lot-a', 'lot-b'], awardIds: ['award-a'], totalMillimes: 3500 });
+  expect(() => groupAwardedLotsByContractor('p1', [
+    { projectId: 'p1', requestId: 'lot-a', awardId: 'award-a', contractorId: 'artisan-a', agreedMillimes: Number.MAX_SAFE_INTEGER },
+    { projectId: 'p1', requestId: 'lot-b', awardId: 'award-b', contractorId: 'artisan-a', agreedMillimes: 1 },
+  ])).toThrow(/precision/);
   await page.setViewportSize(info.project.name === 'mobile' ? { width: 375, height: 812 } : { width: 1440, height: 900 });
   const lotTitle = `Lot parcours Client ${info.project.name}`;
   await login(page, e2eClient!);
