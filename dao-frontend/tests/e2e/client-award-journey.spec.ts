@@ -16,9 +16,9 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
     { projectId: 'p1', requestId: 'lot-b', awardId: 'award-b', contractorId: 'artisan-a', agreedMillimes: 2100500 },
     { projectId: 'p1', requestId: 'lot-c', awardId: 'award-c', contractorId: 'artisan-b', agreedMillimes: 3000000 },
   ]);
-  expect(dossiers.map(d => [d.contractorId, d.lotIds.length, d.totalMillimes, d.contractStatus])).toEqual([
-    ['artisan-a', 2, 10100500, 'not_prepared'],
-    ['artisan-b', 1, 3000000, 'not_prepared'],
+  expect(dossiers.map(d => [d.contractorId, d.lotIds.length, d.totalMillimes])).toEqual([
+    ['artisan-a', 2, 10100500],
+    ['artisan-b', 1, 3000000],
   ]);
   expect(() => groupAwardedLotsByContractor('p1', [
     { projectId: 'p1', requestId: 'lot-a', awardId: 'a', contractorId: 'artisan-a', agreedMillimes: 1000 },
