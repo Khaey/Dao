@@ -112,6 +112,40 @@ async function ensureUser(c, email) {
   return user.id;
 }
 
+async function actorToken(c, email) {
+  const session = await request(c, '/auth/v1/token?grant_type=password', { method: 'POST', ...json({ email, password: PASSWORD }) }, 'publishable');
+  if (!session?.access_token) fail(`Temporary DEV login failed for ${email}`);
+  return session.access_token;
+}
+
+async function professionalDetails(c, token, input) {
+  return actorRpc(c, token, 'details', input);
+}
+
+async function actorRpc(c, token, action, input) {
+  const response = await fetch(`${c.url}/rest/v1/rpc/professional_command`, {
+    method: 'POST',
+    headers: { apikey: c.publishable, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_action: action, p_input: input }),
+  });
+  if (!response.ok) fail(`Owner ${action} command failed (${response.status})`);
+  return response.json();
+}
+
+async function ensureActorFile(c, token, userId, kind, input, bytes) {
+  const table = kind === 'professional' ? 'contractor_files' : 'portfolio_assets';
+  const existing = await rows(c, table, `object_path=eq.${enc(input.object_path)}&select=id,content_sha256`);
+  if (existing.length > 1) fail(`Duplicate ${kind} media fixture`);
+  const file = existing[0] || await actorRpc(c, token, 'file_create', { kind, ...input, size_bytes: bytes.length });
+  const hash = await upload(c, input.object_path, bytes);
+  if (!existing.length) {
+    await request(c, '/rest/v1/rpc/professional_confirm_upload', {
+      method: 'POST', ...json({ p_kind: kind === 'professional' ? 'professional' : 'portfolio', p_id: file.id, p_actor: userId, p_sha256: hash }),
+    });
+  }
+  return file;
+}
+
 let crcTable;
 function crc32(buffer) {
   if (!crcTable) crcTable = Array.from({ length: 256 }, (_, n) => {
@@ -181,8 +215,9 @@ async function provisionOne(c, index, trades, areas) {
     public_slug: `dev-artisan-${String(number).padStart(2, '0')}`, verification_status: 'verified', public_identity_status: 'approved',
   });
 
-  await ensureRow(c, 'contractor_profile_details', `contractor_id=eq.${enc(profile.id)}`, {
-    contractor_id: profile.id, website_url: `https://artisan-${number}.example`, professional_phone: `+21670020${String(number).padStart(3, '0')}`,
+  const token = await actorToken(c, email);
+  await professionalDetails(c, token, {
+    website_url: `https://artisan-${number}.example`, professional_phone: `+21670020${String(number).padStart(3, '0')}`,
     whatsapp_phone: `+21620020${String(number).padStart(3, '0')}`, professional_email: email,
     social_links: [`https://www.facebook.com/dao.dev.artisan.${number}`],
     office_address: `${10 + number} rue des Artisans`, city: area.delegation,
@@ -191,51 +226,38 @@ async function provisionOne(c, index, trades, areas) {
     tax_identifier: `TEST-DEV-MF-${String(number).padStart(4, '0')}`, registration_identifier: `TEST-DEV-RNE-${String(number).padStart(4, '0')}`,
     legal_name: business, representative_name: people[index], show_website: true, show_phone: true,
     show_whatsapp: true, show_email: true, show_social_links: true, show_exact_address: false,
-    review_status: 'approved', review_reason: '', submitted_at: new Date().toISOString(), reviewed_at: new Date().toISOString(),
-  }, {
-    website_url: `https://artisan-${number}.example`, professional_phone: `+21670020${String(number).padStart(3, '0')}`,
-    whatsapp_phone: `+21620020${String(number).padStart(3, '0')}`, professional_email: email,
-    social_links: [`https://www.facebook.com/dao.dev.artisan.${number}`],
-    office_address: `${10 + number} rue des Artisans`, city: area.delegation, governorate_id: area.governorate_id,
-    founded_year: 2004 + (index % 19), specialties: `${selectedTrades.map(t => t.name_fr).join(', ')} · rénovation · dépannage`,
-    tax_identifier: `TEST-DEV-MF-${String(number).padStart(4, '0')}`, registration_identifier: `TEST-DEV-RNE-${String(number).padStart(4, '0')}`,
-    legal_name: business, representative_name: people[index], show_website: true, show_phone: true,
-    show_whatsapp: true, show_email: true, show_social_links: true, show_exact_address: false,
-    review_status: 'approved', review_reason: '', submitted_at: new Date().toISOString(), reviewed_at: new Date().toISOString(),
+    service_areas: [{ governorate_id: area.governorate_id, delegation_id: area.delegation_id }],
   });
 
   await request(c, `/rest/v1/contractor_trades?contractor_id=eq.${enc(profile.id)}`, { method: 'DELETE' });
   await insert(c, 'contractor_trades', selectedTrades.map(trade => ({ contractor_id: profile.id, trade_id: trade.id })));
-  await request(c, `/rest/v1/contractor_service_areas?contractor_id=eq.${enc(profile.id)}`, { method: 'DELETE' });
-  await insert(c, 'contractor_service_areas', { contractor_id: profile.id, governorate_id: area.governorate_id, delegation_id: area.delegation_id });
   await patchOne(c, 'contractor_profiles', `id=eq.${enc(profile.id)}`, { verification_status: 'verified', public_identity_status: 'approved' });
-  await patchOne(c, 'contractor_profile_details', `contractor_id=eq.${enc(profile.id)}`, { review_status: 'approved', review_reason: '', reviewed_at: new Date().toISOString() });
 
   const [primary, accent] = palettes[index];
   const logo = png(512, 512, primary, accent, index); const logoPath = `professional/${profile.id}/dev-catalog-logo.png`;
-  const logoHash = await upload(c, logoPath, logo);
-  await ensureRow(c, 'contractor_files', `object_path=eq.${enc(logoPath)}`, {
-    contractor_id: profile.id, purpose: 'logo', original_name: `logo-${number}.png`, object_path: logoPath,
-    mime_type: 'image/png', size_bytes: logo.length, public_consent: true, status: 'approved', content_sha256: logoHash,
-    reviewed_at: new Date().toISOString(),
-  }, { original_name: `logo-${number}.png`, size_bytes: logo.length, public_consent: true, status: 'approved', content_sha256: logoHash, reviewed_at: new Date().toISOString() });
+  await ensureActorFile(c, token, userId, 'professional', {
+    purpose: 'logo', original_name: `logo-${number}.png`, object_path: logoPath,
+    mime_type: 'image/png', public_consent: true,
+  }, logo);
 
   const title = `Rénovation ${area.delegation} — ${primaryTrade.name_fr}`;
-  const portfolio = await ensureRow(c, 'portfolio_projects', `contractor_id=eq.${enc(profile.id)}&title=eq.${enc(title)}`, {
-    contractor_id: profile.id, title, description: `Réalisation synthétique DEV illustrant le savoir-faire de ${business}.`,
-    completed_year: 2023 + (index % 3), governorate_id: area.governorate_id, status: 'published', trade_id: primaryTrade.id,
-    approximate_location: area.delegation, publication_consent: true, reviewed_at: new Date().toISOString(),
-  }, { description: `Réalisation synthétique DEV illustrant le savoir-faire de ${business}.`, completed_year: 2023 + (index % 3), governorate_id: area.governorate_id, status: 'published', trade_id: primaryTrade.id, approximate_location: area.delegation, publication_consent: true, reviewed_at: new Date().toISOString() });
+  const existingPortfolio = await rows(c, 'portfolio_projects', `contractor_id=eq.${enc(profile.id)}&title=eq.${enc(title)}&select=id`);
+  if (existingPortfolio.length > 1) fail('Duplicate portfolio fixture');
+  const portfolio = await actorRpc(c, token, 'portfolio_save', {
+    ...(existingPortfolio[0] ? { id: existingPortfolio[0].id } : {}), title,
+    description: `Réalisation synthétique DEV illustrant le savoir-faire de ${business}.`,
+    completed_year: 2023 + (index % 3), governorate_id: area.governorate_id, trade_id: primaryTrade.id,
+    approximate_location: area.delegation, publication_consent: true,
+  });
 
   for (const [assetIndex, kind] of ['before', 'after'].entries()) {
     const image = png(960, 640, assetIndex ? accent : primary, assetIndex ? primary : accent, index + assetIndex * 7);
-    const path = `portfolio/${portfolio.id}/dev-catalog-${kind}.png`; const hash = await upload(c, path, image);
-    await ensureRow(c, 'portfolio_assets', `object_path=eq.${enc(path)}`, {
-      portfolio_project_id: portfolio.id, contractor_id: profile.id, object_path: path,
-      caption: kind === 'before' ? 'Avant intervention' : 'Après intervention', sort_order: assetIndex,
-      mime_type: 'image/png', size_bytes: image.length, status: 'approved', original_name: `${kind}-${number}.png`,
-      asset_kind: kind, public_consent: true, content_sha256: hash, reviewed_at: new Date().toISOString(),
-    }, { caption: kind === 'before' ? 'Avant intervention' : 'Après intervention', sort_order: assetIndex, size_bytes: image.length, status: 'approved', original_name: `${kind}-${number}.png`, asset_kind: kind, public_consent: true, content_sha256: hash, reviewed_at: new Date().toISOString() });
+    const path = `portfolio/${portfolio.id}/dev-catalog-${kind}.png`;
+    await ensureActorFile(c, token, userId, 'portfolio', {
+      portfolio_project_id: portfolio.id, object_path: path,
+      caption: kind === 'before' ? 'Avant intervention' : 'Après intervention',
+      mime_type: 'image/png', original_name: `${kind}-${number}.png`, asset_kind: kind, public_consent: true,
+    }, image);
   }
   return { email, userId, contractorId: profile.id };
 }
@@ -257,13 +279,13 @@ async function main() {
   const ids = fixtures.map(item => item.contractorId).join(',');
   const profiles = await rows(c, 'contractor_profiles', `id=in.(${ids})&select=id,verification_status,public_identity_status`);
   const details = await rows(c, 'contractor_profile_details', `contractor_id=in.(${ids})&select=contractor_id,review_status`);
-  const logos = await rows(c, 'contractor_files', `contractor_id=in.(${ids})&purpose=eq.logo&status=eq.approved&select=id`);
-  const projects = await rows(c, 'portfolio_projects', `contractor_id=in.(${ids})&status=eq.published&select=id`);
-  const assets = await rows(c, 'portfolio_assets', `contractor_id=in.(${ids})&status=eq.approved&select=id`);
+  const logos = await rows(c, 'contractor_files', `contractor_id=in.(${ids})&purpose=eq.logo&status=in.(ready,approved)&select=id`);
+  const projects = await rows(c, 'portfolio_projects', `contractor_id=in.(${ids})&select=id`);
+  const assets = await rows(c, 'portfolio_assets', `contractor_id=in.(${ids})&status=in.(ready,approved)&select=id`);
   if (profiles.length !== COUNT || profiles.some(row => row.verification_status !== 'verified' || row.public_identity_status !== 'approved')) fail('Published contractor verification failed');
-  if (details.length !== COUNT || details.some(row => row.review_status !== 'approved')) fail('Published details verification failed');
+  if (details.length !== COUNT) fail('Professional details verification failed');
   if (logos.length < COUNT || projects.length < COUNT || assets.length < COUNT * 2) fail('Published media verification failed');
-  console.log(`DEV_PROFESSIONAL_CATALOG accounts=${fixtures.length} logins=PASS profiles=published logos=${logos.length} portfolio_projects=${projects.length} portfolio_assets=${assets.length}`);
+  console.log(`DEV_PROFESSIONAL_CATALOG accounts=${fixtures.length} logins=PASS profiles=ready_for_final_moderation logos=${logos.length} portfolio_projects=${projects.length} portfolio_assets=${assets.length}`);
 }
 
 main().catch(error => { console.error(error instanceof Error ? error.message : 'DEV catalog provisioning failed'); process.exit(1); });
