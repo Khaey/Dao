@@ -1,5 +1,14 @@
 # D.A.O — Next Steps
 
+## DEV 2 — qualifier et livrer #390
+
+Obtenir les trois checks obligatoires sur le HEAD exact de
+`feature/390-contract-preparation`, notamment migration fraîche/replay et tests
+JWT réels : OFF sans contrat, ON atomique, replay, deux awards du même Artisan,
+concurrent, annulation bloquée et RLS. Fusionner seulement après revue sécurité.
+La migration et la configuration du représentant sur DEV partagé exigent le
+gate OPS prévu dans #390 ; aucune PROD. CH2 conserve #382 et l'UX regroupée.
+
 ## DEV 20 — #231 notifications internes S1
 
 Terminer les lots backend/UX avec tests JWT réels et FULL E2E jetables.

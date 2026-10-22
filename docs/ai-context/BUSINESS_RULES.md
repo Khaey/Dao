@@ -23,6 +23,23 @@ The current assigned-review/version/sublot/withdrawal/assisted-award and notific
 - Aucun consentement, signature, PDF exécutoire, paiement ou mouvement financier
   n'est introduit. Voir [le design canonique](../product/contract-v1-design.md).
 
+## Préparation automatique configurable après attribution (#390)
+
+- L'absence de réglage chantier signifie **contrat désactivé**. Seul le Client
+  propriétaire actif choisit explicitement avant la première attribution active.
+- L'activation exige une configuration D.A.O explicite : porteur juridique
+  `LogicLab Tunisie` et représentant actif possédant réellement le rôle
+  `dao_admin`. Aucun « premier admin » n'est sélectionné automatiquement.
+- Pour chaque nouvel award, le choix est figé dans la même transaction. Si le
+  contrat est activé, la fondation canonique 1 contrat/award est préparée avant
+  validation de l'attribution ; tout échec annule l'ensemble. Si le contrat est
+  désactivé, aucune fondation n'est appelée et l'attribution reste inchangée.
+- Un deuxième lot attribué plus tard crée un nouvel award et donc, si activé,
+  un second brouillon canonique. Le regroupement chantier × Artisan reste une
+  présentation ; aucun contrat ou snapshot existant n'est modifié.
+- Le résultat reste `draft`, `non_engaging=true` : aucune acceptation, signature,
+  validation juridique, avenant, paiement ou démarrage n'est automatique.
+
 ## Contrat V1 — avenants simples non engageants P2.2-C (#174)
 
 - Seul le Client partie au contrat initie une proposition d'avenant.

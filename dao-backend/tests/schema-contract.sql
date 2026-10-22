@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','oce_lot_plans','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -18,7 +18,7 @@ DECLARE
     'contracts','conversation_participants','conversations','delegations',
     'document_grants','documents','governorates','localities','messages',
     'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts','technical_questions','technical_clarifications','technical_rfi_reads','technical_rfi_receipts','technical_rfi_documents',
-    'profiles','project_members','project_invitations','project_private_details','project_request_versions',
+    'profiles','project_contract_settings','project_members','project_invitations','project_private_details','project_request_versions',
     'project_requests','project_reviews','project_version_requests',
     'project_versions','projects','publication_recipients',
     'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
@@ -116,6 +116,9 @@ BEGIN
       'public.respond_project_invitation(text,boolean)',
       'public.update_project_tracking(uuid,text,text)',
       'public.prepare_contract_foundation(uuid,uuid,uuid,text,uuid)',
+      'public.configure_contract_runtime(uuid,text,boolean,text)',
+      'public.set_project_contract_enabled(uuid,boolean,text)',
+      'public.project_contract_configuration(uuid)',
       'public.start_contract_acceptance(uuid,uuid,text,boolean,uuid)',
       'public.record_contract_acceptance(uuid,uuid,uuid,text,text,text,jsonb,timestamp with time zone,uuid)',
       'public.validate_contract_acceptance(uuid,uuid,text,uuid)',
@@ -206,6 +209,12 @@ BEGIN
      OR has_table_privilege('authenticated','public.messages','DELETE')
      OR has_table_privilege('authenticated','public.notifications','UPDATE') THEN
     RAISE EXCEPTION 'schema contract: messaging writes must stay RPC-only';
+  END IF;
+  IF has_table_privilege('authenticated','public.project_contract_settings','INSERT')
+     OR has_table_privilege('authenticated','public.project_contract_settings','UPDATE')
+     OR has_table_privilege('authenticated','public.project_contract_settings','DELETE')
+     OR has_table_privilege('anon','public.project_contract_settings','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: project contract configuration writes must stay RPC-only';
   END IF;
   IF has_table_privilege('authenticated','public.notification_preferences','SELECT')
      OR has_table_privilege('authenticated','public.notification_preferences','INSERT')
