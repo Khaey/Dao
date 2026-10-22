@@ -161,7 +161,7 @@ export function CommercialPanel({ progress, stage, stageLabel }: { progress: Com
   return <section aria-label="Offres et attribution" className="mt-5 rounded-2xl border border-teal/15 bg-teal/[0.03] p-4 sm:p-5">
     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/65">Après publication</p>
     <p className="mt-1.5 text-sm font-semibold text-ink">{summary}</p>
-    {progress.contractorDossiers.some(group => group.lotIds.length > 1) && <div className="mt-3 rounded-xl border border-teal/15 bg-white/80 p-3" aria-label="Lots regroupés par Artisan">
+    {(progress.contractorDossiers.length > 1 || progress.contractorDossiers.some(group => group.lotIds.length > 1)) && <div className="mt-3 rounded-xl border border-teal/15 bg-white/80 p-3" aria-label="Lots regroupés par Artisan">
       <p className="text-xs font-semibold uppercase tracking-wider text-ink/65">Lots remportés par Artisan</p>
       <ul className="mt-2 space-y-2">{progress.contractorDossiers.map(group => {
         const winner = progress.byLot[group.lotIds[0]];
