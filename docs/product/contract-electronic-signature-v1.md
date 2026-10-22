@@ -32,6 +32,16 @@ Owner de la première tranche frontend/lecture : **DAO COPILOT 4**, [#383](https
 - [Loi tunisienne n° 2000-83 du 9 août 2000 — cadre légal TunTrust](https://www.tuntrust.tn/ar/content/%D8%A7%D9%84%D8%A5%D8%B7%D8%A7%D8%B1-%D8%A7%D9%84%D9%82%D8%A7%D9%86%D9%88%D9%86%D9%8A-0).
 - [TunTrust DigiGO — signature à distance et intégration](https://www.tuntrust.tn/fr/content/digigo).
 - [TunTrust — acquisition de certificats DigiGO qualifiés](https://certification.tn/fr/nos-produits/Certificat%20de%20signature%20Digigo).
-- La documentation technique d'API DigiGO / NGSign et sa validation contractuelle sont **à obtenir**, ne pas inventer de routes, payloads ou webhooks.
+- [API NGSign, version simplifiée publiquement documentée](https://www.ng-sign.com/api-reference-simple-version/) : `POST /server/protected/transaction/pdfs/` charge les PDF en Base64, `POST /server/protected/transaction/{uuid}/launch` configure deux signataires, `GET /server/any/transaction/{uuid}/` permet de lire le statut, puis `GET /server/any/transaction/{uuid}/pdfs/{documentUuid}` fournit le PDF. Le type `DIGI_GO`, l'invitation `BY_MAIL` et l'option `OTP` sont décrits, mais leur combinaison doit être validée en sandbox. **Aucun appel à ces routes n'est effectué par D.A.O. à ce stade.**
+- [API officielle DIGIGO, documentation publique version 01.5 datée du 17 mars 2025](https://digigo.tuntrust.tn/pub/documentation) : sections `oauth2/authorize`, `oauth2/token`, `signatures/signHash`, `Timestamp` et validation de signature. Évaluer l'intégration directe, sans supposer la disponibilité d'un compte partenaire.
+- [TunTrust : adhésion comme entité d'intégration](https://www.ance.tn/fr/solutions/digigo) : l'accès aux services à travers le partenariat impose une convention signée. NGSign affiche une **offre de sandbox de 40 jours sur demande** ; cela ne signifie pas que D.A.O. dispose d'un compte, de quotas ou de clés.
+- Les conditions commerciales réelles, l'API avancée de NGSign, les contrats d'intégration, les clés de sandbox, le format final du PDF et la validation juridique demeurent **à obtenir**.
+
+## P2.2-E2a — préflight fournisseur (implémentation hors ligne)
+
+Le module `dao-backend/src/services/ContractSignaturePreflight.ts` génère uniquement un **plan de préparation** pour le candidat NGSign/DigiGO : comparaison `contractVersionId === currentVersionId`, SHA-256 du contenu PDF à transmettre, présence des noms et des rôles, Client et Artisan distincts, dossier toujours non engageant, statut admissible, format et taille PDF élémentaires. Il décrit les choix candidat NGSign `DIGI_GO`, `BY_MAIL`, `OTP` pour les deux signataires. Tests dédiés dans `dao-backend/tests/contract-signature-preflight.test.ts`.
+
+**Limites impératives** : ce module n'est **pas un validateur PDF**, ni un contrôleur de certificats, ni un système de signature. Il ne contient ni URL d'API, ni jeton, ni requête réseau, ni upload, ni appel `launch`, ni webhook, ni transition métier. Les noms et emails ne sont pas restitués dans le plan et ne doivent pas être enregistrés dans des logs. Le partenaire ne peut pas être activé par la simple présence d'un PDF et d'un hash : le juriste tunisien, l'accès commercial, les certificats, les permissions serveur et la validation cryptographique des signatures restent des gates externes.
+
 
 **Décision d'activation future à matérialiser :** fournisseur sélectionné, validation juridique du contrat, représentant D.A.O. attesté et feu vert OPS. Jusqu'à cela, l'écran reste une **préparation** et le dossier « Non signé — aucun effet juridique ».
