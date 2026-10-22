@@ -294,7 +294,10 @@ Current main also provides the operational P2 flow:
 - safe publication availability exposes no competing commercial data;
 - `bid_item_results` allows only own offer/owner/staff reads and hides source award;
 - `award_cancellations` is restricted to authorized award readers;
-- contract/execution is not inferred or activated by attribution.
+- attribution n'implique aucun effet juridique ni exécution ; lorsque le Client
+  a explicitement activé le contrat avant l'award et que LogicLab Tunisie possède
+  un représentant D.A.O configuré, un trigger différé prépare atomiquement le
+  brouillon canonique non engageant 1/award (#390).
 
 ## 11. Review/versioning
 

@@ -8,6 +8,7 @@ import { ProfileService } from '../services/ProfileService.js';
 import { AIService } from '../services/AIService.js';
 import { MessageService } from '../services/MessageService.js';
 import { ContractReadService } from '../services/ContractReadService.js';
+import { ContractConfigurationService } from '../services/ContractConfigurationService.js';
 import { PrecontractAgreementService } from '../services/PrecontractAgreementService.js';
 import { SiteExecutionService } from '../services/SiteExecutionService.js';
 import { QuotePdfService } from '../services/QuotePdfService.js';
@@ -23,6 +24,7 @@ export type BackendServices = {
   ai: AIService;
   messages: MessageService;
   contracts: ContractReadService;
+  contractConfiguration: ContractConfigurationService;
   precontractAgreements: PrecontractAgreementService;
   siteExecution: SiteExecutionService;
   quotePdf: QuotePdfService;
@@ -92,6 +94,18 @@ export async function withdrawBid(s: BackendServices, actor: AuthenticatedActor,
 export async function awardRequest(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
   requireActor(actor);
   return s.awards.award(input);
+}
+export async function projectContractConfiguration(s: BackendServices, actor: AuthenticatedActor, projectId: string) {
+  requireActor(actor);
+  return s.contractConfiguration.project(projectId);
+}
+export async function setProjectContractConfiguration(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.contractConfiguration.setProject(input);
+}
+export async function configureContractRuntime(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.contractConfiguration.configureRuntime(input);
 }
 export async function signedUpload(s: BackendServices, actor: AuthenticatedActor, input: { bidVersionId: string; originalName: string; mimeType: string; sizeBytes: number }) {
   requireActor(actor);

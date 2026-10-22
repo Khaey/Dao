@@ -24,6 +24,21 @@ export function createDaoApi(
     async contractDetail(request: Request, contractId: string) {
       return run(() => actor(request).then(() => services.contracts.detail(contractId)));
     },
+    async projectContractConfiguration(request: Request) {
+      return run(() => actor(request).then(a => actions.projectContractConfiguration(
+        services, a, new URL(request.url).searchParams.get('project_id') ?? '',
+      )));
+    },
+    async setProjectContractConfiguration(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(input =>
+        actions.setProjectContractConfiguration(services, a, input)
+      )));
+    },
+    async configureContractRuntime(request: Request) {
+      return run(() => actor(request).then(a => json(request).then(input =>
+        actions.configureContractRuntime(services, a, input)
+      )));
+    },
     async precontractAgreementSnapshot(request: Request) {
       return run(() => actor(request).then(() => {
         const awardId = new URL(request.url).searchParams.get('award_id') ?? '';

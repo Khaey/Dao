@@ -8,6 +8,7 @@ export { AIService } from './AIService.js';
 export { ProfileService } from './ProfileService.js';
 export { MessageService } from './MessageService.js';
 export { ContractReadService } from './ContractReadService.js';
+export { ContractConfigurationService } from './ContractConfigurationService.js';
 export { PrecontractAgreementService } from './PrecontractAgreementService.js';
 export { SiteExecutionService } from './SiteExecutionService.js';
 export { QuotePdfService } from './QuotePdfService.js';
