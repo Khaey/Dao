@@ -20,8 +20,6 @@ export type ContractorLotDossier = {
   lotIds: string[];
   awardIds: string[];
   totalMillimes: number;
-  /** This data alone cannot establish a contract or signature. */
-  contractStatus: 'not_prepared';
 };
 
 export function groupAwardedLotsByContractor(
@@ -60,7 +58,6 @@ export function groupAwardedLotsByContractor(
       lotIds: lots.map(lot => lot.requestId),
       awardIds: [...group.awards].sort(),
       totalMillimes: total,
-      contractStatus: 'not_prepared' as const,
     };
   });
 }
