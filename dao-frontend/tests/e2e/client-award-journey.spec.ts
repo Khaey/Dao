@@ -27,6 +27,14 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   expect(() => groupAwardedLotsByContractor('p1', [
     { projectId: 'p2', requestId: 'lot-d', awardId: 'd', contractorId: 'artisan-a', agreedMillimes: 1000 },
   ])).toThrow(/Cross-project/);
+  expect(groupAwardedLotsByContractor('p1', [
+    { projectId: 'p1', requestId: 'lot-a', awardId: 'award-a', contractorId: 'artisan-a', agreedMillimes: 1000 },
+    { projectId: 'p1', requestId: 'lot-b', awardId: 'award-a', contractorId: 'artisan-a', agreedMillimes: 2500 },
+  ])[0]).toEqual({ projectId: 'p1', contractorId: 'artisan-a', lotIds: ['lot-a', 'lot-b'], awardIds: ['award-a'], totalMillimes: 3500 });
+  expect(() => groupAwardedLotsByContractor('p1', [
+    { projectId: 'p1', requestId: 'lot-a', awardId: 'award-a', contractorId: 'artisan-a', agreedMillimes: Number.MAX_SAFE_INTEGER },
+    { projectId: 'p1', requestId: 'lot-b', awardId: 'award-b', contractorId: 'artisan-a', agreedMillimes: 1 },
+  ])).toThrow(/precision/);
   await page.setViewportSize(info.project.name === 'mobile' ? { width: 375, height: 812 } : { width: 1440, height: 900 });
   const lotTitle = `Lot parcours Client ${info.project.name}`;
   await login(page, e2eClient!);
