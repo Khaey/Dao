@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from 'react';
 import { Building2, CalendarDays, Filter, MapPin, Plus, Search, Tag, X } from 'lucide-react';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { stageLabels } from '../../../lib/collaboration';
@@ -46,6 +47,7 @@ function businessStatus(line: Line) {
 }
 
 export default function Projects() {
+  const router = useRouter();
   const wide = useWideLayout();
   const [contractor, setContractor] = useState(false);
   const awarded = useAwardedWork(contractor);
@@ -120,6 +122,18 @@ export default function Projects() {
     if (dao && primary !== dao) more.push(dao);
     return { primary, more };
   }
+
+  // A selected Artisan without project membership can only open an award-scoped destination.
+  const rowDestination = (line: Line, primary: RowAction | null) => line.project ? `/app/projects/${line.id}` : primary?.href ?? null;
+  const openRow = (event: MouseEvent<HTMLElement>, href: string | null) => {
+    if (!href || (event.target as Element).closest('a, button, input, select, textarea, [role="button"]')) return;
+    router.push(href);
+  };
+  const openRowFromKeyboard = (event: KeyboardEvent<HTMLElement>, href: string | null) => {
+    if (!href || event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    router.push(href);
+  };
 
   const statusCell = (line: Line) => { const business = commercial(line), project = line.project; return <>
     {business ? <Pill tone={business.tone}>{business.text}</Pill> : project ? <StatusPill status={displayProjectStatus(project.status)} /> : null}
@@ -196,7 +210,7 @@ export default function Projects() {
             <thead className="border-b border-black/[0.06] text-xs font-semibold text-ink/65">
               <tr><th scope="col" className="px-5 py-3.5 font-semibold">Chantier</th><th scope="col" className="px-4 py-3.5 font-semibold">Statut</th><th scope="col" className="px-4 py-3.5 font-semibold">Travaux</th><th scope="col" className="px-4 py-3.5 font-semibold">Lots</th><th scope="col" className="px-4 py-3.5 text-right font-semibold">Montant</th><th scope="col" className="px-4 py-3.5 font-semibold">Fin souhaitée</th><th scope="col" className="px-4 py-3.5 text-right font-semibold">Actions</th></tr>
             </thead>
-            <tbody className="divide-y divide-black/[0.05]">{filtered.map(line => { const project = line.project, act = actions(line), money = amount(line); return <tr key={line.id} data-testid={`project-row-${line.id}`} className="align-top transition-colors hover:bg-sand/50">
+            <tbody className="divide-y divide-black/[0.05]">{filtered.map(line => { const project = line.project, act = actions(line), money = amount(line), href = rowDestination(line, act.primary); return <tr key={line.id} data-testid={`project-row-${line.id}`} tabIndex={href ? 0 : undefined} aria-label={href ? `Ouvrir : ${line.title}` : undefined} onClick={event => openRow(event, href)} onKeyDown={event => openRowFromKeyboard(event, href)} className={`align-top transition-colors hover:bg-sand/50 ${href ? 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal' : ''}`}>
               <td className="max-w-[22rem] px-5 py-4">
                 {titleCell(line, 'block truncate text-[15px] font-semibold text-ink hover:text-teal focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal')}
                 {project ? <><p className="mt-1 flex items-center gap-1.5 truncate text-xs text-ink/65"><MapPin size={13} aria-hidden="true" className="shrink-0" /><span className="truncate">{project.location}</span></p>
@@ -209,12 +223,12 @@ export default function Projects() {
               <td className="whitespace-nowrap px-4 py-4 tabular-nums text-ink/80">{lotsCell(line)}</td>
               <td className="whitespace-nowrap px-4 py-4 text-right"><span className="block font-medium tabular-nums text-ink">{money.value}</span><span className="text-xs text-ink/55">{money.label}</span></td>
               <td className="whitespace-nowrap px-4 py-4 text-ink/70">{project ? formatDate(project.desired_end_date) : 'Non renseignée'}</td>
-              <td className="px-4 py-3"><RowActions title={line.title} primary={act.primary} more={act.more} /></td>
+              <td className="px-4 py-3"><RowActions title={line.title} primary={act.primary} more={act.more} menuOnly /></td>
             </tr>; })}</tbody>
           </table>
         </div>
-        : <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden" aria-label="Liste de mes chantiers">{filtered.map(line => { const project = line.project, act = actions(line), money = amount(line); return <li key={line.id} className="min-w-0">
-          <article data-testid={`project-row-${line.id}`} className="flex h-full min-w-0 flex-col rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_1px_2px_rgba(23,32,42,0.04)] transition focus-within:ring-2 focus-within:ring-teal hover:border-black/15">
+        : <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden" aria-label="Liste de mes chantiers">{filtered.map(line => { const project = line.project, act = actions(line), money = amount(line), href = rowDestination(line, act.primary); return <li key={line.id} className="min-w-0">
+          <article data-testid={`project-row-${line.id}`} tabIndex={href ? 0 : undefined} aria-label={href ? `Ouvrir : ${line.title}` : undefined} onClick={event => openRow(event, href)} onKeyDown={event => openRowFromKeyboard(event, href)} className={`flex h-full min-w-0 flex-col rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_1px_2px_rgba(23,32,42,0.04)] transition focus-within:ring-2 focus-within:ring-teal hover:border-black/15 ${href ? 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal' : ''}`}>
             <p className="text-xs font-semibold text-teal">{project ? `${typeLabels[project.project_type] ?? 'Projet'}${project.surface_m2 ? ` · ${project.surface_m2} m²` : ''}` : 'Lot attribué'}</p>
             <h2 className="mt-1 text-base font-bold leading-snug text-ink">{titleCell(line, 'line-clamp-2 break-words')}</h2>
             {project && <p className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-ink/70"><MapPin size={14} aria-hidden="true" className="shrink-0" /><span className="truncate">{project.location}</span></p>}
@@ -227,7 +241,7 @@ export default function Projects() {
               <div className="min-w-0"><dt className="text-ink/65">{money.label}</dt><dd className="mt-0.5 break-words font-semibold tabular-nums text-ink">{money.value}</dd></div>
             </dl>
             {project?.desired_end_date && <p className="mt-2 flex items-center gap-1.5 text-xs text-ink/65"><CalendarDays size={13} aria-hidden="true" />Fin souhaitée : {formatDate(project.desired_end_date)}</p>}
-            <div className="mt-auto border-t border-black/[0.06] pt-3"><RowActions title={line.title} primary={act.primary} more={act.more} /></div>
+            <div className="mt-auto border-t border-black/[0.06] pt-3"><RowActions title={line.title} primary={act.primary} more={act.more} menuOnly /></div>
           </article>
         </li>; })}</ul>}
       </>}
