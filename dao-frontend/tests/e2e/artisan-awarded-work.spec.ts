@@ -104,6 +104,7 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   await artisan.keyboard.press('Escape');
   await expect(artisan.getByRole('link', { name: 'Voir le DAO' })).toHaveCount(0);
   expect(await artisan.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  await row.getByRole('button', { name: /^Autres actions/ }).click();
   await row.getByRole('link', { name: /^Conditions — / }).click();
   await expect(artisan).toHaveURL(/\/app\/awards\/[^/]+\/conditions$/);
   await expect(artisan.getByRole('heading', { name: 'Conditions et calendrier' })).toBeVisible();
