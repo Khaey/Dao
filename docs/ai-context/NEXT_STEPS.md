@@ -4,11 +4,11 @@
 
 PR #391 fusionnée, CI PR/main verte, application DEV déployée et migration DEV
 appliquée une fois (`20261023004608 / contract_preparation_after_award`). Les
-smokes OFF/ON, atomicité, idempotence et JWT/RLS ont réussi avec rollback ; la
-base persistante reste OFF sans configuration runtime ni contrat. Ne pas
-réappliquer la migration ni recréer l'adaptateur. Une activation fonctionnelle
-future doit nommer explicitement le représentant D.A.O actif de LogicLab Tunisie,
-puis être choisie chantier par chantier par le Client propriétaire. Aucune PROD.
+smokes OFF/ON, atomicité, idempotence et JWT/RLS ont réussi avec rollback. Le
+compte réel `ahmed` est configuré comme représentant actif de LogicLab Tunisie
+(révision 1) ; aucun chantier ni contrat n'est actif. Ne pas réappliquer la
+migration ni recréer l'adaptateur. La seule activation future est le choix
+chantier par chantier du Client propriétaire avant attribution. Aucune PROD.
 
 ## DEV 20 — #231 notifications internes S1
 
