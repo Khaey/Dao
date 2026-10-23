@@ -1,8 +1,9 @@
 # D.A.O — Current State
 
-## DEV 2 — #390 préparation contrat configurable après attribution (23 octobre 2026)
+## DEV 2 — #390 préparation contrat configurable après attribution LIVRÉE (23 octobre 2026)
 
-La branche `feature/390-contract-preparation` ajoute un réglage par chantier
+La PR [#391](https://github.com/Khaey/Dao/pull/391), fusionnée dans `main`
+(`893ca94e6988e1fcb6a4788b25b22ae3a504df77`), ajoute un réglage par chantier
 OFF par défaut, modifiable par le Client propriétaire avant la première
 attribution, et une configuration administrative auditée du représentant de
 LogicLab Tunisie. Un trigger différé prépare le brouillon canonique non
@@ -10,9 +11,17 @@ engageant dans la transaction de création de l'award, après toutes ses lignes 
 succès complet ou rollback, sans état intermédiaire ni doublon. Plusieurs awards
 du même Artisan conservent plusieurs contrats techniques ; CH2 garde uniquement
 leur regroupement visuel. API JWT, RLS, tests PGlite et intégration Supabase
-jetable accompagnent la migration `20261022230233`. Aucun SQL DEV partagé ni
-PROD n'est inclus dans la PR ; preuves exact-HEAD/CI et déploiement restent à
-consigner dans [#390](https://github.com/Khaey/Dao/issues/390).
+jetable accompagnent la migration `20261022230233`.
+
+CI PR [39870510267](https://github.com/Khaey/Dao/actions/runs/39870510267) et
+CI/main-déploiement [39872351936](https://github.com/Khaey/Dao/actions/runs/39872351936)
+sont vertes. Après GO OPS explicite, la migration a été appliquée une fois sur
+le projet Supabase DEV sous le ledger `20261023004608 / contract_preparation_after_award`.
+Les smokes DEV transactionnels avec rollback valident OFF, ON, création atomique,
+replay idempotent et isolation JWT/RLS. État persistant final : 0 réglage, 0
+configuration runtime, 0 audit de préparation et 0 contrat ; le comportement
+reste donc OFF tant qu'un représentant D.A.O précis et un chantier ne sont pas
+explicitement activés. Aucune opération PROD, Back-office #64 ou OCE #58.
 
 ## DEV 20 — #231 notifications internes S1 (18 octobre 2026)
 
