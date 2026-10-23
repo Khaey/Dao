@@ -318,6 +318,17 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
   assert.equal(authorizedSchedule.data.installments[0].status, 'authorized');
   assert.equal(authorizedSchedule.data.installments[0].can_authorize, false);
   assert.equal(authorizedSchedule.data.events.length, 3);
+  // #397: server-assigned sequence is monotone; UUID order is not event order.
+  const history = await admin.from('precontract_installment_events')
+    .select('event_seq,event_type')
+    .eq('agreement_version_id', second.data.version_id)
+    .order('event_seq', { ascending: true });
+  assert.ifError(history.error);
+  assert.deepEqual(history.data!.map(event => event.event_type),
+    ['declared', 'verified', 'authorized']);
+  assert.equal(new Set(history.data!.map(event => event.event_seq)).size, 3);
+  assert.ok(history.data![0].event_seq < history.data![1].event_seq);
+  assert.ok(history.data![1].event_seq < history.data![2].event_seq);
 
   assert.ok((await admin.from('precontract_agreement_versions')
     .update({ content_hash: '0'.repeat(64) })
