@@ -18,10 +18,12 @@ CI/main-déploiement [39872351936](https://github.com/Khaey/Dao/actions/runs/398
 sont vertes. Après GO OPS explicite, la migration a été appliquée une fois sur
 le projet Supabase DEV sous le ledger `20261023004608 / contract_preparation_after_award`.
 Les smokes DEV transactionnels avec rollback valident OFF, ON, création atomique,
-replay idempotent et isolation JWT/RLS. État persistant final : 0 réglage, 0
-configuration runtime, 0 audit de préparation et 0 contrat ; le comportement
-reste donc OFF tant qu'un représentant D.A.O précis et un chantier ne sont pas
-explicitement activés. Aucune opération PROD, Back-office #64 ou OCE #58.
+replay idempotent et isolation JWT/RLS. Le propriétaire a ensuite désigné
+explicitement le compte réel `ahmed` comme représentant de LogicLab Tunisie :
+configuration runtime active, révision 1, un événement et un reçu idempotent.
+État persistant final : 0 réglage chantier, 0 audit de préparation et 0 contrat ;
+chaque Client doit encore activer explicitement l'option sur son chantier avant
+la première attribution. Aucune opération PROD, Back-office #64 ou OCE #58.
 
 ## DEV 20 — #231 notifications internes S1 (18 octobre 2026)
 
