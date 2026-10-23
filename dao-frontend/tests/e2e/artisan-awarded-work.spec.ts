@@ -105,7 +105,8 @@ test('Artisan #356 : chantier attribué visible sans appartenance, offre classé
   await expect(artisan.getByRole('link', { name: 'Voir le DAO' })).toHaveCount(0);
   expect(await artisan.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await row.getByRole('button', { name: /^Autres actions/ }).click();
-  await row.getByRole('link', { name: /^Conditions — / }).click();
+  // In menu-only mode the accessible link text is « Conditions », not the old CTA aria-label « Conditions — titre ».
+  await row.locator('a[href^="/app/awards/"][href$="/conditions"]').click();
   await expect(artisan).toHaveURL(/\/app\/awards\/[^/]+\/conditions$/);
   await expect(artisan.getByRole('heading', { name: 'Conditions et calendrier' })).toBeVisible();
 
