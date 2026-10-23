@@ -141,6 +141,17 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   await page.getByRole('combobox', { name: 'Filtrer par statut' }).selectOption('awarded');
   await expect(row).toBeVisible();
 
+  // A click on the overflow menu must not navigate the chantier row.
+  await expect(row.getByRole('link', { name: /^(Ouvrir|Suivre les travaux) — / })).toHaveCount(0);
+  const rowMenu = row.getByRole('button', { name: 'Autres actions — ' + project.title });
+  await rowMenu.click();
+  await expect(page).toHaveURL(new RegExp('/app/projects$'));
+  await expect(page.getByRole('link', { name: 'Ouvrir le chantier' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  // Enter on the focused row opens the same authorised chantier as a mouse click.
+  await row.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp('/app/projects/' + project.projectId + '$'));
   // Another Client never reaches this chantier nor its offers.
   const oc = await browser.newContext(), other = await oc.newPage();
   await login(other, e2eOtherClient!);
