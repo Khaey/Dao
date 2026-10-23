@@ -1,13 +1,14 @@
 # D.A.O — Next Steps
 
-## DEV 2 — qualifier et livrer #390
+## DEV 2 — #390 livré, ne pas rejouer
 
-Obtenir les trois checks obligatoires sur le HEAD exact de
-`feature/390-contract-preparation`, notamment migration fraîche/replay et tests
-JWT réels : OFF sans contrat, ON atomique, replay, deux awards du même Artisan,
-concurrent, annulation bloquée et RLS. Fusionner seulement après revue sécurité.
-La migration et la configuration du représentant sur DEV partagé exigent le
-gate OPS prévu dans #390 ; aucune PROD. CH2 conserve #382 et l'UX regroupée.
+PR #391 fusionnée, CI PR/main verte, application DEV déployée et migration DEV
+appliquée une fois (`20261023004608 / contract_preparation_after_award`). Les
+smokes OFF/ON, atomicité, idempotence et JWT/RLS ont réussi avec rollback ; la
+base persistante reste OFF sans configuration runtime ni contrat. Ne pas
+réappliquer la migration ni recréer l'adaptateur. Une activation fonctionnelle
+future doit nommer explicitement le représentant D.A.O actif de LogicLab Tunisie,
+puis être choisie chantier par chantier par le Client propriétaire. Aucune PROD.
 
 ## DEV 20 — #231 notifications internes S1
 
