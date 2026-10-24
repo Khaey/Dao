@@ -46,7 +46,7 @@ export interface ExecutionTableLot extends ExecutionTableNode {
 }
 
 function exists(date: { start?: string | null; end?: string | null } | null | undefined) {
-  return Boolean(date && (date.start !== null || date.end !== null));
+  return Boolean(date && (date.start != null || date.end != null));
 }
 
 /** Priorité d'affichage pour la maquette seulement : source explicitée, jamais baseline implicite. */
