@@ -45,7 +45,7 @@ export interface ExecutionTableLot extends ExecutionTableNode {
   hasObservedDates: boolean;
 }
 
-function exists(date: NativeDate | null | undefined) {
+function exists(date: { start?: string | null; end?: string | null } | null | undefined) {
   return Boolean(date && (date.start !== null || date.end !== null));
 }
 
