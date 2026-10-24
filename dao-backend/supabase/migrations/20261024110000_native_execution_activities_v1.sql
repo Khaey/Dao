@@ -399,24 +399,24 @@ begin
       where l.value#>>'{award,awardItemId}'=a.award_item_id::text)
   );
   select coalesce(jsonb_agg(jsonb_build_object(
-      'id',a.id,'requestId',a.request_id,'awardItemId',a.award_item_id,
-      'parentActivityId',a.parent_activity_id,'kind',a.kind,'title',a.title,'scope',a.scope,
-      'position',a.position,'revision',a.revision,'active',a.active,'createdBy',a.created_by,'updatedBy',a.updated_by,'updatedAt',a.updated_at,
-      'plannedDates',jsonb_build_object('start',a.planned_start,'end',a.planned_end,'durationDays',a.duration_days,'source','dao_native_execution'),
+      'id',activity_row.id,'requestId',activity_row.request_id,'awardItemId',activity_row.award_item_id,
+      'parentActivityId',activity_row.parent_activity_id,'kind',activity_row.kind,'title',activity_row.title,'scope',activity_row.scope,
+      'position',activity_row.position,'revision',activity_row.revision,'active',activity_row.active,'createdBy',activity_row.created_by,'updatedBy',activity_row.updated_by,'updatedAt',activity_row.updated_at,
+      'plannedDates',jsonb_build_object('start',activity_row.planned_start,'end',activity_row.planned_end,'durationDays',activity_row.duration_days,'source','dao_native_execution'),
       'history',coalesce(history.items,'[]'::jsonb)
-    ) order by a.request_id,a.position,a.id),'[]'::jsonb)
+    ) order by activity_row.request_id,activity_row.position,activity_row.id),'[]'::jsonb)
     into activity_items
-  from (select a.* from public.native_execution_activities a
-    where a.project_id=p_project_id and exists(
+  from (select source_activity.* from public.native_execution_activities source_activity
+    where source_activity.project_id=p_project_id and exists(
       select 1 from jsonb_array_elements(coalesce(p_base->'lots','[]'::jsonb)) l
-      where l.value#>>'{award,awardItemId}'=a.award_item_id::text)
-    order by a.request_id,a.position,a.id limit 1000) a
+      where l.value#>>'{award,awardItemId}'=source_activity.award_item_id::text)
+    order by source_activity.request_id,source_activity.position,source_activity.id limit 1000) activity_row
   left join lateral (
     select jsonb_agg(jsonb_build_object('revision',v.revision,'action',v.action,'title',v.title,
       'scope',v.scope,'position',v.position,'plannedStart',v.planned_start,'plannedEnd',v.planned_end,
       'durationDays',v.duration_days,'active',v.active,'actorId',v.actor_id,'at',v.created_at) order by v.revision desc) as items
     from (select h.* from public.native_execution_activity_revisions h
-      where h.activity_id=a.id order by h.revision desc limit 20) v
+      where h.activity_id=activity_row.id order by h.revision desc limit 20) v
   ) history on true;
 
   proposals_truncated:= (
