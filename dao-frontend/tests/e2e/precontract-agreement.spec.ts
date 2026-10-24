@@ -92,9 +92,11 @@ test('Accord avant contrat #346 : proposer, contre-proposition, accord commun su
   await expect(page.getByRole('alert').filter({ hasText: 'entre 1 et 3650' })).toBeVisible();
   await page.getByLabel('Durée des travaux (jours)').fill('15');
   await page.getByLabel('Modalité de paiement de référence').selectOption('milestone');
-  // Optional installments in TND are normalized to integer millimes (exact awarded total).
-  await page.getByRole('button', { name: 'Échéancier indicatif (optionnel)' }).click();
-  await page.getByRole('button', { name: 'Ajouter une échéance' }).click();
+  // A draft schedule is automatically suggested, then the Client may freely customize it.
+  await expect(page.getByLabel('Intitulé de l’échéance 1')).toBeVisible();
+  await expect(page.getByLabel('Intitulé de l’échéance 1')).toHaveValue('Étape indicative 1');
+  while (await page.getByRole('button', { name: 'Supprimer' }).count() > 1)
+    await page.getByRole('button', { name: 'Supprimer' }).last().click();
   await page.getByLabel('Intitulé de l’échéance 1').fill('Jalon menuiserie');
   await page.getByLabel('Montant (TND) — échéance 1').fill('12500.000');
   // Advanced options stay folded until asked for; keyboard reachable.

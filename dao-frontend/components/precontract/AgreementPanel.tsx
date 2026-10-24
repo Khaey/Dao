@@ -234,7 +234,7 @@ function TermsForm({ initial, subLots, totalMillimes, onReview, onCancel }: { in
       <label className="block text-sm font-semibold text-ink sm:col-span-2">Modalités d’exécution<textarea rows={3} maxLength={4000} className={field} value={terms.execution_terms ?? ''} onChange={event => set({ execution_terms: event.target.value })} placeholder="Ex. : accès au chantier de 8 h à 17 h, eau et électricité fournies." /></label>
     </div>
     {terms.payment_mode !== 'none' && <div className="rounded-xl border border-black/[0.08] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3"><button type="button" aria-expanded={showInstallments} onClick={() => setShowInstallments(value => !value)} className="min-h-11 text-sm font-semibold text-teal hover:underline">Échéancier indicatif modifiable</button>
+      <div className="flex flex-wrap items-center justify-between gap-3"><button type="button" aria-expanded={showInstallments} onClick={() => setShowInstallments(value => !value)} className="min-h-11 text-sm font-semibold text-teal hover:underline">Échéancier indicatif (optionnel)</button>
       <button type="button" className="min-h-11 rounded-lg border border-teal/20 bg-white px-3 text-sm font-semibold text-teal hover:bg-teal/5" onClick={() => {
         const rows = suggest();
         if (!rows.length) { setProblem('Indiquez une date de début, une durée et une modalité valide (maximum 100 échéances) pour proposer un échéancier.'); return; }
