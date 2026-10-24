@@ -308,6 +308,9 @@ begin
   native_result:=public.native_execution_activity_write(plain_award_item,null,'create',native_activity,'activity',
     'Pose',null,1,null,null,null,null,'native-create-0002');
   native_child:=(native_result->>'id')::uuid;
+  begin perform public.native_execution_activity_write(plain_award_item,native_activity,'create',null,'activity',
+      'Périmètre ajouté seul','Travail engageant',2,null,null,null,null,'native-create-scope-0001');
+    raise exception 'direct scoped activity create bypassed bilateral acceptance'; exception when check_violation then null; end;
   native_result:=public.native_execution_activity_write(plain_award_item,native_child,'update',native_activity,'activity',
     'Pose préparée',null,2,null,null,null,1,'native-update-0001');
   if native_result->>'revision'<>'2' then raise exception 'native activity revision did not advance'; end if;

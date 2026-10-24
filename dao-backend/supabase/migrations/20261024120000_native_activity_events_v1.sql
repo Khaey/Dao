@@ -15,6 +15,18 @@ create index site_log_events_native_activity_idx
 create function dao_private.native_activity_engagement_guard()
 returns trigger language plpgsql set search_path='' as $$
 begin
+  if tg_op='INSERT' then
+    if new.scope is not null and not exists(
+      select 1 from public.native_execution_activity_proposals p
+      where p.activity_id=new.id and p.award_item_id=new.award_item_id and p.action='create'
+        and p.state='pending_acceptance' and p.scope is not distinct from new.scope
+        and (select count(distinct a.party_role)=2 from public.native_execution_activity_proposal_acceptances a
+          where a.proposal_id=p.id and a.decision='accepted')
+    ) then
+      raise exception using errcode='23514',message='Un nouveau périmètre exige une proposition acceptée par les deux parties';
+    end if;
+    return new;
+  end if;
   if new.scope is distinct from old.scope and not exists(
     select 1 from public.native_execution_activity_proposals p
     where p.activity_id=old.id and p.award_item_id=old.award_item_id and p.action='update'
@@ -38,7 +50,7 @@ begin
 end;
 $$;
 create trigger native_execution_activity_engagement_guard
-  before update of scope,active on public.native_execution_activities
+  before insert or update on public.native_execution_activities
   for each row execute function dao_private.native_activity_engagement_guard();
 revoke all on function dao_private.native_activity_engagement_guard() from public,anon,authenticated;
 
