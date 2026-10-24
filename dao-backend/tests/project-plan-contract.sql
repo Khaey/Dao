@@ -65,6 +65,7 @@ begin
   if rev is null or rev<2 then raise exception 'award must bump the plan revision, got %',rev; end if;
   insert into public.award_items(award_id,project_id,request_id,bid_item_id,agreed_millimes,contractor_id) values(awa,proj,r3,ic,500000,pa);
   insert into public.award_items(award_id,project_id,request_id,bid_item_id,agreed_millimes,contractor_id) values(awb,proj,r2,ib,900000,pb);
+  update public.project_requests set status='awarded' where id in(r1,r2,r3);
 
   -- P10-N1: native read projection is independent of OCE and scopes a contractor to own active lots.
   perform set_config('request.jwt.claim.sub',c::text,true);
