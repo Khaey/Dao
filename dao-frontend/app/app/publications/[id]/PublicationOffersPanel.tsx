@@ -8,6 +8,13 @@ import { projectApi } from '../../../../lib/collaboration';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 import AgreementLinks from '../../../../components/precontract/AgreementLinks';
 
+type CounterState = {allowed:boolean;status?:'pending'|'accepted'|'declined'|null;amount_millimes?:number|null};
+const parseTnd = (input:string):number|null=>{
+  const match=input.trim().replace(',','.').match(/^(\d+)(?:\.(\d{1,3}))?$/);
+  if(!match)return null;
+  const val=Number(match[1])*1000+Number((match[2]||'').padEnd(3,'0'));
+  return Number.isSafeInteger(val)&&val>0?val:null;
+};
 type Lot = { id: string; request_version_id: string; safe_title: string };
 type Offer = {
   itemId: string;
@@ -46,6 +53,11 @@ function formatTnd(value: number) {
 
 export default function PublicationOffersPanel({ projectId, publicationId, lots, canManage=true, assisted=false }: { projectId: string; publicationId: string; lots: Lot[]; canManage?:boolean; assisted?:boolean }) {
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [counterOptions,setCounterOptions]=useState<Record<string,CounterState>>({});
+  const [counterDraft,setCounterDraft]=useState<string|null>(null);
+  const [counterAmount,setCounterAmount]=useState('');
+  const [counterMessage,setCounterMessage]=useState('');
+  const [counterBusy,setCounterBusy]=useState(false);
   const [awards, setAwards] = useState<Award[]>([]);
   const [availability, setAvailability] = useState<Record<string, string>>({});
   const [cancellations, setCancellations] = useState<any[]>([]);
@@ -178,6 +190,29 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
   }, [offers]);
   const activeAward = useMemo(() => new Map(awards.map((award) => [award.request_id, award])), [awards]);
 
+  async function loadCounterOptions() {
+    if(assisted) return;
+    const {data,error}=await supabaseBrowser().rpc('client_bid_counter_options',{p_publication_id:publicationId});
+    if(error || !Array.isArray(data)) {setCounterOptions({});return;}
+    const byItem:Record<string,CounterState>={};
+    for(const entry of data) if(typeof entry.bid_item_id==='string')
+      byItem[entry.bid_item_id]={allowed:entry.allowed===true,status:entry.status,amount_millimes:entry.amount_millimes};
+    setCounterOptions(byItem);
+  }
+  useEffect(()=>{void loadCounterOptions();},[publicationId,assisted,offers.length]);
+  async function proposeCounter(item:Offer){
+    const mills=parseTnd(counterAmount);
+    if(mills==null){setError('Indiquez un montant valide en TND (jusqu’à 3 décimales).');return;}
+    if(!window.confirm(`Proposer ${formatTnd(mills)} à cet Artisan pour ce lot ?`))return;
+    setCounterBusy(true);setError('');
+    const {error}=await supabaseBrowser().rpc('propose_bid_counter',{
+      p_bid_item_id:item.itemId,p_amount_millimes:mills,p_message:counterMessage.trim(),p_key:crypto.randomUUID()
+    });
+    if(error)setError('Impossible d’envoyer cette contre-proposition. Le lot ou la préférence Artisan a peut-être changé.');
+    else {setCounterDraft(null);setCounterAmount('');setCounterMessage('');await loadCounterOptions();setMessage('Contre-proposition transmise à l’Artisan. Le devis original reste inchangé.');}
+    setCounterBusy(false);
+  }
+
   async function award(offer: Offer) {
     setSaving(true);
     setError('');
@@ -270,7 +305,19 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
               <div className="mt-4 rounded-xl bg-sand/55 p-3"><p className="text-xs font-bold uppercase tracking-wide text-black/45">Devis</p>{details.length?<><div className="mt-2 overflow-x-auto"><table className="w-full min-w-[430px] text-left text-xs"><thead><tr className="text-black/45"><th className="pb-1 pr-2">Poste</th><th className="pb-1 pr-2">Qté</th><th className="pb-1 pr-2">PU</th><th className="pb-1 text-right">Total</th></tr></thead><tbody>{details.map(line=><tr key={line.id} className="border-t border-black/5"><td className="py-1.5 pr-2 font-medium text-ink">{line.designation} <span className="text-black/40">· {line.unit}</span></td><td className="py-1.5 pr-2 tabular-nums">{Number(line.quantity_milli)/1000}</td><td className="py-1.5 pr-2 tabular-nums">{formatTnd(Number(line.unit_price_millimes))}</td><td className="py-1.5 text-right font-semibold tabular-nums">{formatTnd(Number(line.total_millimes))}</td></tr>)}</tbody></table></div><p className="mt-2 text-xs text-black/50">Détail structuré disponible · total réconcilié avec l’offre.</p></>:<p className="mt-1 text-xs text-black/50">Pas de détail structuré : comparez le prix global et le périmètre annoncé.</p>}
               <div className="mt-2 flex flex-wrap gap-2"><Button className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void exportQuote(offer.versionId)}>Exporter le devis PDF</Button>{attached.map(document=><Button key={document.id} className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void downloadQuote(document.id)}>Voir {document.original_name}</Button>)}</div>{attached.length===0&&<p className="mt-2 text-xs text-black/50">Pas de devis PDF joint — l’offre reste complète en ligne.</p>}</div>
               <p className="mt-3 text-xs text-black/40">Version {offer.versionNo} · soumise le {new Date(offer.submittedAt).toLocaleDateString('fr-TN')}</p>
-              <div className="mt-auto pt-4">
+              {canManage&&!assisted&&!awarded&&offer.groupId===null&&counterOptions[offer.itemId]?.allowed&&
+                <div className="mt-4 rounded-xl border border-teal/15 bg-teal/[0.035] p-3.5">
+                  <p className="text-xs font-semibold text-teal">Artisan ouvert à la négociation</p>
+                  {counterOptions[offer.itemId]?.status==='pending'?<p className="mt-2 text-sm text-black/65">Contre-proposition de {formatTnd(Number(counterOptions[offer.itemId].amount_millimes))} en attente de sa réponse.</p>
+                  :counterOptions[offer.itemId]?.status==='accepted'?<p className="mt-2 text-sm font-semibold text-teal">Nouveau prix accepté : {formatTnd(Number(counterOptions[offer.itemId].amount_millimes))}. Il sera pris en compte à l’attribution.</p>
+                  :counterDraft===offer.itemId?<div className="mt-2 space-y-2">
+                    <label className="block text-xs font-semibold text-ink">Nouveau montant (TND)<input inputMode="decimal" className={field} value={counterAmount} onChange={e=>setCounterAmount(e.target.value)} placeholder="25000.000"/></label>
+                    <label className="block text-xs font-semibold text-ink">Message facultatif<textarea maxLength={2000} rows={2} className={field} value={counterMessage} onChange={e=>setCounterMessage(e.target.value)} /></label>
+                    <div className="flex flex-wrap gap-2"><Button disabled={counterBusy} onClick={()=>void proposeCounter(offer)}>Envoyer la proposition</Button>
+                    <Button className={ghost} disabled={counterBusy} onClick={()=>setCounterDraft(null)}>Annuler</Button></div>
+                  </div>:<Button className={ghost} onClick={()=>{setCounterDraft(offer.itemId);setCounterAmount('');setCounterMessage('');}}>Faire une contre-proposition</Button>}
+                </div>}
+                <div className="mt-auto pt-4">
               {isWinner ? <p className="flex items-center gap-1.5 rounded-xl bg-teal/10 px-3 py-2.5 text-sm font-semibold text-teal"><CheckCircle2 aria-hidden="true" size={16} />Offre retenue · {formatTnd(Number(awarded.agreed_millimes))}</p> : declined ? <p className="text-sm font-semibold text-black/55">Non retenue</p> : !awarded && confirming === offer.itemId ? <div className="rounded-xl border border-clay/25 bg-clay/[0.05] p-3.5">
                 <p className="flex items-start gap-2 text-sm font-medium text-ink"><AlertTriangle aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-clay" />{offer.groupId ? 'Confirmer l’attribution de tous les lots de ce package indivisible ?' : 'Confirmer l’attribution de ce lot à cette offre ?'}</p>
                 {assisted && assistField}
