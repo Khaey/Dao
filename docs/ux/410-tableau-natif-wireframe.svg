@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 685" role="img" aria-labelledby="title description">
+<title id="title">D.A.O. — maquette Tableau de suivi natif</title>
+<desc id="description">Maquette fictive Client avec lots, sous-lots, dates et progression connue ou non renseignée ; cinq options indépendantes.</desc>
+<rect width="1200" height="685" fill="#f6f7f5"/>
+<rect x="18" y="18" width="1164" height="86" rx="19" fill="#174d47"/>
+<text x="45" y="58" fill="#fff" font-family="Arial,sans-serif" font-size="25" font-weight="bold">D.A.O. · Tableau de suivi natif</text>
+<text x="45" y="85" fill="#c1e4d9" font-family="Arial,sans-serif" font-size="15">Maison S+3 — données fictives · Client / Artisan / Gestionnaire</text>
+<rect x="955" y="40" width="198" height="37" rx="17" fill="#fff2d8"/>
+<text x="977" y="64" font-family="Arial,sans-serif" font-size="14" fill="#775212" font-weight="bold">MAQUETTE · NON LIVE</text>
+<rect x="18" y="119" width="1164" height="395" rx="18" fill="#fff" stroke="#e0e7e4"/>
+<text x="45" y="156" font-family="Arial,sans-serif" font-size="22" font-weight="bold" fill="#174d47">Suivi par lot</text>
+<text x="45" y="180" font-family="Arial,sans-serif" font-size="15" fill="#65837b">Les sous-lots du devis retenu se déplient uniquement s'ils existent.</text>
+<rect x="998" y="137" width="94" height="30" rx="15" fill="#ddf5ea"/>
+<text x="1018" y="157" font-family="Arial,sans-serif" font-size="14" fill="#176d56" font-weight="bold">Tableau</text>
+<text x="1101" y="157" font-family="Arial,sans-serif" font-size="14" fill="#92a19b">Gantt</text>
+<rect x="37" y="195" width="1126" height="44" rx="9" fill="#eaf1ed"/>
+<g font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#496b5f">
+<text x="55" y="223">Intitulé</text><text x="330" y="223">Titulaire</text><text x="563" y="223">Dates</text><text x="760" y="223">Progression</text><text x="895" y="223">Statut</text><text x="1077" y="223">Action</text>
+</g>
+<g font-family="Arial,sans-serif" font-size="15" fill="#244b46">
+<rect x="37" y="246" width="1126" height="60" rx="9" fill="#fff" stroke="#e1e8e4"/>
+<text x="55" y="283" font-weight="bold">▾ Maçonnerie</text><text x="330" y="283">Entreprise Atlas</text><text x="563" y="283">02 nov – 16 déc</text><text x="760" y="283">35 % déclaré</text><text x="895" y="283">En cours</text><text x="1077" y="283" fill="#8b9b93">Options</text>
+<rect x="57" y="312" width="1106" height="50" rx="9" fill="#f3faf6" stroke="#dcebe4"/>
+<text x="78" y="342">↳ Fondations</text><text x="330" y="342" fill="#8b9b93">Même titulaire</text><text x="563" y="342">02 – 20 nov</text><text x="760" y="342">60 % déclaré</text><text x="895" y="342">En cours</text>
+<rect x="57" y="368" width="1106" height="50" rx="9" fill="#f3faf6" stroke="#dcebe4"/>
+<text x="78" y="399">↳ Élévation des murs</text><text x="330" y="399" fill="#8b9b93">Même titulaire</text><text x="563" y="399">Non renseignées</text><text x="760" y="399">Non renseigné</text><text x="895" y="399">À démarrer</text>
+<rect x="37" y="425" width="1126" height="56" rx="9" fill="#fff" stroke="#e1e8e4"/>
+<text x="55" y="458" font-weight="bold">Électricité</text><text x="330" y="458">Société Éclair</text><text x="563" y="458">Non renseignées</text><text x="760" y="458">Non renseigné</text><text x="895" y="458">Conditions à convenir</text><text x="1077" y="458" fill="#8b9b93">Options</text>
+</g>
+<rect x="18" y="531" width="1164" height="136" rx="18" fill="#fff" stroke="#e0e7e4"/>
+<text x="45" y="563" font-family="Arial,sans-serif" font-size="20" font-weight="bold" fill="#174d47">Compléter un lot quand c'est utile</text>
+<text x="45" y="584" font-family="Arial,sans-serif" font-size="14" fill="#65837b">Aucune option ne rend les autres obligatoires · actions désactivées tant que DEV 3 n'a pas livré le DTO.</text>
+<g font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#496b5f">
+<rect x="45" y="600" width="210" height="42" rx="10" fill="#f3faf6" stroke="#c5dcd0"/><text x="57" y="627">+ Ajouter un sous-lot</text>
+<rect x="264" y="600" width="176" height="42" rx="10" fill="#f3faf6" stroke="#c5dcd0"/><text x="275" y="627">+ Ajouter des dates</text>
+<rect x="449" y="600" width="235" height="42" rx="10" fill="#f3faf6" stroke="#c5dcd0"/><text x="461" y="627">+ Ajouter dépendance</text>
+<rect x="693" y="600" width="178" height="42" rx="10" fill="#f3faf6" stroke="#c5dcd0"/><text x="703" y="627">+ Ajouter un jalon</text>
+<rect x="880" y="600" width="269" height="42" rx="10" fill="#f3faf6" stroke="#c5dcd0"/><text x="894" y="627">+ Ajouter un échéancier</text>
+</g>
+</svg>
