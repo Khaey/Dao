@@ -66,7 +66,17 @@ function subLotDates(sub: NativeSubLot): { dates: NativeDate | null; source: str
 
 export function adaptNativeExecutionPlan(plan: NativeExecutionPlanDTO): ExecutionTableLot[] {
   if (plan.schemaVersion !== 1) throw new Error('Version de suivi non prise en charge.');
+  // DEV 3 N1: modalités sur lot. DEV 3 N2 (#413): modalités normalisées par award.
+  // Accepte les deux contrats sans recomputer ou dupliquer les échéances.
+  type AgreementProjection = {
+    awardId: string; agreementVersionId: string;
+    installments?: Array<unknown>; informationalOnly?: boolean; moneyMoved?: boolean;
+  };
+  const n2 = plan as NativeExecutionPlanDTO & { agreementsByAward?: AgreementProjection[] };
   return plan.lots.filter(lot => lot.permissions.canRead).map(lot => {
+    const inline = lot.modalities as AgreementProjection | null;
+    const shared = n2.agreementsByAward?.find(row => row.awardId === lot.award?.awardId);
+    const modalities = shared ?? inline;
     const selected = lotDates(lot);
     return {
       id: lot.requestId,
@@ -96,9 +106,9 @@ export function adaptNativeExecutionPlan(plan: NativeExecutionPlanDTO): Executio
       subLotCount: lot.executionSubLots.length,
       milestoneCount: lot.milestones.length,
       dependencyCount: lot.dependencies.length,
-      installmentCount: lot.modalities?.installments.length ?? 0,
-      installmentInformational: lot.modalities?.informationalOnly === true && lot.modalities.moneyMoved === false,
-      agreementVersionId: lot.modalities?.agreementVersionId ?? lot.dates.agreed?.versionId ?? null,
+      installmentCount: modalities?.installments?.length ?? 0,
+      installmentInformational: modalities?.informationalOnly === true && modalities.moneyMoved === false,
+      agreementVersionId: modalities?.agreementVersionId ?? lot.dates.agreed?.versionId ?? null,
       canRead: lot.permissions.canRead,
       canPrepareChange: lot.permissions.canPrepareChange,
       canDeclareProgress: lot.permissions.canDeclareProgress,
