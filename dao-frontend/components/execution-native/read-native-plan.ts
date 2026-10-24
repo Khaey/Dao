@@ -29,6 +29,12 @@ export async function readNativeExecutionPlan(projectId: string, signal?: AbortS
   const token = data.session?.access_token;
   if (!token) throw new NativePlanReadError(401, messageFor(401));
   const allLots: NativeExecutionPlanDTO['lots'] = [];
+  const allActivities = new Map<string, NativeExecutionPlanDTO['activities']['items'][number]>();
+  const allProposals = new Map<string, NativeExecutionPlanDTO['changeProposals'][number]>();
+  const agreementsByAward = new Map<string, NativeExecutionPlanDTO['agreementsByAward'][number]>();
+  let activitiesSupported = false;
+  let activitiesTruncated = false;
+  let proposalsTruncated = false;
   let first: NativeExecutionPlanDTO | null = null;
   let cursor: string | null = null;
   const seen = new Set<string>();
@@ -56,8 +62,20 @@ export async function readNativeExecutionPlan(projectId: string, signal?: AbortS
     for (const lot of result.lots) {
       if (!seen.has(lot.requestId)) { allLots.push(lot); seen.add(lot.requestId); }
     }
+    activitiesSupported ||= result.activities?.supported ?? false;
+    activitiesTruncated ||= result.activities?.truncated ?? false;
+    proposalsTruncated ||= result.changeProposalsTruncated ?? false;
+    for (const item of result.activities?.items ?? []) allActivities.set(item.id, item);
+    for (const item of result.changeProposals ?? []) allProposals.set(item.proposalId, item);
+    for (const agreement of result.agreementsByAward ?? []) agreementsByAward.set(agreement.awardId, agreement);
     cursor = result.page.nextCursor;
-    if (!cursor) return { ...first, lots: allLots, page: { ...result.page, nextCursor: null } };
+    if (!cursor) return {
+      ...first, lots: allLots,
+      activities: { supported: activitiesSupported, items: [...allActivities.values()], truncated: activitiesTruncated },
+      changeProposals: [...allProposals.values()], changeProposalsTruncated: proposalsTruncated,
+      agreementsByAward: [...agreementsByAward.values()],
+      page: { ...result.page, nextCursor: null },
+    };
   }
   throw new NativePlanReadError(409, 'Le suivi dépasse la limite de chargement. Actualisez ou affinez la lecture.');
 }
