@@ -115,8 +115,8 @@ $$;
 
 create function dao_private.native_execution_accept_installment_scope(p_proposal_id uuid,p_decision text,p_idempotency_key text)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); proposal public.native_installment_scope_proposals; award_id uuid; party text; accepted_count integer;
-  project_id uuid; current_version_id uuid; target_valid boolean:=true;
+declare actor uuid:=auth.uid(); proposal public.native_installment_scope_proposals; v_award_id uuid; party text; accepted_count integer;
+  v_project_id uuid; v_current_version_id uuid; target_valid boolean:=true;
 begin
   if actor is null or not dao_private.account_active(actor) or p_decision is null or p_decision not in ('accepted','rejected')
     or p_idempotency_key is null or length(p_idempotency_key) not between 8 and 128 then
@@ -124,11 +124,11 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(actor::text||':installment-scope-response:'||p_idempotency_key,0));
   select * into proposal from public.native_installment_scope_proposals where id=p_proposal_id for update;
   if proposal.id is null then raise exception using errcode='40001',message='Proposition indisponible'; end if;
-  select pa.award_id,a.project_id,pa.current_version_id into award_id,project_id,current_version_id from public.precontract_agreement_versions av
+  select pa.award_id,a.project_id,pa.current_version_id into v_award_id,v_project_id,v_current_version_id from public.precontract_agreement_versions av
     join public.precontract_agreements pa on pa.id=av.agreement_id
     join public.awards a on a.id=pa.award_id and a.status in ('confirmed','contracting','contracted')
     where av.id=proposal.agreement_version_id;
-  party:=dao_private.precontract_party_for_award(award_id,actor);
+  party:=dao_private.precontract_party_for_award(v_award_id,actor);
   if party is null then raise exception using errcode='42501',message='Client ou Artisan de l’attribution requis'; end if;
   if exists(select 1 from public.native_installment_scope_acceptances where actor_id=actor and idempotency_key=p_idempotency_key) then
     if exists(select 1 from public.native_installment_scope_acceptances where actor_id=actor and idempotency_key=p_idempotency_key
@@ -136,10 +136,10 @@ begin
       return jsonb_build_object('proposalId',p_proposal_id,'state',proposal.state); end if;
     raise exception using errcode='22023',message='Clé idempotente réutilisée'; end if;
   if proposal.state<>'pending_acceptance' then raise exception using errcode='40001',message='Proposition indisponible'; end if;
-  target_valid:=coalesce(current_version_id=proposal.agreement_version_id,false)
-    and exists(select 1 from public.projects p where p.id=project_id and p.status<>'archived')
+  target_valid:=coalesce(v_current_version_id=proposal.agreement_version_id,false)
+    and exists(select 1 from public.projects p where p.id=v_project_id and p.status<>'archived')
     and (proposal.scope_type not in ('lot','sub_lot','milestone') or exists(
-      select 1 from public.award_items ai where ai.id=proposal.award_item_id and ai.award_id=award_id and ai.active
+      select 1 from public.award_items ai where ai.id=proposal.award_item_id and ai.award_id=v_award_id and ai.active
     ))
     and (proposal.scope_type<>'sub_lot' or exists(
       select 1 from public.award_items ai join public.bid_sub_lots sl on sl.bid_item_id=ai.bid_item_id
