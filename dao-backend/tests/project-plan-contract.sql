@@ -312,13 +312,16 @@ begin
     'Pose préparée',null,2,null,null,null,1,'native-update-0001');
   if native_result->>'revision'<>'2' then raise exception 'native activity revision did not advance'; end if;
   begin perform public.native_execution_activity_write(plain_award_item,native_child,'update',native_activity,'activity',
+      'Pose élargie','Périmètre augmenté',2,null,null,null,2,'native-update-scope-0001');
+    raise exception 'direct scope change bypassed bilateral acceptance'; exception when check_violation then null; end;
+  begin perform public.native_execution_activity_write(plain_award_item,native_child,'update',native_activity,'activity',
       'Stale title',null,2,null,null,null,1,'native-update-0002'); raise exception 'stale activity revision accepted';
   exception when serialization_failure then null; end;
 
   insert into public.review_assignments(project_id,reviewer_id,assigned_at) values(plain_proj,stf,now());
   perform set_config('request.jwt.claim.sub',stf::text,true);
   native_result:=public.native_execution_prepare_activity_change(plain_award_item,'update',native_child,native_activity,
-    'activity','Pose confirmée',null,3,null,null,null,2,'native-proposal-0001');
+    'activity','Pose confirmée','Périmètre accepté',3,null,null,null,2,'native-proposal-0001');
   native_proposal:=(native_result->>'proposalId')::uuid;
   begin perform public.native_execution_accept_activity_change(native_proposal,'accepted','manager-accept-0001');
     raise exception 'manager accepted a bilateral change'; exception when insufficient_privilege then null; end;
@@ -331,6 +334,7 @@ begin
   if public.native_execution_accept_activity_change(native_proposal,'accepted','artisan-accept-0001')->>'state'<>'accepted' then
     raise exception 'accepted party retry must replay idempotently after proposal completion'; end if;
   if (select title from public.native_execution_activities where id=native_child)<>'Pose confirmée'
+    or (select scope from public.native_execution_activities where id=native_child)<>'Périmètre accepté'
     or (select revision from public.native_execution_activities where id=native_child)<>3
     or (select count(*) from public.native_execution_activity_revisions where activity_id=native_child)<>3 then
     raise exception 'accepted activity revision was not applied with history'; end if;
@@ -346,8 +350,19 @@ begin
   begin perform public.native_execution_activity_write(plain_award_item,native_activity,'retire',null,'sub_lot',
       'ignored',null,1,null,null,null,1,'native-retire-sub-0001'); raise exception 'parent sub-lot retired with active child';
   exception when check_violation then null; end;
-  perform public.native_execution_activity_write(plain_award_item,native_child,'retire',native_activity,'activity',
-    'ignored',null,1,null,null,null,3,'native-retire-child-0001');
+  begin perform public.native_execution_activity_write(plain_award_item,native_child,'retire',native_activity,'activity',
+      'ignored',null,1,null,null,null,3,'native-retire-scoped-child-0001'); raise exception 'scoped activity retired without bilateral acceptance';
+  exception when check_violation then null; end;
+  perform set_config('request.jwt.claim.sub',stf::text,true);
+  native_result:=public.native_execution_prepare_activity_change(plain_award_item,'retire',native_child,native_activity,
+    'activity',null,null,3,null,null,null,3,'native-retire-proposal-0001');
+  native_proposal:=(native_result->>'proposalId')::uuid;
+  perform set_config('request.jwt.claim.sub',c::text,true);
+  native_result:=public.native_execution_accept_activity_change(native_proposal,'accepted','native-retire-client-0001');
+  if native_result->>'state'<>'pending_acceptance' then raise exception 'retire proposal must wait for both parties'; end if;
+  perform set_config('request.jwt.claim.sub',a::text,true);
+  native_result:=public.native_execution_accept_activity_change(native_proposal,'accepted','native-retire-artisan-0001');
+  if native_result->>'state'<>'accepted' then raise exception 'bilateral retire proposal did not apply'; end if;
   perform public.native_execution_activity_write(plain_award_item,native_activity,'retire',null,'sub_lot',
     'ignored',null,1,null,null,null,1,'native-retire-sub-0002');
 end $$;
