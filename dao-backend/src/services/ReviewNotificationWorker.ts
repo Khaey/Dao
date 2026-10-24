@@ -8,6 +8,7 @@ const labels: Record<string, string> = {
   staff_project_updated: 'Le gestionnaire a préparé une nouvelle version de votre chantier et de ses lots. Consultez les modifications et leur historique.',
   review_approved: 'Votre dossier a été approuvé. Les lots peuvent être publiés.', review_rejected: 'Votre dossier nécessite des corrections. Modifiez-le puis soumettez une nouvelle version.',
   bid_submitted: 'Une nouvelle offre a été soumise pour votre chantier. Vous pouvez la consulter et la comparer avec les autres offres.',
+  bid_result: 'Une décision est disponible pour un lot de votre offre. Votre devis initial reste conservé dans votre historique.',
   lot_withdrawn: 'Un lot de votre chantier a été retiré de la publication. Les offres soumises sont conservées. Une correction sera examinée avant une nouvelle publication.',
   lot_withdrawn_professional: 'Un lot auquel vous avez répondu a été retiré de la publication. Votre offre soumise est conservée. Aucune nouvelle offre ne peut être déposée sur cette publication.',
 };
@@ -16,9 +17,14 @@ const escape = (value: string) => value.replace(/[&<>"']/g, c => ({'&':'&amp;','
 export function reviewMessage(notice: Notice, config: EmailConfiguration) {
   if (!labels[notice.kind]) throw new Error('UNKNOWN_NOTIFICATION');
   const p = notice.payload;
-  const subject = `D.A.O — ${notice.kind === 'bid_submitted' ? 'Nouvelle offre reçue' : notice.kind.startsWith('lot_withdrawn') ? 'Retrait d’un lot' : 'Suivi de votre dossier'}`;
-  const url = config.publicUrl + (notice.kind === 'lot_withdrawn_professional' ? '/app/artisan' : notice.kind === 'bid_submitted' && typeof p.publication_id === 'string' ? '/app/publications/' + encodeURIComponent(p.publication_id) + '#offres' : '/app/projects/' + encodeURIComponent(notice.project_id));
-  const lines = ['Bonjour,', labels[notice.kind], ...(p.title ? [`Chantier : ${p.title}`] : []), ...(p.lot ? [`Lot : ${p.lot}`] : []), ...(p.reason ? [`Motif : ${reasons[p.reason] || p.reason}`] : []), ...(p.comment ? [String(p.comment)] : []), `Consulter votre espace : ${url}`, 'L’équipe D.A.O'];
+  const subject = `D.A.O — ${notice.kind === 'bid_submitted' ? 'Nouvelle offre reçue' : notice.kind === 'bid_result' ? 'Résultat de votre offre' : notice.kind.startsWith('lot_withdrawn') ? 'Retrait d’un lot' : 'Suivi de votre dossier'}`;
+  const url = config.publicUrl + (notice.kind === 'bid_result' ? '/app/artisan/offers' : notice.kind === 'lot_withdrawn_professional' ? '/app/artisan' : notice.kind === 'bid_submitted' && typeof p.publication_id === 'string' ? '/app/publications/' + encodeURIComponent(p.publication_id) + '#offres' : '/app/projects/' + encodeURIComponent(notice.project_id));
+  const decision = notice.kind === 'bid_result' ? (
+    p.decision === 'selected' ? 'Résultat : votre proposition est retenue pour ce lot.' :
+    p.decision === 'not_selected' ? 'Résultat : ce lot a été attribué à un autre professionnel. Vos autres lots conservent leur propre résultat.' :
+    p.decision === 'available' ? 'Résultat : l’attribution de ce lot a été annulée. Consultez son état actuel.' : ''
+  ) : '';
+  const lines = ['Bonjour,', labels[notice.kind], ...(decision ? [decision] : []), ...(p.title ? [`Chantier : ${p.title}`] : []), ...(p.lot ? [`Lot : ${p.lot}`] : []), ...(p.reason ? [`Motif : ${reasons[p.reason] || p.reason}`] : []), ...(p.comment ? [String(p.comment)] : []), `Consulter votre espace : ${url}`, 'L’équipe D.A.O'];
   return { from: config.from, to: [notice.delivery_email], subject, text: lines.join('\n\n'), html: `<html lang="fr"><body style="font-family:Arial,sans-serif;line-height:1.6;color:#172b29;max-width:600px;margin:auto;padding:24px"><h1 style="font-size:24px">Suivi D.A.O</h1>${lines.slice(0,-2).map(line => `<p>${escape(line)}</p>`).join('')}<p><a href="${escape(url)}">Consulter votre espace D.A.O</a></p><p>L’équipe D.A.O</p></body></html>` };
 }
 export class ReviewNotificationWorker {

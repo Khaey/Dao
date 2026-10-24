@@ -21,3 +21,21 @@ test('BUG-07 : nouveau devis soumis produit un email Client avec accès à la co
   assert.doesNotMatch(msg.html, /Rénovation <test>/);
   assert.doesNotMatch(msg.text, /montant|coordonnées personnelles|adresse artisan/i);
 });
+
+test('BUG-12 : notification email de résultat distinguant les décisions par lot', () => {
+  for (const [decision, fragment] of [
+    ['selected','retenue pour ce lot'], ['not_selected','attribué à un autre professionnel'],
+    ['available','a été annulée']
+  ] as const) {
+    const notice: Notice = { id: '10000000-0000-4000-8000-000000000001',
+      project_id: '20000000-0000-4000-8000-000000000002',
+      kind: 'bid_result', payload: { lot: 'Jardin <test>', decision },
+      delivery_email: 'artisan@example.invalid', lease_token: '40000000-0000-4000-8000-000000000004' };
+    const message = reviewMessage(notice, config);
+    assert.equal(message.subject, 'D.A.O — Résultat de votre offre');
+    assert.ok(message.text.includes(fragment));
+    assert.ok(message.text.includes('/app/artisan/offers'));
+    assert.ok(message.html.includes('Jardin &lt;test&gt;'));
+    assert.doesNotMatch(message.text, /\d+\s*(TND|DT)/);
+  }
+});
