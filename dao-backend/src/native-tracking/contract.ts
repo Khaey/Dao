@@ -1,3 +1,5 @@
+import type { NativeForecast } from './planning.js';
+
 export type NativeExecutionWorkspace = 'client' | 'contractor' | 'dao_manager';
 
 export interface NativeExecutionPlanDTO {
@@ -11,8 +13,62 @@ export interface NativeExecutionPlanDTO {
   };
   page: { limit: number; nextCursor: string | null };
   lots: NativeExecutionLotDTO[];
-  activities: { supported: false; items: [] };
-  forecast: null;
+  agreementsByAward: NativeExecutionAgreementDTO[];
+  activities: { supported: boolean; items: NativeExecutionActivityDTO[]; truncated: boolean };
+  changeProposals: NativeExecutionChangeProposalDTO[];
+  changeProposalsTruncated: boolean;
+  forecast: NativeForecast | null;
+}
+
+export interface NativeExecutionActivityDTO {
+  id: string;
+  requestId: string;
+  awardItemId: string;
+  parentActivityId: string | null;
+  kind: 'sub_lot' | 'activity';
+  title: string;
+  scope: string | null;
+  position: number;
+  revision: number;
+  active: boolean;
+  createdBy: string;
+  updatedBy: string;
+  updatedAt: string;
+  plannedDates: { start: string | null; end: string | null; durationDays: number | null; source: 'dao_native_execution' };
+  history: Array<{
+    revision: number; action: 'created' | 'updated' | 'retired' | 'manager_change_accepted';
+    title: string; scope: string | null; position: number; plannedStart: string | null;
+    plannedEnd: string | null; durationDays: number | null; active: boolean; actorId: string; at: string;
+  }>;
+}
+
+export interface NativeExecutionChangeProposalDTO {
+  proposalId: string;
+  requestId: string;
+  awardItemId: string;
+  proposedBy: string;
+  activityId: string;
+  action: 'create' | 'update' | 'retire';
+  kind: 'sub_lot' | 'activity';
+  title: string | null;
+  scope: string | null;
+  parentActivityId: string | null;
+  position: number;
+  plannedDates: { start: string | null; end: string | null; durationDays: number | null };
+  state: 'pending_acceptance' | 'accepted' | 'rejected' | 'stale';
+  createdAt: string;
+  acceptedBy: Array<'client' | 'contractor'>;
+}
+
+export interface NativeExecutionAgreementDTO {
+  awardId: string;
+  agreementVersionId: string;
+  status: string;
+  acceptedByBoth: boolean;
+  paymentMode: string | null;
+  installments: Array<{ number: number; label: string | null; dueDate: string | null; amountMillimes: string; latestState: string }>;
+  informationalOnly: true;
+  moneyMoved: false;
 }
 
 export interface NativeExecutionLotDTO {
@@ -33,6 +89,7 @@ export interface NativeExecutionLotDTO {
     canDeclareProgress: boolean;
     canReviewProgress: boolean;
     canAcceptEngagingChange: boolean;
+    canEditActivities: boolean;
   };
   dates: {
     proposed: null | { start: string | null; end: string | null; durationDays: number | null; source: 'winning_bid' };
@@ -55,10 +112,5 @@ export interface NativeExecutionLotDTO {
   }>;
   milestones: Array<{ key: string; eventId: string; title: string; targetDate: string | null; status: string; at: string }>;
   dependencies: Array<{ id: string; from: string | null; to: string | null; state: string; relation: 'FS'; lagDays: 0; source: 'bid_proposal' | 'manual' }>;
-  modalities: null | {
-    awardId: string; agreementVersionId: string; status: string; acceptedByBoth: boolean;
-    paymentMode: string | null;
-    installments: Array<{ number: number; label: string; dueDate: string | null; amountMillimes: string; latestState: string }>;
-    informationalOnly: true; moneyMoved: false;
-  };
+  modalities: null | { awardId: string; agreementVersionId: string };
 }
