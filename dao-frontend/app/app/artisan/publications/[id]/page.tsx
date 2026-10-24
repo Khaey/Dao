@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseBrowser } from '../../../../../lib/supabase-browser';
@@ -56,6 +56,13 @@ export default function ArtisanPublicationDetail() {
   const [subLots, setSubLots] = useState<Record<string, SubLotDraft[]>>({});
   const [subLotLinks, setSubLotLinks] = useState<LinkDraft[]>([]);
   const [referents, setReferents] = useState<Referent[]>([]);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (!error) return;
+    errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    errorRef.current?.focus({ preventScroll: true });
+  }, [error]);
 
   async function load() {
     setLoading(true); setError(''); setLines({}); setIndivisible(false); setDocuments([]); setQuoteLines({}); setSubLots({}); setSubLotLinks([]);
@@ -263,7 +270,7 @@ export default function ArtisanPublicationDetail() {
         {lot.technical_scope?.map((s:any)=><div key={s.id} className="mt-3 border-l-2 border-teal/25 pl-3"><h4 className="font-semibold text-ink">{s.title}</h4><p className="text-sm text-black/65">{s.scope}</p>{s.budget_millimes!=null&&<p className="text-sm font-medium tabular-nums">{Number(s.budget_millimes)/1000} TND</p>}</div>)}
         {(!lot.acceptsOffers || lot.result) && <div className="mt-3 flex flex-wrap items-center gap-2">{!lot.acceptsOffers && <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-black/60"><Lock aria-hidden="true" size={14} />Lot fermé aux nouvelles offres</p>}{lot.result === 'not_selected' && <Badge>Non retenue</Badge>}{lot.result === 'selected' && <Badge tone="teal">Offre retenue</Badge>}</div>}
       </article>; })}</div></Card>
-    {error&&<p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}{message&&<p role="status" className="rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal">{message}</p>}
+    {error&&<p ref={errorRef} tabIndex={-1} role="alert" className="scroll-mt-24 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 outline-none focus:ring-4 focus:ring-red-100">{error}</p>}{message&&<p role="status" className="rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal">{message}</p>}
     {version?.status === 'submitted' ? <Card className="border-teal/20 p-5 sm:p-7"><div className="flex items-start gap-3"><CheckCircle2 aria-hidden="true" size={24} className="shrink-0 text-teal" /><div><h2 className="text-xl font-bold text-ink">Offre envoyée</h2><p className="mt-1 text-sm text-black/60">Version {version.version_no} soumise le {new Date(version.submitted_at).toLocaleString('fr-TN')}. Le contenu est désormais figé.</p></div></div><div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">{canBid && !closed && <Button className="min-h-11" disabled={saving} onClick={() => void startNewVersion()}>Préparer une nouvelle version</Button>}{lots.some(lot=>lot.result==='selected')?<div className="w-full space-y-3"><p className="text-sm font-semibold text-teal">Cette offre attribuée ne peut plus être retirée.</p>{publication&&<AgreementLinks projectId={publication.project_id} />}{publication&&<Link href={`/app/execution/${publication.project_id}`} className="flex min-h-14 items-center gap-3 rounded-2xl border border-black/[0.08] bg-white px-4 py-3 transition hover:border-teal/50"><Hammer aria-hidden="true" size={20} className="shrink-0 text-teal" /><span className="min-w-0 flex-1"><span className="block text-sm font-bold text-ink">Carnet de chantier de votre lot</span><span className="block text-xs text-black/55">Déclarez interventions, avancement et quantités ; le Client les consulte.</span></span></Link>}</div>:<Button className="min-h-11 bg-white text-red-700 ring-1 ring-inset ring-red-200 hover:bg-red-50" disabled={saving} onClick={()=>void withdrawOffer()}>Retirer l’offre</Button>}</div></Card>
     : version?.status==='withdrawn'?<Card className="p-5 sm:p-7"><h2 className="text-xl font-bold text-ink">Offre retirée</h2><p className="mt-1 text-sm text-black/60">La version {version.version_no} reste conservée dans votre historique.</p>{canBid&&!closed&&<Button className="mt-4 min-h-11" disabled={saving} onClick={()=>void startNewVersion()}>Préparer une nouvelle version</Button>}</Card>
     : !canBid ? <Card className="border-clay/20 bg-clay/[0.04] p-5 sm:p-7"><h2 className="text-xl font-bold text-ink">Offres indisponibles pour ce profil</h2><p className="mt-2 text-sm text-black/60">Votre profil professionnel doit être vérifié par D.A.O avant de créer ou modifier une offre. Vous pouvez continuer à consulter les informations publiques de ce DAO.</p><a href="/app/profile#professional-profile" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-teal">Voir mon profil professionnel</a></Card>

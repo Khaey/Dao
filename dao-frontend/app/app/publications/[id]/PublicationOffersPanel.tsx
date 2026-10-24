@@ -11,6 +11,7 @@ import AgreementLinks from '../../../../components/precontract/AgreementLinks';
 type Lot = { id: string; request_version_id: string; safe_title: string };
 type Offer = {
   itemId: string;
+  contractorId: string;
   versionId: string;
   versionNo: number;
   requestId: string;
@@ -66,9 +67,10 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots,
     setLoading(true);
     setError('');
     const supabase = supabaseBrowser();
-    const bidsResult = await supabase.from('bids').select('id').eq('project_id', projectId);
+    const bidsResult = await supabase.from('bids').select('id,contractor_id').eq('project_id', projectId);
     if (bidsResult.error) throw new Error('Les offres ne sont pas disponibles.');
     const bidIds = (bidsResult.data ?? []).map((bid: { id: string }) => bid.id);
+    const contractorByBid = new Map((bidsResult.data ?? []).map((bid: { id: string; contractor_id: string }) => [bid.id, bid.contractor_id]));
     const awardResult = await supabase
       .from('award_items')
       .select('id,award_id,request_id,bid_item_id,agreed_millimes,active,bid_items!award_items_bid_item_id_fkey(bid_version_id)')
@@ -140,6 +142,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
       const version = versionById.get(item.bid_version_id) as any;
       return {
         itemId: item.id,
+        contractorId: contractorByBid.get(version?.bid_id) ?? '',
         versionId: item.bid_version_id,
         versionNo: Number(version?.version_no ?? 0),
         requestId: item.request_id,
@@ -248,6 +251,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/45">Offre {index + 1}</p>
+                  {offer.contractorId && <a href={`/app/professionals/${offer.contractorId}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-teal underline-offset-4 hover:underline">Consulter la fiche professionnelle</a>}
                   <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-ink">{formatTnd(offer.priceMillimes)}</p>
                   {compare && gap > 0 && !awarded && <p className="text-xs font-medium text-black/50">+{gap} % par rapport à la moins chère</p>}
                 </div>

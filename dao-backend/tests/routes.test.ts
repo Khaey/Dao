@@ -36,10 +36,11 @@ test('profile initialization rejects forged internal roles before calling the RP
 test('profile initialization forwards only the public client/contractor choice to the secure RPC service', async()=>{
   const calls:any[]=[];
   const api=createDaoApi({ projects:{}, publications:{}, bids:{}, awards:{}, documents:{}, profiles:{initialize:async(input:any)=>{calls.push(input);return input;}} } as any, async()=>({id:'signup-user'}));
-  const response=await api.initializeProfile(new Request('http://localhost/api/profile',{method:'POST',body:JSON.stringify({account_type:'contractor',business_name:' Atelier DAO ',user_id:'forged'}),headers:{authorization:'Bearer jwt','content-type':'application/json'}}));
+  const response=await api.initializeProfile(new Request('http://localhost/api/profile',{method:'POST',body:JSON.stringify({account_type:'contractor',business_name:' Atelier DAO ',phone_e164:'53 738 397',user_id:'forged'}),headers:{authorization:'Bearer jwt','content-type':'application/json'}}));
   assert.equal(response.status,200);
   assert.equal(calls[0].account_type,'contractor');
   assert.equal(calls[0].business_name,'Atelier DAO');
+  assert.equal(calls[0].phone_e164,'+21653738397');
   assert.notEqual(calls[0].user_id,'forged');
 });
 
