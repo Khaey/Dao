@@ -132,7 +132,7 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
   }).select('id').single();
   assert.ifError(bidItem.error);
   const nodeKey = randomUUID();
-  assert.ifError((await admin.from('bid_sub_lots').insert({
+  const offeredSubLot = await admin.from('bid_sub_lots').insert({
     bid_version_id: bidVersion.data!.id,
     bid_item_id: bidItem.data!.id,
     project_id: project.data!.id,
@@ -143,7 +143,8 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
     title: 'Pose du tableau',
     duration_days: 2,
     budget_millimes: 100000,
-  })).error);
+  }).select('id').single();
+  assert.ifError(offeredSubLot.error);
   assert.ifError((await admin.from('bid_versions').update({
     status: 'submitted',
     submitted_at: new Date().toISOString(),
@@ -155,7 +156,7 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
     status: 'confirmed',
   }).select('id').single();
   assert.ifError(award.error);
-  assert.ifError((await admin.from('award_items').insert({
+  const awardedItem = await admin.from('award_items').insert({
     award_id: award.data!.id,
     project_id: project.data!.id,
     contractor_id: contractorProfile.data!.id,
@@ -163,7 +164,8 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
     bid_item_id: bidItem.data!.id,
     agreed_millimes: 100000,
     active: true,
-  })).error);
+  }).select('id').single();
+  assert.ifError(awardedItem.error);
 
   const snapshotArgs = { p_award_id: award.data!.id };
   for (const outsider of [otherClient, competitor, staff]) {
@@ -263,6 +265,60 @@ test('precontract agreement: real JWT, bilateral version and non-engaging isolat
   assert.equal(initialSchedule.data.informational_only, true);
   assert.equal(initialSchedule.data.money_moved, false);
   await denied(competitor.db, 'precontract_installment_snapshot', snapshotArgs);
+
+  assert.ifError((await admin.from('review_assignments').insert({
+    project_id: project.data!.id, reviewer_id: staff.id,
+  })).error);
+  const managerPlan = await staff.db.rpc('native_execution_plan_v1', {
+    p_project_id: project.data!.id, p_after_request_id: null, p_limit: 50,
+  });
+  assert.ifError(managerPlan.error);
+  assert.equal(managerPlan.data.agreementsByAward[0].agreementVersionId, second.data.version_id);
+  assert.equal(managerPlan.data.agreementsByAward[0].installments[0].scopeRef, null);
+  const scopeProposal = await staff.db.rpc('native_execution_prepare_installment_scope', {
+    p_agreement_version_id: second.data.version_id, p_installment_no: 1, p_scope_type: 'sub_lot',
+    p_award_item_id: awardedItem.data!.id, p_sub_lot_id: offeredSubLot.data!.id, p_milestone_key: null,
+    p_period_start: null, p_period_end: null, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(scopeProposal.error);
+  assert.equal(scopeProposal.data.state, 'pending_acceptance');
+  const pendingScopePlan = await staff.db.rpc('native_execution_plan_v1', {
+    p_project_id: project.data!.id, p_after_request_id: null, p_limit: 50,
+  });
+  assert.ifError(pendingScopePlan.error);
+  assert.equal(pendingScopePlan.data.agreementsByAward[0].installments[0].scopeProposal.id, scopeProposal.data.proposalId);
+  assert.deepEqual(pendingScopePlan.data.agreementsByAward[0].installments[0].scopeProposal.acceptedBy, []);
+  await denied(staff.db, 'native_execution_accept_installment_scope', {
+    p_proposal_id: scopeProposal.data.proposalId, p_decision: 'accepted', p_idempotency_key: randomUUID(),
+  });
+  await denied(competitor.db, 'native_execution_accept_installment_scope', {
+    p_proposal_id: scopeProposal.data.proposalId, p_decision: 'accepted', p_idempotency_key: randomUUID(),
+  });
+  const clientScopeAcceptance = await owner.db.rpc('native_execution_accept_installment_scope', {
+    p_proposal_id: scopeProposal.data.proposalId, p_decision: 'accepted', p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(clientScopeAcceptance.error);
+  assert.equal(clientScopeAcceptance.data.state, 'pending_acceptance');
+  const beforeBilateralScope = await owner.db.rpc('native_execution_plan_v1', { p_project_id: project.data!.id, p_after_request_id: null, p_limit: 50 });
+  assert.ifError(beforeBilateralScope.error);
+  assert.equal(beforeBilateralScope.data.agreementsByAward[0].installments[0].scopeRef, null);
+  assert.deepEqual(beforeBilateralScope.data.agreementsByAward[0].installments[0].scopeProposal.acceptedBy, ['client']);
+  const contractorScopeKey = randomUUID();
+  const contractorScopeAcceptance = await contractor.db.rpc('native_execution_accept_installment_scope', {
+    p_proposal_id: scopeProposal.data.proposalId, p_decision: 'accepted', p_idempotency_key: contractorScopeKey,
+  });
+  assert.ifError(contractorScopeAcceptance.error);
+  assert.equal(contractorScopeAcceptance.data.state, 'accepted');
+  const contractorScopeReplay = await contractor.db.rpc('native_execution_accept_installment_scope', {
+    p_proposal_id: scopeProposal.data.proposalId, p_decision: 'accepted', p_idempotency_key: contractorScopeKey,
+  });
+  assert.ifError(contractorScopeReplay.error);
+  assert.equal(contractorScopeReplay.data.state, 'accepted');
+  const afterBilateralScope = await owner.db.rpc('native_execution_plan_v1', { p_project_id: project.data!.id, p_after_request_id: null, p_limit: 50 });
+  assert.ifError(afterBilateralScope.error);
+  assert.equal(afterBilateralScope.data.agreementsByAward[0].installments[0].scopeRef.id, scopeProposal.data.proposalId);
+  assert.equal(afterBilateralScope.data.agreementsByAward[0].installments[0].scopeRef.type, 'sub_lot');
+  assert.equal(afterBilateralScope.data.agreementsByAward[0].installments[0].scopeProposal, null);
 
   const declarationKey = randomUUID();
   const declarationArgs = {

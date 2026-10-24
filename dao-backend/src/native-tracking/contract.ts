@@ -35,6 +35,12 @@ export interface NativeExecutionActivityDTO {
   updatedBy: string;
   updatedAt: string;
   plannedDates: { start: string | null; end: string | null; durationDays: number | null; source: 'dao_native_execution' };
+  execution: {
+    progress: null | { eventId: string; percent: number; status: string; at: string; observation: unknown };
+    observed: null | { start: string; end: string };
+    quantities: Array<{ quoteLineId: string | null; unit: string; executedMilli: string; referenceMilli: string | null }>;
+    milestones: Array<{ key: string; eventId: string; title: string; targetDate: string | null; status: string; at: string }>;
+  };
   history: Array<{
     revision: number; action: 'created' | 'updated' | 'retired' | 'manager_change_accepted';
     title: string; scope: string | null; position: number; plannedStart: string | null;
@@ -66,7 +72,14 @@ export interface NativeExecutionAgreementDTO {
   status: string;
   acceptedByBoth: boolean;
   paymentMode: string | null;
-  installments: Array<{ number: number; label: string | null; dueDate: string | null; amountMillimes: string; latestState: string }>;
+  installments: Array<{
+    number: number; label: string | null; dueDate: string | null; amountMillimes: string; latestState: string;
+    scopeRef: null | { id: string; type: 'lot' | 'sub_lot' | 'milestone' | 'period' | 'project_end';
+      awardItemId: string | null; subLotId: string | null; milestoneKey: string | null; periodStart: string | null; periodEnd: string | null };
+    scopeProposal: null | { id: string; type: 'lot' | 'sub_lot' | 'milestone' | 'period' | 'project_end'; state: 'pending_acceptance';
+      awardItemId: string | null; subLotId: string | null; milestoneKey: string | null; periodStart: string | null; periodEnd: string | null;
+      acceptedBy: Array<'client' | 'contractor'> };
+  }>;
   informationalOnly: true;
   moneyMoved: false;
 }

@@ -46,6 +46,24 @@ test('site execution service maps only server-approved RPC parameters', async ()
   ]);
 });
 
+test('site execution routes native activity progress, metrics and milestones through the activity RPC', async () => {
+  const fake = database();
+  const service = new SiteExecutionService(fake.db);
+  const award = '11111111-1111-4111-8111-111111111111';
+  const activity = '55555555-5555-4555-8555-555555555555';
+  await service.progress({ award_item_id: award, native_activity_id: activity, status: 'in_progress', percent: 35,
+    reason: 'Pose en cours', idempotency_key: 'native-progress-1' });
+  await service.intervention({ award_item_id: award, native_activity_id: activity, work_date: '2026-10-19',
+    note: 'Pose terminée', executed_quantity_milli: 2500, quantity_unit: 'm²', idempotency_key: 'native-intervention-1' });
+  await service.createMilestone({ award_item_id: award, native_activity_id: activity, title: 'Contrôle',
+    target_date: '2026-10-25', status: 'planned', idempotency_key: 'native-milestone-1' });
+  assert.deepEqual(fake.calls.map(call => [call.name, call.args.p_native_activity_id, call.args.p_event_kind]), [
+    ['record_native_activity_event_v1', activity, 'progress'],
+    ['record_native_activity_event_v1', activity, 'intervention'],
+    ['record_native_activity_event_v1', activity, 'milestone'],
+  ]);
+});
+
 test('site execution handler requires JWT authentication', async () => {
   const anonymous = createDaoApi({ siteExecution: new SiteExecutionService(database().db) } as any, async () => null);
   const response = await anonymous.siteExecutionSnapshot(new Request('http://dao.test/api/projects/execution?project_id=project'));

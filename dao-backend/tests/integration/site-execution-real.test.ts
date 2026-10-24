@@ -178,6 +178,16 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.equal(activityCreated.data.active, true);
   assert.equal(activityCreated.data.revision, 1);
   await denied(owner.db, 'native_execution_activity_write', nativeWrite);
+  const nativeEventArgs = {
+    p_award_item_id: awardItem.data!.id, p_native_activity_id: activityCreated.data.id, p_event_kind: 'progress',
+    p_status: 'in_progress', p_percent: 55, p_work_date: null, p_title: null, p_target_date: null,
+    p_note: 'Activité native en cours', p_quote_line_id: null, p_executed_quantity_milli: null,
+    p_quantity_unit: null, p_document_ids: [], p_idempotency_key: randomUUID(),
+  };
+  const nativeEvent = await contractor.db.rpc('record_native_activity_event_v1', nativeEventArgs);
+  assert.ifError(nativeEvent.error);
+  assert.equal(nativeEvent.data.native_activity_id, activityCreated.data.id);
+  await denied(owner.db, 'record_native_activity_event_v1', nativeEventArgs);
   const prepared = await staff.db.rpc('native_execution_prepare_activity_change', {
     p_award_item_id: awardItem.data!.id, p_action: 'create', p_activity_id: null, p_parent_activity_id: null,
     p_kind: 'sub_lot', p_title: 'Sous-lot préparé', p_scope: null, p_position: 2,
@@ -200,6 +210,7 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.ifError(nativeAfterChanges.error);
   assert.equal(nativeAfterChanges.data.activities.supported, true);
   assert.equal(nativeAfterChanges.data.activities.items.length, 2);
+  assert.equal(nativeAfterChanges.data.activities.items.find((item: any) => item.id === activityCreated.data.id).execution.progress.percent, 55);
   assert.equal(nativeAfterChanges.data.changeProposals[0].state, 'accepted');
 
   const document = await admin.from('documents').insert({

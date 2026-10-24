@@ -71,7 +71,8 @@ export function projectNativeForecast(pages: PlanPage[], truncated = false): Nat
       baselineStart: null, baselineEnd: null,
       durationDays: activity.plannedDates.durationDays,
       plannedStart: activity.plannedDates.start, plannedEnd: activity.plannedDates.end,
-      observedStart: null, observedEnd: null,
+      observedStart: activity.execution?.observed?.start ?? null,
+      observedEnd: activity.execution?.observed?.end ?? null,
     });
     aliases.set(id, id);
     aliases.set(activity.id, id);
