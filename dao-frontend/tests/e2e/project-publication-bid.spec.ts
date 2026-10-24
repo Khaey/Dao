@@ -89,6 +89,10 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   const publishedLotHeading = artisan.getByRole('article').getByRole('heading', { name: project.lotTitle, exact: true });
   await expect(publishedLotHeading).toBeVisible();
   await artisan.getByLabel('Répondre à ce lot').check();
+  await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
+  const validationToast = artisan.getByTestId('error-toast');
+  await expect(validationToast).toContainText('Complétez le prix, le délai et la proposition technique');
+  await expect(validationToast).toBeHidden({ timeout: 8000 });
   await artisan.getByLabel('Prix proposé (TND)').fill('25000');
   await artisan.getByLabel('Délai (jours)').fill('21');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Fourniture, pose, essais et remise en état.');
