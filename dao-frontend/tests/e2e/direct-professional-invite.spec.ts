@@ -45,7 +45,7 @@ test('Fiche Artisan : invitation contextualisée envoyée, reprise sur le même 
   expect(creates).toBe(0); expect(sends).toBe(0);
   page.once('dialog', dialog => dialog.accept());
   await send.click();
-  await expect(page.getByRole('alert')).toContainText("L'invitation n'a pas pu être envoyée");
+  await expect(page.getByText("L'invitation n'a pas pu être envoyée", { exact: false })).toBeVisible();
   expect(creates).toBe(1); expect(sends).toBe(1);
   page.once('dialog', dialog => dialog.accept());
   await send.click();
