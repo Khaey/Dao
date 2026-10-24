@@ -29,7 +29,7 @@ const lots: Lot[] = [
     ],
   },
   {
-    id: 'fake-lot-electricite', title: 'Électricité', status: 'conditions', progress: null,
+    id: 'fake-lot-electricite', title: 'Électricité', status: 'ready', progress: null,
     start: null, end: null, awardId: 'fake-award-b-1', awardActive: true,
     contractorId: 'fake-artisan-b', contractor: 'Société Éclair (fictif)',
     options: [], agreementVersion: null, contractEnabled: false,
