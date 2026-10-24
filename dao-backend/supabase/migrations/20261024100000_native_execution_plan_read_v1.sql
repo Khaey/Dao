@@ -137,7 +137,7 @@ begin
       'executionSubLots',coalesce(execution.items,'[]'::jsonb),
       'milestones',coalesce(milestones.items,'[]'::jsonb),
       'dependencies',coalesce(dependencies.items,'[]'::jsonb),
-      'modalities',case when agreement.id is null or workspace='dao_manager' then null else jsonb_build_object(
+      'modalities',case when agreement.version_id is null or workspace='dao_manager' then null else jsonb_build_object(
         'awardId',l.award_id,'agreementVersionId',agreement.version_id,
         'status',agreement.status,'acceptedByBoth',agreement.accepted_by_both,
         'paymentMode',agreement.terms->>'payment_mode',
