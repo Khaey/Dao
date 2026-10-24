@@ -1,5 +1,4 @@
 import type { NativeExecutionPlanDTO } from '../native-tracking/contract.js';
-import { projectNativeForecast } from '../native-tracking/forecast.js';
 
 const headers = { 'Cache-Control': 'private, no-store', Vary: 'Authorization' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -40,27 +39,7 @@ export function createNativeExecutionPlanHandler(
         return fail(503, 'UNAVAILABLE', 'Suivi du projet temporairement indisponible.');
       }
       if (!data) return fail(503, 'UNAVAILABLE', 'Projection native indisponible.');
-      let forecast = data.forecast;
-      if (cursor === null && data.page.nextCursor === null) {
-        forecast = projectNativeForecast([data]);
-      } else {
-        const pages: NativeExecutionPlanDTO[] = [];
-        let after: string | null = null;
-        let truncated = false;
-        for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
-          const pageResult = await db.rpc('native_execution_plan_v1', {
-            p_project_id: projectId.toLowerCase(), p_after_request_id: after, p_limit: 100,
-          });
-          if (pageResult.error || !pageResult.data) { pages.length = 0; break; }
-          pages.push(pageResult.data);
-          after = pageResult.data.page.nextCursor;
-          if (!after) break;
-          if (pageNumber === 9) truncated = true;
-        }
-        if (pages.length) forecast = projectNativeForecast(pages, truncated);
-        else forecast = null;
-      }
-      return Response.json({ data: { ...data, forecast } }, { headers });
+      return Response.json({ data }, { headers });
     } catch {
       return fail(503, 'UNAVAILABLE', 'Suivi du projet temporairement indisponible.');
     }

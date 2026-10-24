@@ -7,11 +7,10 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233','20261023010000','20261024060000','20261024080000','20261024090000','20261024100000','20261024110000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233','20261023010000','20261024060000','20261024080000','20261024090000','20261024100000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','oce_lot_plans','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
-    'native_execution_activities','native_execution_activity_revisions','native_execution_activity_commands','native_execution_activity_proposals','native_execution_activity_proposal_acceptances',
     'bid_documents','bid_group_items','bid_groups','bid_items','bid_quote_lines','bid_sub_lot_links','bid_sub_lots','project_plan_contexts','project_plan_link_decisions','project_plan_manual_link_removals','project_plan_manual_links','project_plan_results','bid_versions','bids',
     'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions','precontract_agreements','precontract_agreement_versions','precontract_agreement_acceptances','precontract_agreement_events','precontract_installment_events',
     'contractor_profiles','contractor_service_areas','contractor_trades','contractor_profile_details','contractor_files',
@@ -185,10 +184,6 @@ BEGIN
       'public.record_site_observation(uuid,text,text,text)',
       'public.site_execution_snapshot(uuid,timestamp with time zone,uuid,integer)',
       'public.site_execution_snapshot_v2(uuid,timestamp with time zone,uuid,integer)',
-      'public.native_execution_plan_v1(uuid,uuid,integer)',
-      'public.native_execution_activity_write(uuid,uuid,text,uuid,text,text,text,integer,date,date,integer,integer,text)',
-      'public.native_execution_prepare_activity_change(uuid,text,uuid,uuid,text,text,text,integer,date,date,integer,integer,text)',
-      'public.native_execution_accept_activity_change(uuid,text,text)',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -242,31 +237,6 @@ BEGIN
      OR has_column_privilege('authenticated','public.site_log_events','command_payload','SELECT')
      OR has_column_privilege('authenticated','public.site_log_events','idempotency_key','SELECT') THEN
     RAISE EXCEPTION 'schema contract: site execution writes and idempotency payloads must stay RPC-only';
-  END IF;
-  IF has_table_privilege('authenticated','public.native_execution_activities','SELECT')
-     OR has_table_privilege('authenticated','public.native_execution_activities','INSERT')
-     OR has_table_privilege('authenticated','public.native_execution_activities','UPDATE')
-     OR has_table_privilege('authenticated','public.native_execution_activity_revisions','SELECT')
-     OR has_table_privilege('authenticated','public.native_execution_activity_commands','SELECT')
-     OR has_table_privilege('authenticated','public.native_execution_activity_proposals','SELECT')
-     OR has_table_privilege('authenticated','public.native_execution_activity_proposal_acceptances','SELECT')
-     OR has_table_privilege('anon','public.native_execution_activities','SELECT') THEN
-    RAISE EXCEPTION 'schema contract: native activities and history must stay behind JWT-scoped RPCs';
-  END IF;
-  FOR missing_name IN SELECT unnest(ARRAY[
-    'public.native_execution_plan_v1(uuid,uuid,integer)',
-    'public.native_execution_activity_write(uuid,uuid,text,uuid,text,text,text,integer,date,date,integer,integer,text)',
-    'public.native_execution_prepare_activity_change(uuid,text,uuid,uuid,text,text,text,integer,date,date,integer,integer,text)',
-    'public.native_execution_accept_activity_change(uuid,text,text)'
-  ]) LOOP
-    IF has_function_privilege('anon',missing_name,'EXECUTE')
-      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
-      RAISE EXCEPTION 'schema contract: native tracking RPC grant mismatch: %',missing_name;
-    END IF;
-  END LOOP;
-  IF has_function_privilege('authenticated','dao_private.native_activity_save_revision(uuid,text,uuid)','EXECUTE')
-     OR has_function_privilege('authenticated','dao_private.native_execution_activity_overlay(uuid,jsonb)','EXECUTE') THEN
-    RAISE EXCEPTION 'schema contract: internal native activity helpers must not be callable directly';
   END IF;
   FOR missing_name IN SELECT unnest(ARRAY[
     'public.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text)',

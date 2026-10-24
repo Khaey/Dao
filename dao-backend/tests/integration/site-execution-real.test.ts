@@ -152,7 +152,6 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.equal(contractorNative.data.viewer.workspace, 'contractor');
   assert.deepEqual(contractorNative.data.lots.map((lot: any) => lot.requestId), [request.data!.id]);
   assert.equal(contractorNative.data.lots[0].permissions.canDeclareProgress, true);
-  assert.equal(contractorNative.data.lots[0].permissions.canEditActivities, true);
   assert.equal(contractorNative.data.lots[0].award.contractorId, null, 'no contractor identity leak into own-table DTO');
   for (const deniedActor of [otherClient, competitor, invited, staff]) {
     await denied(deniedActor.db, 'native_execution_plan_v1', nativeArgs);
@@ -164,43 +163,7 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.ifError(managerNative.error);
   assert.equal(managerNative.data.viewer.workspace, 'dao_manager');
   assert.equal(managerNative.data.lots[0].permissions.canPrepareChange, true);
-  assert.equal(managerNative.data.lots[0].permissions.canEditActivities, false);
   assert.equal(managerNative.data.lots[0].permissions.canAcceptEngagingChange, false);
-
-  const nativeWrite = {
-    p_award_item_id: awardItem.data!.id, p_activity_id: null, p_action: 'create', p_parent_activity_id: null,
-    p_kind: 'activity', p_title: 'Préparation', p_scope: null, p_position: 1,
-    p_planned_start: null, p_planned_end: null, p_duration_days: null, p_expected_revision: null,
-    p_idempotency_key: randomUUID(),
-  };
-  const activityCreated = await contractor.db.rpc('native_execution_activity_write', nativeWrite);
-  assert.ifError(activityCreated.error);
-  assert.equal(activityCreated.data.active, true);
-  assert.equal(activityCreated.data.revision, 1);
-  await denied(owner.db, 'native_execution_activity_write', nativeWrite);
-  const prepared = await staff.db.rpc('native_execution_prepare_activity_change', {
-    p_award_item_id: awardItem.data!.id, p_action: 'create', p_activity_id: null, p_parent_activity_id: null,
-    p_kind: 'sub_lot', p_title: 'Sous-lot préparé', p_scope: null, p_position: 2,
-    p_planned_start: null, p_planned_end: null, p_duration_days: null, p_expected_revision: null,
-    p_idempotency_key: randomUUID(),
-  });
-  assert.ifError(prepared.error);
-  assert.equal(prepared.data.state, 'pending_acceptance');
-  const clientApproval = await owner.db.rpc('native_execution_accept_activity_change', {
-    p_proposal_id: prepared.data.proposalId, p_decision: 'accepted', p_idempotency_key: randomUUID(),
-  });
-  assert.ifError(clientApproval.error);
-  assert.equal(clientApproval.data.state, 'pending_acceptance');
-  const artisanApproval = await contractor.db.rpc('native_execution_accept_activity_change', {
-    p_proposal_id: prepared.data.proposalId, p_decision: 'accepted', p_idempotency_key: randomUUID(),
-  });
-  assert.ifError(artisanApproval.error);
-  assert.equal(artisanApproval.data.state, 'accepted');
-  const nativeAfterChanges = await owner.db.rpc('native_execution_plan_v1', nativeArgs);
-  assert.ifError(nativeAfterChanges.error);
-  assert.equal(nativeAfterChanges.data.activities.supported, true);
-  assert.equal(nativeAfterChanges.data.activities.items.length, 2);
-  assert.equal(nativeAfterChanges.data.changeProposals[0].state, 'accepted');
 
   const document = await admin.from('documents').insert({
     project_id: project.data!.id, owner_id: contractor.id, object_path: `project/${project.data!.id}/${randomUUID()}.jpg`,

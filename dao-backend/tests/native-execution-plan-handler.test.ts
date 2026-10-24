@@ -66,7 +66,10 @@ test('native plan API distinguishes forbidden, not-found and invalid from empty 
     assert.equal((await response.json() as any).code, code);
   }
   const empty = { ...dto, lots: [] };
-  assert.deepEqual(await (await fixture(empty).handler(request(`?project_id=${PROJECT}`))).json(), { data: empty });
+  const response = await fixture(empty).handler(request(`?project_id=${PROJECT}`));
+  const body = await response.json() as any;
+  assert.deepEqual(body.data.lots, []);
+  assert.equal(body.data.forecast.state, 'none');
 });
 
 test('native plan API hides database detail on failure and performs no OCE work', async () => {
