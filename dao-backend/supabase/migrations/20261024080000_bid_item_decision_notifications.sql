@@ -39,7 +39,7 @@ begin
   where bv.contractor_id=v_contractor;
   return v_result;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION dao_private.notification_visible(n notifications)
@@ -79,7 +79,7 @@ begin
       and (sender.participation_role<>'contractor' or not exists(select 1 from public.contractor_profiles where user_id=i.created_by and verification_status='suspended')));
   elsif n.kind='invitation_accepted' then return exists(select 1 from public.project_invitations i join public.projects p on p.id=i.project_id join public.project_members recipient on recipient.project_id=p.id and recipient.user_id=auth.uid() and recipient.status='accepted' and recipient.participation_role=workspace join public.project_members joined on joined.project_id=p.id and joined.user_id=i.accepted_by and joined.status='accepted' and joined.participation_role=i.expected_role where i.id=iid and p.id=pid and i.status='accepted' and p.initiator_id=auth.uid() and i.accepted_by<>auth.uid() and dao_private.account_active(i.accepted_by) and exists(select 1 from public.user_roles where user_id=i.accepted_by and role=i.expected_role) and (i.expected_role<>'contractor' or not exists(select 1 from public.contractor_profiles where user_id=i.accepted_by and verification_status='suspended'))); end if;
   return false;
-end $function$
+end $function$;
 
 
 create or replace function dao_private.emit_bid_item_decision()
