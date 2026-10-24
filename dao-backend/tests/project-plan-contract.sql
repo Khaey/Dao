@@ -73,8 +73,9 @@ begin
   d:=public.native_execution_plan_v1(proj,null,50);
   if (d->>'schemaVersion')::integer<>1 or d->'viewer'->>'workspace'<>'client'
     or jsonb_array_length(d->'lots')<>3 then raise exception 'native client projection incomplete: %',d; end if;
-  if d->'activities'->>'supported'<>'false' or d->'forecast'<>'null'::jsonb then
-    raise exception 'unsupported activities or forecast must stay explicit'; end if;
+  if d->'activities'->>'supported'<>'true' or jsonb_array_length(d->'activities'->'items')<>0
+    or d->'forecast'<>'null'::jsonb then
+    raise exception 'native activities must be supported and an empty graph must remain explicit'; end if;
   if d::text like '%1000000%' or d::text like '%900000%' then
     raise exception 'native projection leaked a quote/award price'; end if;
   if not exists(select 1 from jsonb_array_elements(d->'lots') x
