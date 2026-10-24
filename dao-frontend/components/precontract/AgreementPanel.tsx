@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CalendarClock, CheckCircle2, CircleDashed, History, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Badge, Button, Card } from '../ui';
 import InstallmentPanel from './InstallmentPanel';
+import { suggestInstallments } from '../../lib/installment-suggestion';
 import { formatTnd } from '../../lib/contracts';
 import {
   accept, cleanTerms, eventLabels, partyLabel, partyTo, partyWith, paymentLabels, PrecontractError, PrecontractUnavailable, propose, readAgreement, reject, termsDiff,
@@ -193,9 +194,17 @@ function TermsForm({ initial, subLots, totalMillimes, onReview, onCancel }: { in
   const [terms, setTerms] = useState<Terms>(initial);
   const [advanced, setAdvanced] = useState((initial.sub_lot_schedule ?? []).length > 0);
   const [problem, setProblem] = useState('');
+  const [manualInstallments, setManualInstallments] = useState((initial.installments ?? []).length > 0);
   const [showInstallments, setShowInstallments] = useState((initial.installments ?? []).length > 0);
   const [installmentInputs, setInstallmentInputs] = useState((initial.installments ?? []).map(row => ({ label: row.label, due_date: row.due_date ?? '', amount_tnd: tndInput(row.amount_millimes) })));
-  const changeInstallment = (index: number, patch: Partial<{ label: string; due_date: string; amount_tnd: string }>) => setInstallmentInputs(values => values.map((row, i) => index === i ? { ...row, ...patch } : row));
+  const changeInstallment = (index: number, patch: Partial<{ label: string; due_date: string; amount_tnd: string }>) => { setManualInstallments(true); setInstallmentInputs(values => values.map((row, i) => index === i ? { ...row, ...patch } : row)); };
+  const suggest = () => suggestInstallments({ paymentMode: terms.payment_mode ?? 'none', startDate: terms.planned_start_date, durationDays: terms.duration_days, totalMillimes, subLots });
+  useEffect(() => {
+    if (manualInstallments) return;
+    const rows = suggest();
+    setInstallmentInputs(rows.map(row => ({ label: row.label, due_date: row.due_date ?? '', amount_tnd: tndInput(row.amount_millimes) })));
+    if (rows.length) setShowInstallments(true);
+  }, [manualInstallments, terms.payment_mode, terms.planned_start_date, terms.duration_days, totalMillimes, subLots]);
   const set = (patch: Partial<Terms>) => setTerms(current => ({ ...current, ...patch }));
   const schedule = terms.sub_lot_schedule ?? [];
   const subDate = (key: string) => schedule.find(row => row.node_key === key) ?? { node_key: key, start_date: null, end_date: null };
@@ -220,20 +229,27 @@ function TermsForm({ initial, subLots, totalMillimes, onReview, onCancel }: { in
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="block text-sm font-semibold text-ink">Date de début souhaitée<input type="date" className={field} value={terms.planned_start_date ?? ''} onChange={event => set({ planned_start_date: event.target.value || null })} /></label>
       <label className="block text-sm font-semibold text-ink">Durée des travaux (jours)<input type="number" inputMode="numeric" min={1} max={3650} step={1} className={field} value={terms.duration_days ?? ''} onChange={event => set({ duration_days: event.target.value === '' ? null : Number(event.target.value) })} /></label>
-      <label className="block text-sm font-semibold text-ink sm:col-span-2">Modalité de paiement de référence<select className={field} value={terms.payment_mode ?? 'none'} onChange={event => { set({ payment_mode: event.target.value as PaymentMode, installments: [] }); setInstallmentInputs([]); }}>{Object.entries(paymentLabels).filter(([value]) => value !== 'sub_lot' || subLots.length > 0).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <label className="block text-sm font-semibold text-ink sm:col-span-2">Modalité de paiement de référence<select className={field} value={terms.payment_mode ?? 'none'} onChange={event => { set({ payment_mode: event.target.value as PaymentMode, installments: [] }); setManualInstallments(false); setInstallmentInputs([]); }}>{Object.entries(paymentLabels).filter(([value]) => value !== 'sub_lot' || subLots.length > 0).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <span className="mt-1 block text-xs font-normal text-black/50">Indicative uniquement : aucun paiement n’est déclenché.</span></label>
       <label className="block text-sm font-semibold text-ink sm:col-span-2">Modalités d’exécution<textarea rows={3} maxLength={4000} className={field} value={terms.execution_terms ?? ''} onChange={event => set({ execution_terms: event.target.value })} placeholder="Ex. : accès au chantier de 8 h à 17 h, eau et électricité fournies." /></label>
     </div>
     {terms.payment_mode !== 'none' && <div className="rounded-xl border border-black/[0.08] p-4">
-      <button type="button" aria-expanded={showInstallments} onClick={() => setShowInstallments(value => !value)} className="min-h-11 text-sm font-semibold text-teal hover:underline">Échéancier indicatif (optionnel)</button>
+      <div className="flex flex-wrap items-center justify-between gap-3"><button type="button" aria-expanded={showInstallments} onClick={() => setShowInstallments(value => !value)} className="min-h-11 text-sm font-semibold text-teal hover:underline">Échéancier indicatif modifiable</button>
+      <button type="button" className="min-h-11 rounded-lg border border-teal/20 bg-white px-3 text-sm font-semibold text-teal hover:bg-teal/5" onClick={() => {
+        const rows = suggest();
+        if (!rows.length) { setProblem('Indiquez une date de début, une durée et une modalité valide (maximum 100 échéances) pour proposer un échéancier.'); return; }
+        if (installmentInputs.length && !window.confirm('Remplacer les échéances actuelles par une nouvelle proposition modifiable ?')) return;
+        setManualInstallments(true); setProblem(''); setShowInstallments(true);
+        setInstallmentInputs(rows.map(row => ({ label: row.label, due_date: row.due_date ?? '', amount_tnd: tndInput(row.amount_millimes) })));
+      }}>Recalculer la proposition</button></div>
       {showInstallments && <div className="mt-3 space-y-3"><p className="text-xs text-black/60">Facultatif. Si vous définissez des échéances chiffrées, leur somme doit correspondre au montant attribué ({totalMillimes != null ? formatTnd(totalMillimes) : 'à vérifier'}). Aucune somme n’est exigible ou payée ici.</p>
         {installmentInputs.map((item, index) => <div key={index} className="grid gap-2 rounded-lg bg-sand/50 p-3 sm:grid-cols-[minmax(0,1fr)_9rem_9rem_auto]">
           <label className="text-xs font-semibold text-ink">Intitulé de l’échéance {index + 1}<input className={field} maxLength={160} value={item.label} onChange={event => changeInstallment(index, { label: event.target.value })} /></label>
           <label className="text-xs font-semibold text-ink">Date indicative {index + 1}<input type="date" className={field} value={item.due_date} onChange={event => changeInstallment(index, { due_date: event.target.value })} /></label>
           <label className="text-xs font-semibold text-ink">Montant (TND) — échéance {index + 1}<input inputMode="decimal" className={field} value={item.amount_tnd} placeholder="125.000" onChange={event => changeInstallment(index, { amount_tnd: event.target.value })} /></label>
-          <button type="button" className="min-h-11 self-end text-xs font-semibold text-red-700" onClick={() => setInstallmentInputs(values => values.filter((_, i) => i !== index))}>Supprimer</button>
+          <button type="button" className="min-h-11 self-end text-xs font-semibold text-red-700" onClick={() => { setManualInstallments(true); setInstallmentInputs(values => values.filter((_, i) => i !== index)); }}>Supprimer</button>
         </div>)}
-        {installmentInputs.length < 100 && <Button type="button" className={secondary} onClick={() => setInstallmentInputs(values => [...values, { label: '', due_date: '', amount_tnd: '' }])}>Ajouter une échéance</Button>}
+        {installmentInputs.length < 100 && <Button type="button" className={secondary} onClick={() => { setManualInstallments(true); setInstallmentInputs(values => [...values, { label: '', due_date: '', amount_tnd: '' }]); }}>Ajouter une échéance</Button>}
       </div>}
     </div>}
     {subLots.length > 0 && <>
