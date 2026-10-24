@@ -155,8 +155,16 @@ begin
    end if;
    raise exception using errcode='23514',message='Proposition déjà traitée';
  end if;
+ -- Serialize responses with concurrent award commands on the exact request.
+ perform 1 from public.project_requests pr
+ join public.bid_items bi on bi.request_id=pr.id where bi.id=v.bid_item_id
+ for update of pr;
+ if not found then raise exception using errcode='23514',message='Lot introuvable'; end if;
  if p_accept and (
-   exists(select 1 from public.award_items ai join public.bid_items bi on bi.request_id=ai.request_id
+   exists(select 1 from public.bid_items bi join public.bid_versions bv on bv.id=bi.bid_version_id
+          where bi.id=v.bid_item_id
+            and (bv.status<>'submitted' or bv.validity<>'current' or bv.expires_at<=now()))
+   or exists(select 1 from public.award_items ai join public.bid_items bi on bi.request_id=ai.request_id
           where bi.id=v.bid_item_id and ai.active)
    or exists(select 1 from public.bid_items bi join public.project_requests pr on pr.id=bi.request_id
             where bi.id=v.bid_item_id and pr.status not in ('open','reserved'))
