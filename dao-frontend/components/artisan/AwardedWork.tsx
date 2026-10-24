@@ -5,33 +5,39 @@ import { useEffect, useState } from 'react';
 import { CalendarClock, ChevronRight, Hammer, Trophy } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { readAgreement } from '../../lib/precontract';
+import { useAuthenticatedUser } from '../../lib/use-authenticated-user';
 
 // #356: what the awarded Artisan really won, from rows their JWT may read (award_items/awards of their own
 // contractor profile, their own bid_items, published lot titles). No project row is needed: an award does not
 // make the Artisan a team member, and nothing here widens project, team or document access.
 export type AwardedLot = { awardItemId: string; awardId: string; title: string; agreedMillimes: number; bidVersionId: string };
 export type AwardedProject = { projectId: string; publicationId: string | null; title: string; lots: AwardedLot[]; awardIds: string[] };
+type AwardedState = { userId: string | null; projects: AwardedProject[]; activeByVersion: Record<string, number>; cancelledByVersion: Record<string, number>; ready: boolean; failed: boolean };
+const emptyAwarded = (userId: string | null, ready = false): AwardedState => ({ userId, projects: [], activeByVersion: {}, cancelledByVersion: {}, ready, failed: false });
 
 export function useAwardedWork(enabled = true) {
-  const [state, setState] = useState<{ projects: AwardedProject[]; activeByVersion: Record<string, number>; cancelledByVersion: Record<string, number>; ready: boolean; failed: boolean }>({ projects: [], activeByVersion: {}, cancelledByVersion: {}, ready: false, failed: false });
+  const viewer = useAuthenticatedUser();
+  const [state, setState] = useState<AwardedState>(() => emptyAwarded(null));
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !viewer.ready) return;
+    const userId = viewer.userId;
+    setState(emptyAwarded(userId, !userId));
+    if (!userId) return;
     let active = true;
     void (async () => {
       const supabase = supabaseBrowser();
-      const { data: user } = await supabase.auth.getUser();
-      const profile = user.user ? await supabase.from('contractor_profiles').select('id').eq('user_id', user.user.id).maybeSingle() : { data: null, error: null };
-      if (!profile.data) { if (active) setState({ projects: [], activeByVersion: {}, cancelledByVersion: {}, ready: true, failed: false }); return; }
+      const profile = await supabase.from('contractor_profiles').select('id').eq('user_id', userId).maybeSingle();
+      if (!profile.data) { if (active) setState(emptyAwarded(userId, true)); return; }
       // Every award line of this Artisan (active or not): inactive ones are cancellations kept for the history.
       const items = await supabase.from('award_items').select('id,award_id,project_id,bid_item_id,agreed_millimes,active').eq('contractor_id', profile.data.id);
-      if (items.error) { if (active) setState(current => ({ ...current, ready: true, failed: true })); return; }
+      if (items.error) { if (active) setState(current => current.userId===userId?{ ...current, ready: true, failed: true }:current); return; }
       const rows = (items.data ?? []) as { id: string; award_id: string; project_id: string; bid_item_id: string; agreed_millimes: number; active: boolean }[];
-      if (!rows.length) { if (active) setState({ projects: [], activeByVersion: {}, cancelledByVersion: {}, ready: true, failed: false }); return; }
+      if (!rows.length) { if (active) setState(emptyAwarded(userId, true)); return; }
       const [awards, bidItems] = await Promise.all([
         supabase.from('awards').select('id,status').in('id', [...new Set(rows.map(row => row.award_id))]),
         supabase.from('bid_items').select('id,bid_version_id,request_version_id').in('id', rows.map(row => row.bid_item_id)),
       ]);
-      if (awards.error || bidItems.error) { if (active) setState(current => ({ ...current, ready: true, failed: true })); return; }
+      if (awards.error || bidItems.error) { if (active) setState(current => current.userId===userId?{ ...current, ready: true, failed: true }:current); return; }
       const liveAwards = new Set(((awards.data ?? []) as { id: string; status: string }[]).filter(row => row.status !== 'cancelled').map(row => row.id));
       const items2 = new Map(((bidItems.data ?? []) as { id: string; bid_version_id: string; request_version_id: string }[]).map(row => [row.id, row]));
       const versionIds = [...new Set([...items2.values()].map(row => row.request_version_id))];
@@ -55,11 +61,11 @@ export function useAwardedWork(enabled = true) {
         if (!group.awardIds.includes(row.award_id)) group.awardIds.push(row.award_id);
         grouped.set(row.project_id, group);
       }
-      if (active) setState({ projects: [...grouped.values()], activeByVersion, cancelledByVersion, ready: true, failed: false });
+      if (active) setState({ userId, projects: [...grouped.values()], activeByVersion, cancelledByVersion, ready: true, failed: false });
     })();
     return () => { active = false; };
-  }, [enabled]);
-  return state;
+  }, [enabled, viewer.ready, viewer.userId]);
+  return state.userId===viewer.userId?state:emptyAwarded(viewer.userId);
 }
 
 const money = (value: number) => new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(value / 1000);

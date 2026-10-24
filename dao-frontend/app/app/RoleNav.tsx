@@ -24,22 +24,25 @@ export default function RoleNav() {
   useEffect(() => {
     const supabase = supabaseBrowser();
     let active = true;
-    const load = async () => {
-      const { data } = await supabase.auth.getSession();
+    const load = async (knownSession?: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
+      const data = knownSession === undefined ? (await supabase.auth.getSession()).data : { session: knownSession };
       if (!active) return;
-      if (!data.session) { router.replace('/auth/login'); return; }
-      setEmail(data.session.user.email ?? '');
+      if (!data.session) { setRoles([]);setEmail('');setReady(false);router.replace('/auth/login');return; }
+      const userId=data.session.user.id;
+      setReady(false);setRoles([]);setEmail(data.session.user.email ?? '');setSupportUnread(0);
       const [{ data: roleRows }, { data: profile }] = await Promise.all([
-        supabase.from('user_roles').select('role').eq('user_id', data.session.user.id),
-        supabase.from('profiles').select('last_workspace').eq('user_id', data.session.user.id).maybeSingle(),
+        supabase.from('user_roles').select('role').eq('user_id', userId),
+        supabase.from('profiles').select('last_workspace').eq('user_id', userId).maybeSingle(),
       ]);
       if (!active) return;
+      const current=(await supabase.auth.getSession()).data.session?.user.id;
+      if(current!==userId)return;
       setRoles((roleRows ?? []).map((row: { role: AppRole }) => row.role));
       setWorkspace(profile?.last_workspace === 'contractor' ? 'contractor' : 'client');
       setReady(true);
     };
     void load();
-    const { data: subscription } = supabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') router.replace('/auth/login'); });
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => { void load(session); });
     return () => { active = false; subscription.subscription.unsubscribe(); };
   }, [router]);
 
