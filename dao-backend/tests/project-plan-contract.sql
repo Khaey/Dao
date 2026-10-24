@@ -4,10 +4,11 @@ do $$
 declare
   c uuid:=gen_random_uuid(); c2 uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); stf uuid:=gen_random_uuid();
   pa uuid; pb uuid; proj uuid; r1 uuid; r2 uuid; r3 uuid; rv1 uuid; rv2 uuid; rv3 uuid; trade uuid; off1 uuid; off2 uuid;
-  plain_proj uuid; plain_request uuid; plain_rv uuid; plain_bid uuid; plain_bv uuid; plain_item uuid; plain_award uuid;
+  plain_proj uuid; plain_request uuid; plain_rv uuid; plain_bid uuid; plain_bv uuid; plain_item uuid; plain_award uuid; plain_award_item uuid;
   bida uuid; bidb uuid; va uuid; vb uuid; ia uuid; ib uuid; ic uuid; awa uuid; awb uuid;
   s1 uuid:=gen_random_uuid(); s2 uuid:=gen_random_uuid(); t1 uuid:=gen_random_uuid(); u1 uuid:=gen_random_uuid();
   d jsonb; n integer; rev integer; l1 uuid; l2 uuid; l3 uuid; lb uuid; ctx uuid; m uuid; m0 uuid; lm uuid; tf text; td text; tt text; tp text;
+  native_activity uuid; native_child uuid; native_proposal uuid; native_result jsonb;
 begin
   insert into auth.users(id,email) values(c,'c@pp.test'),(c2,'c2@pp.test'),(a,'a@pp.test'),(b,'b@pp.test'),(stf,'s@pp.test');
   insert into public.user_roles(user_id,role) values(c,'client'),(c2,'client'),(a,'contractor'),(b,'contractor'),(stf,'dao_admin');
@@ -72,8 +73,9 @@ begin
   d:=public.native_execution_plan_v1(proj,null,50);
   if (d->>'schemaVersion')::integer<>1 or d->'viewer'->>'workspace'<>'client'
     or jsonb_array_length(d->'lots')<>3 then raise exception 'native client projection incomplete: %',d; end if;
-  if d->'activities'->>'supported'<>'false' or d->'forecast'<>'null'::jsonb then
-    raise exception 'unsupported activities or forecast must stay explicit'; end if;
+  if d->'activities'->>'supported'<>'true' or jsonb_array_length(d->'activities'->'items')<>0
+    or d->'forecast'<>'null'::jsonb then
+    raise exception 'native activities must be supported and an empty graph must remain explicit'; end if;
   if d::text like '%1000000%' or d::text like '%900000%' then
     raise exception 'native projection leaked a quote/award price'; end if;
   if not exists(select 1 from jsonb_array_elements(d->'lots') x
@@ -277,7 +279,7 @@ begin
   update public.bid_versions set status='submitted',submitted_at=now() where id=plain_bv;
   insert into public.awards(project_id,contractor_id) values(plain_proj,pa) returning id into plain_award;
   insert into public.award_items(award_id,project_id,request_id,bid_item_id,agreed_millimes,contractor_id)
-    values(plain_award,plain_proj,plain_request,plain_item,123456,pa);
+    values(plain_award,plain_proj,plain_request,plain_item,123456,pa) returning id into plain_award_item;
   perform set_config('request.jwt.claim.sub',c::text,true);
   d:=public.native_execution_plan_v1(plain_proj,null,50);
   if jsonb_array_length(d->'lots')<>1
@@ -289,4 +291,63 @@ begin
     or exists(select 1 from public.project_contract_settings where project_id=plain_proj)
     or exists(select 1 from public.oce_sync_mappings where project_id=plain_proj) then
     raise exception 'simple native tracking must not require optional configuration: %',d; end if;
+
+  -- P10-N2: editable activities are separate from the awarded bid and have immutable history.
+  update public.project_requests set status='awarded' where id=plain_request;
+  perform set_config('request.jwt.claim.sub',a::text,true);
+  native_result:=public.native_execution_activity_write(plain_award_item, null,'create',null,'sub_lot',
+    'Sous-lot opérationnel',null,1,null,null,null,null,'native-create-0001');
+  native_activity:=(native_result->>'id')::uuid;
+  if native_result->>'revision'<>'1' or not (native_result->>'active')::boolean then raise exception 'native sub-lot create failed: %',native_result; end if;
+  if public.native_execution_activity_write(plain_award_item,null,'create',null,'sub_lot',
+      'Sous-lot opérationnel',null,1,null,null,null,null,'native-create-0001')<>native_result then
+    raise exception 'native create idempotency mismatch'; end if;
+  begin perform public.native_execution_activity_write(plain_award_item,null,'create',null,'sub_lot',
+      'Different payload',null,1,null,null,null,null,'native-create-0001'); raise exception 'idempotency key accepted for changed payload';
+  exception when invalid_parameter_value then null; end;
+  native_result:=public.native_execution_activity_write(plain_award_item,null,'create',native_activity,'activity',
+    'Pose',null,1,null,null,null,null,'native-create-0002');
+  native_child:=(native_result->>'id')::uuid;
+  native_result:=public.native_execution_activity_write(plain_award_item,native_child,'update',native_activity,'activity',
+    'Pose préparée',null,2,null,null,null,1,'native-update-0001');
+  if native_result->>'revision'<>'2' then raise exception 'native activity revision did not advance'; end if;
+  begin perform public.native_execution_activity_write(plain_award_item,native_child,'update',native_activity,'activity',
+      'Stale title',null,2,null,null,null,1,'native-update-0002'); raise exception 'stale activity revision accepted';
+  exception when serialization_failure then null; end;
+
+  insert into public.review_assignments(project_id,reviewer_id,assigned_at) values(plain_proj,stf,now());
+  perform set_config('request.jwt.claim.sub',stf::text,true);
+  native_result:=public.native_execution_prepare_activity_change(plain_award_item,'update',native_child,native_activity,
+    'activity','Pose confirmée',null,3,null,null,null,2,'native-proposal-0001');
+  native_proposal:=(native_result->>'proposalId')::uuid;
+  begin perform public.native_execution_accept_activity_change(native_proposal,'accepted','manager-accept-0001');
+    raise exception 'manager accepted a bilateral change'; exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claim.sub',c::text,true);
+  native_result:=public.native_execution_accept_activity_change(native_proposal,'accepted','client-accept-0001');
+  if native_result->>'state'<>'pending_acceptance' then raise exception 'first party must leave proposal pending'; end if;
+  perform set_config('request.jwt.claim.sub',a::text,true);
+  native_result:=public.native_execution_accept_activity_change(native_proposal,'accepted','artisan-accept-0001');
+  if native_result->>'state'<>'accepted' then raise exception 'bilateral activity proposal did not apply'; end if;
+  if public.native_execution_accept_activity_change(native_proposal,'accepted','artisan-accept-0001')->>'state'<>'accepted' then
+    raise exception 'accepted party retry must replay idempotently after proposal completion'; end if;
+  if (select title from public.native_execution_activities where id=native_child)<>'Pose confirmée'
+    or (select revision from public.native_execution_activities where id=native_child)<>3
+    or (select count(*) from public.native_execution_activity_revisions where activity_id=native_child)<>3 then
+    raise exception 'accepted activity revision was not applied with history'; end if;
+
+  perform set_config('request.jwt.claim.sub',c::text,true);
+  d:=public.native_execution_plan_v1(plain_proj,null,50);
+  if d->'activities'->>'supported'<>'true'
+    or not exists(select 1 from jsonb_array_elements(d->'activities'->'items') x where x->>'id'=native_child::text and x->>'title'='Pose confirmée')
+    or d->'lots'->0->'permissions'->>'canEditActivities'<>'false' then
+    raise exception 'native activities not present in shared DTO or permission false: %',d; end if;
+
+  perform set_config('request.jwt.claim.sub',a::text,true);
+  begin perform public.native_execution_activity_write(plain_award_item,native_activity,'retire',null,'sub_lot',
+      'ignored',null,1,null,null,null,1,'native-retire-sub-0001'); raise exception 'parent sub-lot retired with active child';
+  exception when check_violation then null; end;
+  perform public.native_execution_activity_write(plain_award_item,native_child,'retire',native_activity,'activity',
+    'ignored',null,1,null,null,null,3,'native-retire-child-0001');
+  perform public.native_execution_activity_write(plain_award_item,native_activity,'retire',null,'sub_lot',
+    'ignored',null,1,null,null,null,1,'native-retire-sub-0002');
 end $$;

@@ -23,6 +23,7 @@ import { RfiService } from '../services/RfiService.js';
 import { createRfiHandler } from './rfiHandler.js';
 import { RfiDocumentService } from '../services/RfiDocumentService.js';
 import { createNativeExecutionPlanHandler } from './nativeExecutionPlanHandler.js';
+import { createNativeExecutionActivityHandler } from './nativeExecutionActivityHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -163,4 +164,10 @@ export function createOceProjectPlanApi(request: Request) {
 export function createNativeExecutionPlanApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createNativeExecutionPlanHandler(db, resolveActor);
+}
+
+/** Native post-award activity commands use the caller JWT and database authorization. */
+export function createNativeExecutionActivityApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeExecutionActivityHandler(db, resolveActor);
 }

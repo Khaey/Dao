@@ -41,15 +41,18 @@ test('native plan API strictly validates project, cursor, limit and duplicate qu
   assert.equal(db.calls.length, 0);
 });
 
-test('native plan API invokes one JWT scoped RPC with deterministic bounded pagination', async () => {
+test('native plan API uses bounded JWT scoped RPCs and calculates a project-wide forecast', async () => {
   const { db, handler } = fixture();
   const response = await handler(request(`?project_id=${PROJECT.toUpperCase()}&cursor=${CURSOR}&limit=25`));
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(response.headers.get('vary'), 'Authorization');
-  assert.deepEqual(await response.json(), { data: dto });
+  const body = await response.json() as any;
+  assert.equal(body.data.forecast.state, 'none');
   assert.deepEqual(db.calls, [{ name: 'native_execution_plan_v1', args: {
     p_project_id: PROJECT, p_after_request_id: CURSOR, p_limit: 25,
+  } }, { name: 'native_execution_plan_v1', args: {
+    p_project_id: PROJECT, p_after_request_id: null, p_limit: 100,
   } }]);
 });
 
@@ -63,7 +66,10 @@ test('native plan API distinguishes forbidden, not-found and invalid from empty 
     assert.equal((await response.json() as any).code, code);
   }
   const empty = { ...dto, lots: [] };
-  assert.deepEqual(await (await fixture(empty).handler(request(`?project_id=${PROJECT}`))).json(), { data: empty });
+  const response = await fixture(empty).handler(request(`?project_id=${PROJECT}`));
+  const body = await response.json() as any;
+  assert.deepEqual(body.data.lots, []);
+  assert.equal(body.data.forecast.state, 'none');
 });
 
 test('native plan API hides database detail on failure and performs no OCE work', async () => {
