@@ -242,8 +242,8 @@ declare actor uuid:=auth.uid(); item public.award_items; a public.native_executi
 begin
   if actor is null or not dao_private.account_active(actor) then raise exception using errcode='42501',message='Authentification active requise'; end if;
   if p_idempotency_key is null or length(p_idempotency_key) not between 8 and 128 then raise exception using errcode='22023',message='Clé idempotente invalide'; end if;
-  select ai.* into item from public.award_items ai join public.awards a on a.id=ai.award_id and a.project_id=ai.project_id
-    and a.status in ('confirmed','contracting','contracted')
+  select ai.* into item from public.award_items ai join public.awards award on award.id=ai.award_id and award.project_id=ai.project_id
+    and award.status in ('confirmed','contracting','contracted')
     join public.projects p on p.id=ai.project_id
     join public.project_requests r on r.id=ai.request_id
     where ai.id=p_award_item_id and ai.active and p.status<>'archived' and r.status in ('awarded','contracted') for update of ai;
@@ -311,8 +311,8 @@ begin
   select * into item from public.award_items where id=proposal.award_item_id and active for update;
   if item.id is null then raise exception using errcode='42501',message='Attribution inactive'; end if;
   if dao_private.site_client_project(item.project_id) and exists(
-      select 1 from public.awards a join public.project_requests r on r.id=item.request_id
-      where a.id=item.award_id and a.project_id=item.project_id and a.status in ('confirmed','contracting','contracted')
+      select 1 from public.awards award join public.project_requests r on r.id=item.request_id
+      where award.id=item.award_id and award.project_id=item.project_id and award.status in ('confirmed','contracting','contracted')
         and r.status in ('awarded','contracted')) then party:='client';
   elsif dao_private.site_contractor_award_item(item.id) then party:='contractor';
   else raise exception using errcode='42501',message='Partie au lot attribué requise'; end if;
