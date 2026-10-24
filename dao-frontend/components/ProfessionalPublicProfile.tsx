@@ -10,6 +10,7 @@ import { Card } from './ui';
 import ProfessionalReviews from './reviews/ProfessionalReviews';
 import { Stars } from './reviews/ReviewStars';
 import { professionalBlob, professionalRead } from '../lib/professionals';
+import { projectApi } from '../lib/collaboration';
 import {
   availabilityLabel, availabilityOf, availabilityTones, initials, monogramTone, plural, professionalTypeNames,
 } from './professional-display';
@@ -199,10 +200,48 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
   const directoryContext = projectContext ? `/app/professionals?project_id=${encodeURIComponent(projectId!)}&request_id=${encodeURIComponent(requestId!)}` : '/app/professionals';
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState('');
+  const [invitationStatus, setInvitationStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [invitationError, setInvitationError] = useState('');
+  const invitationInFlight = useRef(false);
+  const preparedInvitation = useRef<{ key: string; id: string; token: string } | null>(null);
+
+  async function sendDirectInvitation() {
+    if (invitationInFlight.current || invitationStatus === 'sent' || !projectContext || !projectId || !requestId || !profile?.professional_email) return;
+    const recipientEmail = profile.professional_email.trim();
+    if (!window.confirm(`Envoyer une invitation à ${profile.name} (${recipientEmail}) pour ce lot ?`)) return;
+    invitationInFlight.current = true;
+    setInvitationStatus('sending');
+    setInvitationError('');
+    try {
+      const key = `${projectId}:${requestId}:${profile.id}`;
+      let invitation = preparedInvitation.current?.key === key ? preparedInvitation.current : null;
+      if (!invitation) {
+        const created = await projectApi<{ id: string; token: string }>('/api/projects/invitations', {
+          project_id: projectId,
+          expected_role: 'contractor',
+          recipient_email: recipientEmail,
+          recipient_name: profile.name,
+          request_id: requestId,
+          can_view_private_details: false,
+        });
+        invitation = { key, id: created.id, token: created.token };
+        preparedInvitation.current = invitation;
+      }
+      const sent = await projectApi<{ sent: boolean }>(`/api/project-invitations/${invitation.id}/send-email`, { token: invitation.token });
+      if (sent?.sent !== true) throw new Error('Envoi non confirmé.');
+      setInvitationStatus('sent');
+    } catch {
+      // Keep the prepared token in memory for a retry; do not create duplicate invitations.
+      setInvitationStatus('idle');
+      setInvitationError("L'invitation n'a pas pu être envoyée. Réessayez ou utilisez l'onglet Équipe.");
+    } finally {
+      invitationInFlight.current = false;
+    }
+  }
 
   useEffect(() => {
     let active = true;
-    setProfile(null); setError('');
+    setProfile(null); setError(''); setInvitationStatus('idle'); setInvitationError(''); preparedInvitation.current = null;
     void professionalRead({ view: 'public', id, preview: String(preview) })
       .then((next: Profile) => { if (active) setProfile(next); })
       .catch((exception: Error) => { if (active) setError(exception.message); });
@@ -308,11 +347,21 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
             {socialLinks.map((url) => <ContactRow key={url} external href={url} icon={<Link2 size={16} />}>{hostOf(url)}</ContactRow>)}
           </ul> : <p className="text-sm text-black/55">Ce professionnel n’a pas choisi de publier ses coordonnées.</p>}
           {!showPreview && <div className="space-y-2 border-t border-black/5 pt-4">
-            <Link href={projectContext || '/app/projects'}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-ink px-4 text-center text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20">
-              {projectContext ? 'Préparer une invitation pour ce lot' : 'Inviter depuis mes chantiers'}
-            </Link>
-            <p className="text-xs leading-relaxed text-black/55">L’invitation s’effectue dans l’onglet Équipe et requiert une action explicite du client. Consignez le professionnel choisi et ne communiquez le lien qu’au destinataire souhaité.</p>
+            {projectContext && profile.professional_email
+              ? <button type="button" onClick={() => void sendDirectInvitation()} disabled={invitationStatus !== 'idle'}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-ink px-4 text-center text-sm font-semibold text-white transition hover:bg-teal disabled:cursor-default disabled:opacity-70 focus:outline-none focus:ring-4 focus:ring-teal/20">
+                  {invitationStatus === 'sending' ? 'Envoi de l’invitation…' : invitationStatus === 'sent' ? 'Invitation envoyée ✓' : 'Envoyer une invitation à cet Artisan'}
+                </button>
+              : <Link href={projectContext || '/app/projects'}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-ink px-4 text-center text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20">
+                  {projectContext ? 'Inviter depuis l’équipe du chantier' : 'Inviter depuis mes chantiers'}
+                </Link>}
+            {invitationStatus === 'sent' && <p role="status" className="text-sm font-semibold text-teal">Invitation envoyée. Le professionnel pourra accepter depuis son compte.</p>}
+            {invitationError && <p role="alert" className="text-sm text-red-700">{invitationError}</p>}
+            <p className="text-xs leading-relaxed text-black/55">{projectContext && profile.professional_email
+              ? "L'invitation sera créée puis envoyée à l'adresse professionnelle affichée ci-dessus, après confirmation. Vous pouvez aussi gérer les invitations depuis l'équipe du chantier."
+              : "Pour inviter ce professionnel, ouvrez l'équipe du chantier et renseignez son adresse e-mail."}</p>
+            {projectContext && <Link href={projectContext} className="inline-flex min-h-11 items-center text-sm font-semibold text-teal hover:underline">Gérer les invitations du chantier</Link>}
           </div>}
         </Card>
 
