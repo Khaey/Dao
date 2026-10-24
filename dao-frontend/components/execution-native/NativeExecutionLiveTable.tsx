@@ -7,11 +7,11 @@ import { supabaseBrowser } from '../../lib/supabase-browser';
 import { Badge, Card, SectionHeading } from '../ui';
 import { adaptNativeExecutionPlan, workspaceLabels, type ExecutionTableNode, type ExecutionTableLot } from './native-plan-adapter';
 import { readNativeExecutionPlan, NativePlanReadError } from './read-native-plan';
+import NativeActivityPanel from './NativeActivityPanel';
 
 const outline = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal';
 const optionNames = [
-  'Ajouter un sous-lot',
-  'Ajouter des dates',
+  'Ajouter des dates au lot',
   'Ajouter une dépendance',
   'Ajouter un jalon',
   'Ajouter un échéancier',
@@ -153,9 +153,10 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
         {selected.awardId && (selected.canDeclareProgress || selected.canReviewProgress) && <Link className={outline + ' hover:bg-sand'} href={'/app/execution/' + encodeURIComponent(projectId)}>Suivre les travaux</Link>}
         {selected.awardId && role !== 'dao_manager' && selected.canRead && <Link className={outline + ' hover:bg-sand'} href={'/app/awards/' + encodeURIComponent(selected.awardId) + '/conditions'}>Voir les conditions du lot</Link>}
       </div>
-      <p className="text-xs text-black/55">Actions d’ajout en préparation avec DEV 3 : les permissions N1 ne suffisent pas à autoriser une écriture.</p>
+      {selected.awardItemId && <NativeActivityPanel key={selected.awardItemId} plan={dto} lot={selected} onUpdated={reload} />}
+      <p className="text-xs text-black/55">Les activités et sous-lots opérationnels sont gérés ci-dessus lorsque DEV 3 l’autorise. Dates du lot, dépendances, jalons et échéancier sont indépendants et requièrent chacun une API et des droits spécifiques.</p>
       <div className="flex flex-wrap gap-2">{optionNames.map(name => <button key={name} type="button" disabled
-        title="Commande indisponible jusqu’à la livraison de l’API d’écriture et de ses permissions"
+        title="Commande indépendante non activée tant que son API et ses permissions dédiées ne sont pas disponibles"
         className={outline + ' cursor-not-allowed opacity-50'}>{name}</button>)}</div>
       <p className="text-xs text-black/55">Le contrat n’est pas signé ici ; aucune échéance ne déclenche un paiement. Le Gestionnaire ne consent jamais au nom des parties.</p>
     </Card>}

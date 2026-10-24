@@ -38,6 +38,7 @@ export interface ExecutionTableLot extends ExecutionTableNode {
   canDeclareProgress: boolean;
   canReviewProgress: boolean;
   canAcceptEngagingChange: boolean;
+  canEditActivities: boolean;
   agreementVersionId: string | null;
   hasProposedDates: boolean;
   hasAgreedDates: boolean;
@@ -114,6 +115,7 @@ export function adaptNativeExecutionPlan(plan: NativeExecutionPlanDTO): Executio
       canDeclareProgress: lot.permissions.canDeclareProgress,
       canReviewProgress: lot.permissions.canReviewProgress,
       canAcceptEngagingChange: lot.permissions.canAcceptEngagingChange,
+      canEditActivities: lot.permissions.canEditActivities,
       hasProposedDates: exists(lot.dates.proposed),
       hasAgreedDates: exists(lot.dates.agreed),
       hasPlanDates: exists(lot.dates.plan),
