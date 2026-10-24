@@ -63,6 +63,21 @@ Le composant ne fait aucun fetch, ne change aucune donnée et ne s’importe dan
 | Mobile 375 px | Cartes empilées, champs étiquetés, actions à taille accessible |
 | Empty / Loading / Error | Messages spécifiques, aucun état vide trompeur |
 
+## Intégration API en lecture — composants ajoutés après #412
+
+**Route isolée, hors navigation principale** : `/app/native-execution/[projectId]`. Elle est client-side et transmet exclusivement le JWT de la session courante à `GET /api/projects/native-execution`, dans le périmètre filtré par le serveur. Cette route n'est pas un accès public ; 401/403/404/503 ne sont jamais remplacés par un tableau vide.
+
+- [Client JWT paginé](../../dao-frontend/components/execution-native/read-native-plan.ts) : `getSession()`, entête Authorization, `cache:no-store`, pagination limitée, invalidation/abort, erreurs distinctes ; aucune écriture.
+- [Adaptateur DTO réel](../../dao-frontend/components/execution-native/native-plan-adapter.ts) : un lot = une ligne, progression au niveau LOT ou null, sous-lots attribués seulement, source de dates explicitée, droits par lot, échéances par award (N1 ou N2).
+- [Tableau live](../../dao-frontend/components/execution-native/NativeExecutionLiveTable.tsx) : aucun filtre de sécurité local, gestion A↔B sans conserver les lignes de l'ancien compte, cinq actions désactivées tant que leur API n'est pas disponible, liens vers les écrans métier existants.
+- [Route de recette isolée](../../dao-frontend/app/app/native-execution/[projectId]/page.tsx) : ne modifie ni Mes chantiers ni Conditions ni Carnet ni OCE.
+
+**États techniques** : `loading` distinct de `empty`, messages spécifiques pour 401 / 403 / 404 / 503, bouton actualiser, pas de valeur 0 inventée. Le serveur est seul garant des autorisations ; le client ne choisit pas librement un workspace. Les données métiers complètes de N2 (#413) s'intègreront par petits incréments une fois fusionnées.
+
+**À valider avant fusion/recette complète** : `frontend-build`, `backend-verify`, FULL E2E requis sur PR et lecture navigateur Client/Artisan/Gestionnaire sur DEV si API N1/migration effectivement installées. Aucune PR ou pipeline vert n'est assimilé à une validation utilisateur.
+
+---
+
 ## Contrat DEV 3 #409 — vérification après PR #412
 
 Le contrat lecture V1 est maintenant livré **dans main** par [PR #412](https://github.com/Khaey/Dao/pull/412) (merge `89d9720a7e4cc3b6140aa41d770eadf907af8fac`). Source canonique : `dao-backend/src/native-tracking/contract.ts`. Le déploiement API sur DEV doit être confirmé séparément. Le prototype reste volontairement isolé et fictif.
