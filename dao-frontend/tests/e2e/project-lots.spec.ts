@@ -29,6 +29,8 @@ test('Lots : version, duplication, retrait et historique', async ({ page, e2eCli
   await expect(page.getByLabel('Budget indicatif du lot (TND)')).toHaveValue('');
   await expect(page.getByLabel('Périmètre des travaux')).toHaveValue('');
   await page.reload();
+  // A reload restores the default tab, so re-open Lots before asserting the preserved row.
+  await page.getByRole('button', { name: /^Lots/ }).click();
 
   const versionTwoRow = page.locator('tr').filter({ hasText: 'Lot plomberie E2E version 2' });
   await expect(versionTwoRow).toHaveCount(1);
