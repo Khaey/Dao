@@ -22,6 +22,7 @@ import { createSupportHandler } from './supportHandler.js';
 import { RfiService } from '../services/RfiService.js';
 import { createRfiHandler } from './rfiHandler.js';
 import { RfiDocumentService } from '../services/RfiDocumentService.js';
+import { createNativeExecutionPlanHandler } from './nativeExecutionPlanHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -156,4 +157,10 @@ export function createOceLotPlanApi(request: Request) {
 export function createOceProjectPlanApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createOceProjectPlanHandler(db, resolveActor, projectId => projectSynchronizer().run(projectId), undefined, { linkEditing: removalEnabled() });
+}
+
+/** Native tracking table read model (#411). This path is JWT-scoped and never invokes OCE. */
+export function createNativeExecutionPlanApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeExecutionPlanHandler(db, resolveActor);
 }

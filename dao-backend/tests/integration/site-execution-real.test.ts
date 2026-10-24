@@ -123,6 +123,7 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
     request_id: request.data!.id, bid_item_id: bidItem.data!.id, agreed_millimes: 100000, active: true,
   }).select('id').single();
   assert.ifError(awardItem.error);
+  assert.ifError((await admin.from('project_requests').update({ status: 'awarded' }).eq('id', request.data!.id)).error);
 
   const snapshotArgs = { p_project_id: project.data!.id, p_before_created_at: null, p_before_id: null, p_limit: 30 };
   for (const actor of [otherClient, competitor, invited, staff]) await denied(actor.db, 'site_execution_snapshot', snapshotArgs);
@@ -130,6 +131,39 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.ifError(ownerSnapshot.error); assert.equal(ownerSnapshot.data.lots.length, 1); assert.equal(ownerSnapshot.data.can_observe, true);
   const contractorSnapshot = await contractor.db.rpc('site_execution_snapshot', snapshotArgs);
   assert.ifError(contractorSnapshot.error); assert.equal(contractorSnapshot.data.lots[0].can_write, true);
+
+  // P10-N1: JWT-only native plan snapshot. Marketplace award access is scoped
+  // by the active award itself; it does not require auto-adding the Artisan to project_members.
+  const nativeArgs = { p_project_id: project.data!.id, p_after_request_id: null, p_limit: 50 };
+  const anonymous = createClient(url, publishable, { auth: { persistSession: false, autoRefreshToken: false } });
+  assert.ok((await anonymous.rpc('native_execution_plan_v1', nativeArgs)).error, 'anonymous execution is not granted');
+  const ownerNative = await owner.db.rpc('native_execution_plan_v1', nativeArgs);
+  assert.ifError(ownerNative.error);
+  assert.equal(ownerNative.data.schemaVersion, 1);
+  assert.equal(ownerNative.data.viewer.workspace, 'client');
+  assert.equal(ownerNative.data.lots.length, 1);
+  assert.equal(ownerNative.data.lots[0].award.awardItemId, awardItem.data!.id);
+  assert.equal(ownerNative.data.lots[0].executionSubLots.length, 1);
+  assert.equal(ownerNative.data.lots[0].permissions.canReviewProgress, true);
+  assert.equal(ownerNative.data.forecast, null, 'OCE forecast is not reused by the native endpoint');
+  assert.equal(JSON.stringify(ownerNative.data).includes('agreed_millimes'), false);
+  const contractorNative = await contractor.db.rpc('native_execution_plan_v1', nativeArgs);
+  assert.ifError(contractorNative.error);
+  assert.equal(contractorNative.data.viewer.workspace, 'contractor');
+  assert.deepEqual(contractorNative.data.lots.map((lot: any) => lot.requestId), [request.data!.id]);
+  assert.equal(contractorNative.data.lots[0].permissions.canDeclareProgress, true);
+  assert.equal(contractorNative.data.lots[0].award.contractorId, null, 'no contractor identity leak into own-table DTO');
+  for (const deniedActor of [otherClient, competitor, invited, staff]) {
+    await denied(deniedActor.db, 'native_execution_plan_v1', nativeArgs);
+  }
+  assert.ifError((await admin.from('review_assignments').insert({
+    project_id: project.data!.id, reviewer_id: staff.id, assigned_at: new Date().toISOString(),
+  })).error);
+  const managerNative = await staff.db.rpc('native_execution_plan_v1', nativeArgs);
+  assert.ifError(managerNative.error);
+  assert.equal(managerNative.data.viewer.workspace, 'dao_manager');
+  assert.equal(managerNative.data.lots[0].permissions.canPrepareChange, true);
+  assert.equal(managerNative.data.lots[0].permissions.canAcceptEngagingChange, false);
 
   const document = await admin.from('documents').insert({
     project_id: project.data!.id, owner_id: contractor.id, object_path: `project/${project.data!.id}/${randomUUID()}.jpg`,
