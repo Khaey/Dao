@@ -1,5 +1,5 @@
 /** Shared, pure S1 contract. Authorization belongs to JWT-scoped SQL RPCs. */
-export type NotificationKind = 'review_approved' | 'review_rejected' | 'invitation_received' | 'invitation_accepted' | 'project_message' | 'invitation_expiring' | 'rfi_question' | 'rfi_clarification';
+export type NotificationKind = 'review_approved' | 'review_rejected' | 'invitation_received' | 'invitation_accepted' | 'project_message' | 'invitation_expiring' | 'rfi_question' | 'rfi_clarification' | 'bid_result';
 export type NotificationWorkspace = 'client' | 'contractor' | 'staff';
 export type NotificationCursor = { created_at: string; id: string };
 export type NotificationItem = NotificationCursor & { kind: NotificationKind; read_at: string | null; title: string; href: string; action_required: boolean; expires_at: string | null };
@@ -13,6 +13,7 @@ const titles: Record<NotificationKind, string> = {
   invitation_received: 'Invitation reçue', invitation_accepted: 'Invitation acceptée',
   project_message: 'Nouveau message', invitation_expiring: 'Invitation bientôt expirée',
   rfi_question: 'Nouvelle question technique', rfi_clarification: 'Clarification technique publiée',
+  bid_result: 'Résultat de votre offre par lot',
 };
 export class NotificationContractError extends Error {
   constructor(public readonly code: 'BAD_REQUEST' | 'INVALID_NOTIFICATION_DATA') {
@@ -54,6 +55,7 @@ export function notificationHref(kind: NotificationKind, targetId: unknown): str
   if (kind === 'project_message') return `/app/messages/${targetId}`;
   if (kind === 'rfi_question' || kind === 'rfi_clarification') return `/app/messages?onglet=rfi&question=${targetId}`;
   if (kind === 'invitation_accepted') return `/app/projects/${targetId}`;
+  if (kind === 'bid_result') return '/app/artisan/offers';
   return `/app/projects/${targetId}/review`;
 }
 export function notificationPage(value: unknown, limit: number): NotificationPage {

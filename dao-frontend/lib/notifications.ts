@@ -30,7 +30,7 @@ export async function fetchNotifications(filter: 'all'|'unread'|'action', cursor
       :['rfi_question','rfi_clarification'].includes(r.kind)?new RegExp('^/app/messages\\?onglet=rfi&question='+uuid+'$','i')
       :r.kind==='invitation_accepted'?new RegExp('^/app/projects/'+uuid+'$','i')
       :new RegExp('^/app/projects/'+uuid+'/review$','i');
-    const target=['invitation_received','invitation_expiring'].includes(r.kind)&&r.href==='/app/invitations'?r.id:typeof r.href==='string'?r.href.match(pattern)?.[1]:null;
+    const target=r.kind==='bid_result'&&r.href==='/app/artisan/offers'?r.id:['invitation_received','invitation_expiring'].includes(r.kind)&&r.href==='/app/invitations'?r.id:typeof r.href==='string'?r.href.match(pattern)?.[1]:null;
     return {...r,target_id:target};
   });
   const clean=notificationPage({...data,rows:raw,has_more:data.next_cursor!==null},20);
