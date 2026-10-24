@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tracking/contract';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { Card } from '../ui';
@@ -53,7 +53,7 @@ export default function NativeActivityPanel({ plan, lot, onUpdated }: {
   const actionLabel = isManager ? 'Proposer aux parties' : 'Ajouter au suivi';
   const canRespond = lot.canAcceptEngagingChange && plan.viewer.workspace !== 'dao_manager';
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canWrite || busy || !lot.awardItemId || !title.trim() || title.trim().length > 180
       || (start && end && end < start)) return;
