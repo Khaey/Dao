@@ -48,6 +48,23 @@ test('Artisan #356 multi-lots : attribution partielle, lot du concurrent, catalo
   await second.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(second.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
 
+  // #399: an account replacement in the same browser context must invalidate the mounted page immediately.
+  // Supabase broadcasts the second tab's login to the already mounted « Mes offres » page.
+  await first.goto('/app/artisan/offers');
+  const currentOffer = () => first.getByRole('heading', { name: project.title, exact: true }).locator('xpath=../..');
+  await expect(currentOffer()).toContainText('2 lots');
+  await expect(currentOffer()).toContainText(/6\s?000,000/);
+  const accountSwitcher = await ac.newPage();
+  await login(accountSwitcher, e2eSecondArtisan!);
+  await expect(currentOffer()).toContainText('1 lot');
+  await expect(currentOffer()).toContainText(/2\s?900,000/);
+  await expect(currentOffer()).not.toContainText(/6\s?000,000/);
+  await login(accountSwitcher, e2eArtisan!);
+  await expect(currentOffer()).toContainText('2 lots');
+  await expect(currentOffer()).toContainText(/6\s?000,000/);
+  await expect(currentOffer()).not.toContainText(/2\s?900,000/);
+  await accountSwitcher.close();
+
   // Client awards lot A to Artisan 1 only.
   await page.goto(`/app/publications/${publicationId}`);
   const comparison = page.getByRole('heading', { name: 'Comparer et attribuer les offres' }).locator('..');
