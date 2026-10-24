@@ -109,7 +109,7 @@ export default function Register() {
       <p className="text-sm font-semibold text-teal">D.A.O</p><h1 className="mt-2 text-3xl font-bold">Créer votre espace</h1>
       {checkingInvitation ? <p className="mt-8 text-sm text-black/55" role="status">Préparation de votre inscription…</p> : <form onSubmit={submit} className="mt-8 space-y-4">
         <Input placeholder="Nom complet" value={name} onChange={event => setName(event.target.value)} required maxLength={160} />
-        {!guided && <Input placeholder="Téléphone tunisien (optionnel)" value={phone} onChange={event => setPhone(event.target.value)} pattern="\\+216[0-9]{8}" />}
+        {!guided && <Input placeholder="Téléphone tunisien (optionnel)" value={phone} onChange={event => setPhone(event.target.value)} inputMode="tel" autoComplete="tel" />}
         {guided ? <div className="rounded-xl border border-teal/30 bg-teal/5 p-4" aria-label="Type de compte défini par l’invitation">
           <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Type de compte</p>
           <p className="mt-1 font-semibold">{expectedLabel}</p>

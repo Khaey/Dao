@@ -23,6 +23,15 @@ test('Lots : version, duplication, retrait et historique', async ({ page, e2eCli
   await page.getByRole('button', { name: 'Enregistrer les modifications' }).click();
   await expect(page.getByText('v2', { exact: true })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Ajouter un lot', exact: true }).click();
+  await expect(page.getByLabel('Métier')).toHaveValue('');
+  await expect(page.getByLabel('Intitulé du lot')).toHaveValue('');
+  await expect(page.getByLabel('Budget indicatif du lot (TND)')).toHaveValue('');
+  await expect(page.getByLabel('Périmètre des travaux')).toHaveValue('');
+  await page.reload();
+  // A reload restores the default tab, so re-open Lots before asserting the preserved row.
+  await page.getByRole('button', { name: /^Lots/ }).click();
+
   const versionTwoRow = page.locator('tr').filter({ hasText: 'Lot plomberie E2E version 2' });
   await expect(versionTwoRow).toHaveCount(1);
   await versionTwoRow.getByTitle('Dupliquer').click();

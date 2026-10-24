@@ -4,8 +4,9 @@ export function Button({ className, ...props }: React.ButtonHTMLAttributes<HTMLB
   return <button className={cn('inline-flex min-h-10 items-center justify-center rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:cursor-not-allowed disabled:opacity-50', className)} {...props} />;
 }
 
-export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn('w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-black/35 focus:border-teal focus:ring-4 focus:ring-teal/10', className)} {...props} />;
+export function Input({ className, pattern, inputMode, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  const legacyTunisianPhone = pattern === '\\+216[0-9]{8}';
+  return <input className={cn('w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-black/35 focus:border-teal focus:ring-4 focus:ring-teal/10', className)} pattern={legacyTunisianPhone ? undefined : pattern} inputMode={legacyTunisianPhone ? 'tel' : inputMode} {...props} />;
 }
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

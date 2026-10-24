@@ -169,6 +169,9 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(page.getByText('client-e2e@example.invalid', { exact: true })).toHaveCount(0);
   const comparison = page.getByRole('heading', { name: 'Comparer et attribuer les offres' }).locator('..');
   await expect(comparison.getByTestId('offer-card')).toHaveCount(2);
+  const profileLinks = comparison.getByRole('link', { name: 'Consulter la fiche professionnelle' });
+  await expect(profileLinks).toHaveCount(2);
+  await expect(profileLinks.first()).toHaveAttribute('href', /\/app\/professionals\/[0-9a-f-]{36}$/i);
   await expect(comparison.getByText('Version révisée avec délai actualisé.', { exact: true })).toBeVisible();
   await expect(comparison.getByText('Tube cuivre', { exact: false })).toBeVisible();
   await expect(comparison.getByTestId('offer-sub-lots')).toContainText('Rainures E2E');
