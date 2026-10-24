@@ -4,6 +4,7 @@ do $$
 declare
   c uuid:=gen_random_uuid(); c2 uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); stf uuid:=gen_random_uuid();
   pa uuid; pb uuid; proj uuid; r1 uuid; r2 uuid; r3 uuid; rv1 uuid; rv2 uuid; rv3 uuid; trade uuid; off1 uuid; off2 uuid;
+  plain_proj uuid; plain_request uuid; plain_rv uuid; plain_bid uuid; plain_bv uuid; plain_item uuid; plain_award uuid;
   bida uuid; bidb uuid; va uuid; vb uuid; ia uuid; ib uuid; ic uuid; awa uuid; awb uuid;
   s1 uuid:=gen_random_uuid(); s2 uuid:=gen_random_uuid(); t1 uuid:=gen_random_uuid(); u1 uuid:=gen_random_uuid();
   d jsonb; n integer; rev integer; l1 uuid; l2 uuid; l3 uuid; lb uuid; ctx uuid; m uuid; m0 uuid; lm uuid; tf text; td text; tt text; tp text;
@@ -65,6 +66,39 @@ begin
   insert into public.award_items(award_id,project_id,request_id,bid_item_id,agreed_millimes,contractor_id) values(awa,proj,r3,ic,500000,pa);
   insert into public.award_items(award_id,project_id,request_id,bid_item_id,agreed_millimes,contractor_id) values(awb,proj,r2,ib,900000,pb);
 
+  -- P10-N1: native read projection is independent of OCE and scopes a contractor to own active lots.
+  perform set_config('request.jwt.claim.sub',c::text,true);
+  d:=public.native_execution_plan_v1(proj,null,50);
+  if (d->>'schemaVersion')::integer<>1 or d->'viewer'->>'workspace'<>'client'
+    or jsonb_array_length(d->'lots')<>3 then raise exception 'native client projection incomplete: %',d; end if;
+  if d->'activities'->>'supported'<>'false' or d->'forecast'<>'null'::jsonb then
+    raise exception 'unsupported activities or forecast must stay explicit'; end if;
+  if d::text like '%1000000%' or d::text like '%900000%' then
+    raise exception 'native projection leaked a quote/award price'; end if;
+  if not exists(select 1 from jsonb_array_elements(d->'lots') x
+      where x->>'requestId'=r1::text and jsonb_array_length(x->'executionSubLots')=2
+        and x->'permissions'->>'canReviewProgress'='true') then
+    raise exception 'native winning sub-lots/lot permissions missing'; end if;
+
+  perform set_config('request.jwt.claim.sub',a::text,true);
+  d:=public.native_execution_plan_v1(proj,null,50);
+  if d->'viewer'->>'workspace'<>'contractor' or jsonb_array_length(d->'lots')<>2
+    or exists(select 1 from jsonb_array_elements(d->'lots') x where x->>'requestId'=r2::text)
+    or exists(select 1 from jsonb_array_elements(d->'lots') x where x->'permissions'->>'canDeclareProgress'<>'true') then
+    raise exception 'native contractor projection is not scoped to own awarded lots: %',d; end if;
+
+  perform set_config('request.jwt.claim.sub',c2::text,true);
+  begin
+    perform public.native_execution_plan_v1(proj,null,50);
+    raise exception 'unrelated client unexpectedly read native tracking';
+  exception when insufficient_privilege then null; end;
+
+  perform set_config('request.jwt.claim.sub',stf::text,true);
+  d:=public.native_execution_plan_v1(proj,null,1);
+  if d->'viewer'->>'workspace'<>'dao_manager' or jsonb_array_length(d->'lots')<>1
+    or d->'page'->>'nextCursor' is null then raise exception 'manager scope or bounded pagination missing: %',d; end if;
+
+  perform set_config('request.jwt.claim.sub',c::text,true);
   d:=public.get_project_plan(proj);
   if jsonb_array_length(d->'nodes')<>4 then raise exception 'expected 4 awarded nodes, got %',jsonb_array_length(d->'nodes'); end if;
   if jsonb_array_length(d->'links')<>4 then raise exception 'expected 4 proposed links'; end if;
@@ -227,4 +261,31 @@ begin
   if dao_private.oce_list_objects(m0)<>jsonb_build_object('activities',jsonb_build_array('A1'),'dependencies','[]'::jsonb) then raise exception 'forget mismatch'; end if;
   begin perform dao_private.oce_forget_object(m0,'wbs','X',null); raise exception 'wbs forgotten';
   exception when invalid_parameter_value then null; end;
+
+  -- P10-N1 simple project: active lot is trackable without sub-lots, dates,
+  -- agreement, contract settings, or an OCE context.
+  insert into public.projects(client_id) values(c) returning id into plain_proj;
+  insert into public.project_requests(project_id) values(plain_proj) returning id into plain_request;
+  insert into public.project_request_versions(request_id,project_id,version_no,trade_id,title,scope)
+    values(plain_request,plain_proj,1,trade,'Lot simple','Travaux sans détail facultatif') returning id into plain_rv;
+  insert into public.bids(project_id,contractor_id) values(plain_proj,pa) returning id into plain_bid;
+  insert into public.bid_versions(bid_id,project_id,contractor_id,version_no,expires_at)
+    values(plain_bid,plain_proj,pa,1,'2099-01-01') returning id into plain_bv;
+  insert into public.bid_items(bid_version_id,project_id,request_version_id,request_id,contractor_id,price_millimes,duration_days,inclusions)
+    values(plain_bv,plain_proj,plain_rv,plain_request,pa,123456,1,'Travaux attribués') returning id into plain_item;
+  update public.bid_versions set status='submitted',submitted_at=now() where id=plain_bv;
+  insert into public.awards(project_id,contractor_id) values(plain_proj,pa) returning id into plain_award;
+  insert into public.award_items(award_id,project_id,request_id,bid_item_id,agreed_millimes,contractor_id)
+    values(plain_award,plain_proj,plain_request,plain_item,123456,pa);
+  perform set_config('request.jwt.claim.sub',c::text,true);
+  d:=public.native_execution_plan_v1(plain_proj,null,50);
+  if jsonb_array_length(d->'lots')<>1
+    or jsonb_array_length(d->'lots'->0->'executionSubLots')<>0
+    or d->'lots'->0->'dates'->'plan'<>'null'::jsonb
+    or d->'lots'->0->'dates'->'agreed'<>'null'::jsonb
+    or d->'lots'->0->'modalities'<>'null'::jsonb
+    or d->'lots'->0->'progress'<>'null'::jsonb
+    or exists(select 1 from public.project_contract_settings where project_id=plain_proj)
+    or exists(select 1 from public.oce_sync_mappings where project_id=plain_proj) then
+    raise exception 'simple native tracking must not require optional configuration: %',d; end if;
 end $$;
