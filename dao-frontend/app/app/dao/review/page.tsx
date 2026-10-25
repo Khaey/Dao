@@ -8,6 +8,7 @@ import { statusLabel } from '../../../../lib/utils';
 import { isDaoStaff, type AppRole } from '../../../../lib/roles';
 import { commandBackoffice } from '../../../../lib/backoffice';
 import { Badge, Button, Card } from '../../../../components/ui';
+import { StaffHeader } from '../../../../components/backoffice/PageChrome';
 import { AssignmentBadge, assignmentOf, formatDate, formatTnd, rememberList, reviewStatusLabel, type Assignment } from '../../../../components/backoffice/assignment';
 
 type ReviewLot = { id: string; title: string; scope: string; budget_millimes: number | null; version_no: number; trade_name: string };
@@ -147,11 +148,7 @@ export default function DaoReview() {
 
   if (allowed === false) return <Card><h1 className="text-xl font-bold">Accès réservé</h1><p className="mt-2 text-sm text-black/60">La revue est réservée aux rôles D.A.O autorisés.</p></Card>;
   return <section className="mx-auto w-full max-w-4xl space-y-6">
-    <nav aria-label="Fil d’Ariane" className="text-sm text-black/50"><Link href="/app/dao" className="font-semibold hover:text-teal">Tableau de bord</Link><span aria-hidden="true" className="mx-2">/</span><span aria-current="page">Revues</span></nav>
-    <header className="space-y-2">
-      <h1 className="text-3xl font-bold tracking-tight text-ink">Revues en attente</h1>
-      <p className="max-w-2xl text-sm text-black/55">Versions exactes soumises par les clients, de la plus ancienne à la plus récente. Prenez un dossier en charge avant de décider ; un dossier suivi par un autre gestionnaire reste en lecture seule.</p>
-    </header>
+    <StaffHeader group="Dossiers" title="Revues en attente" crumb="Revues" description="Versions exactes soumises par les clients, de la plus ancienne à la plus récente. Prenez un dossier en charge avant de décider ; un dossier suivi par un autre gestionnaire reste en lecture seule." />
 
     {!loading && !loadError && <fieldset className="min-w-0">
       <legend className="sr-only">Filtrer la file</legend>

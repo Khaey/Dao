@@ -17,11 +17,15 @@ d'API ni de droit** : le menu montre, le serveur (JWT/RLS) décide.
 | (sans titre) | Tableau de bord | Tableau de bord |
 | Dossiers | Revues, Chantiers, Publications, Mes contrats | Revues, Chantiers, Publications |
 | Relations | Professionnels, Clients, Avis, Assistance | Professionnels, Clients, Avis, Assistance |
-| Gouvernance | Utilisateurs & rôles, Paramètres D.A.O., Historique | — |
-| Traçabilité | — | Historique (+ Mes délégations avec un mandat S4 actif, #437) |
+| Gouvernance | Utilisateurs & rôles, Historique | — |
+| Traçabilité | — | Historique |
+| Compte (bas du menu) | **Paramètres** (onglets « Mon compte » / « Plateforme D.A.O. »), Déconnexion | **Paramètres** (onglets « Mon compte » / « Mes délégations » si mandat S4 actif), Déconnexion |
 
-Les URL et libellés de lien ne changent pas (ils sont assertés par les E2E). Les comptes
-Client/Artisan gardent leur menu plat.
+Les URL ne changent pas. **Une seule entrée de paramètres** (décision du propriétaire, 25/10) :
+`/app/settings` et `/app/dao/settings` sont deux onglets de « Paramètres » (`components/SettingsTabs.tsx`) ;
+la page ne reprend aucun raccourci déjà présent dans le menu (pas de « Vos espaces ») et la ligne
+d'identité en bas du menu n'est plus un second lien vers le compte. Les comptes Client/Artisan gardent
+leur menu plat.
 
 ## Tableau de bord (`/app/dao`)
 
@@ -30,9 +34,18 @@ derniers, prêts à publier, publications actives, profils à vérifier), file d
 Gestionnaire : file de revue d'abord, puis « Ensuite ». Deux listes courtes seulement : dossiers à
 examiner, chantiers à publier.
 
+## En-tête et listes (`components/backoffice/PageChrome.tsx`)
+
+- `StaffHeader` : fil d'Ariane, sur-titre = groupe du menu, titre, phrase d'usage, action principale.
+  Utilisé par Revues, Chantiers, Publications, Professionnels, Clients, Utilisateurs & rôles, Historique ;
+  Avis, Assistance et Fiches professionnelles portent le même sur-titre « Relations ».
+- `StaffTabs` : vues sœurs d'un domaine (Professionnels : « Comptes et vérification » / « Fiches et médias »).
+- Liste type (Chantiers, Publications) : barre de recherche/filtres `role="search"`, compteur et
+  « Réinitialiser les filtres », erreur avec « Réessayer », squelette, vide expliqué ; Publications en
+  tableau sur desktop et liste compacte sur mobile.
+
 ## Étapes suivantes
 
-2. Gabarit liste commun (en-tête, filtres, tableau desktop / cartes mobile).
 3. Gabarit détail (actions sensibles séparées) ; Historique en onglets Journal / Emails.
 4. Suivi terrain Gestionnaire : **gate**, aucun accès staff au suivi natif ni aux réserves aujourd'hui ;
    décision du propriétaire puis backend DEV 3 et écran Mission 1.

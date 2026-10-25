@@ -7,6 +7,7 @@ import { effectiveProjectStatus, statusLabel } from '../../lib/utils';
 import { readAllBackoffice } from '../../lib/backoffice';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { AssignmentBadge, assignmentOf, pendingReview, rememberList } from './assignment';
+import { StaffHeader } from './PageChrome';
 
 type Filters = { q: string; status: string; mine: boolean; ready: boolean };
 const PAGE = 100;
@@ -69,8 +70,7 @@ export default function Projects() {
   const reset = () => { setQuery(''); setFilters({ q: '', status: '', mine: false, ready: false }); setOffset(0); };
 
   return <section className="space-y-5">
-    <nav aria-label="Fil d’Ariane" className="text-sm text-black/50"><Link href="/app/dao" className="font-semibold hover:text-teal">Tableau de bord</Link><span aria-hidden="true" className="mx-2">/</span><span aria-current="page">Chantiers</span></nav>
-    <header className="space-y-1"><h1 className="text-3xl font-bold tracking-tight text-ink">Chantiers</h1><p className="max-w-2xl text-sm text-black/55">Tous les chantiers et leur suivi D.A.O. Vous gérez les dossiers qui vous sont attribués ; les autres s’ouvrent en lecture seule.</p></header>
+    <StaffHeader group="Dossiers" title="Chantiers" description="Tous les chantiers et leur suivi D.A.O. Vous gérez les dossiers qui vous sont attribués ; les autres s’ouvrent en lecture seule." />
 
     <Card className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_14rem_auto_auto]" role="search">
       <label className="relative block sm:col-span-2 lg:col-span-1"><span className="sr-only">Rechercher un chantier</span><Search aria-hidden="true" size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-black/35" />
