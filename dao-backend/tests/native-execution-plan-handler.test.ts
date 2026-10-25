@@ -66,11 +66,27 @@ test('native plan API uses bounded JWT scoped RPCs and calculates a project-wide
   assert.equal(response.headers.get('vary'), 'Authorization');
   const body = await response.json() as any;
   assert.equal(body.data.forecast.state, 'none');
+  assert.deepEqual({ canReadTracking: body.data.canReadTracking, canReadInspections: body.data.canReadInspections,
+    canReadWorkSituations: body.data.canReadWorkSituations, canComment: body.data.canComment },
+  { canReadTracking: true, canReadInspections: true, canReadWorkSituations: true, canComment: true });
   assert.deepEqual(db.calls, [{ name: 'native_execution_plan_v1', args: {
     p_project_id: PROJECT, p_after_request_id: CURSOR, p_limit: 25,
   } }, { name: 'native_execution_dependencies_v1', args: { p_project_id: PROJECT } }, { name: 'native_execution_plan_v1', args: {
     p_project_id: PROJECT, p_after_request_id: null, p_limit: 100,
   } }]);
+});
+
+test('native plan capabilities are returned only from an authorized project workspace', async () => {
+  for (const workspace of ['client', 'contractor', 'dao_manager'] as const) {
+    const plan = { ...dto, viewer: { workspace }, canReadTracking: false, canReadInspections: false,
+      canReadWorkSituations: false, canComment: false } as any;
+    const response = await fixture(plan).handler(request(`?project_id=${PROJECT}`));
+    assert.equal(response.status, 200);
+    const body = await response.json() as any;
+    assert.deepEqual({ canReadTracking: body.data.canReadTracking, canReadInspections: body.data.canReadInspections,
+      canReadWorkSituations: body.data.canReadWorkSituations, canComment: body.data.canComment },
+    { canReadTracking: true, canReadInspections: true, canReadWorkSituations: true, canComment: true });
+  }
 });
 
 test('native plan API distinguishes forbidden, not-found and invalid from empty data', async () => {

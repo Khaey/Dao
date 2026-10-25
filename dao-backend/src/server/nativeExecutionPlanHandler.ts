@@ -1,11 +1,11 @@
-import type { NativeExecutionPlanDTO } from '../native-tracking/contract.js';
+import type { NativeExecutionPlanDTO, NativeExecutionPlanRpcDTO } from '../native-tracking/contract.js';
 import { projectNativeForecast } from '../native-tracking/forecast.js';
 
 const headers = { 'Cache-Control': 'private, no-store', Vary: 'Authorization' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createNativeExecutionPlanHandler(
-  db: { rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: NativeExecutionPlanDTO | null; error: any }> },
+  db: { rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: NativeExecutionPlanRpcDTO | null; error: any }> },
   resolveActor: (authorization: string | null) => Promise<{ id: string } | null>,
 ) {
   const fail = (status: number, code: string, error: string, extra: Record<string, string> = {}) =>
@@ -40,6 +40,15 @@ export function createNativeExecutionPlanHandler(
         return fail(503, 'UNAVAILABLE', 'Suivi du projet temporairement indisponible.');
       }
       if (!data) return fail(503, 'UNAVAILABLE', 'Projection native indisponible.');
+      // The RPC returns a project workspace only after verifying the caller's
+      // JWT, active account and project/award scope. Keep record-level actions
+      // governed by their existing RPC permissions.
+      const capabilities = {
+        canReadTracking: true,
+        canReadInspections: true,
+        canReadWorkSituations: true,
+        canComment: ['client', 'contractor', 'dao_manager'].includes(data.viewer?.workspace),
+      };
       const { data: dependencies, error: dependencyError } = await db.rpc('native_execution_dependencies_v1', {
         p_project_id: projectId.toLowerCase(),
       });
@@ -50,7 +59,7 @@ export function createNativeExecutionPlanHandler(
       data.dependencies = dependencies as NativeExecutionPlanDTO['dependencies'];
       let forecast = data.forecast;
       if (cursor === null && data.page.nextCursor === null) {
-        forecast = projectNativeForecast([data]);
+        forecast = projectNativeForecast([data as NativeExecutionPlanDTO]);
       } else {
         const pages: NativeExecutionPlanDTO[] = [];
         let after: string | null = null;
@@ -60,7 +69,7 @@ export function createNativeExecutionPlanHandler(
             p_project_id: projectId.toLowerCase(), p_after_request_id: after, p_limit: 100,
           });
           if (pageResult.error || !pageResult.data) { pages.length = 0; break; }
-          pages.push(pageResult.data);
+          pages.push(pageResult.data as NativeExecutionPlanDTO);
           after = pageResult.data.page.nextCursor;
           if (!after) break;
           if (pageNumber === 9) truncated = true;
@@ -71,7 +80,7 @@ export function createNativeExecutionPlanHandler(
         }
         else forecast = null;
       }
-      return Response.json({ data: { ...data, dependencies, forecast } }, { headers });
+      return Response.json({ data: { ...data, ...capabilities, dependencies, forecast } }, { headers });
     } catch {
       return fail(503, 'UNAVAILABLE', 'Suivi du projet temporairement indisponible.');
     }
