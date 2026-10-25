@@ -115,6 +115,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Justificatifs = références vers des `documents` approuvés partagés au chantier ; un document `owner_only` n'est jamais exposé. | Livré | #289 |
 | **100 % déclaré, jalon terminé ou prise de connaissance ≠ réception, paiement ou modification du contrat.** | Permanent | #289, #408, #425 |
 | `project_stage` global déclaratif distinct du carnet par lot. | Livré | BUSINESS_RULES §21, §24 |
+| **Situations de travaux techniques (P12)** : quantités par période et par Artisan, lignes multi-lots du même Artisan ; Artisan crée / modifie / soumet / retire, Client démarre la revue, demande une correction, **valide techniquement** (0 admis) ou conteste ; Gestionnaire affecté ne fait que suggérer. Quantités en milli-unités physiques (≠ millimes TND). Aucune facture, dette ni paiement. Panneau « Situations de travaux » du suivi natif. | Livré (backend #443, UI P14) | [#440](https://github.com/Khaey/Dao/issues/440), [#455](https://github.com/Khaey/Dao/issues/455) |
 
 ## 9. Réception technique et réserves (P11)
 
