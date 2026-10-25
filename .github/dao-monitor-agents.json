@@ -285,6 +285,12 @@
       "agent": "DAO Settings",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 441,
+      "agent": "DAO UX Admin",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }
