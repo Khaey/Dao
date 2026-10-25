@@ -12,19 +12,16 @@
 
 Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
 
-## Current coordinator — DAO PILOT 7 (17 October 2026)
+## Organisation courante — DAO PILOT 12 (25 octobre 2026)
 
-Owner decision: PILOT 6 has ended coordination due to conversation limits;
-**DAO PILOT 7** owns [issue #204](https://github.com/Khaey/Dao/issues/204)
-and the versioned [handoff](docs/ai-context/PILOT7_HANDOFF_20261017.md).
-The owner wants autonomous end-to-end deliveries, not serial approvals.
-All agents' existing owners and scopes are preserved; team DEV20/OPT20/Chat20/Chat21
-is suspended and their open scopes transferred per #204.
-UX S1 #198 / PR #202 and SSH deployment remediation #188/#200/#201 are **delivered**;
-UX S2 #203 is DAO DOW's priority. Do not reblock main over resolved #188.
-Historical PILOT 6 notes remain valid only to the extent they agree with #204
-and live exact-SHA GitHub evidence.
-
+**Point d'entrée à jour : [`CLAUDE.md`](CLAUDE.md), [`docs/agents.md`](docs/agents.md),
+[`docs/decisions.md`](docs/decisions.md) et [`docs/architecture.md`](docs/architecture.md).**
+PILOT 12 coordonne via [issue #436](https://github.com/Khaey/Dao/issues/436) ; Coordinateur
+Mission 1 = suivi natif P10 frontend/UX (#419) ; Coordinateur Mission 2 = Settings, droits et
+délégations (#423, #426) ; DEV 3 = backend P11 réception technique et réserves (#425). Les autres
+agents (dont COPILOT 4) sont historiques ou inactifs sauf nouvelle affectation. Les sections
+ci-dessous (PILOT 5 à 7) sont **historiques** : leurs règles de quota, d'autonomie, de gates et
+d'OPS restent valables, leurs affectations d'agents ne le sont plus.
 
 ## DECISION OWNER / PILOT 6 — AUTONOMIE PAR DEFAUT POUR TOUS (16 octobre 2026)
 

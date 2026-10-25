@@ -1,33 +1,84 @@
-# D.A.O. — Claude Code / Claude Cowork
+# D.A.O. — Instructions communes pour Claude Code
 
-## Source de verite et ordre de lecture
+D.A.O. est une plateforme tunisienne de chantiers : un Client publie un besoin découpé en
+**lots**, des Artisans/entreprises répondent par des **offres**, le Client **attribue lot par lot**,
+puis les parties conviennent de conditions facultatives et **suivent les travaux** dans D.A.O.
+Dépôt source de vérité : <https://github.com/Khaey/Dao>. DEV : <https://dao-dev.logiclab.fr>.
+**Répondre en français.**
 
-1. Lis d'abord `AGENTS.md` et `docs/ai-context/AUTONOMOUS_EXECUTION.md` ; ces regles s'appliquent a **tous** les agents et sont prioritaires sur un souvenir de conversation.
-2. Lis ta **propre** issue canonique et son dernier checkpoint : **COP #195**, **DOW #193**, **TOW #194**. Le coordinateur global est **DAO PILOT 7** (#204).
-3. Verifie le **vrai `main`**, les PR ouvertes, la CI et les dependances avant toute modification. Les anciennes passations sont des instantanes ; ne les suppose jamais actuelles.
-4. Ne charge que les fichiers du perimetre concerne et respecte `docs/ai-context/README.md`.
+## 1. Lire avant tout travail (dans cet ordre, sans tout relire)
 
-## Autonomie (GO permanent dans le mandat)
+1. Ce fichier, puis [`docs/agents.md`](docs/agents.md) : qui possède quoi aujourd'hui.
+2. Ton **issue propriétaire** et son dernier checkpoint utile ; la coordination générale est
+   l'issue de **PILOT 12** [#436](https://github.com/Khaey/Dao/issues/436).
+3. [`docs/decisions.md`](docs/decisions.md) pour le domaine touché (décisions métier et techniques validées).
+4. [`docs/architecture.md`](docs/architecture.md) pour la structure, les conventions et la CI.
+5. [`docs/product/`](docs/product/README.md) : spécifications fonctionnelles existantes.
+6. Seulement si nécessaire : `AGENTS.md` (règles historiques détaillées, quota, OPS) et
+   `docs/ai-context/` (historique long : DECISIONS, BUSINESS_RULES, ARCHITECTURE, CURRENT_STATE).
 
-Sans redemander de validation : diagnostiquer, choisir une solution reversible, creer une branche isolee, coder, tester, corriger, commit/push, ouvrir et actualiser sa PR, verifier les gates et proceder a la fusion/livraison DEV **lorsque le mandat et toutes les protections de securite l'autorisent**. Ne jamais toucher a la branche d'un autre agent. Un commentaire ou une PR ne lance pas automatiquement une session Cowork.
+Les passations datées et les anciens checkpoints sont des **instantanés**. Le vrai `main`,
+les PR ouvertes, la CI au SHA exact et le dernier commentaire du propriétaire priment toujours.
 
-**Seuls les vrais gates** (P0 non resolu, revue/CI obligatoire, privileges, prod, secrets, VPS/root/OPS/OCE, depenses, donnees reelles/destruction, garanties Auth/RLS et decisions metier nouvelles) suspendent l'action touchee. Continue le travail independant, publie le point de blocage en une phrase et sollicite le bon decideur une seule fois. N'elargis pas silencieusement l'autorisation.
+## 2. Avant de développer
 
-## Roles Claude
+- Vérifier `main`, les PR ouvertes et leur owner (`git log`, liste des PR, issue propriétaire).
+- **Ne pas recommencer une fonctionnalité déjà livrée** : chercher l'issue, la PR fusionnée,
+  la migration et le code existants (`docs/decisions.md` liste les livraisons par domaine).
+- **Vérifier les migrations** : `dao-backend/supabase/migrations/` sur `main` et, si le travail en
+  dépend, leur présence réelle sur Supabase DEV. Une migration mergée n'est pas une migration appliquée.
+- Ne pas modifier le périmètre, la branche ou la PR d'un autre agent sans coordination via #436.
 
-- **COP / #195** : seconde opinion, audit transversal et revue des decisions. Defier PILOT 7 sur preuves, sans se substituer a lui.
-- **DOW / #193** : code et performances frontend avec baseline et tests avant/apres.
-- **TOW / #194** : E2E, automatisation CI et fiabilite **sans diminuer la couverture ni contourner les gates**.
+## 3. Règles permanentes du propriétaire
 
-## Quota : consignes obligatoires (tous Claude/Cowork)
+- **Autonomie maximale** : diagnostiquer, coder, tester, commit/push, ouvrir la PR, corriger la CI,
+  fusionner et vérifier le déploiement DEV **sans redemander GO** à chaque étape.
+- **Cycle de livraison** : branche isolée → PR (`Owner issue: #N` sur sa propre ligne) →
+  3 contrôles CI obligatoires verts sur le HEAD exact → fusion → `deploy-dev` SUCCESS sur le push
+  `main` → vérification DEV (migrations, RPC, écran) → checkpoint court sur l'issue propriétaire.
+- **Tests ciblés, quota raisonnable** : lectures groupées, pas de relance d'un check déjà vert sur
+  le même SHA, pas de polling CI, pas d'agents parallèles redondants. Deux échecs identiques sans
+  fait nouveau : arrêter cette boucle, publier le WIP et le blocage précis.
+- **OCE est facultatif** : le suivi natif D.A.O. doit fonctionner sans OpenConstructionERP.
+- **Aucune fonctionnalité juridique ou financière automatique sans décision explicite** du
+  propriétaire : pas de signature, réception juridique, paiement, dette, facture ou garantie déclenchés
+  par le système.
+- **Pas de mode Simple/Avancé** : un seul parcours ; sous-lots, dates, dépendances, jalons, métrés,
+  échéancier sont des options **facultatives et indépendantes**, révélées quand on les ajoute.
+- Rapporter les résultats en `PASS / FAIL / UNTESTED` ; jamais de faux PASS, jamais revendiquer
+  une recette navigateur ou un déploiement non constatés.
 
-Appliquer le **QUOTA GUARD** de `AGENTS.md` et du protocole autonome. Choisir le modele et l'effort disponibles les moins couteux qui permettent la phase ; ne pas utiliser le modele le plus lourd pour une lecture d'issue, du reporting ou une correction triviale. **Ne pas modifier automatiquement le reglage du compte.** Lire en premier le dernier checkpoint et les fichiers concernes, pas tout l'historique. Eviter agents paralleles redondants, scans sans objectif, logs volumineux, polling CI et repetitions sur un SHA/inputs inchanges. Deux echecs identiques sans fait nouveau : arreter uniquement cette boucle, sauvegarder le WIP sur branche owned et documenter un blocage precis ; poursuivre les actions independantes. Aucun gain de quota ne peut supprimer les checks GitHub stricts, l'E2E requis, l'Auth/RLS ni les autorisations de securite.
+## 4. Vrais gates (arrêtent seulement l'action concernée)
 
-## Skills utiles
+P0 de sécurité non résolu ; check CI ou revue obligatoire manquant ; changement des garanties
+Auth/JWT/RLS ; secrets ; production, VPS/root/OPS/OCE non préautorisés ; dépenses ; données réelles
+ou suppression destructrice ; nouvelle règle métier engageante (juridique, financière). Continuer le
+travail indépendant, poser **une** question ciblée au bon décideur (PILOT 12 pour le technique et
+l'arbitrage entre owners, le propriétaire pour un nouvel engagement).
 
-- `.claude/skills/dao-preflight/SKILL.md` — preparation rapide sans relecture excessive.
-- `.claude/skills/dao-pr-review/SKILL.md` — revue independante et criteres de merge.
-- `.claude/skills/dao-performance/SKILL.md` — mesures before/after et non-regression.
-- `.claude/skills/dao-e2e/SKILL.md` — couverture et optimisation sans shortcuts.
+## 5. Invariants techniques non négociables
 
-Checkpoint court sur l'issue proprietaire : SHA main, HEAD PR, tests/CI reels, changements, risque et prochaine etape. Aucun secret dans issues, commits ou logs du depot public.
+- Montants en **TND millimes entiers** (`175000 TND → 175000000`).
+- Attribution **atomique par lot**, un seul titulaire actif par lot, package indivisible respecté.
+- Versions soumises/acceptées **immuables** ; historique **append-only** ; pas d'effacement d'archives.
+- JWT/RLS revérifiés côté base ; un rôle global ne remplace jamais une participation au chantier ;
+  un concurrent ne voit jamais les offres, prix ou documents d'un autre.
+- Pas de secret dans le dépôt, les issues, les commits ou les logs (dépôt public).
+- FULL E2E uniquement sur la pile Supabase jetable ; ne jamais réinitialiser la base DEV partagée.
+
+## 6. Commandes utiles
+
+```bash
+bash scripts/dao-task-check.sh                     # préflight borné, lecture seule
+cd dao-backend && npm test                          # tests backend (tsc + node --test)
+cd dao-backend && npm run settings:sync -- <migr>   # après modification du catalogue Settings
+cd dao-frontend && npm run build                    # build Next.js
+```
+
+Skills du dépôt : `.claude/skills/dao-preflight`, `dao-pr-review`, `dao-performance`, `dao-e2e`.
+
+## 7. Tenir cette documentation à jour
+
+Une PR qui livre une décision ou un changement d'organisation met à jour, dans la même PR,
+`docs/decisions.md`, `docs/agents.md` ou `docs/architecture.md`. Pas de nouveau document
+redondant : compléter le fichier existant du domaine.
