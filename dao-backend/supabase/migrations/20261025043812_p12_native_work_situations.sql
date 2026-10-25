@@ -64,16 +64,16 @@ $$;
 
 create function dao_private.site_work_situation_validate_lines(p_project uuid,p_contractor uuid,p_lines jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare x jsonb; ai public.award_items; ql public.bid_quote_lines; v_award_item_id uuid; v_quote_line_id uuid;
+declare v_line_json jsonb; ai public.award_items; ql public.bid_quote_lines; v_award_item_id uuid; v_quote_line_id uuid;
   label_value text; unit_value text; qty bigint; sources uuid[]; docs uuid[]; n integer; total numeric; cleaned jsonb:='[]'::jsonb;
 begin
   if jsonb_typeof(p_lines)<>'array' or jsonb_array_length(p_lines) not between 1 and 100 then
     raise exception using errcode='22023',message='Situation lines are invalid'; end if;
-  for x in select value from jsonb_array_elements(p_lines) loop
-    v_award_item_id:=nullif(x->>'awardItemId','')::uuid; v_quote_line_id:=nullif(x->>'quoteLineId','')::uuid;
-    label_value:=nullif(btrim(x->>'label'),''); unit_value:=nullif(btrim(x->>'quantityUnit'),'');
-    qty:=nullif(x->>'quantityReportedMilli','')::bigint;
-    if (x->>'lineId') is null or (x->>'lineId')::uuid is null or v_award_item_id is null
+  for v_line_json in select value from jsonb_array_elements(p_lines) loop
+    v_award_item_id:=nullif(v_line_json->>'awardItemId','')::uuid; v_quote_line_id:=nullif(v_line_json->>'quoteLineId','')::uuid;
+    label_value:=nullif(btrim(v_line_json->>'label'),''); unit_value:=nullif(btrim(v_line_json->>'quantityUnit'),'');
+    qty:=nullif(v_line_json->>'quantityReportedMilli','')::bigint;
+    if (v_line_json->>'lineId') is null or (v_line_json->>'lineId')::uuid is null or v_award_item_id is null
       or label_value is null or length(label_value)>240 or unit_value is null or length(unit_value)>40
       or qty is null or qty not between 1 and 1000000000000 then
       raise exception using errcode='22023',message='Situation line is invalid'; end if;
@@ -85,11 +85,11 @@ begin
       if ql.id is null or ql.unit<>unit_value then raise exception using errcode='42501',message='Quote line outside awarded lot'; end if;
       label_value:=ql.designation;
     end if;
-    if jsonb_typeof(coalesce(x->'sourceEventIds','[]'::jsonb))<>'array' or jsonb_array_length(coalesce(x->'sourceEventIds','[]'::jsonb))>20
-      or jsonb_typeof(coalesce(x->'evidenceDocumentIds','[]'::jsonb))<>'array' or jsonb_array_length(coalesce(x->'evidenceDocumentIds','[]'::jsonb))>10 then
+    if jsonb_typeof(coalesce(v_line_json->'sourceEventIds','[]'::jsonb))<>'array' or jsonb_array_length(coalesce(v_line_json->'sourceEventIds','[]'::jsonb))>20
+      or jsonb_typeof(coalesce(v_line_json->'evidenceDocumentIds','[]'::jsonb))<>'array' or jsonb_array_length(coalesce(v_line_json->'evidenceDocumentIds','[]'::jsonb))>10 then
       raise exception using errcode='22023',message='Situation references are invalid'; end if;
-    select coalesce(array_agg(v::uuid),'{}'::uuid[]) into sources from jsonb_array_elements_text(coalesce(x->'sourceEventIds','[]'::jsonb)) v;
-    select coalesce(array_agg(v::uuid),'{}'::uuid[]) into docs from jsonb_array_elements_text(coalesce(x->'evidenceDocumentIds','[]'::jsonb)) v;
+    select coalesce(array_agg(v::uuid),'{}'::uuid[]) into sources from jsonb_array_elements_text(coalesce(v_line_json->'sourceEventIds','[]'::jsonb)) v;
+    select coalesce(array_agg(v::uuid),'{}'::uuid[]) into docs from jsonb_array_elements_text(coalesce(v_line_json->'evidenceDocumentIds','[]'::jsonb)) v;
     select count(distinct v) into n from unnest(sources) v;
     if n<>cardinality(sources) then raise exception using errcode='22023',message='Duplicate source event'; end if;
     select count(distinct v) into n from unnest(docs) v;
@@ -105,7 +105,7 @@ begin
         and d.owner_id=auth.uid() and d.status='approved' and d.share_scope='project_members';
       if n<>cardinality(docs) then raise exception using errcode='42501',message='Evidence document is not authorized'; end if;
     end if;
-    cleaned:=cleaned||jsonb_build_array(jsonb_build_object('lineId',(x->>'lineId')::uuid,'awardItemId',ai.id,
+    cleaned:=cleaned||jsonb_build_array(jsonb_build_object('lineId',(v_line_json->>'lineId')::uuid,'awardItemId',ai.id,
       'requestId',ai.request_id,'quoteLineId',v_quote_line_id,'label',label_value,'quantityUnit',unit_value,
       'quantityReportedMilli',qty::text,'quantityValidatedMilli',null,'sourceEventIds',to_jsonb(sources),'evidenceDocumentIds',to_jsonb(docs)));
   end loop;
