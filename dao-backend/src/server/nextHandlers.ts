@@ -12,6 +12,11 @@ export function createDaoApi(
   async function json(request: Request) {
     return await request.json() as Record<string, unknown>;
   }
+  async function privateRun(operation: () => Promise<unknown>) {
+    const response = await run(operation);
+    response.headers.set('Cache-Control', 'private, no-store');
+    return response;
+  }
 
   return {
     async exportBidQuote(request: Request) {
@@ -122,6 +127,42 @@ export function createDaoApi(
     },
     async recordSiteObservation(request: Request) {
       return run(() => actor(request).then(() => json(request).then(input => services.siteExecution.observation(input))));
+    },
+    async listTechnicalInspections(request: Request) {
+      return privateRun(() => actor(request).then(() => {
+        const query = new URL(request.url).searchParams;
+        return services.siteTechnicalQuality.inspections(query.get('project_id'), query.get('award_item_id'), query.get('before'), Number(query.get('limit') ?? 30));
+      }));
+    },
+    async requestTechnicalInspection(request: Request) {
+      return privateRun(() => actor(request).then(() => json(request).then(input => services.siteTechnicalQuality.requestInspection(input))));
+    },
+    async listTechnicalInspectionEvents(request: Request) {
+      return privateRun(() => actor(request).then(() => {
+        const query = new URL(request.url).searchParams;
+        return services.siteTechnicalQuality.inspectionEvents(query.get('inspection_id'), query.get('before'), Number(query.get('limit') ?? 30));
+      }));
+    },
+    async recordTechnicalInspectionEvent(request: Request) {
+      return privateRun(() => actor(request).then(() => json(request).then(input => services.siteTechnicalQuality.updateInspection(input))));
+    },
+    async listTechnicalReserves(request: Request) {
+      return privateRun(() => actor(request).then(() => {
+        const query = new URL(request.url).searchParams;
+        return services.siteTechnicalQuality.reserves(query.get('project_id'), query.get('award_item_id'), query.get('inspection_id'), query.get('before'), Number(query.get('limit') ?? 30));
+      }));
+    },
+    async createTechnicalReserve(request: Request) {
+      return privateRun(() => actor(request).then(() => json(request).then(input => services.siteTechnicalQuality.createReserve(input))));
+    },
+    async listTechnicalReserveEvents(request: Request) {
+      return privateRun(() => actor(request).then(() => {
+        const query = new URL(request.url).searchParams;
+        return services.siteTechnicalQuality.reserveEvents(query.get('reserve_id'), query.get('before'), Number(query.get('limit') ?? 30));
+      }));
+    },
+    async recordTechnicalReserveEvent(request: Request) {
+      return privateRun(() => actor(request).then(() => json(request).then(input => services.siteTechnicalQuality.updateReserve(input))));
     },
     async assignProjectMember(request: Request) {
       return run(() => actor(request).then(() => json(request).then(i => services.projects.assignMember(i))));
@@ -250,7 +291,7 @@ async function run(operation: () => Promise<unknown>) {
     else if (code === 'FORBIDDEN' || code === '42501' || code === 'PGRST116') status = 403;
     else if (code === 'NOT_FOUND') status = 404;
     else if (code === 'BAD_REQUEST' || code === '22023' || code === 'INVALID_MIME' || code === 'INVALID_SIZE' || code === 'INVALID_PATH' || code === 'INVALID_PDF') status = 400;
-    else if (['23505', '23514', 'P0001', 'BID_DRAFT_METADATA_UNSUPPORTED'].includes(code)) status = 409;
+    else if (['23505', '23514', '40001', 'P0001', 'BID_DRAFT_METADATA_UNSUPPORTED'].includes(code)) status = 409;
     return Response.json({ error: error?.message ?? 'Request failed', code }, { status });
   }
 }
