@@ -7,7 +7,7 @@ umask 077
 destination="ops-incoming/$1-$2"
 [[ ! -e "$destination" && ! -L "$destination" ]] || exit 2
 install -d -m 0700 "$destination" "$destination/scripts"
-for name in dao-operations.sh dev-status.sh validate-dev.sh dao-ops-diagnostics.py; do
+for name in dao-operations.sh dev-status.sh validate-dev.sh dao-ops-diagnostics.py dao-ops-perf-snapshot.py; do
   install -m 0644 "scripts/$name" "$destination/scripts/$name"
 done
 if [[ -e dao-env.json || -L dao-env.json ]]; then
@@ -15,4 +15,4 @@ if [[ -e dao-env.json || -L dao-env.json ]]; then
   mv -- dao-env.json "$destination/dao-env.json"
   chmod 0600 "$destination/dao-env.json"
 fi
-echo 'OPS_TRANSPORT_PREPARED scripts=4'
+echo 'OPS_TRANSPORT_PREPARED scripts=5'

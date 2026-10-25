@@ -112,6 +112,7 @@ case "$operation" in
   oce-recette-admit) sudo -n /usr/local/sbin/dao-dev-admin oce-recette-admit ;;
   oce-recette-revoke) sudo -n /usr/local/sbin/dao-dev-admin oce-recette-revoke ;;
   diagnostics) python3 dao-ops-diagnostics.py ;;
+  perf-snapshot) python3 dao-ops-perf-snapshot.py ;;
   ops-status) sudo -n /usr/local/sbin/dao-ops-admin status ;;
   ops-preflight) sudo -n /usr/local/sbin/dao-ops-admin preflight ;;
   ops-upgrade) sudo -n /usr/local/sbin/dao-ops-admin upgrade ;;
