@@ -487,6 +487,122 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   await denied(contractor.db, 'site_execution_snapshot', snapshotArgs);
   assert.ifError((await admin.from('account_states').update({ status: 'active' }).eq('user_id', contractor.id)).error);
 
+  // P12: the Artisan reports quantities by awarded lot; only the Client
+  // validates them. The Manager can suggest values but cannot validate.
+  const situationLineId = randomUUID();
+  const situationArgs = {
+    p_action: 'create', p_situation_id: null, p_project_id: project.data!.id,
+    p_contractor_id: contractorProfile.data!.id, p_period_start: '2026-10-01', p_period_end: '2026-10-31',
+    p_lines: [{ lineId: situationLineId, awardItemId: awardItem.data!.id, quoteLineId: quoteLine.data!.id,
+      label: 'Canalisation posée', quantityUnit: 'm', quantityReportedMilli: '2500',
+      sourceEventIds: [intervention.data.id], evidenceDocumentIds: [document.data!.id] }],
+    p_validated_lines: null, p_note: null, p_expected_revision: null, p_idempotency_key: randomUUID(),
+  };
+  const createdSituation = await contractor.db.rpc('native_work_situation_command_v1', situationArgs);
+  assert.ifError(createdSituation.error); assert.equal(createdSituation.data.status, 'draft');
+  const createdSituationReplay = await contractor.db.rpc('native_work_situation_command_v1', situationArgs);
+  assert.ifError(createdSituationReplay.error);
+  assert.equal(createdSituationReplay.data.situationId, createdSituation.data.situationId);
+  const situationId = createdSituation.data.situationId;
+  const situationDetailArgs = {
+    p_project_id: null, p_situation_id: situationId, p_before_created_at: null, p_before_id: null, p_limit: 30,
+  };
+  const contractorSituation = await contractor.db.rpc('native_work_situations_v1', situationDetailArgs);
+  assert.ifError(contractorSituation.error);
+  assert.equal(contractorSituation.data.lines[0].quantityReportedMilli, '2500');
+  assert.equal(contractorSituation.data.lines[0].evidenceDocumentIds[0], document.data!.id);
+  await denied(otherClient.db, 'native_work_situations_v1', situationDetailArgs);
+  await denied(competitor.db, 'native_work_situations_v1', situationDetailArgs);
+  await denied(unassignedStaff.db, 'native_work_situations_v1', situationDetailArgs);
+  assert.ok((await contractor.db.from('site_work_situations').update({ status: 'validated_technical' }).eq('id', situationId)).error);
+
+  const submitArgs = { p_action: 'submit', p_situation_id: situationId, p_project_id: null, p_contractor_id: null,
+    p_period_start: null, p_period_end: null, p_lines: null, p_validated_lines: null, p_note: null,
+    p_expected_revision: 1, p_idempotency_key: randomUUID() };
+  const submittedSituation = await contractor.db.rpc('native_work_situation_command_v1', submitArgs);
+  assert.ifError(submittedSituation.error); assert.equal(submittedSituation.data.status, 'submitted');
+  const submittedReplay = await contractor.db.rpc('native_work_situation_command_v1', submitArgs);
+  assert.ifError(submittedReplay.error); assert.equal(submittedReplay.data.revision, submittedSituation.data.revision);
+  const startReview = await owner.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'start_review', p_expected_revision: 2, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(startReview.error); assert.equal(startReview.data.status, 'under_review');
+  const managerSuggestion = await staff.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'manager_suggestion', p_situation_id: situationId, p_expected_revision: 3,
+    p_validated_lines: [{ lineId: situationLineId, quantityValidatedMilli: '2000' }],
+    p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(managerSuggestion.error); assert.equal(managerSuggestion.data.status, 'under_review');
+  await denied(unassignedStaff.db, 'native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'manager_suggestion', p_situation_id: situationId, p_expected_revision: 4,
+    p_validated_lines: [{ lineId: situationLineId, quantityValidatedMilli: '2000' }], p_idempotency_key: randomUUID(),
+  });
+  const quantityRace = await Promise.all([2000, 2100].map(quantity => owner.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'validate_technical', p_situation_id: situationId, p_expected_revision: 4,
+    p_validated_lines: [{ lineId: situationLineId, quantityValidatedMilli: String(quantity) }],
+    p_idempotency_key: randomUUID(),
+  })));
+  assert.equal(quantityRace.filter(result => !result.error).length, 1);
+  assert.equal(quantityRace.filter(result => result.error?.code === '40001').length, 1);
+  const validatedSituation = await owner.db.rpc('native_work_situations_v1', situationDetailArgs);
+  assert.ifError(validatedSituation.error);
+  assert.ok(['2000','2100'].includes(validatedSituation.data.lines[0].quantityValidatedMilli));
+  assert.equal(validatedSituation.data.technicalStatement[0].cumulativeValidatedMilli, validatedSituation.data.lines[0].quantityValidatedMilli);
+  assert.equal(JSON.stringify(validatedSituation.data).toLowerCase().match(/(invoice|payment|debt|ledger|amountapproved|dueamount)/g), null);
+  const secondLineId = randomUUID();
+  const secondSituation = await contractor.db.rpc('native_work_situation_command_v1', {
+    ...situationArgs, p_period_start: '2026-11-01', p_period_end: '2026-11-30',
+    p_lines: [{ lineId: secondLineId, awardItemId: awardItem.data!.id, quoteLineId: quoteLine.data!.id,
+      label: 'Canalisation posée', quantityUnit: 'm', quantityReportedMilli: '500',
+      sourceEventIds: [], evidenceDocumentIds: [] }], p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(secondSituation.error);
+  const secondId = secondSituation.data.situationId;
+  const secondSubmit = await contractor.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_situation_id: secondId, p_expected_revision: 1, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(secondSubmit.error);
+  const secondReview = await owner.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'start_review', p_situation_id: secondId, p_expected_revision: 2, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(secondReview.error);
+  const secondValidation = await owner.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'validate_technical', p_situation_id: secondId, p_expected_revision: 3,
+    p_validated_lines: [{ lineId: secondLineId, quantityValidatedMilli: '400' }], p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(secondValidation.error);
+  const secondDetail = await owner.db.rpc('native_work_situations_v1', {
+    ...situationDetailArgs, p_situation_id: secondId,
+  });
+  assert.ifError(secondDetail.error);
+  assert.equal(secondDetail.data.technicalStatement[0].previouslyValidatedMilli, validatedSituation.data.lines[0].quantityValidatedMilli);
+  assert.equal(secondDetail.data.technicalStatement[0].cumulativeValidatedMilli,
+    String(Number(validatedSituation.data.lines[0].quantityValidatedMilli) + 400));
+  const requestedCorrection = await owner.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'request_revision', p_situation_id: secondId, p_expected_revision: 4,
+    p_note: 'Rectifier le métré de la dernière intervention.', p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(requestedCorrection.error); assert.equal(requestedCorrection.data.status, 'revision_requested');
+  const situationContest = await contractor.db.rpc('native_work_situation_command_v1', {
+    ...submitArgs, p_action: 'contest', p_situation_id: situationId, p_expected_revision: 5,
+    p_note: 'Désaccord sur la quantité validée.', p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(situationContest.error); assert.equal(situationContest.data.status, 'contested');
+  const afterContest = await owner.db.rpc('native_work_situations_v1', {
+    ...situationDetailArgs, p_situation_id: secondId,
+  });
+  assert.ifError(afterContest.error); assert.equal(afterContest.data.technicalStatement[0].previouslyValidatedMilli, '0');
+  const situationPage = await contractor.db.rpc('native_work_situations_v1', {
+    p_project_id: project.data!.id, p_situation_id: null, p_before_created_at: null, p_before_id: null, p_limit: 1,
+  });
+  assert.ifError(situationPage.error); assert.equal(situationPage.data.items.length, 1); assert.equal(situationPage.data.hasMore, true);
+  const situationHistory = await contractor.db.rpc('native_work_situation_events_v1', {
+    p_situation_id: situationId, p_before_created_at: null, p_before_id: null, p_limit: 50,
+  });
+  assert.ifError(situationHistory.error);
+  assert.ok(situationHistory.data.items.some((event: any) => event.kind === 'quantities_validated'));
+  assert.ok((await admin.from('site_work_situation_events').update({ note: 'altération' }).eq('situation_id', situationId)).error);
+
   const raceKey = randomUUID();
   const [raceProgress, raceCancel] = await Promise.all([
     contractor.db.rpc('record_site_progress_v2', { ...progressArgs, p_idempotency_key: raceKey, p_percent: 50 }),
@@ -509,4 +625,6 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
     p_reserve_id: reserveId, p_action: 'comment', p_note: 'Après annulation.', p_document_ids: [],
     p_expected_revision: 9, p_idempotency_key: randomUUID(),
   });
+
+
 });
