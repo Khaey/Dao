@@ -10,12 +10,14 @@ import MyOptions from '../../../components/settings/MyOptions';
 import { useMySettings } from '../../../lib/settings';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { type AppRole } from '../../../lib/roles';
+import SettingsTabs, { usePlatformTab } from '../../../components/SettingsTabs';
 
 export default function SettingsPage() {
   const router = useRouter();
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const platform = usePlatformTab();
   const settings = useMySettings(ready && (roles.includes('client') || roles.includes('contractor')) ? null : undefined);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function SettingsPage() {
 
   if (!ready) return error ? <p role="alert">{error}</p> : <p role="status">Chargement des paramètres…</p>;
 
-  return <section className="mx-auto max-w-5xl space-y-6" aria-labelledby="settings-title">
+  return <><SettingsTabs platform={platform} current="/app/settings" /><section className="mx-auto max-w-5xl space-y-6" aria-labelledby="settings-title">
     <div>
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Mon espace</p>
       <h1 id="settings-title" className="mt-2 text-3xl font-bold tracking-tight">Paramètres</h1>
@@ -63,5 +65,5 @@ export default function SettingsPage() {
     <MyOptions settings={settings} />
     {/* Spaces (dashboard, chantiers, dossier professionnel, Admin settings) live in the menu only: no duplicate shortcuts here. */}
     {roles.includes('client') && roles.includes('contractor') && <p className="text-sm text-black/55">Utilisez les boutons Client et Artisan du menu pour choisir votre espace. Vos coordonnées et votre mot de passe restent les mêmes.</p>}
-  </section>;
+  </section></>;
 }

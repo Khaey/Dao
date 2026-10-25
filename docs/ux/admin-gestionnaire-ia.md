@@ -17,11 +17,15 @@ d'API ni de droit** : le menu montre, le serveur (JWT/RLS) décide.
 | (sans titre) | Tableau de bord | Tableau de bord |
 | Dossiers | Revues, Chantiers, Publications, Mes contrats | Revues, Chantiers, Publications |
 | Relations | Professionnels, Clients, Avis, Assistance | Professionnels, Clients, Avis, Assistance |
-| Gouvernance | Utilisateurs & rôles, Paramètres D.A.O., Historique | — |
-| Traçabilité | — | Historique (+ Mes délégations avec un mandat S4 actif, #437) |
+| Gouvernance | Utilisateurs & rôles, Historique | — |
+| Traçabilité | — | Historique |
+| Compte (bas du menu) | **Paramètres** (onglets « Mon compte » / « Plateforme D.A.O. »), Déconnexion | **Paramètres** (onglets « Mon compte » / « Mes délégations » si mandat S4 actif), Déconnexion |
 
-Les URL et libellés de lien ne changent pas (ils sont assertés par les E2E). Les comptes
-Client/Artisan gardent leur menu plat.
+Les URL ne changent pas. **Une seule entrée de paramètres** (décision du propriétaire, 25/10) :
+`/app/settings` et `/app/dao/settings` sont deux onglets de « Paramètres » (`components/SettingsTabs.tsx`) ;
+la page ne reprend aucun raccourci déjà présent dans le menu (pas de « Vos espaces ») et la ligne
+d'identité en bas du menu n'est plus un second lien vers le compte. Les comptes Client/Artisan gardent
+leur menu plat.
 
 ## Tableau de bord (`/app/dao`)
 

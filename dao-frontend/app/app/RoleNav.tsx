@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, SlidersHorizontal, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, type LucideIcon } from 'lucide-react';
+import { Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, type LucideIcon } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 
@@ -20,7 +20,6 @@ export default function RoleNav() {
   const [workspace, setWorkspace] = useState<'client'|'contractor'>('client');
   const [switching, setSwitching] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
-  const [delegated, setDelegated] = useState(false);
 
   useEffect(() => {
     const supabase = supabaseBrowser();
@@ -58,15 +57,6 @@ export default function RoleNav() {
     return () => { active = false; };
   }, [supportUser, pathname]);
 
-  // A8: a Gestionnaire sees settings only with an active Admin mandate.
-  const reviewerOnly = ready && roles.includes('dao_reviewer') && !roles.includes('dao_admin');
-  useEffect(() => {
-    if (!reviewerOnly) { setDelegated(false); return; }
-    let active = true;
-    void import('../../lib/settings').then(({ fetchMyDelegation }) => fetchMyDelegation())
-      .then(result => { if (active) setDelegated(result.mandates.length > 0); }).catch(() => undefined);
-    return () => { active = false; };
-  }, [reviewerOnly]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -130,9 +120,7 @@ export default function RoleNav() {
     { href: '/app/dao/reviews', label: 'Avis', icon: Star, show: staff, group: 'Relations' },
     { href: '/app/dao/support', label: 'Assistance', icon: LifeBuoy, show: staff, group: 'Relations' },
     { href: '/app/dao/users', label: 'Utilisateurs & rôles', icon: UserCog, show: admin, group: 'Gouvernance' },
-    { href: '/app/dao/settings', label: 'Paramètres D.A.O.', icon: SlidersHorizontal, show: admin, group: 'Gouvernance' },
     { href: '/app/dao/history', label: 'Historique', icon: History, show: staff, group: admin ? 'Gouvernance' : 'Traçabilité' },
-    { href: '/app/dao/settings', label: 'Mes délégations', icon: SlidersHorizontal, show: !admin && delegated, group: 'Traçabilité' },
   ];
 
   const workspaceLabel = staff ? (admin ? 'Espace Admin DAO' : 'Espace Gestionnaire DAO') : 'Espace de travail';
@@ -159,15 +147,17 @@ export default function RoleNav() {
       <div className="space-y-1">{visibleLinks.filter(item => item.group === group).map(renderLink)}</div>
     </div>)}
   </>;
+  // Personal account and platform settings (Admin) or delegations share one entry, with tabs on the page.
+  const settingsActive = active('/app/settings') || pathname === '/app/dao/settings' || pathname === '/app/profile';
   const account = <div className="shrink-0 border-t border-black/5 pt-3">
-    <Link href="/app/settings" onClick={() => setOpen(false)} aria-current={active('/app/settings') ? 'page' : undefined}
-      className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition', active('/app/settings') ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
+    <Link href="/app/settings" onClick={() => setOpen(false)} aria-current={settingsActive ? 'page' : undefined}
+      className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition', settingsActive ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
       <Settings size={18} className="shrink-0" aria-hidden="true" />Paramètres
     </Link>
-    <Link href="/app/profile" onClick={() => setOpen(false)} className="flex min-w-0 items-center gap-3 rounded-xl p-3 hover:bg-sand">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">{email.slice(0, 1).toUpperCase() || 'D'}</span>
-      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">Mon compte</span><span className="block truncate text-xs text-black/45">{email}</span></span>
-    </Link>
+    <div className="flex min-w-0 items-center gap-3 p-3">
+      <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">{email.slice(0, 1).toUpperCase() || 'D'}</span>
+      <span className="min-w-0 flex-1"><span className="sr-only">Connecté en tant que </span><span className="block truncate text-xs text-black/45">{email}</span></span>
+    </div>
     <button type="button" onClick={() => void signOut()} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-black/55 hover:bg-red-50 hover:text-red-700"><LogOut size={18} className="shrink-0" />Déconnexion</button>
   </div>;
 
