@@ -135,7 +135,7 @@ test('settings S2: Admin overrides, resolution order, audit and server enforceme
     await assert.rejects(db.query('update dao_private.setting_events set reason=$1', ['rewrite']), { code: '42501' });
     await assert.rejects(db.query('delete from dao_private.setting_events'), { code: '42501' });
     const overview = await as(U.admin, async () => (await db.query<any>('select public.admin_settings_overview() o')).rows[0].o);
-    assert.equal(overview.definitions.length, 23);
+    assert.equal(overview.definitions.length, 24);
     assert.equal(overview.definitions.find((d: any) => d.key === 'invitations.ttl_days').global_value, 7);
     assert.ok(overview.overrides.some((o: any) => o.key === 'publication.visibility_modes' && o.target_label === 'clientB'));
     assert.ok(overview.trades.length > 0);
@@ -181,6 +181,34 @@ test('settings S2: Admin overrides, resolution order, audit and server enforceme
     assert.equal(accepted.status, 'accepted');
     assert.equal((await db.query<any>('select name_fr,active from public.trades where id=$1', [accepted.trade_id])).rows[0].name_fr, 'Piscine et spa');
     await assert.rejects(as(U.admin, () => db.query("select public.admin_review_trade_proposal($1,'reject',null,null,$2)", [pending.proposal_id, reason])), { code: '22023' });
+  });
+
+  await test('moderation (#463): published réalisation edits stay published only when the Admin turns the prior review off', async () => {
+    const cp = (await db.query<any>('select id from public.contractor_profiles where user_id=$1', [U.pro])).rows[0].id;
+    await db.query("update public.contractor_profiles set public_identity_status='approved', verification_status='verified' where id=$1", [cp]);
+    const published = (await insert('portfolio_projects', { contractor_id: cp, title: 'Villa', description: 'Avant', publication_consent: true, status: 'published' })).id;
+    const save = (id: string | null, consent = true) => as(U.pro, () => db.query("select public.professional_command('portfolio_save',$1::jsonb)",
+      [JSON.stringify({ ...(id ? { id } : {}), title: 'Villa', description: 'Après', publication_consent: consent })]));
+    const status = async (id: string) => (await db.query<any>('select status from public.portfolio_projects where id=$1', [id])).rows[0].status;
+    await save(published);
+    assert.equal(await status(published), 'draft'); // default ON: current behaviour
+    await db.query("update public.portfolio_projects set status='published' where id=$1", [published]);
+    await command(U.admin, 'set', { key: 'moderation.portfolio_edit_review', scope: 'global', value: false, reason, expected_override_id: null });
+    await save(published);
+    assert.equal(await status(published), 'published');
+    assert.equal((await db.query<any>('select description from public.portfolio_projects where id=$1', [published])).rows[0].description, 'Après');
+    await save(published, false);
+    assert.equal(await status(published), 'draft'); // consent withdrawn: never published
+    await db.query("update public.portfolio_projects set status='published', publication_consent=true where id=$1", [published]);
+    const fresh = (await as(U.pro, async () => (await db.query<any>("select public.professional_command('portfolio_save',$1::jsonb) r",
+      [JSON.stringify({ title: 'Nouvelle', description: 'Jamais revue', publication_consent: true })])).rows[0].r)).id;
+    assert.equal(await status(fresh), 'draft'); // a new réalisation is always reviewed
+    await db.query("update public.contractor_profiles set public_identity_status='draft' where id=$1", [cp]);
+    await save(published);
+    assert.equal(await status(published), 'draft'); // identity no longer approved: gated
+    await db.query("update public.contractor_profiles set public_identity_status='approved' where id=$1", [cp]);
+    const live = (await db.query<any>("select id from dao_private.setting_overrides where key='moderation.portfolio_edit_review' and superseded_at is null")).rows[0].id;
+    await command(U.admin, 'clear', { key: 'moderation.portfolio_edit_review', scope: 'global', reason, expected_override_id: live });
   });
 
   await test('server enforcement: restricted new actions refused, values applied prospectively', async () => {

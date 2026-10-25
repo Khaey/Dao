@@ -147,6 +147,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Ordre S1 → S2 (Admin) / S3 (gating Client/Artisan) → S4 (mandats Gestionnaire). **S5 non autorisé** ; pas d'activation OCE/BIM/HSE/Achats par toggle. | En cours (#435, #437) | [#423](https://github.com/Khaey/Dao/issues/423), #436 |
 | Plafond de téléversement : 20 Mo dans le code vs 50 MiB dans `config.toml` ; à aligner dans un correctif séparé après vérification, sans hausse aveugle. | Cadré | A6, #436 |
 | **Référentiel métiers** (#465) : table `trades` unique ; référentiel initial élargi (clés `trade_*`) ; l'Admin ajoute/renomme (id et code conservés, motif, journal `setting_events`) et active/désactive ; Client/Artisan peuvent **proposer** un métier absent (texte privé, 5/jour), jamais publié sans décision Admin (rattachement à un métier existant ou création). | En PR | [#465](https://github.com/Khaey/Dao/issues/465) |
+| **Modération paramétrable par catégorie** (#463), catalogue v2 : `moderation.portfolio_edit_review` (global, Admin, défaut ON = revue actuelle). OFF : la modification d'une réalisation **déjà publiée** reste en ligne si consentement, vérification, fiche approuvée et compte actif. Jamais paramétrables : nouvelle réalisation, identité publique, données légales/vérification, fichiers/photos, suspension, RLS. Effet prospectif. Les modifications éditoriales et de coordonnées restent publiées sans revue depuis #307. | En PR | [#463](https://github.com/Khaey/Dao/issues/463) |
 
 ## 11. Technique, qualité et livraison
 

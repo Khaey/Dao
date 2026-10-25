@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { SETTINGS_CATALOG_VERSION } from '../../src/settings/catalog.js';
 
 test('settings S1: real JWT resolver, workspace/project isolation and no private surface', async t => {
   const url=process.env.DAO_SUPABASE_URL!;assert.equal(url,'http://127.0.0.1:54321','Disposable local stack only');
@@ -36,7 +37,7 @@ test('settings S1: real JWT resolver, workspace/project isolation and no private
 
   await t.test('real DTO: defaults equal today, workspace and owner choice separated',async()=>{
     const c=await rpc(client.db,{p_workspace:'client'});
-    assert.equal(c.workspace,'client');assert.equal(c.catalog_version,1);
+    assert.equal(c.workspace,'client');assert.equal(c.catalog_version,SETTINGS_CATALOG_VERSION);
     assert.deepEqual(c.settings['invitations.ttl_days'],{value:7,state:'available',source:'default'});
     assert.equal(c.settings['bids.quote_pdf'],undefined);
     const p=await rpc(pro.db,{p_workspace:'contractor'});
