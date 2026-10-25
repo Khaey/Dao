@@ -36,3 +36,19 @@ arbitrages A1–A10 acceptés le 25/10/2026 ([#426](https://github.com/Khaey/Dao
 
 Les commandes métier utiliseront `dao_private.resolve_setting(key, user, workspace, project)` (interne,
 non exposé). En S1 aucune commande ne l'applique encore : le comportement est inchangé.
+
+## Configuration Admin (S2)
+
+- Écran `/app/dao/settings` (Admin) : Fonctions, Règles & délais, Exceptions, Référentiels, Simulation,
+  Historique, Règles fixes.
+- Écriture unique `admin_setting_command('set'|'clear', input)` : motif obligatoire, concurrence optimiste
+  (`expected_override_id`), version incrémentée, événement append-only (`dao_private.setting_events`).
+- Résolution : défaut < global (verrouillé = final) < espace < compte/chantier. Pour une capacité, les
+  restrictions se cumulent ; une exception positive (Admin, échéance obligatoire) ne lève qu'un défaut.
+  Les modes de publication ne peuvent qu'être réduits par exception. Les valeurs sont globales et bornées.
+- Application serveur sur les nouvelles actions uniquement (triggers `settings_guard` et
+  `settings_upload_size`) : invitations, publications, RFI, contre-propositions, offres multi-lots, devis PDF,
+  devis détaillé, sous-lots proposés, option contrat (activation seulement), accord précontractuel, taille
+  des fichiers. Les constantes 7 j, 30 j, 24 h, 20 messages/min et 30 j (avis) lisent désormais le réglage.
+- Erreur de restriction : `42501`, message neutre, `hint = setting_restricted:<clé>`.
+- `admin_preview_settings(user, workspace, project)` : « voir comme » sans données du compte.

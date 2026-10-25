@@ -5,12 +5,14 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import {
-  SETTINGS_CATALOG, SETTINGS_CATALOG_VERSION, assertCatalogConsistent, catalogHash, validateSettingValue, settingDefinition,
+  SETTINGS_CATALOG, SETTINGS_CATALOG_VERSION, assertCatalogConsistent, validateSettingValue, settingDefinition,
 } from '../src/settings/catalog.js';
+import { catalogHash } from '../src/settings/projection.js';
 import { CATALOG_BLOCK, catalogBlock } from '../src/settings/sync-migration.js';
 
 const migrations = resolve('supabase/migrations');
-const settingsMigrations = () => readdirSync(migrations).filter(f => /_settings_.*\.sql$/.test(f)).sort();
+const catalogMigrations = () => readdirSync(migrations).filter(f => f.endsWith('.sql')).sort()
+  .filter(f => CATALOG_BLOCK.test(readFileSync(resolve(migrations, f), 'utf8')));
 
 test('settings catalogue: 23 typed tranche-1 entries, consistent and validated', () => {
   assertCatalogConsistent();
@@ -38,8 +40,8 @@ test('settings catalogue: 23 typed tranche-1 entries, consistent and validated',
   assert.throws(() => assertCatalogConsistent([{ ...SETTINGS_CATALOG[2], requires: ['bids.rfi'] }]), /unknown_dependency/);
 });
 
-test('settings catalogue: latest settings migration mirrors catalog.ts exactly (CI drift guard)', () => {
-  const latest = settingsMigrations().at(-1)!;
+test('settings catalogue: latest catalogue migration mirrors catalog.ts exactly (CI drift guard)', () => {
+  const latest = catalogMigrations().at(-1)!;
   const block = readFileSync(resolve(migrations, latest), 'utf8').match(CATALOG_BLOCK)?.[0];
   assert.equal(block, catalogBlock(), `run: npm run settings:sync -- supabase/migrations/${latest}`);
 });

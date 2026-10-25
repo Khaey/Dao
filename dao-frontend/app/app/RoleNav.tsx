@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, Star, LifeBuoy } from 'lucide-react';
+import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, SlidersHorizontal, Star, LifeBuoy } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 
@@ -118,6 +118,7 @@ export default function RoleNav() {
     { href: '/app/dao/clients', label: 'Clients', icon: ShieldCheck, show: staff },
     { href: '/app/dao/history', label: 'Historique', icon: ShieldCheck, show: staff },
     { href: '/app/dao/users', label: 'Utilisateurs & rôles', icon: ShieldCheck, show: has('dao_admin') },
+    { href: '/app/dao/settings', label: 'Paramètres D.A.O.', icon: SlidersHorizontal, show: has('dao_admin') },
   ];
 
   const workspaceLabel = staff ? (has('dao_admin') ? 'Espace Admin DAO' : 'Espace Gestionnaire DAO') : 'Espace de travail';
