@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { supabaseBrowser } from './supabase-browser';
 import { SETTINGS_CATALOG, type SettingDefinition } from '../../dao-backend/src/settings/catalog';
 
@@ -59,3 +60,16 @@ export function settingAvailable(settings: EffectiveSettings | null | undefined,
   return !entry || entry.state === 'available';
 }
 export const RESTRICTED_MESSAGE = 'Option non disponible pour ce dossier. Contactez l’assistance si besoin.';
+
+// One read per screen; refreshed when the tab becomes visible again. Errors
+// (role not held, no access) leave the UI unchanged: the server still decides.
+export function useMySettings(workspace: string | null | undefined, projectId: string | null = null) {
+  const [settings, setSettings] = useState<EffectiveSettings | null>(null);
+  useEffect(() => {
+    if (workspace === undefined) { setSettings(null); return; }
+    let live = true; const load = () => fetchMySettings(workspace, projectId).then(s => { if (live) setSettings(s); }).catch(() => { if (live) setSettings(null); });
+    void load(); const visible = () => { if (document.visibilityState === 'visible') void load(); };
+    document.addEventListener('visibilitychange', visible); return () => { live = false; document.removeEventListener('visibilitychange', visible); };
+  }, [workspace, projectId]);
+  return settings;
+}

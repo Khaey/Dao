@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CalendarClock, CheckCircle2, CircleDashed, History, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Badge, Button, Card } from '../ui';
 import InstallmentPanel from './InstallmentPanel';
+import { RESTRICTED_MESSAGE, settingAvailable, useMySettings } from '../../lib/settings';
 import { suggestInstallments } from '../../lib/installment-suggestion';
 import { formatTnd } from '../../lib/contracts';
 import {
@@ -33,6 +34,7 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
   const [review, setReview] = useState<Terms | null>(null);
   const [confirm, setConfirm] = useState<'accept' | 'reject' | null>(null);
   const [reason, setReason] = useState('');
+  const settings = useMySettings(snapshot?.permissions.party_role, snapshot?.reference?.project_id ?? snapshot?.agreement?.project_id ?? null);
 
   const load = useCallback(async () => {
     setLoadError('');
@@ -66,6 +68,7 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
 
   const { agreement, permissions: can, reference } = snapshot;
   const me = can.party_role, them = other(me);
+  const proposeAllowed = settingAvailable(settings, 'contract.precontract_agreement');
   const current = snapshot.current_version;
   const items = reference?.items ?? [];
   const subLots = items.flatMap(item => item.sub_lots ?? []);
@@ -123,7 +126,7 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
       </div>
       : canAct && <div className="grid gap-2 border-t border-black/5 pt-4 sm:flex sm:flex-wrap">
         {can.can_accept && <Button type="button" disabled={busy} onClick={() => setConfirm('accept')}>Accepter la version {current.version_no}</Button>}
-        {can.can_propose && <Button type="button" disabled={busy} className={secondary} onClick={startEditing}>Proposer une modification</Button>}
+        {can.can_propose && proposeAllowed && <Button type="button" disabled={busy} className={secondary} onClick={startEditing}>Proposer une modification</Button>}
         {can.can_reject && <Button type="button" disabled={busy} className="bg-white text-red-700 ring-1 ring-red-200 hover:bg-red-50" onClick={() => setConfirm('reject')}>Refuser</Button>}
       </div>}
       {!canAct && !agreed && <p className="text-sm text-black/55">Aucune action n’est disponible pour vous sur cette version.</p>}
@@ -132,7 +135,7 @@ export default function AgreementPanel({ awardId }: { awardId: string }) {
     {!current && !editing && !review && <Card className="space-y-3 p-5 sm:p-6">
       <h2 className="text-lg font-bold text-ink">Aucune condition proposée</h2>
       <p className="text-sm text-black/60">Rien n’est obligatoire : sans accord ici, le dossier contractuel reprend simplement l’offre attribuée. Vous pouvez proposer une date, une durée et une modalité de paiement de référence en quelques secondes.</p>
-      {can.can_propose ? <Button type="button" onClick={startEditing}>Proposer des conditions</Button> : <p className="text-sm text-black/50">Aucune action n’est disponible pour vous.</p>}
+      {can.can_propose && proposeAllowed ? <Button type="button" onClick={startEditing}>Proposer des conditions</Button> : <p className="text-sm text-black/50">{can.can_propose ? RESTRICTED_MESSAGE : 'Aucune action n’est disponible pour vous.'}</p>}
     </Card>}
 
     {editing && <TermsForm initial={editing} subLots={subLots} totalMillimes={reference?.total_millimes} onCancel={() => setEditing(null)} onReview={terms => { setReview(terms); setEditing(null); }} />}
