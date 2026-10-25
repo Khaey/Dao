@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, type LucideIcon } from 'lucide-react';
+import { Activity, Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, type LucideIcon } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 
@@ -113,6 +113,7 @@ export default function RoleNav() {
     { href: '/app/messages', label: 'Messages & Assistance', icon: MessageCircle, show: !staff && (has('client') || has('contractor')) },
     { href: '/app/dao/review', label: 'Revues', icon: ClipboardCheck, show: staff, group: 'Dossiers' },
     { href: '/app/dao/projects', label: 'Chantiers', icon: FolderKanban, show: staff, group: 'Dossiers' },
+    { href: '/app/dao/tracking', label: 'Suivi terrain', icon: Activity, show: staff, group: 'Dossiers' },
     { href: '/app/dao/publications', label: 'Publications', icon: Megaphone, show: staff, group: 'Dossiers' },
     { href: '/app/contracts', label: 'Mes contrats', icon: FileText, show: has('client') || has('contractor') || admin, group: staff ? 'Dossiers' : undefined },
     { href: '/app/dao/professionals', label: 'Professionnels', icon: HardHat, show: staff, group: 'Relations' },
