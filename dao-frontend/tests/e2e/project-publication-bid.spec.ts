@@ -72,7 +72,9 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(clientProjectRow).toBeVisible();
   await page.goto('/app');
   const dashboardProject = page.locator(`a[href="/app/projects/${project.projectId}"]`);
-  await expect(dashboardProject.getByText('Publié', { exact: true })).toBeVisible();
+  // #477: the dashboard row shows the commercial state; the progress marks the chantier as published (not « Prêt à publier »).
+  await expect(dashboardProject.getByRole('list', { name: 'Avancement du chantier' })).toContainText('Publié : fait');
+  await expect(dashboardProject).not.toContainText('Prêt à publier');
   await page.goto(`/app/projects/${project.projectId}`);
   await expect(page.getByText('Publié', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Prêt à publier', { exact: true })).toHaveCount(0);

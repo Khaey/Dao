@@ -87,6 +87,7 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   await expect(page.getByTestId('dashboard-stat-published')).toContainText(/[1-9]/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await page.locator(`a[href="/app/projects/${project.projectId}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/app/projects/${project.projectId}$`));
   await expect(page.getByText('Offres à comparer', { exact: true })).toBeVisible();
   await expect(commercial).toContainText('1 lot avec des offres reçues');
   await commercial.getByRole('link', { name: /Comparer et choisir une offre/ }).click();

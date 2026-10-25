@@ -15,8 +15,12 @@ test('Tableau client : nom canonique, compteurs et prochaine action distinguent 
 
   await page.goto('/app');
   await expect(page.getByRole('heading', { name: `Bonjour ${displayName}`, exact: true })).toBeVisible();
-  await expect(page.getByTestId('dashboard-stat-client-review')).toContainText('0');
-  await expect(page.getByTestId('dashboard-stat-dao-review')).toContainText('0');
+  // #477: without any chantier the dashboard shows the empty state (no counters); otherwise both reviews start at 0.
+  await expect(page.getByTestId('dashboard-stat-client-review').or(page.getByText('Votre espace est prêt', { exact: true }))).toBeVisible();
+  if (await page.getByTestId('dashboard-stat-client-review').count()) {
+    await expect(page.getByTestId('dashboard-stat-client-review')).toContainText('0');
+    await expect(page.getByTestId('dashboard-stat-dao-review')).toContainText('0');
+  }
 
   const project = await createDraftProject(page, testInfo, 'dashboard-ux');
   await createMainLot(page, project.title, 'Lot principal pour la recette des états du tableau.');
