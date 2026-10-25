@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { supportAvailability } from '../../lib/support-client';
 import { fetchUnreadNotificationCount } from '../../lib/notifications';
 import { supabaseBrowser } from '../../lib/supabase-browser';
+import { onUnreadChanged } from '../../lib/unread-events';
 
 /** Total badge = JWT-scoped in-app events + authorized Support replies.
  * Never fetch message or question bodies for the global notification badge.
@@ -52,8 +53,10 @@ export default function NotificationShortcut() {
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
     const timer = window.setInterval(onFocus, 30_000);
+    const stopUnread = onUnreadChanged(() => void refresh());
     return () => {
       active = false;
+      stopUnread();
       controller.abort();
       window.clearInterval(timer);
       window.removeEventListener('focus', onFocus);

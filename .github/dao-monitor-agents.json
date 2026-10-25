@@ -304,6 +304,12 @@
       "agent": "DAO Mission 5",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 460,
+      "agent": "DAO Coordinateur Bugs 2",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }

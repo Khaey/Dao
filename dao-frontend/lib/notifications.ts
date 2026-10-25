@@ -2,6 +2,7 @@
 
 import { notificationPage, type NotificationPage } from '../../dao-backend/src/notifications/contract';
 import { supabaseBrowser } from './supabase-browser';
+import { notifyUnreadChanged } from './unread-events';
 export type { NotificationItem, NotificationPage } from '../../dao-backend/src/notifications/contract';
 
 export class NotificationApiError extends Error {
@@ -47,7 +48,8 @@ export async function fetchUnreadNotificationCount(signal: AbortSignal): Promise
 export async function markNotificationRead(id: string, signal: AbortSignal) {
   const data=await request('PATCH','',signal,{id});
   if(data?.acknowledged!==true)throw new NotificationApiError(503);
+  notifyUnreadChanged();
 }
-export async function markAllNotificationsRead(signal:AbortSignal){return request('PATCH','',signal,{action:'mark_all_read'});}
+export async function markAllNotificationsRead(signal:AbortSignal){const data=await request('PATCH','',signal,{action:'mark_all_read'});notifyUnreadChanged();return data;}
 export async function fetchNotificationPreferences(signal:AbortSignal){return request('GET','?view=preferences',signal);}
 export async function updateNotificationPreferences(enabled:boolean,signal:AbortSignal){return request('PATCH','',signal,{action:'update_preferences',invitation_expiring:enabled});}

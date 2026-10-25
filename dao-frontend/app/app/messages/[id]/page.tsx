@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Lock, Send } from 'lucide-react';
 import { Card } from '../../../../components/ui';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
+import { notifyUnreadChanged } from '../../../../lib/unread-events';
 
 type Message = { id: string; created_at: string; author_id: string; body: string };
 type Conversation = { id: string; project_title: string; participant_name: string };
@@ -36,6 +37,7 @@ export default function ThreadPage() {
       const [rows, session] = await Promise.all([api(`/api/messages?conversation_id=${id}&limit=50`), supabaseBrowser().auth.getSession()]);
       setMessages(rows); setUserId(session.data.session?.user.id || '');
       await api('/api/messages', { method: 'PATCH', body: JSON.stringify({ conversation_id: id }) });
+      notifyUnreadChanged();
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
   }, [id]);
   useEffect(() => { void load(); }, [load]);

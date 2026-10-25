@@ -19,7 +19,7 @@ export async function createDraftProject(
   page: Page,
   testInfo: TestInfo,
   scenario: string,
-  options: { validateEndBeforeStart?: boolean } = {},
+  options: { validateEndBeforeStart?: boolean; address?: string } = {},
 ) {
   const testKey = createHash('sha1').update(testInfo.testId).digest('hex').slice(0, 10);
   const run = process.env.GITHUB_RUN_ID || `local-${process.pid}`;
@@ -41,6 +41,7 @@ export async function createDraftProject(
   await page.getByLabel('Délégation').selectOption({ index: 1 });
   await expect(page.getByLabel('Localité')).toBeEnabled();
   await page.getByLabel('Localité').selectOption({ index: 1 });
+  if (options.address) await page.getByLabel('Quartier ou adresse précise').fill(options.address);
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByLabel('Budget indicatif (TND)').fill('150000');
   await page.getByLabel('Début souhaité').fill(startDate);

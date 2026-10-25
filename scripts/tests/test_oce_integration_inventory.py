@@ -144,6 +144,14 @@ class CommandBoundaryTests(unittest.TestCase):
                 return json.dumps([current, peer])
             if argv == ['/usr/bin/docker', 'image', 'inspect', IMAGE_ID]:
                 return json.dumps([{'RepoDigests': [DIGEST]}])
+            if argv == ['/usr/bin/docker', 'stats', '--no-stream', '--format', '{{json .}}', APP_ID]:
+                return json.dumps({'Container': 'openconstructionerp-app-1', 'CPUPerc': '2.50%',
+                                   'MemUsage': '100MiB / 1GiB', 'BlockIO': '3MiB / 4MiB',
+                                   'NetIO': '1.5kB / 2kB', 'PIDs': '12'})
+            if argv == ['/usr/bin/docker', 'stats', '--no-stream', '--format', '{{json .}}', PEER_ID]:
+                return json.dumps({'Container': 'private-db', 'CPUPerc': '0.25%',
+                                   'MemUsage': '25MiB / 512MiB', 'BlockIO': '1kB / 2kB',
+                                   'NetIO': '5kB / 6kB', 'PIDs': '4'})
             self.fail('Unexpected privileged command')
         output = io.StringIO()
         with patch.object(admin.shutil, 'which', return_value='/usr/bin/docker'), \
@@ -160,10 +168,31 @@ class CommandBoundaryTests(unittest.TestCase):
 
     def test_only_four_fixed_read_commands_and_redacted_output(self):
         commands, output = self.invoke()
-        self.assertEqual(len(commands), 4)
+        self.assertEqual(len(commands), 6)
+        self.assertEqual(commands[-2:], [
+            ['/usr/bin/docker', 'stats', '--no-stream', '--format', '{{json .}}', APP_ID],
+            ['/usr/bin/docker', 'stats', '--no-stream', '--format', '{{json .}}', PEER_ID],
+        ])
+        self.assertNotIn('openconstructionerp-app-1', output)
+        self.assertNotIn('private-db', output)
         self.assertNotIn('secret-', output)
         self.assertNotIn('private-', output)
-        self.assertEqual(json.loads(output)['oce_integration_inventory'], 'ok')
+        result = json.loads(output)
+        self.assertEqual(result['oce_integration_inventory'], 'ok')
+        self.assertEqual(result['container_resources']['status'], 'ok')
+        self.assertEqual([row['alias'] for row in result['container_resources']['containers']],
+                         ['oce_app', 'peer_1'])
+        self.assertEqual(result['container_resources']['containers'][0]['memory_used_bytes'], 104857600)
+        self.assertEqual(result['container_resources']['containers'][0]['network_rx_bytes'], 1500)
+        self.assertNotIn('_resource_targets', result)
+
+    def test_stats_parser_rejects_unknown_units_and_malformed_fields(self):
+        with self.assertRaises(ValueError):
+            admin._docker_stat_row(json.dumps({'CPUPerc': '1%', 'MemUsage': '1XB / 2XB',
+                                               'BlockIO': '1B / 1B', 'NetIO': '1B / 1B',
+                                               'PIDs': '1'}), 'oce_app')
+        with self.assertRaises(ValueError):
+            admin._docker_stat_row('not-json', 'oce_app')
 
     def test_container_cap_fails_before_bulk_inspect(self):
         commands, _ = self.invoke(too_many=True)

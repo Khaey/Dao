@@ -5,7 +5,8 @@ test('Documents privés : dépôt, consultation, retrait et confidentialité', a
   test.skip(!e2eClient, 'E2E Supabase credentials are not available');
 
   await login(page, e2eClient!);
-  await createDraftProject(page, testInfo, 'documents-private');
+  // #467 : quartier libre saisi à la création, stocké uniquement dans les informations privées.
+  await createDraftProject(page, testInfo, 'documents-private', { address: 'Sahloul 3, près de la mosquée' });
   await page.getByRole('button', { name: 'Documents' }).click();
   await page.locator('input[type="file"]').setInputFiles({
     name: 'plan-e2e.pdf',
@@ -46,6 +47,7 @@ test('Documents privés : dépôt, consultation, retrait et confidentialité', a
   await page.getByText('Coordonnées privées / Accès chantier — ouvrir').click();
   await expect(page.getByRole('heading', { name: 'Informations privées et confidentielles' })).toBeVisible();
   await expect(page.getByText('Réservées aux participants disposant d’une autorisation explicite. Jamais visibles sur le marketplace.', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Adresse exacte')).toHaveValue('Sahloul 3, près de la mosquée');
   await page.getByLabel('Adresse exacte').fill('12 rue de Sahloul, Sousse');
   await page.getByLabel('Instructions d’accès').fill('Appeler avant l’arrivée.');
   await page.getByLabel('Téléphone privé').fill('+21620123456');
