@@ -25,7 +25,7 @@ function day(value: unknown, field: string) {
 function quantity(value: unknown, field: string, allowZero = false) {
   if (typeof value !== 'string' || !/^(0|[1-9]\d{0,12})$/.test(value)) throw new DomainError(`${field} must be an exact integer string`, 'BAD_REQUEST');
   const parsed = BigInt(value);
-  if (parsed > 1_000_000_000_000n || (!allowZero && parsed === 0n)) throw new DomainError(`${field} is out of range`, 'BAD_REQUEST');
+  if (parsed > BigInt("1000000000000") || (!allowZero && parsed === BigInt(0))) throw new DomainError(`${field} is out of range`, 'BAD_REQUEST');
   return value;
 }
 function ids(value: unknown, field: string, maximum: number): string[] {
