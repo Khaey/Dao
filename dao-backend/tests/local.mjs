@@ -115,6 +115,11 @@ const rejectedProjectVersion=await insert('project_versions',{project_id:correct
 const correctionRequest=await insert('project_requests',{project_id:correctionProject});
 const rejectedRequestVersion=await insert('project_request_versions',{request_id:correctionRequest,project_id:correctionProject,version_no:1,trade_id:trade,title:'Rejected lot',scope:'Test'});
 await insert('project_version_requests',{project_id:correctionProject,project_version_id:rejectedProjectVersion,request_version_id:rejectedRequestVersion});
+const nativeSubProject=await insert('projects',{client_id:U.clientA});
+const nativeSubProjectVersion=await insert('project_versions',{project_id:nativeSubProject,version_no:1,title:'Native sub-lots',description:'Test',governorate_id:gov,status:'draft'});
+const nativeSubRequest=await insert('project_requests',{project_id:nativeSubProject});
+const nativeSubRequestVersion=await insert('project_request_versions',{request_id:nativeSubRequest,project_id:nativeSubProject,version_no:1,trade_id:trade,title:'Lot with optional details',scope:'Test'});
+await insert('project_version_requests',{project_id:nativeSubProject,project_version_id:nativeSubProjectVersion,request_version_id:nativeSubRequestVersion});
 const publicationProject=await insert('projects',{client_id:U.clientA});
 const approvedPublicationVersion=await insert('project_versions',{project_id:publicationProject,version_no:1,title:'Publication test',description:'Test',governorate_id:gov,status:'approved'});
 const activePublicationRequest=await insert('project_requests',{project_id:publicationProject});
@@ -169,6 +174,37 @@ await test('project review submission requires both dates and preserves an open 
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
 }));
 await test('client cannot withdraw a request after the project version leaves draft',()=>as('clientA',()=>denied(`select public.withdraw_project_request('${withdrawalRequests[1].request}')`,'23514')));
+await test('Client official sub-lots create immutable revisions and support reorder, edit and logical retirement',()=>as('clientA',async()=>{
+ const initial=await db.query('select public.native_request_sub_lots_v1($1) as data',[nativeSubRequest]);
+ eq(initial.rows[0].data.canEdit,true);eq(initial.rows[0].data.items.length,0);
+ const first=await db.query('select public.replace_client_request_sub_lots_v1($1,$2,$3::jsonb) as data',[
+   nativeSubRequest,nativeSubRequestVersion,JSON.stringify([
+     {id:null,title:'Dépose',scope:'Retirer l’ancien équipement',budgetMillimes:null},
+     {id:null,title:'Pose',scope:'Installer le nouvel équipement',budgetMillimes:'123456'},
+   ]),
+ ]);
+ eq(first.rows[0].data.requestVersion,2);eq(first.rows[0].data.items.length,2);
+ const firstItems=first.rows[0].data.items;
+ const second=await db.query('select public.replace_client_request_sub_lots_v1($1,$2,$3::jsonb) as data',[
+   nativeSubRequest,first.rows[0].data.requestVersionId,JSON.stringify([
+     {...firstItems[1],title:'Pose finale'},
+     firstItems[0],
+   ]),
+ ]);
+ eq(second.rows[0].data.requestVersion,3);eq(second.rows[0].data.items[0].id,firstItems[1].id);
+ eq(second.rows[0].data.items[0].title,'Pose finale');
+ const third=await db.query('select public.replace_client_request_sub_lots_v1($1,$2,$3::jsonb) as data',[
+   nativeSubRequest,second.rows[0].data.requestVersionId,JSON.stringify([second.rows[0].data.items[0]]),
+ ]);
+ eq(third.rows[0].data.requestVersion,4);eq(third.rows[0].data.items.length,1);
+ const history=await db.query('select count(*)::int as n from public.request_sub_lot_versions where sub_lot_id=$1',[firstItems[0].id]);
+ eq(history.rows[0].n,2);
+ await denied(`select public.replace_client_request_sub_lots_v1('${nativeSubRequest}','${nativeSubRequestVersion}','[]'::jsonb)`,'40001');
+}));
+await test('another Client cannot read or mutate official sub-lots',()=>as('clientB',async()=>{
+ await denied(`select public.native_request_sub_lots_v1('${nativeSubRequest}')`,'42501');
+ await denied(`select public.replace_client_request_sub_lots_v1('${nativeSubRequest}','${nativeSubRequestVersion}','[]'::jsonb)`,'42501');
+}));
 await test('withdrawal after review leaves the request active and linked',async()=>{
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
  const link=await db.query('select id from public.project_version_requests where project_version_id=$1 and request_version_id=$2',[withdrawalProjectVersion,withdrawalRequests[1].requestVersion]);eq(link.rows.length,1);
