@@ -133,6 +133,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Partage **par lot** : visibilité `lots` = Client + titulaire **actif** de chaque lot rattaché (award actif ou membre affecté) ; filtrage serveur ; révocation/suspension immédiate. | Livré | #456 |
 | **Contrôle du fichier** (quarantaine → validé/refusé) par le Gestionnaire affecté ou l'Admin uniquement ; aucune auto-approbation. | Livré | #456 |
 | **Revue documentaire technique** (À consulter, En revue, Observations émises, Revu techniquement, Remplacé) par le Client ou le Gestionnaire affecté, jamais l'auteur ; une nouvelle version ne réutilise jamais un visa ancien ; **aucun effet juridique, contractuel ou financier**. | Livré | #456 |
+| Plans **DWG** acceptés pour les documents de chantier uniquement (devis, RFI, profils inchangés) : stockage privé, téléchargement par URL signée en pièce jointe, **aucun aperçu ni interprétation du contenu** ; plafond = `uploads.max_file_mb` (1–20 Mo), au-delà de 20 Mo non autorisé sans étude stockage/transport. | En PR | [#464](https://github.com/Khaey/Dao/issues/464) |
 
 ## 10. Paramètres (Settings)
 

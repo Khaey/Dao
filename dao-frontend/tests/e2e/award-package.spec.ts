@@ -41,6 +41,17 @@ test('Package indivisible : proposition, attribution complète, annulation et r�
   await expect(lotA.getByLabel('Répondre à ce lot')).toBeChecked();
   await expect(lotB.getByLabel('Répondre à ce lot')).not.toBeChecked();
   await lotB.getByLabel('Répondre à ce lot').check();
+  const packageBox = artisan.getByLabel('Package indivisible : tous les lots de cette offre ensemble');
+  const lineB = artisan.locator('div.rounded-xl').filter({ has: artisan.getByRole('heading', { name: 'Lot package B', exact: true }) }).filter({ has: artisan.getByLabel('Prix proposé (TND)') });
+  // #461 : 2 lots + package puis retour à 1 lot désactive l'option ; le brouillon mono-lot s'enregistre.
+  await packageBox.check();
+  await lotB.getByLabel('Répondre à ce lot').uncheck();
+  await expect(packageBox).toHaveCount(0);
+  await artisan.getByRole('button', { name: 'Enregistrer le brouillon' }).click();
+  await expect(artisan.getByRole('status')).toContainText('Brouillon enregistré');
+  await lotB.getByLabel('Répondre à ce lot').check();
+  await expect(lineB).toHaveCount(1);
+  await expect(packageBox).not.toBeChecked();
   for (const title of ['Lot package A', 'Lot package B']) {
     // The proposal form and published-lot list both contain the title. Scope
     // the editable line via its labelled input, without a forced interaction.
@@ -52,7 +63,7 @@ test('Package indivisible : proposition, attribution complète, annulation et r�
       await formLine.getByLabel('Proposition technique / inclusions').fill(`Package complet ${title}`);
     }
   }
-  await artisan.getByLabel('Package indivisible : tous les lots de cette offre ensemble').check();
+  await packageBox.check();
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible(); await ac.close();
   await page.goto(`/app/publications/${publicationId}`);

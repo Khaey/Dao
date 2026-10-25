@@ -498,6 +498,12 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
       sourceEventIds: [intervention.data.id], evidenceDocumentIds: [document.data!.id] }],
     p_validated_lines: null, p_note: null, p_expected_revision: null, p_idempotency_key: randomUUID(),
   };
+  await denied(staff.db, 'native_work_situation_command_v1', {
+    ...situationArgs, p_idempotency_key: randomUUID(),
+  });
+  await denied(unassignedStaff.db, 'native_work_situation_command_v1', {
+    ...situationArgs, p_idempotency_key: randomUUID(),
+  });
   const createdSituation = await contractor.db.rpc('native_work_situation_command_v1', situationArgs);
   assert.ifError(createdSituation.error); assert.equal(createdSituation.data.status, 'draft');
   const createdSituationReplay = await contractor.db.rpc('native_work_situation_command_v1', situationArgs);
@@ -511,6 +517,19 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.ifError(contractorSituation.error);
   assert.equal(contractorSituation.data.lines[0].quantityReportedMilli, '2500');
   assert.equal(contractorSituation.data.lines[0].evidenceDocumentIds[0], document.data!.id);
+  const managerDraftArgs = {
+    ...situationArgs, p_action: 'save_draft', p_situation_id: situationId,
+    p_project_id: null, p_contractor_id: null, p_period_start: null, p_period_end: null,
+    p_expected_revision: 1, p_idempotency_key: randomUUID(),
+  };
+  await denied(staff.db, 'native_work_situation_command_v1', managerDraftArgs);
+  await denied(unassignedStaff.db, 'native_work_situation_command_v1', {
+    ...managerDraftArgs, p_idempotency_key: randomUUID(),
+  });
+  const unchangedDraft = await contractor.db.rpc('native_work_situations_v1', situationDetailArgs);
+  assert.ifError(unchangedDraft.error);
+  assert.equal(unchangedDraft.data.status, 'draft');
+  assert.equal(unchangedDraft.data.revision, 1);
   await denied(otherClient.db, 'native_work_situations_v1', situationDetailArgs);
   await denied(competitor.db, 'native_work_situations_v1', situationDetailArgs);
   await denied(unassignedStaff.db, 'native_work_situations_v1', situationDetailArgs);
@@ -523,6 +542,14 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.ifError(submittedSituation.error); assert.equal(submittedSituation.data.status, 'submitted');
   const submittedReplay = await contractor.db.rpc('native_work_situation_command_v1', submitArgs);
   assert.ifError(submittedReplay.error); assert.equal(submittedReplay.data.revision, submittedSituation.data.revision);
+  const managerReviewArgs = {
+    ...submitArgs, p_action: 'start_review', p_expected_revision: 2,
+    p_idempotency_key: randomUUID(),
+  };
+  await denied(staff.db, 'native_work_situation_command_v1', managerReviewArgs);
+  await denied(unassignedStaff.db, 'native_work_situation_command_v1', {
+    ...managerReviewArgs, p_idempotency_key: randomUUID(),
+  });
   const startReview = await owner.db.rpc('native_work_situation_command_v1', {
     ...submitArgs, p_action: 'start_review', p_expected_revision: 2, p_idempotency_key: randomUUID(),
   });

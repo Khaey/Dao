@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Activity, Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, type LucideIcon } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
+import { onUnreadChanged } from '../../lib/unread-events';
 
 export default function RoleNav() {
   const router = useRouter();
@@ -52,9 +53,11 @@ export default function RoleNav() {
   useEffect(() => {
     if (!supportUser) return;
     let active = true;
-    void import('../../lib/support-client').then(({ supportAvailability }) => supportAvailability())
+    const refresh = () => void import('../../lib/support-client').then(({ supportAvailability }) => supportAvailability())
       .then(result => { if (active) setSupportUnread(result.state === 'available' ? result.summary.unread : 0); }).catch(() => undefined);
-    return () => { active = false; };
+    refresh();
+    const stopUnread = onUnreadChanged(refresh);
+    return () => { active = false; stopUnread(); };
   }, [supportUser, pathname]);
 
 

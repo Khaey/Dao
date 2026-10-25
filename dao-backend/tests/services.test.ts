@@ -16,6 +16,21 @@ test('DocumentService lets the project owner consult a pending project document'
   const service=new DocumentService(db,storage);
   assert.equal(await service.signedProjectDownload('document-id'),'signed-pending');
 });
+test('DocumentService accepts DWG only for project plans and always downloads it (#464)',async()=>{
+  const calls:any[]=[];
+  const db={rpc:async(name:string,input:any)=>{calls.push({name,input});return {data:{id:'doc'},error:null};},
+    from(table:string){assert.equal(table,'documents');return {select(){return {eq(){return {single:async()=>({data:{object_path:'project/p/plan.dwg',original_name:'Plan RDC.dwg',mime_type:'image/vnd.dwg',status:'quarantined'},error:null})}}}}}}};
+  const signed:any[]=[];
+  const storage={from(){return {createSignedUploadUrl:async()=>({data:{token:'t'},error:null}),createSignedUrl:async(path:string,ttl:number,options:any)=>{signed.push(options);return {data:{signedUrl:'signed-dwg'},error:null};}}}};
+  const service=new DocumentService(db,storage);
+  await service.signedProjectUpload({projectId:'p',originalName:'Plan RDC.DWG',mimeType:'image/vnd.dwg',sizeBytes:1024});
+  assert.equal(calls[0].input.p_mime_type,'image/vnd.dwg');
+  await assert.rejects(()=>service.signedProjectUpload({projectId:'p',originalName:'plan.pdf',mimeType:'image/vnd.dwg',sizeBytes:1024}),/MIME type not allowed/);
+  await assert.rejects(()=>service.signedProjectUpload({projectId:'p',originalName:'plan.dwg',mimeType:'image/vnd.dwg',sizeBytes:20*1024*1024+1}),/File too large/);
+  await assert.rejects(()=>service.signedUploadForActor('actor',{bidVersionId:'v',originalName:'devis.dwg',mimeType:'image/vnd.dwg',sizeBytes:1024}),/MIME type not allowed/);
+  assert.equal(await service.signedProjectDownload('doc'),'signed-dwg');
+  assert.deepEqual(signed[0],{download:'Plan-RDC.dwg'});
+});
 test('server actions require an authenticated actor',()=>{assert.throws(()=>requireActor(null),/Authentication required/)});
 test('actor identity is required, never accepted from browser payload',()=>{const actor=requireActor({id:'actor'});assert.equal(actor.id,'actor');assert.notEqual(actor.id,'browser-supplied')});
 test('ProfileService sends the public account type and business name through the protected initialization RPC',async()=>{
