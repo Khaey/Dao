@@ -11,12 +11,10 @@ import NativeActivityPanel from './NativeActivityPanel';
 import NativeGantt from './NativeGantt';
 import NativeLotDatesForm from './NativeLotDatesForm';
 import NativeInstallmentScopes from './NativeInstallmentScopes';
+import NativeDependencies from './NativeDependencies';
+import NativeMilestones from './NativeMilestones';
 
 const outline = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal';
-const optionNames = [
-  'Ajouter une dépendance',
-  'Ajouter un jalon',
-];
 
 function prettyDate(raw: string) {
   const value = new Date(raw.slice(0, 10) + 'T00:00:00Z');
@@ -167,12 +165,15 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
         {selected.awardId && role !== 'dao_manager' && selected.canRead && <Link className={outline + ' hover:bg-sand'} href={'/app/awards/' + encodeURIComponent(selected.awardId) + '/conditions'}>Voir les conditions du lot</Link>}
       </div>
       {(role === 'client' || role === 'dao_manager') && <NativeLotDatesForm key={selected.requestId} projectId={projectId} lotId={selected.requestId} onSaved={reload} />}
-      {(() => { const raw = dto.lots.find(lot => lot.requestId === selected.requestId); return raw?.award ? <NativeInstallmentScopes key={raw.award.awardId} plan={dto} lot={raw} onUpdated={reload} /> : null; })()}
+      {(() => {
+        const raw = dto.lots.find(lot => lot.requestId === selected.requestId);
+        return raw?.award ? <>
+          <NativeMilestones key={'m' + raw.award.awardItemId} lot={raw} onUpdated={reload} />
+          <NativeDependencies key={'d' + raw.requestId} plan={dto} requestId={raw.requestId} canEdit={role === 'client' || role === 'dao_manager'} onUpdated={reload} />
+          <NativeInstallmentScopes key={raw.award.awardId} plan={dto} lot={raw} onUpdated={reload} />
+        </> : null;
+      })()}
       {selected.awardItemId && <NativeActivityPanel key={selected.awardItemId} plan={dto} lot={selected} onUpdated={reload} />}
-      <p className="text-xs text-black/55">Les activités et sous-lots opérationnels sont gérés ci-dessus lorsque DEV 3 l’autorise. Dépendances et jalons sont indépendants et requièrent chacun une API et des droits spécifiques.</p>
-      <div className="flex flex-wrap gap-2">{optionNames.map(name => <button key={name} type="button" disabled
-        title="Commande indépendante non activée tant que son API et ses permissions dédiées ne sont pas disponibles"
-        className={outline + ' cursor-not-allowed opacity-50'}>{name}</button>)}</div>
       <p className="text-xs text-black/55">Le contrat n’est pas signé ici ; aucune échéance ne déclenche un paiement. Le Gestionnaire ne consent jamais au nom des parties.</p>
     </Card>}
     <p className="text-xs text-black/50">Suivi natif D.A.O. sans OCE · les dates portent leur provenance · aucune progression calculée ni date inventée.</p>
