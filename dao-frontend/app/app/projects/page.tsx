@@ -99,6 +99,7 @@ export default function Projects() {
     { label: 'Travaux en cours', value: rows.filter(row => row.project_stage === 'in_progress').length },
   ];
 
+  const nativeTracking = (projectId: string): RowAction => ({ label: 'Tableau de suivi et Gantt', href: `/app/native-execution/${projectId}` });
   function actions(line: Line): { primary: RowAction | null; more: RowAction[] } {
     const more: RowAction[] = [];
     const conditions = (line.award?.awardIds ?? []).filter(id => liveAgreements.includes(id)).map((id, index, list) => ({ label: `Conditions et calendrier${list.length > 1 ? ` (${index + 1})` : ''}`, href: `/app/awards/${id}/conditions` }));
@@ -112,6 +113,7 @@ export default function Projects() {
       if (line.offers?.publicationId && primary !== compare && line.offers.state !== 'none' && line.offers.state !== 'unknown') more.push({ label: 'Voir les offres et l’attribution', href: `/app/publications/${line.offers.publicationId}#offres` });
       more.push(...conditions);
       if (line.award && primary !== tracking) more.push({ label: 'Carnet de chantier', href: tracking.href });
+      if (line.award || (line.offers?.awardedLots ?? 0) > 0 || ['in_progress', 'completed'].includes(line.project.project_stage)) more.push(nativeTracking(line.id));
       if (dao) more.push(dao);
       return { primary, more };
     }
@@ -119,6 +121,7 @@ export default function Projects() {
     const primary = conditions[0] ? { label: 'Conditions', href: conditions[0].href } : dao;
     more.push(...conditions.slice(primary === dao ? 0 : 1));
     if (liveJournals.includes(line.id)) more.push({ label: 'Carnet de chantier', href: `/app/execution/${line.id}` });
+    if (line.award) more.push(nativeTracking(line.id));
     if (dao && primary !== dao) more.push(dao);
     return { primary, more };
   }
