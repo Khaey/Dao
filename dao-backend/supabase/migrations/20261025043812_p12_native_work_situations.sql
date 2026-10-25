@@ -185,7 +185,7 @@ begin
     if role_value not in ('client','manager') or s.status<>'submitted' then raise exception using errcode='42501',message='Review access denied'; end if;
     new_status:='under_review'; kind_value:='review_started';
   elsif p_action='request_revision' then
-    if role_value<>'client' or s.status not in ('submitted','under_review','contested') or p_note is null then raise exception using errcode='42501',message='Client revision request required'; end if;
+    if role_value<>'client' or s.status not in ('submitted','under_review','contested','validated_technical') or p_note is null then raise exception using errcode='42501',message='Client revision request required'; end if;
     new_status:='revision_requested'; kind_value:='revision_requested';
   elsif p_action in ('validate_technical','manager_suggestion') then
     if jsonb_typeof(p_validated_lines)<>'array' then raise exception using errcode='22023',message='Quantity decisions are invalid'; end if;
