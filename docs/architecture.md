@@ -52,6 +52,7 @@ VPS DEV (dao-dev.logiclab.fr) ── Caddy + service dao-dev, déployé par GitH
 | Contrats | `project_contract_settings`, `contracts`, `contract_items`, versions/parties/événements/archives |
 | Planning natif | `native_execution_activities` (+ revisions, proposals, acceptances, commands), dépendances natives ; historique OCE `oce_lot_plans`, `project_plan_*` |
 | Exécution | `site_log_events` (avancement, interventions, quantités/métrés), `site_client_observations`, `site_log_evidence` ; RPC `site_execution_snapshot_v2`, `record_site_*` |
+| Dossier documentaire | `documents`, `document_grants`, `document_families`, `document_revisions`, `document_family_lots`, `document_dossier_events` ; RPC `document_dossier_v1`, `document_dossier_command_v1`, `document_file_control_v1` |
 | Réception technique | `site_technical_inspections`, `site_technical_reserves`, leurs `*_events`, `site_technical_evidence` |
 | Settings | `dao_private.setting_definitions` (miroir généré), RPC `my_effective_settings`, `dao_private.resolve_setting` |
 

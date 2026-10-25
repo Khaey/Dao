@@ -30,6 +30,7 @@ et réserves
 | Signature électronique (préparation, hors GO) | [contract-electronic-signature-v1.md](contract-electronic-signature-v1.md) | #383 |
 | Carnet d'exécution, métrés | [site-execution-design.md](../site-execution-design.md) | #289 |
 | Suivi natif : Tableau, Gantt, options facultatives | [ux/410-tableau-natif.md](../ux/410-tableau-natif.md), spécification gelée [#408](https://github.com/Khaey/Dao/issues/408#issuecomment-6388003011) | #408, #409, #419 |
+| Dossier documentaire V2 (plans versionnés, lots, revue technique) | [document-dossier-v2.md](document-dossier-v2.md) | #456 |
 | Réception technique et réserves | Spécification dans [#425](https://github.com/Khaey/Dao/issues/425) ; résumé [decisions.md §9](../decisions.md#9-réception-technique-et-réserves-p11) | #425, #438 |
 | Paramètres (moteur Settings) | [settings-engine.md](settings-engine.md), spécification S0 [#423](https://github.com/Khaey/Dao/issues/423#issuecomment-6392554996) | #423, #426, #126 |
 | Messagerie et assistance | [messages-assistance.md](../messages-assistance.md) | #116, #271, #273 |

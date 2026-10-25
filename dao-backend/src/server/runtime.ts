@@ -26,6 +26,8 @@ import { createNativeExecutionPlanHandler } from './nativeExecutionPlanHandler.j
 import { createNativeExecutionScopeHandler } from './nativeExecutionScopeHandler.js';
 import { createNativeWorkSituationHandler, createNativeWorkSituationEventsHandler } from './nativeWorkSituationHandler.js';
 import { SiteWorkSituationService } from '../services/SiteWorkSituationService.js';
+import { createDocumentDossierHandler } from './documentDossierHandler.js';
+import { DocumentDossierService } from '../services/DocumentDossierService.js';
 import { createNativeExecutionActivityHandler } from './nativeExecutionActivityHandler.js';
 import { createNativeExecutionDependencyHandler } from './nativeExecutionDependencyHandler.js';
 import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
@@ -211,4 +213,10 @@ export function createNativeWorkSituationApi(request: Request) {
 export function createNativeWorkSituationEventsApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createNativeWorkSituationEventsHandler(new SiteWorkSituationService(db), resolveActor);
+}
+
+/** Document dossier V2 (#456): families, revisions, lot sharing and non-legal technical reviews. */
+export function createDocumentDossierApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createDocumentDossierHandler(new DocumentDossierService(db), resolveActor);
 }
