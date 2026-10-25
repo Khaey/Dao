@@ -76,6 +76,25 @@ test('settings S1: real JWT resolver, workspace/project isolation and no private
     assert.equal((await rpc(client.db,{p_workspace:'client'})).settings['client.offer_comparison'].state,'available');
   });
 
+  await t.test('S4 mandate over real JWT: reviewer restricts a portfolio account, revocation stops it',async()=>{
+    const reason='Synthetic settings S4 real test',until=new Date(Date.now()+7*86400000).toISOString();
+    const deleg=async(action:string,input:any)=>{const r=await operator.db.rpc('admin_delegation_command',{p_action:action,p_input:input});assert.ifError(r.error);return r.data;};
+    const mgr=(input:any,action='set')=>staff.db.rpc('manager_setting_command',{p_action:action,p_input:input});
+    const restrict={key:'client.offer_comparison',scope:'account',user_id:client.id,value:false,valid_until:until,reason};
+    assert.ok((await mgr(restrict)).error);
+    assert.ok((await staff.db.rpc('admin_delegation_command',{p_action:'grant_mandate',p_input:{staff_user_id:staff.id,keys:['bids.rfi'],actions:['restrict'],scopes:['account'],valid_until:until,reason}})).error);
+    const mandate=await deleg('grant_mandate',{staff_user_id:staff.id,keys:['client.offer_comparison'],actions:['restrict','lift_own_restriction'],scopes:['account'],valid_until:until,reason});
+    const pf=await deleg('assign_account',{staff_user_id:staff.id,account_user_id:client.id,reason});
+    try{
+      assert.ok((await mgr({...restrict,user_id:other.id})).error);
+      const set=await mgr(restrict);assert.ifError(set.error);
+      assert.equal((await rpc(client.db,{p_workspace:'client'})).settings['client.offer_comparison'].state,'unavailable');
+      const lift=await mgr({key:restrict.key,scope:'account',user_id:client.id,reason,expected_override_id:set.data.override_id},'clear');assert.ifError(lift.error);
+    }finally{await deleg('revoke_mandate',{id:mandate.id,reason});await deleg('unassign_account',{id:pf.id,reason});}
+    assert.ok((await mgr(restrict)).error);
+    assert.equal((await rpc(client.db,{p_workspace:'client'})).settings['client.offer_comparison'].state,'available');
+  });
+
   await t.test('suspension is checked live',async()=>{
     const r=await operator.db.rpc('backoffice_command',{p_action:'account',p_input:{user_id:other.id,status:'suspended',reason:'Synthetic settings test'},p_key:randomUUID()});
     assert.ifError(r.error);await denied(other.db);

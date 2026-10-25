@@ -20,6 +20,7 @@ export default function RoleNav() {
   const [workspace, setWorkspace] = useState<'client'|'contractor'>('client');
   const [switching, setSwitching] = useState(false);
   const [supportUnread, setSupportUnread] = useState(0);
+  const [delegated, setDelegated] = useState(false);
 
   useEffect(() => {
     const supabase = supabaseBrowser();
@@ -56,6 +57,16 @@ export default function RoleNav() {
       .then(result => { if (active) setSupportUnread(result.state === 'available' ? result.summary.unread : 0); }).catch(() => undefined);
     return () => { active = false; };
   }, [supportUser, pathname]);
+
+  // A8: a Gestionnaire sees settings only with an active Admin mandate.
+  const reviewerOnly = ready && roles.includes('dao_reviewer') && !roles.includes('dao_admin');
+  useEffect(() => {
+    if (!reviewerOnly) { setDelegated(false); return; }
+    let active = true;
+    void import('../../lib/settings').then(({ fetchMyDelegation }) => fetchMyDelegation())
+      .then(result => { if (active) setDelegated(result.mandates.length > 0); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [reviewerOnly]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -119,6 +130,7 @@ export default function RoleNav() {
     { href: '/app/dao/history', label: 'Historique', icon: ShieldCheck, show: staff },
     { href: '/app/dao/users', label: 'Utilisateurs & rôles', icon: ShieldCheck, show: has('dao_admin') },
     { href: '/app/dao/settings', label: 'Paramètres D.A.O.', icon: SlidersHorizontal, show: has('dao_admin') },
+    { href: '/app/dao/settings', label: 'Mes délégations', icon: SlidersHorizontal, show: !has('dao_admin') && delegated },
   ];
 
   const workspaceLabel = staff ? (has('dao_admin') ? 'Espace Admin DAO' : 'Espace Gestionnaire DAO') : 'Espace de travail';
