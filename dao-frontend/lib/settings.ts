@@ -33,6 +33,15 @@ export const adminSettingCommand = (action: 'set' | 'clear', input: Record<strin
   call<{ override_id: string | null; version: number }>('admin_setting_command', { p_action: action, p_input: input });
 export const adminSetTradeActive = (tradeId: string, active: boolean, reason: string) =>
   call('admin_set_trade_active', { p_trade_id: tradeId, p_active: active, p_reason: reason });
+// #465 : référentiel métiers (ajout/renommage audités) et propositions Client/Artisan revues par l'Admin.
+export type TradeProposal = { id: string; created_at: string; label: string; context: 'project' | 'profile'; proposer: string };
+export const adminSaveTrade = (tradeId: string | null, name: string, reason: string) =>
+  call<{ trade_id: string; changed: boolean }>('admin_save_trade', { p_trade_id: tradeId, p_name_fr: name, p_name_ar: null, p_reason: reason });
+export const fetchTradeProposals = () => call<TradeProposal[]>('admin_trade_proposals');
+export const adminReviewTradeProposal = (id: string, decision: 'accept' | 'reject', tradeId: string | null, name: string | null, reason: string) =>
+  call('admin_review_trade_proposal', { p_proposal_id: id, p_decision: decision, p_trade_id: tradeId, p_name: name, p_reason: reason });
+export const proposeTrade = (label: string, context: 'project' | 'profile') =>
+  call<{ status: 'pending' | 'exists'; proposal_id?: string; trade_id?: string; name?: string }>('propose_trade', { p_label: label, p_context: context });
 
 // S4 delegations (A1/A2/A7/A8).
 export type Mandate = { id: string; staff_user_id?: string; staff_label?: string | null; keys: string[]; actions: string[]; scopes: string[]; valid_until: string;
