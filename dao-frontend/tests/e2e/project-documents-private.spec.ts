@@ -26,6 +26,18 @@ test('Documents privés : dépôt, consultation, retrait et confidentialité', a
   expect(documentPayload.data).toMatch(/\/storage\/v1\/object\/sign\/dao-private\//);
   await documentPage.close();
 
+  // #464 : plan DWG (type MIME absent côté navigateur) accepté, stocké privé et téléchargé, jamais prévisualisé.
+  await page.locator('input[type="file"]').first().setInputFiles({ name: 'plan-e2e.dwg', mimeType: '', buffer: Buffer.from('AC1032 DAO E2E') });
+  const dwgRow = page.getByTestId('project-document-row').filter({ hasText: 'plan-e2e.dwg' });
+  await expect(dwgRow).toHaveCount(1);
+  await expect(dwgRow).toContainText('En attente de contrôle');
+  const dwgDownload = page.waitForResponse(response => response.url().includes('/api/documents/project/download') && response.request().method() === 'POST');
+  const dwgPopup = page.waitForEvent('popup', { timeout: 10_000 }).catch(() => null);
+  await dwgRow.getByRole('button', { name: 'Consulter' }).click();
+  const dwgPayload = await (await dwgDownload).json();
+  expect(dwgPayload.data).toMatch(/[?&]download=/);
+  await (await dwgPopup)?.close();
+
   page.once('dialog', dialog => dialog.accept());
   await documentRow.getByRole('button', { name: 'Retirer' }).click();
   await expect(page.getByText('plan-e2e.pdf', { exact: true })).not.toBeVisible();

@@ -2,10 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { DomainError } from '../lib/errors.js';
 
 const allowedMime = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+// #464 : DWG accepté pour les plans de chantier uniquement, stocké privé et jamais prévisualisé.
+export const DWG_MIME = 'image/vnd.dwg';
+const projectMime = [...allowedMime, DWG_MIME];
 const maxBytes = 20 * 1024 * 1024;
 
-function assertFile(mimeType: string, sizeBytes: number) {
-  if (!allowedMime.includes(mimeType)) throw new DomainError('MIME type not allowed', 'INVALID_MIME');
+function assertFile(mimeType: string, sizeBytes: number, allowed: string[] = allowedMime) {
+  if (!allowed.includes(mimeType)) throw new DomainError('MIME type not allowed', 'INVALID_MIME');
   if (!Number.isInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > maxBytes) {
     throw new DomainError('File too large', 'INVALID_SIZE');
   }
@@ -106,7 +109,10 @@ export class DocumentService {
   }
 
   async signedProjectUpload(input: { projectId: string; originalName: string; mimeType: string; sizeBytes: number; shareScope?: string }) {
-    assertFile(input.mimeType, input.sizeBytes);
+    assertFile(input.mimeType, input.sizeBytes, projectMime);
+    if (input.mimeType === DWG_MIME && !String(input.originalName ?? '').toLowerCase().endsWith('.dwg')) {
+      throw new DomainError('MIME type not allowed', 'INVALID_MIME');
+    }
     if (input.shareScope != null && !['owner_only','project_members'].includes(input.shareScope)) {
       throw new DomainError('Partage du document invalide', 'BAD_REQUEST');
     }
@@ -144,7 +150,9 @@ export class DocumentService {
     // deliberately grants the owner visibility for every validation status.
     // Other users only receive rows when the existing RLS policy authorizes
     // them, so the privileged Storage client is used only after that check.
-    const { data: signed, error: signedError } = await this.storage.from('dao-private').createSignedUrl(document.object_path, expiresIn);
+    // A DWG is always served as an attachment: no browser rendering of CAD content.
+    const options = document.mime_type === DWG_MIME ? { download: safeName(document.original_name) } : undefined;
+    const { data: signed, error: signedError } = await this.storage.from('dao-private').createSignedUrl(document.object_path, expiresIn, options);
     if (signedError) throw signedError;
     return signed.signedUrl;
   }
