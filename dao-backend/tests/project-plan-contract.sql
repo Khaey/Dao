@@ -348,6 +348,25 @@ begin
     or not exists(select 1 from jsonb_array_elements(d->'activities'->'items') x where x->>'id'=native_child::text and x->>'title'='Pose confirmée')
     or d->'lots'->0->'permissions'->>'canEditActivities'<>'false' then
     raise exception 'native activities not present in shared DTO or permission false: %',d; end if;
+  perform public.add_plan_link(plain_proj,'activity:'||native_activity::text,'activity:'||native_child::text);
+  -- Date-less native lots remain valid dependency endpoints; calculation will mark dates incomplete.
+  perform public.add_plan_link(plain_proj,'activity:'||native_child::text,'lot:'||plain_request::text);
+  if jsonb_array_length(public.native_execution_dependencies_v1(plain_proj))<>2 then
+    raise exception 'native activity dependency was not exposed to the authorized Client'; end if;
+  begin
+    perform public.add_plan_link(plain_proj,'activity:'||native_activity::text,'activity:'||native_child::text);
+    raise exception 'duplicate native activity dependency accepted';
+  exception when invalid_parameter_value then if sqlerrm<>'link_duplicate' then raise; end if; end;
+  begin
+    perform public.add_plan_link(plain_proj,'lot:'||plain_request::text,'activity:'||native_activity::text);
+    raise exception 'native activity dependency cycle accepted';
+  exception when check_violation then if sqlerrm<>'dependency_cycle' then raise; end if; end;
+  perform set_config('request.jwt.claim.sub',c2::text,true);
+  begin
+    perform public.native_execution_dependencies_v1(plain_proj);
+    raise exception 'unrelated Client read native dependencies';
+  exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claim.sub',c::text,true);
 
   perform set_config('request.jwt.claim.sub',a::text,true);
   begin perform public.native_execution_activity_write(plain_award_item,native_activity,'retire',null,'sub_lot',

@@ -40,6 +40,14 @@ export function createNativeExecutionPlanHandler(
         return fail(503, 'UNAVAILABLE', 'Suivi du projet temporairement indisponible.');
       }
       if (!data) return fail(503, 'UNAVAILABLE', 'Projection native indisponible.');
+      const { data: dependencies, error: dependencyError } = await db.rpc('native_execution_dependencies_v1', {
+        p_project_id: projectId.toLowerCase(),
+      });
+      if (dependencyError || !Array.isArray(dependencies)) {
+        if (dependencyError?.code === '42501') return fail(403, 'FORBIDDEN', 'Accès au suivi du projet refusé.');
+        return fail(503, 'UNAVAILABLE', 'Dépendances du planning temporairement indisponibles.');
+      }
+      data.dependencies = dependencies as NativeExecutionPlanDTO['dependencies'];
       let forecast = data.forecast;
       if (cursor === null && data.page.nextCursor === null) {
         forecast = projectNativeForecast([data]);
@@ -57,10 +65,13 @@ export function createNativeExecutionPlanHandler(
           if (!after) break;
           if (pageNumber === 9) truncated = true;
         }
-        if (pages.length) forecast = projectNativeForecast(pages, truncated);
+        if (pages.length) {
+          pages[0].dependencies = dependencies as NativeExecutionPlanDTO['dependencies'];
+          forecast = projectNativeForecast(pages, truncated);
+        }
         else forecast = null;
       }
-      return Response.json({ data: { ...data, forecast } }, { headers });
+      return Response.json({ data: { ...data, dependencies, forecast } }, { headers });
     } catch {
       return fail(503, 'UNAVAILABLE', 'Suivi du projet temporairement indisponible.');
     }

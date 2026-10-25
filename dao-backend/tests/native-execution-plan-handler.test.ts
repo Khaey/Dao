@@ -8,7 +8,7 @@ const dto: any = {
   schemaVersion: 1, projectId: PROJECT, generatedAt: '2026-10-24T00:00:00Z',
   viewer: { workspace: 'client' }, sourceRevisions: { plan: 1, executionCursor: null },
   page: { limit: 50, nextCursor: null }, lots: [],
-  activities: { supported: false, items: [] }, forecast: null,
+  activities: { supported: false, items: [] }, dependencies: [], forecast: null,
 };
 
 function request(url: string, init: RequestInit = {}) {
@@ -17,9 +17,9 @@ function request(url: string, init: RequestInit = {}) {
   });
 }
 
-function fixture(data: any = dto, error: any = null) {
+function fixture(data: any = dto, error: any = null, dependencies: any[] = []) {
   const calls: any[] = [];
-  const db = { calls, rpc: async (name: string, args: any) => { calls.push({ name, args }); return { data, error }; } };
+  const db = { calls, rpc: async (name: string, args: any) => { calls.push({ name, args }); return name === 'native_execution_dependencies_v1' ? { data: dependencies, error: null } : { data, error }; } };
   const actor = async (header: string | null) => header === 'Bearer valid-test-jwt' ? { id: 'u1' } : null;
   return { db, handler: createNativeExecutionPlanHandler(db, actor) };
 }
@@ -29,6 +29,23 @@ test('native plan API requires a verified actor and exposes GET only', async () 
   assert.equal((await handler(new Request(`https://dao.test/api/projects/native-execution?project_id=${PROJECT}`))).status, 401);
   assert.equal((await handler(request(`?project_id=${PROJECT}`, { method: 'POST' }))).status, 405);
   assert.equal(db.calls.length, 0);
+});
+
+test('native plan includes activity dependencies in the shared DTO and forecast graph', async () => {
+  const activityA = { id: '00000000-0000-4000-8000-000000000010', requestId: 'request-a', title: 'Préparer', active: true,
+    plannedDates: { start: '2026-03-01', end: '2026-03-01', durationDays: 1 }, execution: { observed: null } };
+  const activityB = { ...activityA, id: '00000000-0000-4000-8000-000000000011', requestId: 'request-b', title: 'Installer',
+    plannedDates: { start: null, end: null, durationDays: 2 } };
+  const plan = { ...dto, activities: { supported: true, items: [activityA, activityB] }, lots: [
+    { requestId: 'request-a', title: 'A', dates: { agreed: null, plan: null, proposed: null, observed: null }, executionSubLots: [], dependencies: [] },
+    { requestId: 'request-b', title: 'B', dates: { agreed: null, plan: null, proposed: null, observed: null }, executionSubLots: [], dependencies: [] },
+  ] };
+  const dependency = { id: '00000000-0000-4000-8000-000000000020', from: `activity:${activityA.id}`, to: `activity:${activityB.id}`,
+    state: 'effective', relation: 'FS', lagDays: 0, source: 'manual' };
+  const body = await (await fixture(plan, null, [dependency]).handler(request(`?project_id=${PROJECT}`))).json() as any;
+  assert.deepEqual(body.data.dependencies, [dependency]);
+  assert.equal(body.data.forecast.state, 'incomplete');
+  assert.equal(body.data.forecast.nodes.find((item: any) => item.id === `activity:${activityB.id}`)?.projectedStart, '2026-03-02');
 });
 
 test('native plan API strictly validates project, cursor, limit and duplicate query parameters', async () => {
@@ -51,7 +68,7 @@ test('native plan API uses bounded JWT scoped RPCs and calculates a project-wide
   assert.equal(body.data.forecast.state, 'none');
   assert.deepEqual(db.calls, [{ name: 'native_execution_plan_v1', args: {
     p_project_id: PROJECT, p_after_request_id: CURSOR, p_limit: 25,
-  } }, { name: 'native_execution_plan_v1', args: {
+  } }, { name: 'native_execution_dependencies_v1', args: { p_project_id: PROJECT } }, { name: 'native_execution_plan_v1', args: {
     p_project_id: PROJECT, p_after_request_id: null, p_limit: 100,
   } }]);
 });

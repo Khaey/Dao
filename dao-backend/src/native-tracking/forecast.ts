@@ -1,7 +1,7 @@
 import type { NativeExecutionActivityDTO, NativeExecutionPlanDTO } from './contract.js';
 import { calculateNativeForecast, type NativeForecast, type NativePlanningDependency, type NativePlanningNode } from './planning.js';
 
-type PlanPage = Pick<NativeExecutionPlanDTO, 'lots' | 'activities'>;
+type PlanPage = Pick<NativeExecutionPlanDTO, 'lots' | 'activities'> & Partial<Pick<NativeExecutionPlanDTO, 'dependencies'>>;
 const shiftDay = (date: string | null, count: number | null) => {
   if (!date || count === null || !Number.isInteger(count) || count < 1) return null;
   const parsed = Date.parse(`${date}T00:00:00Z`);
@@ -16,6 +16,9 @@ export function projectNativeForecast(pages: PlanPage[], truncated = false): Nat
   const activities = new Map<string, NativeExecutionActivityDTO>();
 
   for (const page of pages) {
+    for (const link of page.dependencies ?? []) {
+      rawDependencies.set(link.id, { ...link, from: link.from, to: link.to });
+    }
     for (const activity of page.activities.items) if (activity.active) activities.set(activity.id, activity);
     for (const lot of page.lots) {
       const id = `lot:${lot.requestId}`;

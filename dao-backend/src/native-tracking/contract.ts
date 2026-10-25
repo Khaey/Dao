@@ -15,6 +15,7 @@ export interface NativeExecutionPlanDTO {
   lots: NativeExecutionLotDTO[];
   agreementsByAward: NativeExecutionAgreementDTO[];
   activities: { supported: boolean; items: NativeExecutionActivityDTO[]; truncated: boolean };
+  dependencies: Array<{ id: string; from: string; to: string; state: 'effective'; relation: 'FS'; lagDays: 0; source: 'manual' }>;
   changeProposals: NativeExecutionChangeProposalDTO[];
   changeProposalsTruncated: boolean;
   forecast: NativeForecast | null;
