@@ -52,3 +52,21 @@ non exposé). En S1 aucune commande ne l'applique encore : le comportement est i
   des fichiers. Les constantes 7 j, 30 j, 24 h, 20 messages/min et 30 j (avis) lisent désormais le réglage.
 - Erreur de restriction : `42501`, message neutre, `hint = setting_restricted:<clé>`.
 - `admin_preview_settings(user, workspace, project)` : « voir comme » sans données du compte.
+
+## Délégations Gestionnaire (S4)
+
+- Sans mandat, un `dao_reviewer` n'a aucun droit sur les paramètres (A8). Un Administrateur accorde un mandat
+  daté et révocable (`admin_delegation_command('grant_mandate'|'revoke_mandate'|'assign_account'|'unassign_account')`,
+  onglet « Délégations ») : fonctions délégables uniquement (A1), actions « restreindre » et/ou « lever ses propres
+  restrictions », portées compte et/ou chantier, échéance obligatoire (un an au plus), motif obligatoire.
+- Périmètre (A2) : comptes du portefeuille explicite (`dao_private.staff_account_assignments`) ou chantiers affectés
+  (`review_assignments`). Jamais son propre compte.
+- `manager_setting_command('set'|'clear', input)` passe par le même chemin audité que l'Admin, avec `mandate_id` :
+  restriction uniquement (booléen `false` ou réduction stricte des modes), échéance obligatoire de 90 jours au plus
+  (A7), jamais d'exception positive (A3), jamais de modification ou de levée d'une décision Admin ou d'un autre
+  Gestionnaire.
+- Révocation immédiate pour les nouvelles écritures ; les restrictions déjà posées restent visibles côté Admin
+  jusqu'à leur échéance. Mandats et portefeuille ne sont jamais supprimés (seule la révocation est possible).
+- Lecture : `my_settings_delegation()` (mandats, portefeuille, chantiers, restrictions posées) ; simulation
+  `manager_preview_settings` limitée au périmètre. Écran `/app/dao/settings` (« Mes délégations ») visible seulement
+  avec un mandat actif.

@@ -34,6 +34,23 @@ export const adminSettingCommand = (action: 'set' | 'clear', input: Record<strin
 export const adminSetTradeActive = (tradeId: string, active: boolean, reason: string) =>
   call('admin_set_trade_active', { p_trade_id: tradeId, p_active: active, p_reason: reason });
 
+// S4 delegations (A1/A2/A7/A8).
+export type Mandate = { id: string; staff_user_id?: string; staff_label?: string | null; keys: string[]; actions: string[]; scopes: string[]; valid_until: string;
+  live?: boolean; reason?: string; created_at?: string; revoked_at?: string | null };
+export type Delegations = { managers: Target[]; mandates: Mandate[];
+  portfolio: Array<{ id: string; staff_user_id: string; staff_label: string | null; account_user_id: string; account_label: string | null; reason: string; created_at: string }> };
+export type Target = { id: string; name: string };
+export type MyDelegation = { mandates: Mandate[]; accounts?: Array<Target & { roles: string[] }>; projects?: Target[]; overrides?: SettingOverride[] };
+export const fetchAdminDelegations = () => call<Delegations>('admin_settings_delegations');
+export const adminDelegationCommand = (action: 'grant_mandate' | 'revoke_mandate' | 'assign_account' | 'unassign_account', input: Record<string, unknown>) =>
+  call<{ id: string }>('admin_delegation_command', { p_action: action, p_input: input });
+export const fetchMyDelegation = () => call<MyDelegation>('my_settings_delegation');
+export const managerSettingCommand = (action: 'set' | 'clear', input: Record<string, unknown>) =>
+  call<{ override_id: string | null; version: number }>('manager_setting_command', { p_action: action, p_input: input });
+export const fetchManagerPreview = (userId: string, workspace: string, projectId: string | null = null) =>
+  call<EffectiveSettings>('manager_preview_settings', { p_user: userId, p_workspace: workspace, p_project_id: projectId });
+export const MANAGER_MAX_DAYS = 90;
+
 export const definitionOf = (key: string) => SETTINGS_CATALOG.find(d => d.key === key);
 export const settingLabel = (key: string) => definitionOf(key)?.label ?? key;
 export const workspaceLabels: Record<string, string> = { client: 'Client', contractor: 'Artisan', staff: 'Équipe D.A.O.' };
