@@ -25,6 +25,8 @@ import { RfiDocumentService } from '../services/RfiDocumentService.js';
 import { createNativeExecutionPlanHandler } from './nativeExecutionPlanHandler.js';
 import { createNativeExecutionScopeHandler } from './nativeExecutionScopeHandler.js';
 import { createNativeExecutionActivityHandler } from './nativeExecutionActivityHandler.js';
+import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
+import { createNativeLotDatesHandler } from './nativeLotDatesHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -171,6 +173,18 @@ export function createNativeExecutionPlanApi(request: Request) {
 export function createNativeExecutionActivityApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createNativeExecutionActivityHandler(db, resolveActor);
+}
+
+/** Official Client sub-lot revisions are limited by the database to pre-publication drafts. */
+export function createClientOfficialSubLotApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createClientOfficialSubLotHandler(db, resolveActor);
+}
+
+/** Native planning dates use the existing DAO lot-plan table without invoking OCE. */
+export function createNativeLotDatesApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeLotDatesHandler(db, resolveActor);
 }
 
 /** Bilateral references from an agreement installment to an execution scope. */
