@@ -54,7 +54,11 @@ examiner, chantiers à publier.
   affichés à l'Admin seul car la file d'emails est réservée à l'Admin côté RPC. La tuile d'emails
   en échec du tableau de bord pointe vers cet onglet.
 
-## Étapes suivantes
+## Suivi terrain (`/app/dao/tracking`)
 
-4. Suivi terrain Gestionnaire : **gate**, aucun accès staff au suivi natif ni aux réserves aujourd'hui ;
-   décision du propriétaire puis backend DEV 3 et écran Mission 1.
+Entrée « Suivi terrain » dans le groupe Dossiers. Elle liste les chantiers publiés ou clôturés que le
+membre staff gère (`can_manage` : revue prise en charge, ou Admin) et ouvre le suivi natif existant
+(`/app/native-execution/<id>?from=dao`, retour vers Suivi terrain). Aucun droit ajouté : le backend
+donne déjà l'espace `dao_manager` via `dao_private.manages_project` (lecture du plan, contrôles, réserves
+et commentaires selon les permissions renvoyées par le serveur). Les décisions restent au Client et à
+l'Artisan. Choix du propriétaire : « lecture seule, chantiers suivis ».
