@@ -64,24 +64,24 @@ $$;
 
 create function dao_private.site_work_situation_validate_lines(p_project uuid,p_contractor uuid,p_lines jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
-declare x jsonb; ai public.award_items; ql public.bid_quote_lines; award_id uuid; quote_id uuid;
+declare x jsonb; ai public.award_items; ql public.bid_quote_lines; v_award_item_id uuid; v_quote_line_id uuid;
   label_value text; unit_value text; qty bigint; sources uuid[]; docs uuid[]; n integer; total numeric; cleaned jsonb:='[]'::jsonb;
 begin
   if jsonb_typeof(p_lines)<>'array' or jsonb_array_length(p_lines) not between 1 and 100 then
     raise exception using errcode='22023',message='Situation lines are invalid'; end if;
   for x in select value from jsonb_array_elements(p_lines) loop
-    award_id:=nullif(x->>'awardItemId','')::uuid; quote_id:=nullif(x->>'quoteLineId','')::uuid;
+    v_award_item_id:=nullif(x->>'awardItemId','')::uuid; v_quote_line_id:=nullif(x->>'quoteLineId','')::uuid;
     label_value:=nullif(btrim(x->>'label'),''); unit_value:=nullif(btrim(x->>'quantityUnit'),'');
     qty:=nullif(x->>'quantityReportedMilli','')::bigint;
-    if (x->>'lineId') is null or (x->>'lineId')::uuid is null or award_id is null
+    if (x->>'lineId') is null or (x->>'lineId')::uuid is null or v_award_item_id is null
       or label_value is null or length(label_value)>240 or unit_value is null or length(unit_value)>40
       or qty is null or qty not between 1 and 1000000000000 then
       raise exception using errcode='22023',message='Situation line is invalid'; end if;
     select z.* into ai from public.award_items z join public.awards a on a.id=z.award_id
-      where z.id=award_id and z.project_id=p_project and z.contractor_id=p_contractor and z.active and a.status<>'cancelled';
+      where z.id=v_award_item_id and z.project_id=p_project and z.contractor_id=p_contractor and z.active and a.status<>'cancelled';
     if ai.id is null then raise exception using errcode='42501',message='Awarded lot unavailable'; end if;
-    if quote_id is not null then
-      select * into ql from public.bid_quote_lines where id=quote_id and bid_item_id=ai.bid_item_id;
+    if v_quote_line_id is not null then
+      select * into ql from public.bid_quote_lines where id=v_quote_line_id and bid_item_id=ai.bid_item_id;
       if ql.id is null or ql.unit<>unit_value then raise exception using errcode='42501',message='Quote line outside awarded lot'; end if;
       label_value:=ql.designation;
     end if;
@@ -96,8 +96,8 @@ begin
     if n<>cardinality(docs) then raise exception using errcode='22023',message='Duplicate evidence document'; end if;
     if cardinality(sources)>0 then
       select sum(e.executed_quantity_milli)::numeric,count(*) into total,n from public.site_log_events e
-      where e.id=any(sources) and e.project_id=p_project and e.award_item_id=award_id and e.event_kind='intervention'
-        and e.executed_quantity_milli is not null and e.quantity_unit=unit_value and (quote_id is null or e.quote_line_id=quote_id);
+      where e.id=any(sources) and e.project_id=p_project and e.award_item_id=v_award_item_id and e.event_kind='intervention'
+        and e.executed_quantity_milli is not null and e.quantity_unit=unit_value and (v_quote_line_id is null or e.quote_line_id=v_quote_line_id);
       if n<>cardinality(sources) or total<>qty then raise exception using errcode='22023',message='Quantity differs from source events'; end if;
     end if;
     if cardinality(docs)>0 then
@@ -106,7 +106,7 @@ begin
       if n<>cardinality(docs) then raise exception using errcode='42501',message='Evidence document is not authorized'; end if;
     end if;
     cleaned:=cleaned||jsonb_build_array(jsonb_build_object('lineId',(x->>'lineId')::uuid,'awardItemId',ai.id,
-      'requestId',ai.request_id,'quoteLineId',quote_id,'label',label_value,'quantityUnit',unit_value,
+      'requestId',ai.request_id,'quoteLineId',v_quote_line_id,'label',label_value,'quantityUnit',unit_value,
       'quantityReportedMilli',qty::text,'quantityValidatedMilli',null,'sourceEventIds',to_jsonb(sources),'evidenceDocumentIds',to_jsonb(docs)));
   end loop;
   if (select count(distinct v->>'lineId') from jsonb_array_elements(cleaned) v)<>jsonb_array_length(cleaned)
