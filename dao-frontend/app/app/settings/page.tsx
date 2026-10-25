@@ -42,6 +42,7 @@ export default function SettingsPage() {
     { href: '/app/artisan/profile', title: 'Mon dossier professionnel', description: 'Votre présentation, vos coordonnées professionnelles et vos documents.', show: roles.includes('contractor') },
     { href: '/app/projects', title: 'Mes chantiers', description: 'Retrouver les chantiers auxquels vous avez accès.', show: roles.includes('client') || roles.includes('contractor') },
     { href: '/app/dao', title: 'Mon espace D.A.O', description: 'Retrouver votre tableau de bord et vos dossiers autorisés.', show: isDaoStaff(roles) },
+    { href: '/app/dao/settings', title: 'Paramètres D.A.O. (Admin)', description: 'Régler les options de la plateforme, les restrictions par compte ou chantier et les délégations aux gestionnaires.', show: roles.includes('dao_admin') },
   ].filter(link => link.show);
 
   return <section className="mx-auto max-w-5xl space-y-6" aria-labelledby="settings-title">
