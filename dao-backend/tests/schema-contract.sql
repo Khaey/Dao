@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 11292)
-Total output lines: 681
-
 DO $schema_contract$
 DECLARE
   expected_versions text[] := ARRAY[
@@ -225,7 +222,183 @@ BEGIN
      OR has_table_privilege('authenticated','public.project_contract_settings','UPDATE')
      OR has_table_privilege('authenticated','public.project_contract_settings','DELETE')
      OR has_table_privilege('anon','public.project_contract_settings','SELECT') THEN
-    RAISE EXCEPTION 'schema contract: project contr…3292 tokens truncated…schema contract: OCE sync tables must stay closed: %',missing_name;
+    RAISE EXCEPTION 'schema contract: project contract configuration writes must stay RPC-only';
+  END IF;
+  IF has_table_privilege('authenticated','public.notification_preferences','SELECT')
+     OR has_table_privilege('authenticated','public.notification_preferences','INSERT')
+     OR has_table_privilege('authenticated','public.notification_preferences','UPDATE')
+     OR has_table_privilege('anon','public.notification_preferences','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: notification preferences must stay RPC-only';
+  END IF;
+  IF has_table_privilege('authenticated','public.support_tickets','INSERT')
+     OR has_table_privilege('authenticated','public.support_tickets','UPDATE')
+     OR has_table_privilege('authenticated','public.support_messages','INSERT')
+     OR has_table_privilege('authenticated','public.support_messages','UPDATE')
+     OR has_table_privilege('authenticated','public.support_events','SELECT')
+     OR has_table_privilege('anon','public.support_tickets','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: support data must stay behind JWT-scoped RPCs';
+  END IF;
+  IF has_table_privilege('authenticated','public.site_log_events','INSERT')
+     OR has_table_privilege('authenticated','public.site_log_events','UPDATE')
+     OR has_table_privilege('authenticated','public.site_log_evidence','INSERT')
+     OR has_table_privilege('authenticated','public.site_client_observations','INSERT')
+     OR has_column_privilege('authenticated','public.site_log_events','command_payload','SELECT')
+     OR has_column_privilege('authenticated','public.site_log_events','idempotency_key','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: site execution writes and idempotency payloads must stay RPC-only';
+  END IF;
+  IF has_table_privilege('authenticated','public.native_execution_activities','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activities','INSERT')
+     OR has_table_privilege('authenticated','public.native_execution_activities','UPDATE')
+     OR has_table_privilege('authenticated','public.native_execution_activity_revisions','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activity_commands','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activity_proposals','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activity_proposal_acceptances','SELECT')
+     OR has_table_privilege('anon','public.native_execution_activities','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: native activities and history must stay behind JWT-scoped RPCs';
+  END IF;
+  IF NOT EXISTS(select 1 from information_schema.columns where table_schema='public'
+      and table_name='site_log_events' and column_name='native_activity_id')
+     OR has_table_privilege('authenticated','public.site_log_events','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: native activity journal link missing or journal table exposed';
+  END IF;
+  IF has_table_privilege('authenticated','public.native_installment_scope_proposals','SELECT')
+     OR has_table_privilege('authenticated','public.native_installment_scope_acceptances','SELECT')
+     OR has_table_privilege('anon','public.native_installment_scope_proposals','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: installment scope history must stay behind JWT-scoped RPCs';
+  END IF;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.native_execution_plan_v1(uuid,uuid,integer)',
+    'public.native_execution_activity_write(uuid,uuid,text,uuid,text,text,text,integer,date,date,integer,integer,text)',
+    'public.native_execution_prepare_activity_change(uuid,text,uuid,uuid,text,text,text,integer,date,date,integer,integer,text)',
+    'public.native_execution_accept_activity_change(uuid,text,text)',
+    'public.record_native_activity_event_v1(uuid,uuid,text,text,integer,date,text,date,text,uuid,bigint,text,uuid[],text)',
+    'public.native_execution_prepare_installment_scope(uuid,integer,text,uuid,uuid,uuid,date,date,text)',
+    'public.native_execution_accept_installment_scope(uuid,text,text)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: native tracking RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  IF has_function_privilege('authenticated','dao_private.native_activity_save_revision(uuid,text,uuid)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.native_execution_activity_overlay(uuid,jsonb)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.native_activity_engagement_guard()','EXECUTE')
+     OR NOT EXISTS(select 1 from pg_trigger where tgname='native_execution_activity_engagement_guard' and not tgisinternal) THEN
+    RAISE EXCEPTION 'schema contract: internal native activity helpers must not be callable directly';
+  END IF;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text)',
+    'public.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text)',
+    'public.site_execution_snapshot_v2(uuid,timestamp with time zone,uuid,integer)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: site execution V2 RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'dao_private.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text)',
+    'dao_private.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text)',
+    'dao_private.site_execution_snapshot_v2(uuid,timestamp with time zone,uuid,integer)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: site execution V2 internal grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon','public.my_support_summary()','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.my_support_summary()','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.my_support_summary()','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: support RPC facade grants differ';
+  END IF;
+  IF has_table_privilege('authenticated','public.technical_questions','INSERT')
+     OR has_table_privilege('authenticated','public.technical_clarifications','INSERT')
+     OR has_table_privilege('authenticated','public.technical_rfi_receipts','SELECT')
+     OR has_table_privilege('anon','public.technical_questions','SELECT')
+     OR has_function_privilege('anon','public.create_rfi_question(uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.create_rfi_question(uuid,text,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: RFI tables or RPC grants differ';
+  END IF;
+  IF has_function_privilege('authenticated','dao_private.dry_run_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.generate_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
+     OR has_function_privilege('service_role','dao_private.dry_run_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
+     OR has_function_privilege('service_role','dao_private.generate_invitation_expiry_reminders(integer,timestamptz)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: reminder engine must stay private and unscheduled';
+  END IF;
+  IF to_regclass('public.project_invitations_pending_expiry_s2') IS NULL THEN
+    RAISE EXCEPTION 'schema contract: pending invitation expiry index missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='projects' AND column_name='client_id' AND is_nullable='YES')
+     OR NOT EXISTS (SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='projects' AND column_name='initiator_id' AND is_nullable='NO')
+     OR position('client_id=auth.uid()' IN replace(pg_get_functiondef('dao_private.owner(uuid)'::regprocedure),' ',''))=0 THEN
+    RAISE EXCEPTION 'schema contract: client confirmation, initiator or strict owner semantics differ';
+  END IF;
+  IF has_function_privilege('authenticated','public.initialize_my_account(text,text)','EXECUTE')
+     OR has_function_privilege('anon','public.initialize_my_account(text,text,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.initialize_my_account(text,text,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','dao_private.initialize_registration_account(text,text,text,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: public registration RPC grants do not match the explicit authenticated allowlist';
+  END IF;
+  IF has_function_privilege('authenticated','public.award_request_atomic(text,uuid,uuid,uuid,uuid,uuid,bigint)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.award_bid_item_atomic(text,uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: browser award grants must expose only the derived-input command';
+  END IF;
+  FOR missing_name IN SELECT unnest(ARRAY['public.award_bid_group_atomic(text,uuid)','public.cancel_award_item_atomic(text,uuid,text,text)','public.publication_lot_availability(uuid)','public.configure_bid_package(uuid,boolean,uuid[])']) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN RAISE EXCEPTION 'P2.1 RPC grant mismatch: %',missing_name; END IF;
+  END LOOP;
+  IF has_table_privilege('authenticated','public.bid_item_results','INSERT') OR has_table_privilege('authenticated','public.award_cancellations','INSERT') OR has_column_privilege('authenticated','public.bid_item_results','source_award_item_id','SELECT') THEN RAISE EXCEPTION 'P2.1 history writes or competing source award exposed'; END IF;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.create_collaborative_project(text,text,text,uuid,uuid,uuid,text,text)',
+    'public.issue_project_invitation(uuid,text,text,boolean)',
+    'public.issue_project_invitation(uuid,text,text,text,boolean)',
+    'public.issue_project_invitation(uuid,text,text,text,uuid,boolean)',
+    'public.create_client_existing_team_project(text,text,uuid,uuid,uuid,text,text,jsonb)',
+    'public.respond_project_invitation(text,boolean)',
+    'public.revoke_project_invitation(uuid)',
+    'public.update_project_member(uuid,boolean,boolean)',
+    'public.update_project_tracking(uuid,text,text)',
+    'public.assign_project_request_member(uuid,uuid)',
+    'public.set_project_document_sharing(uuid,text)',
+    'public.project_team(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+       OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: collaboration RPC % must require authenticated execution', missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.propose_contract_amendment(uuid,uuid,text,bigint,date,integer,text,uuid)',
+    'public.record_contract_amendment_acceptance(uuid,uuid,uuid,text,text,text,jsonb,timestamp with time zone,uuid)',
+    'public.validate_contract_amendment(uuid,uuid,text,uuid)',
+    'public.reject_contract_amendment(uuid,uuid,text,uuid)',
+    'public.cancel_contract_amendment(uuid,uuid,text,uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+       OR has_function_privilege('authenticated',missing_name,'EXECUTE')
+       OR NOT has_function_privilege('service_role',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'P2.2-C RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.open_project_conversation(uuid,uuid)',
+    'public.open_project_member_conversation(uuid,uuid)',
+    'public.list_my_conversations()',
+    'public.list_conversation_messages(uuid,timestamptz,integer)',
+    'public.send_conversation_message(uuid,text,uuid)',
+    'public.mark_conversation_read(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE') OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'messaging RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  -- OCE sync mapping (#58 lot 2): closed tables, service_role-only RPCs.
+  FOR missing_name IN SELECT unnest(ARRAY['oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal']) LOOP
+    IF has_table_privilege('anon','public.'||missing_name,'SELECT') OR has_table_privilege('authenticated','public.'||missing_name,'SELECT')
+       OR has_table_privilege('authenticated','public.'||missing_name,'INSERT') OR has_table_privilege('authenticated','public.'||missing_name,'UPDATE')
+       OR has_table_privilege('authenticated','public.'||missing_name,'DELETE') THEN
+      RAISE EXCEPTION 'schema contract: OCE sync tables must stay closed: %',missing_name;
     END IF;
   END LOOP;
   FOR missing_name IN SELECT unnest(ARRAY[
