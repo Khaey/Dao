@@ -273,6 +273,18 @@
       "agent": "DAO AUD 2",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 423,
+      "agent": "DAO Settings",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
+      "issue": 426,
+      "agent": "DAO Settings",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }
