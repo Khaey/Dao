@@ -45,7 +45,11 @@ export function projectFileMime(file: File) {
 }
 /** Envoi d'octets vers l'URL signée préparée par le serveur, avec le type déclaré. */
 export async function uploadSignedProjectFile(path: string, token: string, file: File) {
-  const result = await supabaseBrowser().storage.from('dao-private').uploadToSignedUrl(path, token, file, { contentType: projectFileMime(file) });
+  // Storage reads the type from the Blob itself (contentType is ignored for a File): a .dwg
+  // usually arrives untyped or as application/octet-stream, so retype it before sending.
+  const mime = projectFileMime(file);
+  const body = file.type === mime ? file : new File([file], file.name, { type: mime });
+  const result = await supabaseBrowser().storage.from('dao-private').uploadToSignedUrl(path, token, body, { contentType: mime });
   if (result.error) throw result.error;
 }
 

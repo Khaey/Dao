@@ -27,8 +27,8 @@ test('Documents privés : dépôt, consultation, retrait et confidentialité', a
   expect(documentPayload.data).toMatch(/\/storage\/v1\/object\/sign\/dao-private\//);
   await documentPage.close();
 
-  // #464 : plan DWG (type MIME absent côté navigateur) accepté, stocké privé et téléchargé, jamais prévisualisé.
-  await page.locator('input[type="file"]').first().setInputFiles({ name: 'plan-e2e.dwg', mimeType: '', buffer: Buffer.from('AC1032 DAO E2E') });
+  // #464 : plan DWG (souvent typé application/octet-stream par le navigateur) accepté, stocké privé et téléchargé, jamais prévisualisé.
+  await page.locator('input[type="file"]').first().setInputFiles({ name: 'plan-e2e.dwg', mimeType: 'application/octet-stream', buffer: Buffer.from('AC1032 DAO E2E') });
   const dwgRow = page.getByTestId('project-document-row').filter({ hasText: 'plan-e2e.dwg' });
   await expect(dwgRow).toHaveCount(1);
   await expect(dwgRow).toContainText('En attente de contrôle');
