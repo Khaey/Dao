@@ -274,7 +274,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
   where e.project_id=p_project_id
     and ((p_inspection_event_id is not null and e.inspection_event_id=p_inspection_event_id)
       or (p_reserve_event_id is not null and e.reserve_event_id=p_reserve_event_id))
-    and dao_private.site_can_read_document(d.id,p_project_id);
+    and dao_private.site_technical_can_read_award_item(e.award_item_id);
 $$;
 
 create function dao_private.native_technical_inspections_v1(
