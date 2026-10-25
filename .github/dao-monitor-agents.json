@@ -291,6 +291,13 @@
       "agent": "DAO UX Admin",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 446,
+      "agent": "DAO DEV 4",
+      "role": "DEV",
+      "watchdog": false,
+      "threshold_minutes": 90
     }
   ]
 }
