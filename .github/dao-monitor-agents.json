@@ -298,6 +298,12 @@
       "role": "DEV",
       "watchdog": false,
       "threshold_minutes": 90
+    },
+    {
+      "issue": 456,
+      "agent": "DAO Mission 5",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }

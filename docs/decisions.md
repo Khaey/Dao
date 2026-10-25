@@ -125,6 +125,15 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | États de réserve : `open`, `correction_declared`, `recheck_requested`, `resolved_confirmed`, `reopened`, `withdrawn`. Client signale → Artisan corrige avec preuve → Client confirme ou rouvre. Aucun silence ne vaut accord. | Livré | #425 |
 | **Réception technique ≠ réception juridique** : pas de PV juridique, transfert de risques, retenue ou départ de garantie, paiement à réception. Garantie V0 = liens informatifs seulement. | Hors GO | #425 |
 
+## 9 bis. Dossier documentaire (P15)
+
+| Décision | État | Source |
+| --- | --- | --- |
+| Familles de documents **versionnées** (V1, V2…) au-dessus des fichiers privés existants ; une seule version courante, les autres « Remplacé » ; révisions et historique append-only ; documents existants ni requalifiés ni partagés. | Livré | [#456](https://github.com/Khaey/Dao/issues/456), [product/document-dossier-v2.md](product/document-dossier-v2.md) |
+| Partage **par lot** : visibilité `lots` = Client + titulaire **actif** de chaque lot rattaché (award actif ou membre affecté) ; filtrage serveur ; révocation/suspension immédiate. | Livré | #456 |
+| **Contrôle du fichier** (quarantaine → validé/refusé) par le Gestionnaire affecté ou l'Admin uniquement ; aucune auto-approbation. | Livré | #456 |
+| **Revue documentaire technique** (À consulter, En revue, Observations émises, Revu techniquement, Remplacé) par le Client ou le Gestionnaire affecté, jamais l'auteur ; une nouvelle version ne réutilise jamais un visa ancien ; **aucun effet juridique, contractuel ou financier**. | Livré | #456 |
+
 ## 10. Paramètres (Settings)
 
 | Décision | État | Source |

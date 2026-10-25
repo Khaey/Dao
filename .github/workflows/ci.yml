@@ -323,7 +323,7 @@ jobs:
           wait "$build_pid" || status=1
           wait "$browser_pid" || status=1
           exit "$status"
-      - name: Discover the expected 152 Playwright tests
+      - name: Discover the expected 154 Playwright tests
         if: steps.ci_scope.outputs.mode == 'full'
         working-directory: dao-frontend
         shell: bash
@@ -331,7 +331,7 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Playwright test discovery" bash -euo pipefail -c '
             npx playwright test --list | tee "$RUNNER_TEMP/playwright-test-discovery.txt"
           '
-          grep -Eq 'Total: 152 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
+          grep -Eq 'Total: 154 tests in [0-9]+ files' "$RUNNER_TEMP/playwright-test-discovery.txt"
       - name: Run FULL Playwright E2E on desktop and mobile with configurable workers
         if: steps.ci_scope.outputs.mode == 'full'
         working-directory: dao-frontend

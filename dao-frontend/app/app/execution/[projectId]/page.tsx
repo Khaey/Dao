@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import SiteExecutionJournal from '../../../../components/SiteExecutionJournal';
+import LotDocumentsCard from '../../../../components/documents/LotDocumentsCard';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 
 type ProjectDocument = { id: string; owner_id: string; original_name: string; status: string; share_scope: string };
@@ -29,6 +30,7 @@ export default function ExecutionPage() {
   return <section className="mx-auto w-full max-w-5xl space-y-5">
     <Link href="/app/artisan/offers" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-teal"><ArrowLeft aria-hidden="true" size={16} />Mes offres</Link>
     <p className="text-sm text-black/55">Suivi de votre lot attribué. Seules les informations d’exécution de ce lot sont affichées ici.</p>
+    {projectId && userId !== null && <LotDocumentsCard projectId={projectId} userId={userId} />}
     {projectId && userId !== null && <SiteExecutionJournal projectId={projectId} userId={userId} documents={documents} />}
   </section>;
 }
