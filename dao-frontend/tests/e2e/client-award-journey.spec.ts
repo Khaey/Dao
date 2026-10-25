@@ -75,6 +75,17 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
 
   // Client journey from the dashboard, without typing a publication URL.
   await page.goto('/app');
+  // #477: a published chantier is never shown as an empty space; one « Nouveau chantier »; the real next action.
+  await expect(page.getByText('Votre espace est prêt')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Nouveau chantier' })).toHaveCount(1);
+  const todo = page.getByRole('region', { name: 'À faire maintenant' });
+  const more = todo.getByRole('button', { name: /^Afficher les \d+ autres$/ });
+  if (await more.count()) await more.click();
+  const action = todo.getByRole('listitem').filter({ hasText: project.title });
+  await expect(action.getByRole('heading', { name: '1 offre reçue à comparer' })).toBeVisible();
+  await expect(action.getByRole('link', { name: /Comparer les offres/ })).toHaveAttribute('href', `/app/publications/${publicationId}#offres`);
+  await expect(page.getByTestId('dashboard-stat-published')).toContainText(/[1-9]/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await page.locator(`a[href="/app/projects/${project.projectId}"]`).first().click();
   await expect(page.getByText('Offres à comparer', { exact: true })).toBeVisible();
   await expect(commercial).toContainText('1 lot avec des offres reçues');
