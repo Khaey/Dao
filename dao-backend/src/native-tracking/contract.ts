@@ -7,6 +7,12 @@ export interface NativeExecutionPlanDTO {
   projectId: string;
   generatedAt: string;
   viewer: { workspace: NativeExecutionWorkspace };
+  /** Project-level affordances derived only after the JWT-scoped plan RPC succeeds.
+   * Per-lot and per-record permissions remain authoritative for each command. */
+  canReadTracking: boolean;
+  canReadInspections: boolean;
+  canReadWorkSituations: boolean;
+  canComment: boolean;
   sourceRevisions: {
     plan: number | null;
     executionCursor: { createdAt: string; eventId: string } | null;
@@ -20,6 +26,10 @@ export interface NativeExecutionPlanDTO {
   changeProposalsTruncated: boolean;
   forecast: NativeForecast | null;
 }
+
+/** Shape returned by the SQL projection before the HTTP layer adds capabilities. */
+export type NativeExecutionPlanRpcDTO = Omit<NativeExecutionPlanDTO,
+  'canReadTracking' | 'canReadInspections' | 'canReadWorkSituations' | 'canComment'>;
 
 export interface NativeExecutionActivityDTO {
   id: string;
