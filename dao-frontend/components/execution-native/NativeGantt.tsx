@@ -41,7 +41,17 @@ export default function NativeGantt({ plan }: { plan: NativeExecutionPlanDTO }) 
   const scroller = useRef<HTMLDivElement>(null);
   const wide = useWide();
   const label = wide ? 264 : 152;
-  const px = zooms.find(item => item.id === zoom)!.px;
+  const [available, setAvailable] = useState(0);
+  useEffect(() => {
+    const node = scroller.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(entries => setAvailable(entries[0].contentRect.width));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [model.range]);
+  const span = model.range ? toDay(model.range.end) - toDay(model.range.start) + 11 : 1;
+  // Un chantier court occupe toute la largeur disponible au lieu de laisser une zone vide.
+  const px = Math.max(zooms.find(item => item.id === zoom)!.px, available > label ? (available - label) / span : 0);
   const today = toDay(new Date().toISOString().slice(0, 10));
 
   const scale = useMemo(() => {
@@ -54,7 +64,7 @@ export default function NativeGantt({ plan }: { plan: NativeExecutionPlanDTO }) 
     for (let day = first; day <= last;) {
       const date = new Date(day * 86_400_000);
       const next = Math.min(last + 1, toDay(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)).toISOString()));
-      months.push({ left: (day - first) * px, width: (next - day) * px, text: date.toLocaleDateString('fr-TN', { month: zoom === 'quarter' ? 'short' : 'long', year: 'numeric', timeZone: 'UTC' }) });
+      months.push({ left: (day - first) * px, width: (next - day) * px, text: (text => text.charAt(0).toUpperCase() + text.slice(1))(date.toLocaleDateString('fr-TN', { month: zoom === 'quarter' ? 'short' : 'long', year: 'numeric', timeZone: 'UTC' })) });
       day = next;
     }
     if (zoom === 'week') for (let day = first; day <= last; day += 7) ticks.push({ left: (day - first) * px, text: String(new Date(day * 86_400_000).getUTCDate()) });
@@ -103,7 +113,7 @@ export default function NativeGantt({ plan }: { plan: NativeExecutionPlanDTO }) 
           <div className="sticky top-0 z-20 flex border-b border-black/10 bg-white" style={{ height: HEADER }}>
             <div className="sticky left-0 z-30 flex shrink-0 items-end border-r border-black/10 bg-white px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-black/45" style={{ width: label }}>Élément</div>
             <div className="relative" style={{ width: scale.width }}>
-              {scale.months.map(month => <span key={month.left} className="absolute top-0 truncate border-l border-black/10 px-1.5 pt-1 text-xs font-semibold capitalize text-ink/70" style={{ left: month.left, width: month.width }}>{month.text}</span>)}
+              {scale.months.map(month => <span key={month.left} className="absolute top-0 truncate border-l border-black/10 px-1.5 pt-1 text-xs font-semibold text-ink/70" style={{ left: month.left, width: month.width }}>{month.text}</span>)}
               {scale.ticks.map(tick => <span key={tick.left} className="absolute bottom-1 text-[10px] tabular-nums text-black/45" style={{ left: tick.left + 2 }}>{tick.text}</span>)}
             </div>
           </div>
@@ -133,7 +143,7 @@ export default function NativeGantt({ plan }: { plan: NativeExecutionPlanDTO }) 
                 <button type="button" onClick={() => setSelectedId(active ? null : row.id)} aria-pressed={active} aria-label={describe}
                   className={'sticky left-0 z-10 flex shrink-0 items-center gap-1.5 border-r border-black/10 px-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-teal ' + (row.kind === 'lot' ? 'bg-sand' : 'bg-white') + (active ? ' shadow-[inset_3px_0_0_theme(colors.teal)]' : '')} style={{ width: label, paddingLeft: 12 + row.level * (wide ? 16 : 10) }}>
                   <span className={'min-w-0 truncate text-sm ' + (row.kind === 'lot' ? 'font-semibold text-ink' : 'text-ink/80')}>{row.kind !== 'lot' && '↳ '}{row.title}</span>
-                  {row.critical && <span className="shrink-0 rounded bg-red-50 px-1 text-[10px] font-bold text-red-700" title="Chemin critique">CC</span>}
+                  {row.critical && <span className="shrink-0 rounded bg-red-50 px-1 text-[10px] font-bold text-red-700" title="Chemin critique">Critique</span>}
                 </button>
                 <div className="relative" style={{ width: scale.width }}>
                   {row.baseline && <span aria-hidden="true" title={`Référence convenue : ${range(row.baseline)}`} className="absolute h-1 rounded-full bg-ink/25" style={{ left: x(row.baseline.start), width: w(row.baseline.start, row.baseline.end), top: ROW - 9 }} />}
@@ -145,7 +155,7 @@ export default function NativeGantt({ plan }: { plan: NativeExecutionPlanDTO }) 
                   {row.observed && <span aria-hidden="true" title={`Observé : ${range(row.observed)}`} className="absolute h-1 rounded-full bg-ink" style={{ left: x(row.observed.start), width: w(row.observed.start, row.observed.end), top: 5 }} />}
                   {row.milestones.filter(item => item.date).map(item => <span key={item.key} aria-hidden="true" title={`Jalon : ${item.title} (${pretty(item.date!)}, ${milestoneStatus[item.status] ?? item.status})`}
                     className={'absolute size-3 rotate-45 border border-white ' + (item.status === 'completed' ? 'bg-teal' : item.status === 'cancelled' ? 'bg-black/30' : 'bg-clay')} style={{ left: x(item.date!) + px / 2 - 6, top: ROW / 2 - 6 }} />)}
-                  {!row.bar && !row.observed && !row.milestones.some(item => item.date) && <span className="sticky left-2 inline-block pt-3 pl-2 text-xs italic text-black/45" style={{ left: 8 }}>{row.inCycle ? 'Dans une boucle de dépendances' : 'Dates non renseignées'}</span>}
+                  {!row.bar && !row.observed && !row.milestones.some(item => item.date) && <span className="sticky inline-block pt-3 pl-2 text-xs italic text-black/45" style={{ left: label + 8 }}>{row.inCycle ? 'Dans une boucle de dépendances' : 'Dates non renseignées'}</span>}
                 </div>
               </div>;
             })}
