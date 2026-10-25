@@ -42,6 +42,7 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   const competitor = await actor('artisan-b', ['contractor']);
   const invited = await actor('invite-pending', ['contractor']);
   const staff = await actor('gestionnaire', ['dao_reviewer']);
+  const unassignedStaff = await actor('gestionnaire-non-affecte', ['dao_reviewer']);
   const contractorProfile = await admin.from('contractor_profiles').insert({
     user_id: contractor.id, business_name: 'Atelier attributaire', verification_status: 'verified', contractor_type: 'artisan', public_identity_status: 'approved',
   }).select('id').single();
@@ -306,6 +307,174 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   await denied(otherClient.db, 'record_site_observation', {
     p_event_id: progress.data.id, p_outcome: 'acknowledged', p_reason: null, p_idempotency_key: randomUUID(),
   });
+
+  // P11: technical inspections and reserves are explicit, lot-scoped and
+  // append-only. They do not derive a receipt from a 100% progress declaration.
+  const fullProgress = await contractor.db.rpc('record_site_progress_v2', {
+    p_award_item_id: awardItem.data!.id, p_bid_sub_lot_id: null, p_status: 'completed', p_percent: 100,
+    p_reason: 'Fin des travaux déclarée par l’Artisan', p_document_ids: [], p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(fullProgress.error);
+  const inspectionKey = randomUUID();
+  const requestedInspection = await owner.db.rpc('request_native_technical_inspection_v1', {
+    p_award_item_id: awardItem.data!.id, p_note: 'Demande de vérification technique',
+    p_document_ids: [foreignDocument.data!.id], p_idempotency_key: inspectionKey,
+  });
+  assert.ifError(requestedInspection.error);
+  const repeatedInspection = await owner.db.rpc('request_native_technical_inspection_v1', {
+    p_award_item_id: awardItem.data!.id, p_note: 'Demande de vérification technique',
+    p_document_ids: [foreignDocument.data!.id], p_idempotency_key: inspectionKey,
+  });
+  assert.ifError(repeatedInspection.error); assert.equal(repeatedInspection.data.inspectionId, requestedInspection.data.inspectionId);
+  const inspectionId = requestedInspection.data.inspectionId;
+  await denied(otherClient.db, 'native_technical_inspections_v1', {
+    p_project_id: project.data!.id, p_award_item_id: null, p_before_created_at: null, p_before_id: null, p_limit: 30,
+  });
+  await denied(competitor.db, 'native_technical_inspections_v1', {
+    p_project_id: project.data!.id, p_award_item_id: null, p_before_created_at: null, p_before_id: null, p_limit: 30,
+  });
+  await denied(unassignedStaff.db, 'native_technical_inspections_v1', {
+    p_project_id: project.data!.id, p_award_item_id: null, p_before_created_at: null, p_before_id: null, p_limit: 30,
+  });
+  await denied(anonymous, 'native_technical_inspections_v1', {
+    p_project_id: project.data!.id, p_award_item_id: null, p_before_created_at: null, p_before_id: null, p_limit: 30,
+  });
+  const startedInspection = await contractor.db.rpc('record_native_technical_inspection_event_v1', {
+    p_inspection_id: inspectionId, p_action: 'start', p_note: null, p_document_ids: [],
+    p_expected_revision: 1, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(startedInspection.error); assert.equal(startedInspection.data.status, 'in_progress');
+  const reserveKey = randomUUID();
+  const createdReserve = await owner.db.rpc('create_native_technical_reserve_v1', {
+    p_award_item_id: awardItem.data!.id, p_inspection_id: inspectionId,
+    p_title: 'Reprise du joint', p_description: 'Le joint reste discontinu sur une partie du mur.',
+    p_category: 'workmanship', p_severity: 'moderate', p_location: 'Salle de bain, mur nord',
+    p_bid_sub_lot_id: null, p_native_activity_id: activityCreated.data.id, p_due_date: null,
+    p_document_ids: [foreignDocument.data!.id], p_idempotency_key: reserveKey,
+  });
+  assert.ifError(createdReserve.error);
+  const repeatedReserve = await owner.db.rpc('create_native_technical_reserve_v1', {
+    p_award_item_id: awardItem.data!.id, p_inspection_id: inspectionId,
+    p_title: 'Reprise du joint', p_description: 'Le joint reste discontinu sur une partie du mur.',
+    p_category: 'workmanship', p_severity: 'moderate', p_location: 'Salle de bain, mur nord',
+    p_bid_sub_lot_id: null, p_native_activity_id: activityCreated.data.id, p_due_date: null,
+    p_document_ids: [foreignDocument.data!.id], p_idempotency_key: reserveKey,
+  });
+  assert.ifError(repeatedReserve.error); assert.equal(repeatedReserve.data.reserveId, createdReserve.data.reserveId);
+  const reserveId = createdReserve.data.reserveId;
+  await denied(contractor.db, 'create_native_technical_reserve_v1', {
+    p_award_item_id: awardItem.data!.id, p_inspection_id: inspectionId, p_title: 'Autre réserve',
+    p_description: 'Création réservée au Client.', p_category: 'other', p_severity: 'minor', p_location: null,
+    p_bid_sub_lot_id: null, p_native_activity_id: null, p_due_date: null, p_document_ids: [], p_idempotency_key: randomUUID(),
+  });
+  await denied(otherClient.db, 'native_technical_reserves_v1', {
+    p_project_id: project.data!.id, p_award_item_id: awardItem.data!.id, p_inspection_id: null,
+    p_before_created_at: null, p_before_id: null, p_limit: 30,
+  });
+  const managerComment = await staff.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'manager_comment', p_note: 'Suivi du dossier par le gestionnaire.',
+    p_document_ids: [], p_expected_revision: 1, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(managerComment.error); assert.equal(managerComment.data.status, 'open');
+  await denied(unassignedStaff.db, 'record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'manager_comment', p_note: 'Gestionnaire non affecté.',
+    p_document_ids: [], p_expected_revision: 2, p_idempotency_key: randomUUID(),
+  });
+  const contractorCorrection = await contractor.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'declare_correction', p_note: 'Joint repris, preuve photographique jointe.',
+    p_document_ids: [document.data!.id], p_expected_revision: 2, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(contractorCorrection.error); assert.equal(contractorCorrection.data.status, 'correction_declared');
+  await denied(staff.db, 'record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'confirm_resolved', p_note: null, p_document_ids: [],
+    p_expected_revision: 3, p_idempotency_key: randomUUID(),
+  });
+  const recheck = await owner.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'request_recheck', p_note: 'Contrôle complémentaire demandé.', p_document_ids: [],
+    p_expected_revision: 3, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(recheck.error); assert.equal(recheck.data.status, 'recheck_requested');
+  const correctedAgain = await contractor.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'declare_correction', p_note: 'Contrôle repris après le retour Client.', p_document_ids: [],
+    p_expected_revision: 4, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(correctedAgain.error); assert.equal(correctedAgain.data.status, 'correction_declared');
+  const confirmed = await owner.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'confirm_resolved', p_note: 'Correction vérifiée par le Client.', p_document_ids: [],
+    p_expected_revision: 5, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(confirmed.error); assert.equal(confirmed.data.status, 'resolved_confirmed');
+  const reopened = await owner.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'reopen', p_note: 'Le défaut réapparaît au contrôle.', p_document_ids: [],
+    p_expected_revision: 6, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(reopened.error); assert.equal(reopened.data.status, 'reopened');
+  await denied(owner.db, 'record_native_technical_inspection_event_v1', {
+    p_inspection_id: inspectionId, p_action: 'complete', p_note: null, p_document_ids: [],
+    p_expected_revision: 2, p_idempotency_key: randomUUID(),
+  });
+  const finalCorrection = await contractor.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'declare_correction', p_note: 'Reprise finale du joint.', p_document_ids: [],
+    p_expected_revision: 7, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(finalCorrection.error);
+  const finalConfirmation = await owner.db.rpc('record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'confirm_resolved', p_note: 'Correction confirmée lors du nouveau contrôle.', p_document_ids: [],
+    p_expected_revision: 8, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(finalConfirmation.error);
+  await denied(owner.db, 'record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'reopen', p_note: 'Révision obsolète.', p_document_ids: [],
+    p_expected_revision: 8, p_idempotency_key: randomUUID(),
+  }, '40001');
+  const completedInspection = await owner.db.rpc('record_native_technical_inspection_event_v1', {
+    p_inspection_id: inspectionId, p_action: 'complete', p_note: 'Vérification technique terminée.', p_document_ids: [],
+    p_expected_revision: 2, p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(completedInspection.error); assert.equal(completedInspection.data.status, 'technical_check_complete');
+  const quality = await owner.db.rpc('native_technical_inspections_v1', {
+    p_project_id: project.data!.id, p_award_item_id: awardItem.data!.id,
+    p_before_created_at: null, p_before_id: null, p_limit: 1,
+  });
+  assert.ifError(quality.error);
+  assert.equal(quality.data.items[0].status, 'technical_check_complete');
+  assert.equal(quality.data.summary[0].openReserveCount, 0);
+  assert.equal(quality.data.summary[0].correctionsPendingReviewCount, 0);
+  assert.equal(JSON.stringify(quality.data).toLowerCase().includes('legal_receipt'), false);
+  const reserveHistory = await owner.db.rpc('native_technical_reserve_events_v1', {
+    p_reserve_id: reserveId, p_before_created_at: null, p_before_id: null, p_limit: 50,
+  });
+  assert.ifError(reserveHistory.error);
+  assert.equal(reserveHistory.data.items.length, 9);
+  assert.equal(reserveHistory.data.items.find((event: any) => event.kind === 'correction_declared' && event.evidence.length > 0).evidence[0].name, 'preuve.jpg');
+  assert.equal(JSON.stringify(reserveHistory.data).includes('object_path'), false);
+  const pageOne = await owner.db.rpc('native_technical_inspection_events_v1', {
+    p_inspection_id: inspectionId, p_before_created_at: null, p_before_id: null, p_limit: 1,
+  });
+  assert.ifError(pageOne.error); assert.equal(pageOne.data.items.length, 1); assert.equal(pageOne.data.hasMore, true);
+  assert.ok((await owner.db.from('site_technical_reserve_events').update({ note: 'altération' }).eq('reserve_id', reserveId)).error);
+
+  const racingReserve = await owner.db.rpc('create_native_technical_reserve_v1', {
+    p_award_item_id: awardItem.data!.id, p_inspection_id: null, p_title: 'Point à contrôler',
+    p_description: 'Un contrôle visuel reste nécessaire.', p_category: 'completeness', p_severity: 'minor',
+    p_location: null, p_bid_sub_lot_id: null, p_native_activity_id: null, p_due_date: null,
+    p_document_ids: [], p_idempotency_key: randomUUID(),
+  });
+  assert.ifError(racingReserve.error);
+  const raceReserveId = racingReserve.data.reserveId;
+  const [raceClientAction, raceContractorAction] = await Promise.all([
+    owner.db.rpc('record_native_technical_reserve_event_v1', {
+      p_reserve_id: raceReserveId, p_action: 'withdraw', p_note: null, p_document_ids: [],
+      p_expected_revision: 1, p_idempotency_key: randomUUID(),
+    }),
+    contractor.db.rpc('record_native_technical_reserve_event_v1', {
+      p_reserve_id: raceReserveId, p_action: 'declare_correction', p_note: 'Correction concurrente.', p_document_ids: [],
+      p_expected_revision: 1, p_idempotency_key: randomUUID(),
+    }),
+  ]);
+  assert.equal([raceClientAction, raceContractorAction].filter(result => !result.error).length, 1);
+  assert.equal([raceClientAction, raceContractorAction].filter(result => result.error?.code === '40001').length, 1);
+
   assert.ok((await contractor.db.from('site_log_events').update({ note: 'modifié' }).eq('id', progress.data.id)).error);
   assert.ok((await admin.from('site_log_events').update({ note: 'modifié' }).eq('id', progress.data.id)).error);
   assert.ok((await admin.from('site_client_observations').delete().eq('id', observation.data.id)).error);
@@ -329,4 +498,15 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.equal([raceProgress, raceCancel].filter(result => !result.error).length >= 1, true);
   await denied(contractor.db, 'record_site_progress_v2', { ...progressArgs, p_idempotency_key: randomUUID(), p_percent: 55 });
   await denied(contractor.db, 'site_execution_snapshot', snapshotArgs);
+  const retainedQuality = await owner.db.rpc('native_technical_reserves_v1', {
+    p_project_id: project.data!.id, p_award_item_id: awardItem.data!.id, p_inspection_id: null,
+    p_before_created_at: null, p_before_id: null, p_limit: 50,
+  });
+  assert.ifError(retainedQuality.error); assert.equal(retainedQuality.data.items.length, 2);
+  const retainedReserve = await admin.from('site_technical_reserves').select('id').eq('id', reserveId).single();
+  assert.ifError(retainedReserve.error);
+  await denied(contractor.db, 'record_native_technical_reserve_event_v1', {
+    p_reserve_id: reserveId, p_action: 'comment', p_note: 'Après annulation.', p_document_ids: [],
+    p_expected_revision: 9, p_idempotency_key: randomUUID(),
+  });
 });

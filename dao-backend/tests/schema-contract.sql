@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233','20261023010000','20261024060000','20261024080000','20261024090000','20261024100000','20261024110000','20261024120000','20261024130000','20261025100000','20261025120000','20261025140000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233','20261023010000','20261024060000','20261024080000','20261024090000','20261024100000','20261024110000','20261024120000','20261024130000','20261025030744','20261025100000','20261025120000','20261025140000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','oce_lot_plans','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -22,7 +22,7 @@ DECLARE
     'profiles','project_contract_settings','project_members','project_invitations','project_private_details','project_request_versions',
     'project_requests','project_reviews','project_version_requests',
     'project_versions','projects','publication_recipients',
-    'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
+    'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','site_technical_inspections','site_technical_inspection_events','site_technical_reserves','site_technical_reserve_events','site_technical_evidence','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
   ];
   actual_versions text[];
   actual_tables text[];
@@ -243,9 +243,23 @@ BEGIN
      OR has_table_privilege('authenticated','public.site_log_events','UPDATE')
      OR has_table_privilege('authenticated','public.site_log_evidence','INSERT')
      OR has_table_privilege('authenticated','public.site_client_observations','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_inspections','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_inspections','UPDATE')
+     OR has_table_privilege('authenticated','public.site_technical_inspections','DELETE')
+     OR has_table_privilege('authenticated','public.site_technical_inspection_events','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_reserves','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_reserves','UPDATE')
+     OR has_table_privilege('authenticated','public.site_technical_reserve_events','DELETE')
+     OR has_table_privilege('authenticated','public.site_technical_evidence','INSERT')
+     OR has_table_privilege('anon','public.site_technical_reserves','SELECT')
      OR has_column_privilege('authenticated','public.site_log_events','command_payload','SELECT')
      OR has_column_privilege('authenticated','public.site_log_events','idempotency_key','SELECT') THEN
     RAISE EXCEPTION 'schema contract: site execution writes and idempotency payloads must stay RPC-only';
+  END IF;
+  IF has_column_privilege('authenticated','public.site_technical_inspections','command_payload','SELECT')
+     OR has_column_privilege('authenticated','public.site_technical_inspections','idempotency_key','SELECT')
+     OR has_column_privilege('authenticated','public.site_technical_reserve_events','command_payload','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: technical quality payloads and attachment/authorization helpers must stay private';
   END IF;
   IF has_table_privilege('authenticated','public.native_execution_activities','SELECT')
      OR has_table_privilege('authenticated','public.native_execution_activities','INSERT')
@@ -275,7 +289,15 @@ BEGIN
     'public.native_execution_accept_activity_change(uuid,text,text)',
     'public.record_native_activity_event_v1(uuid,uuid,text,text,integer,date,text,date,text,uuid,bigint,text,uuid[],text)',
     'public.native_execution_prepare_installment_scope(uuid,integer,text,uuid,uuid,uuid,date,date,text)',
-    'public.native_execution_accept_installment_scope(uuid,text,text)'
+    'public.native_execution_accept_installment_scope(uuid,text,text)',
+    'public.native_technical_inspections_v1(uuid,uuid,timestamptz,uuid,integer)',
+    'public.native_technical_reserves_v1(uuid,uuid,uuid,timestamptz,uuid,integer)',
+    'public.native_technical_inspection_events_v1(uuid,timestamptz,uuid,integer)',
+    'public.native_technical_reserve_events_v1(uuid,timestamptz,uuid,integer)',
+    'public.request_native_technical_inspection_v1(uuid,text,uuid[],text)',
+    'public.record_native_technical_inspection_event_v1(uuid,text,text,uuid[],integer,text)',
+    'public.create_native_technical_reserve_v1(uuid,uuid,text,text,text,text,text,uuid,uuid,date,uuid[],text)',
+    'public.record_native_technical_reserve_event_v1(uuid,text,text,uuid[],integer,text)'
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE')
       OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN

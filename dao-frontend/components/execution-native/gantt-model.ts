@@ -125,7 +125,8 @@ export function buildGanttModel(plan: NativeExecutionPlanDTO): GanttModel {
   const rowIds = new Set(rows.map(item => item.id));
   const dependencies: GanttDependency[] = [];
   const seenLinks = new Set<string>();
-  for (const lot of plan.lots) for (const link of lot.dependencies) {
+  // Les liens projet (extrémités « activité ») passent en premier : la vue par lot les voit sans ces extrémités.
+  for (const link of [...(plan.dependencies ?? []), ...plan.lots.flatMap(lot => lot.dependencies)]) {
     if (seenLinks.has(link.id)) continue;
     seenLinks.add(link.id);
     const from = link.from ? aliases.get(link.from) : undefined; const to = link.to ? aliases.get(link.to) : undefined;
