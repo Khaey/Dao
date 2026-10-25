@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, X, LayoutDashboard, FolderKanban, HardHat, ShieldCheck, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, SlidersHorizontal, Star, LifeBuoy } from 'lucide-react';
+import { Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, SlidersHorizontal, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, type LucideIcon } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 
@@ -109,7 +109,9 @@ export default function RoleNav() {
   const active = (href: string) => href==='/app/artisan'
     ? pathname===href||pathname.startsWith('/app/artisan/publications/')
     : pathname === href || (!['/app', '/app/dao'].includes(href) && pathname.startsWith(`${href}/`));
-  const links = [
+  // Staff links are grouped by intent: Admin governs the platform, Gestionnaire moves dossiers forward.
+  const admin = has('dao_admin');
+  const links: Array<{ href: string; label: string; icon: LucideIcon; show: boolean; group?: string }> = [
     { href: '/app', label: 'Tableau de bord', icon: LayoutDashboard, show: !staff && (has('client') || has('contractor')) },
     { href: '/app/dao', label: 'Tableau de bord', icon: LayoutDashboard, show: staff },
     { href: '/app/projects', label: 'Mes chantiers', icon: FolderKanban, show: has('client') || has('contractor') },
@@ -119,26 +121,27 @@ export default function RoleNav() {
     { href: '/app/professionals', label: 'Trouver un professionnel', icon: HardHat, show: has('client') },
     { href: '/app/invitations', label: 'Mes invitations', icon: Mail, show: !staff && (has('client') || has('contractor')) },
     { href: '/app/messages', label: 'Messages & Assistance', icon: MessageCircle, show: !staff && (has('client') || has('contractor')) },
-    { href: '/app/contracts', label: 'Mes contrats', icon: FileText, show: has('client') || has('contractor') || has('dao_admin') },
-    { href: '/app/dao/review', label: 'Revues', icon: ShieldCheck, show: staff },
-    { href: '/app/dao/reviews', label: 'Avis', icon: Star, show: staff },
-    { href: '/app/dao/support', label: 'Assistance', icon: LifeBuoy, show: staff },
-    { href: '/app/dao/publications', label: 'Publications', icon: Megaphone, show: staff },
-    { href: '/app/dao/projects', label: 'Chantiers', icon: FolderKanban, show: staff },
-    { href: '/app/dao/professionals', label: 'Professionnels', icon: HardHat, show: staff },
-    { href: '/app/dao/clients', label: 'Clients', icon: ShieldCheck, show: staff },
-    { href: '/app/dao/history', label: 'Historique', icon: ShieldCheck, show: staff },
-    { href: '/app/dao/users', label: 'Utilisateurs & rôles', icon: ShieldCheck, show: has('dao_admin') },
-    { href: '/app/dao/settings', label: 'Paramètres D.A.O.', icon: SlidersHorizontal, show: has('dao_admin') },
-    { href: '/app/dao/settings', label: 'Mes délégations', icon: SlidersHorizontal, show: !has('dao_admin') && delegated },
+    { href: '/app/dao/review', label: 'Revues', icon: ClipboardCheck, show: staff, group: 'Dossiers' },
+    { href: '/app/dao/projects', label: 'Chantiers', icon: FolderKanban, show: staff, group: 'Dossiers' },
+    { href: '/app/dao/publications', label: 'Publications', icon: Megaphone, show: staff, group: 'Dossiers' },
+    { href: '/app/contracts', label: 'Mes contrats', icon: FileText, show: has('client') || has('contractor') || admin, group: staff ? 'Dossiers' : undefined },
+    { href: '/app/dao/professionals', label: 'Professionnels', icon: HardHat, show: staff, group: 'Relations' },
+    { href: '/app/dao/clients', label: 'Clients', icon: Contact, show: staff, group: 'Relations' },
+    { href: '/app/dao/reviews', label: 'Avis', icon: Star, show: staff, group: 'Relations' },
+    { href: '/app/dao/support', label: 'Assistance', icon: LifeBuoy, show: staff, group: 'Relations' },
+    { href: '/app/dao/users', label: 'Utilisateurs & rôles', icon: UserCog, show: admin, group: 'Gouvernance' },
+    { href: '/app/dao/settings', label: 'Paramètres D.A.O.', icon: SlidersHorizontal, show: admin, group: 'Gouvernance' },
+    { href: '/app/dao/history', label: 'Historique', icon: History, show: staff, group: admin ? 'Gouvernance' : 'Traçabilité' },
+    { href: '/app/dao/settings', label: 'Mes délégations', icon: SlidersHorizontal, show: !admin && delegated, group: 'Traçabilité' },
   ];
 
-  const workspaceLabel = staff ? (has('dao_admin') ? 'Espace Admin DAO' : 'Espace Gestionnaire DAO') : 'Espace de travail';
+  const workspaceLabel = staff ? (admin ? 'Espace Admin DAO' : 'Espace Gestionnaire DAO') : 'Espace de travail';
+  const workspacePurpose = staff ? (admin ? 'Gouvernance de la plateforme' : 'Suivi opérationnel des dossiers') : '';
   const workspaceSwitch = has('client') && has('contractor') && <div className="mb-3 grid grid-cols-2 rounded-xl bg-sand p-1 text-xs font-semibold">
     <button disabled={switching} onClick={() => void switchWorkspace('client')} className={['min-h-11 rounded-lg px-2 py-2', workspace === 'client' ? 'bg-white text-teal shadow-sm' : 'text-black/50'].join(' ')}>Client</button>
     <button disabled={switching} onClick={() => void switchWorkspace('contractor')} className={['min-h-11 rounded-lg px-2 py-2', workspace === 'contractor' ? 'bg-white text-teal shadow-sm' : 'text-black/50'].join(' ')}>Artisan</button>
   </div>;
-  const navigationLinks = links.filter(item => item.show).map(item => {
+  const renderLink = (item: typeof links[number]) => {
     const Icon = item.icon;
     return <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={active(item.href) ? 'page' : undefined}
       className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition lg:py-2.5', active(item.href) ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
@@ -146,7 +149,16 @@ export default function RoleNav() {
       {item.href === '/app/messages' && supportUnread > 0 && <span className="ml-auto rounded-full bg-clay px-2 py-0.5 text-xs font-bold text-white">
         {supportUnread}<span className="sr-only"> réponse{supportUnread > 1 ? 's' : ''} de D.A.O. non lue{supportUnread > 1 ? 's' : ''}</span></span>}
     </Link>;
-  });
+  };
+  const visibleLinks = links.filter(item => item.show);
+  const groups = [...new Set(visibleLinks.map(item => item.group).filter((group): group is string => !!group))];
+  const navigationLinks = <>
+    {visibleLinks.filter(item => !item.group).map(renderLink)}
+    {groups.map(group => <div key={group} role="group" aria-label={group} className="pt-3">
+      <p aria-hidden="true" className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-black/35">{group}</p>
+      <div className="space-y-1">{visibleLinks.filter(item => item.group === group).map(renderLink)}</div>
+    </div>)}
+  </>;
   const account = <div className="shrink-0 border-t border-black/5 pt-3">
     <Link href="/app/settings" onClick={() => setOpen(false)} aria-current={active('/app/settings') ? 'page' : undefined}
       className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition', active('/app/settings') ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
@@ -171,7 +183,10 @@ export default function RoleNav() {
     <aside className="hidden w-64 shrink-0 border-r border-black/5 bg-white lg:flex lg:flex-col">
       <div className="sticky top-0 flex h-dvh min-h-0 flex-col p-4">
         <Link href={homeHref} className="shrink-0 px-3 py-3 text-xl font-bold tracking-tight">D.A.O<span className="text-clay">.</span></Link>
-        <p className="shrink-0 px-3 pb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-black/35">{workspaceLabel}</p>
+        <div className="shrink-0 px-3 pb-3">
+          <p className={['inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em]', staff ? (admin ? 'bg-ink text-white' : 'bg-teal/10 text-teal') : 'px-0 text-black/35'].join(' ')}>{workspaceLabel}</p>
+          {workspacePurpose && <p className="mt-1.5 text-xs text-black/45">{workspacePurpose}</p>}
+        </div>
         <nav aria-label={workspaceLabel} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pb-3">{workspaceSwitch}{navigationLinks}</nav>
         {account}
       </div>
@@ -182,6 +197,7 @@ export default function RoleNav() {
         <div className="shrink-0 border-b border-black/5 p-4">
           <div className="flex items-center justify-between gap-3"><Link href={homeHref} onClick={() => setOpen(false)} className="text-xl font-bold">D.A.O<span className="text-clay">.</span></Link><button ref={closeButton} type="button" aria-label="Fermer le menu" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-sand" onClick={() => setOpen(false)}><X size={21} /></button></div>
           <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-black/45">{workspaceLabel}</p>
+          {workspacePurpose && <p className="mt-0.5 text-xs text-black/45">{workspacePurpose}</p>}
         </div>
         <nav aria-label={workspaceLabel} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">{workspaceSwitch}{navigationLinks}</nav>
         <div className="shrink-0 px-3 pb-3">{account}</div>

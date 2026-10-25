@@ -79,6 +79,8 @@ Inventaire exhaustif des tables : [dao-backend/TABLES.md](../dao-backend/TABLES.
   mode Simple/Avancé.
 - États chargement / erreur / droits refusés toujours visibles ; jamais de faux vide ; `null` ≠ 0.
 - Mobile 375 px et desktop ; navigation clavier.
+- Espaces staff : menu groupé par intention (Dossiers, Relations, Gouvernance / Traçabilité), Admin et
+  Gestionnaire distincts ; voir [ux/admin-gestionnaire-ia.md](ux/admin-gestionnaire-ia.md).
 - Libellés en français ; vocabulaire : chantier, lot, sous-lot, offre, attribution, conditions,
   échéance, suivi, réserve.
 
