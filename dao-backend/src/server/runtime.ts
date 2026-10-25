@@ -24,6 +24,8 @@ import { createRfiHandler } from './rfiHandler.js';
 import { RfiDocumentService } from '../services/RfiDocumentService.js';
 import { createNativeExecutionPlanHandler } from './nativeExecutionPlanHandler.js';
 import { createNativeExecutionScopeHandler } from './nativeExecutionScopeHandler.js';
+import { createNativeWorkSituationHandler, createNativeWorkSituationEventsHandler } from './nativeWorkSituationHandler.js';
+import { SiteWorkSituationService } from '../services/SiteWorkSituationService.js';
 import { createNativeExecutionActivityHandler } from './nativeExecutionActivityHandler.js';
 import { createNativeExecutionDependencyHandler } from './nativeExecutionDependencyHandler.js';
 import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
@@ -198,4 +200,15 @@ export function createNativeLotDatesApi(request: Request) {
 export function createNativeExecutionScopeApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createNativeExecutionScopeHandler(db, resolveActor);
+}
+
+/** Native, quantity-only work situations; no OCE or financial side effects. */
+export function createNativeWorkSituationApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeWorkSituationHandler(new SiteWorkSituationService(db), resolveActor);
+}
+
+export function createNativeWorkSituationEventsApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeWorkSituationEventsHandler(new SiteWorkSituationService(db), resolveActor);
 }
