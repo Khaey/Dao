@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 // D.A.O Settings catalogue (#423 S0, #426 S1). This file is the only place
 // where a setting can be defined. The database receives a generated mirror
 // (dao_private.setting_definitions) and a CI test fails when they diverge.
@@ -188,19 +186,4 @@ export function catalogProjection(catalog = SETTINGS_CATALOG) {
     requires: d.requires, conditions: d.conditions, less_than: d.lessThan ?? null, owner_choice: d.ownerChoice ?? null,
     source: d.source ?? null, implemented: d.implemented,
   }));
-}
-
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (value && typeof value === 'object')
-    return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`).join(',')}}`;
-  return JSON.stringify(value);
-}
-
-export function catalogHash(catalog = SETTINGS_CATALOG): string {
-  return createHash('sha256').update(canonical(catalogProjection(catalog))).digest('hex');
-}
-
-export function catalogSqlLiteral(catalog = SETTINGS_CATALOG): string {
-  return canonical(catalogProjection(catalog)).replace(/'/g, "''");
 }

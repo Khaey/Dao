@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { assertCatalogConsistent, catalogHash, catalogSqlLiteral, SETTINGS_CATALOG_VERSION } from './catalog.js';
+import { assertCatalogConsistent, SETTINGS_CATALOG_VERSION } from './catalog.js';
+import { catalogHash, catalogSqlLiteral } from './projection.js';
 
 // Writes the generated catalogue block into a settings migration:
 //   npm run settings:sync -- supabase/migrations/<file>.sql

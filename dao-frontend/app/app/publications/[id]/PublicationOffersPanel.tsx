@@ -7,6 +7,7 @@ import { commandBackoffice } from '../../../../lib/backoffice';
 import { projectApi } from '../../../../lib/collaboration';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 import AgreementLinks from '../../../../components/precontract/AgreementLinks';
+import { settingAvailable, useMySettings } from '../../../../lib/settings';
 
 type CounterState = {allowed:boolean;status?:'pending'|'accepted'|'declined'|null;amount_millimes?:number|null};
 const parseTnd = (input:string):number|null=>{
@@ -58,6 +59,8 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots,
   const [counterAmount,setCounterAmount]=useState('');
   const [counterMessage,setCounterMessage]=useState('');
   const [counterBusy,setCounterBusy]=useState(false);
+  // Staff (assisted) views are not gated here; the server checks the Client's settings.
+  const settings=useMySettings(assisted?undefined:'client',projectId);
   const [awards, setAwards] = useState<Award[]>([]);
   const [availability, setAvailability] = useState<Record<string, string>>({});
   const [cancellations, setCancellations] = useState<any[]>([]);
@@ -263,7 +266,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
       const awarded = activeAward.get(availability[lot.id]);
       const lowest = lotOffers.length ? Math.min(...lotOffers.map(offer => offer.priceMillimes)) : 0;
       const fastest = lotOffers.length ? Math.min(...lotOffers.map(offer => offer.durationDays)) : 0;
-      const compare = lotOffers.length > 1;
+      const compare = lotOffers.length > 1 && settingAvailable(settings,'client.offer_comparison');
       return <section key={lot.id} className={`rounded-2xl border p-4 sm:p-5 ${awarded ? 'border-teal/25 bg-teal/[0.03]' : 'border-black/[0.08]'}`} aria-labelledby={`lot-${lot.id}`}>
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <h3 id={`lot-${lot.id}`} className="min-w-0 flex-1 break-words text-lg font-bold tracking-tight text-ink">{lot.safe_title}</h3>
@@ -305,7 +308,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
               <div className="mt-4 rounded-xl bg-sand/55 p-3"><p className="text-xs font-bold uppercase tracking-wide text-black/45">Devis</p>{details.length?<><div className="mt-2 overflow-x-auto"><table className="w-full min-w-[430px] text-left text-xs"><thead><tr className="text-black/45"><th className="pb-1 pr-2">Poste</th><th className="pb-1 pr-2">Qté</th><th className="pb-1 pr-2">PU</th><th className="pb-1 text-right">Total</th></tr></thead><tbody>{details.map(line=><tr key={line.id} className="border-t border-black/5"><td className="py-1.5 pr-2 font-medium text-ink">{line.designation} <span className="text-black/40">· {line.unit}</span></td><td className="py-1.5 pr-2 tabular-nums">{Number(line.quantity_milli)/1000}</td><td className="py-1.5 pr-2 tabular-nums">{formatTnd(Number(line.unit_price_millimes))}</td><td className="py-1.5 text-right font-semibold tabular-nums">{formatTnd(Number(line.total_millimes))}</td></tr>)}</tbody></table></div><p className="mt-2 text-xs text-black/50">Détail structuré disponible · total réconcilié avec l’offre.</p></>:<p className="mt-1 text-xs text-black/50">Pas de détail structuré : comparez le prix global et le périmètre annoncé.</p>}
               <div className="mt-2 flex flex-wrap gap-2"><Button className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void exportQuote(offer.versionId)}>Exporter le devis PDF</Button>{attached.map(document=><Button key={document.id} className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void downloadQuote(document.id)}>Voir {document.original_name}</Button>)}</div>{attached.length===0&&<p className="mt-2 text-xs text-black/50">Pas de devis PDF joint — l’offre reste complète en ligne.</p>}</div>
               <p className="mt-3 text-xs text-black/40">Version {offer.versionNo} · soumise le {new Date(offer.submittedAt).toLocaleDateString('fr-TN')}</p>
-              {canManage&&!assisted&&!awarded&&offer.groupId===null&&counterOptions[offer.itemId]?.allowed&&
+              {canManage&&!assisted&&!awarded&&offer.groupId===null&&counterOptions[offer.itemId]?.allowed&&(settingAvailable(settings,'bids.counter_proposals')||counterOptions[offer.itemId]?.status)&&
                 <div className="mt-4 rounded-xl border border-teal/15 bg-teal/[0.035] p-3.5">
                   <p className="text-xs font-semibold text-teal">Artisan ouvert à la négociation</p>
                   {counterOptions[offer.itemId]?.status==='pending'?<p className="mt-2 text-sm text-black/65">Contre-proposition de {formatTnd(Number(counterOptions[offer.itemId].amount_millimes))} en attente de sa réponse.</p>

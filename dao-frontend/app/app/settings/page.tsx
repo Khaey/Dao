@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, LockKeyhole, UserRound } from 'lucide-react';
 import { Card, SectionHeading } from '../../../components/ui';
 import CounterOfferPreference from '../../../components/artisan/CounterOfferPreference';
+import MyOptions from '../../../components/settings/MyOptions';
+import { useMySettings } from '../../../lib/settings';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../../lib/roles';
 
@@ -14,6 +16,7 @@ export default function SettingsPage() {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const settings = useMySettings(ready && (roles.includes('client') || roles.includes('contractor')) ? null : undefined);
 
   useEffect(() => {
     let active = true;
@@ -62,6 +65,7 @@ export default function SettingsPage() {
       </Link>)}
     </div>
     {roles.includes('contractor') && <CounterOfferPreference />}
+    <MyOptions settings={settings} />
     {links.length > 0 && <Card>
       <SectionHeading title="Vos espaces" description="Retrouvez les informations et les options disponibles dans vos espaces." />
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
