@@ -61,19 +61,19 @@ test('settings S1: real JWT resolver, workspace/project isolation and no private
     const reason='Synthetic settings S2 real test';
     const cmd=(db:any,action:string,input:any)=>db.rpc('admin_setting_command',{p_action:action,p_input:input});
     for(const a of [client,pro,staff]){const r=await cmd(a.db,'set',{key:'bids.rfi',scope:'global',value:false,reason});assert.ok(r.error);}
-    const set=await cmd(operator.db,'set',{key:'bids.rfi',scope:'account',user_id:client.id,value:false,reason,expected_override_id:null});assert.ifError(set.error);
+    const set=await cmd(operator.db,'set',{key:'client.offer_comparison',scope:'account',user_id:client.id,value:false,reason,expected_override_id:null});assert.ifError(set.error);
     try{
-      assert.deepEqual((await rpc(client.db,{p_workspace:'client'})).settings['bids.rfi'],{value:false,state:'unavailable',source:'platform',reason:'restricted'});
-      assert.equal((await rpc(dual.db,{p_workspace:'client'})).settings['bids.rfi'].state,'available');
+      assert.deepEqual((await rpc(client.db,{p_workspace:'client'})).settings['client.offer_comparison'],{value:false,state:'unavailable',source:'platform',reason:'restricted'});
+      assert.equal((await rpc(dual.db,{p_workspace:'client'})).settings['client.offer_comparison'].state,'available');
       const preview=await operator.db.rpc('admin_preview_settings',{p_user:client.id,p_workspace:'client',p_project_id:null});assert.ifError(preview.error);
-      assert.equal(preview.data.settings['bids.rfi'].source,'account');
+      assert.equal(preview.data.settings['client.offer_comparison'].source,'account');
       assert.ok((await staff.db.rpc('admin_preview_settings',{p_user:client.id,p_workspace:'client',p_project_id:null})).error);
-      const history=await operator.db.rpc('admin_settings_history',{p_key:'bids.rfi',p_limit:5,p_before:null,p_before_id:null});assert.ifError(history.error);
+      const history=await operator.db.rpc('admin_settings_history',{p_key:'client.offer_comparison',p_limit:5,p_before:null,p_before_id:null});assert.ifError(history.error);
       assert.equal(history.data[0].reason,reason);
     }finally{
-      const clear=await cmd(operator.db,'clear',{key:'bids.rfi',scope:'account',user_id:client.id,reason,expected_override_id:set.data.override_id});assert.ifError(clear.error);
+      const clear=await cmd(operator.db,'clear',{key:'client.offer_comparison',scope:'account',user_id:client.id,reason,expected_override_id:set.data.override_id});assert.ifError(clear.error);
     }
-    assert.equal((await rpc(client.db,{p_workspace:'client'})).settings['bids.rfi'].state,'available');
+    assert.equal((await rpc(client.db,{p_workspace:'client'})).settings['client.offer_comparison'].state,'available');
   });
 
   await t.test('S4 mandate over real JWT: reviewer restricts a portfolio account, revocation stops it',async()=>{
