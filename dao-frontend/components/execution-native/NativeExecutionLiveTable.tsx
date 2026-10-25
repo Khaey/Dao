@@ -8,6 +8,7 @@ import { Badge, Card, SectionHeading } from '../ui';
 import { adaptNativeExecutionPlan, workspaceLabels, type ExecutionTableNode, type ExecutionTableLot } from './native-plan-adapter';
 import { readNativeExecutionPlan, NativePlanReadError } from './read-native-plan';
 import NativeActivityPanel from './NativeActivityPanel';
+import NativeGantt from './NativeGantt';
 
 const outline = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal';
 const optionNames = [
@@ -84,6 +85,13 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
   const [revision, setRevision] = useState(0);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Tableau par défaut ; le Gantt est une vue alternative du même DTO (?view=gantt), jamais une étape obligatoire.
+  const [view, setView] = useState<'table' | 'gantt'>('table');
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('view') === 'gantt') setView('gantt'); }, []);
+  const changeView = (next: 'table' | 'gantt') => {
+    setView(next);
+    try { const url = new URL(window.location.href); if (next === 'gantt') url.searchParams.set('view', 'gantt'); else url.searchParams.delete('view'); window.history.replaceState(window.history.state, '', url.pathname + url.search); } catch { /* history indisponible */ }
+  };
   const reload = useCallback(() => { setSelectedId(null); setRevision(value => value + 1); }, []);
   useEffect(() => {
     // A↔B : supprimer l'ancien chantier affiché immédiatement au changement d'identité.
@@ -119,8 +127,11 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
       <SectionHeading title="Tableau de suivi du chantier" description="Un seul parcours. Dates, sous-lots, dépendances, jalons et échéancier restent facultatifs." />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-black/60">{role && <>Vue <strong>{workspaceLabels[role]}</strong> · </>}Lecture de vos lots autorisés</div>
-        <div className="flex items-center gap-2"><Badge tone="teal">Tableau</Badge>
-          <button type="button" disabled className={outline + ' cursor-not-allowed opacity-50'} title="La vue Gantt sera alimentée par ce même modèle sans moteur OCE dupliqué">Gantt à venir</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Vue du suivi" className="inline-flex rounded-xl border border-black/10 bg-white p-1">
+            {(['table', 'gantt'] as const).map(item => <button key={item} type="button" aria-pressed={view === item} onClick={() => changeView(item)}
+              className={'min-h-9 rounded-lg px-3 text-sm font-semibold ' + (view === item ? 'bg-ink text-white' : 'text-ink/70 hover:bg-sand')}>{item === 'table' ? 'Tableau' : 'Gantt'}</button>)}
+          </div>
           <button type="button" className={outline} onClick={reload}>Actualiser</button>
         </div>
       </div>
@@ -131,7 +142,8 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
         <p>{state.message}</p><button className={outline} onClick={reload} type="button">Réessayer</button>
       </div>}
       {state.phase === 'ready' && lots.length === 0 && <p role="status" className="rounded-xl bg-sand p-5 text-sm">Aucun lot accessible dans ce chantier. Aucun avancement n’a été inventé.</p>}
-      {state.phase === 'ready' && lots.length > 0 && <>
+      {state.phase === 'ready' && view === 'gantt' && dto && lots.length > 0 && <NativeGantt plan={dto} />}
+      {state.phase === 'ready' && view === 'table' && lots.length > 0 && <>
         <div className="hidden px-4 text-xs font-semibold uppercase tracking-wide text-black/45 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_minmax(0,1.2fr)_auto]">
           <span>Intitulé</span><span>Titulaire</span><span>Dates</span><span>Progression</span><span>Statut</span><span>Action</span>
         </div>
@@ -141,7 +153,7 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
           onOptions={() => setSelectedId(lot.id)} />)}</div>
       </>}
     </Card>
-    {selected && dto && <Card className="space-y-4">
+    {view === 'table' && selected && dto && <Card className="space-y-4">
       <SectionHeading title={'Détails et options : ' + selected.title} description="Ces ajouts resteront facultatifs. Aucune validation ou écriture implicite." />
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <div><dt className="text-black/50">Sous-lots du devis retenu</dt><dd>{selected.subLotCount}</dd></div>
@@ -160,6 +172,6 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
         className={outline + ' cursor-not-allowed opacity-50'}>{name}</button>)}</div>
       <p className="text-xs text-black/55">Le contrat n’est pas signé ici ; aucune échéance ne déclenche un paiement. Le Gestionnaire ne consent jamais au nom des parties.</p>
     </Card>}
-    <p className="text-xs text-black/50">Tableau natif en lecture seule · les dates portent leur provenance · aucun calcul de progression ou Gantt artificiel.</p>
+    <p className="text-xs text-black/50">Suivi natif D.A.O. sans OCE · les dates portent leur provenance · aucune progression calculée ni date inventée.</p>
   </section>;
 }

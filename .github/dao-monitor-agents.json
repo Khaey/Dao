@@ -267,6 +267,12 @@
       "agent": "DAO DEV 2",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 419,
+      "agent": "DAO AUD 2",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }
