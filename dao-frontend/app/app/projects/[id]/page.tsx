@@ -16,10 +16,11 @@ import ReviewOpportunities from '../../../../components/reviews/ReviewOpportunit
 import { emptyTeam, projectApi, stageLabels, Team } from '../../../../lib/collaboration';
 import { cn, effectiveProjectStatus, displayProjectStatus, approvedVersionLabel, statusLabel } from '../../../../lib/utils';
 import { DossierSteps, ErrorPanel, fieldClass, Pill, primaryAction, ProgressBar, readableStatus, secondaryAction, StatusPill } from '../_components/ProjectUi';
+import OfficialSubLotsPanel, { type OfficialSubLot } from '../../../../components/execution-native/OfficialSubLotsPanel';
 import { CommercialPanel, commercialLabel, isReady, useCommercialProgress } from '../../../../components/client/CommercialProgress';
 
 type Trade = { id: string; name_fr: string };
-type RequestView = { contractor_member_id?: string | null; id: string; status: string; created_at?: string; trade_id?: string; trade_name?: string; title?: string; scope?: string; budget_millimes?: number | null; version_no?: number; history: any[] };
+type RequestView = { contractor_member_id?: string | null; id: string; status: string; created_at?: string; trade_id?: string; trade_name?: string; title?: string; scope?: string; budget_millimes?: number | null; version_no?: number; version_id?: string; sub_lots: OfficialSubLot[]; history: any[] };
 type Tab = 'overview' | 'lots' | 'team' | 'documents' | 'tracking' | 'dao' | 'history';
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
 const formatTnd = (millimes?: number | null) => millimes == null ? 'Non renseigné' : new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(Number(millimes) / 1000);
@@ -116,7 +117,7 @@ export default function ProjectDetail() {
     setLoading(true);
     setError('');
     const supabase = supabaseBrowser();
-    const [projectResult, versionsResult, requestsResult, requestVersionsResult, tradesResult, reviewsResult, privateResult, documentResult, runsResult, teamResult, sessionResult] = await Promise.all([
+    const [projectResult, versionsResult, requestsResult, requestVersionsResult, tradesResult, reviewsResult, privateResult, documentResult, runsResult, teamResult, sessionResult, subLotsResult] = await Promise.all([
       supabase.from('projects').select('*').eq('id', id).single(),
       supabase.from('project_versions').select('*').eq('project_id', id).order('version_no', { ascending: false }),
       supabase.from('project_requests').select('id,status,created_at,contractor_member_id').eq('project_id', id).order('created_at', { ascending: true }),
@@ -128,6 +129,8 @@ export default function ProjectDetail() {
       supabase.from('ai_runs').select('id').eq('project_id', id),
       projectApi<Team>(`/api/projects/team?project_id=${id}`).catch(() => null),
       supabase.auth.getSession(),
+      // Official Client sub-lots of every lot version, in one RLS-filtered read (no per-lot request).
+      supabase.from('request_sub_lot_versions').select('sub_lot_id,request_version_id,ordinal,title,scope,budget_millimes').eq('project_id', id).order('ordinal', { ascending: true }),
     ]);
     if (!isCurrentLoad()) return;
     if (!teamResult || projectResult.error || versionsResult.error || requestsResult.error || requestVersionsResult.error) {
@@ -145,6 +148,8 @@ export default function ProjectDetail() {
       historyByRequest.set(version.request_id, [...(historyByRequest.get(version.request_id) ?? []), version]);
     }
     const tradeMap = new Map((tradesResult.data ?? []).map(item => [item.id, item.name_fr]));
+    const subLotsByVersion = new Map<string, OfficialSubLot[]>();
+    for (const row of subLotsResult.data ?? []) subLotsByVersion.set(row.request_version_id, [...(subLotsByVersion.get(row.request_version_id) ?? []), { id: row.sub_lot_id, title: row.title, scope: row.scope, budgetMillimes: row.budget_millimes == null ? null : String(row.budget_millimes) }]);
     const nextRequests = (requestsResult.data ?? []).map(request => {
       const latest = latestByRequest.get(request.id);
       return {
@@ -155,6 +160,8 @@ export default function ProjectDetail() {
         scope: latest?.scope,
         budget_millimes: latest?.budget_millimes,
         version_no: latest?.version_no,
+        version_id: latest?.id,
+        sub_lots: latest?.id ? subLotsByVersion.get(latest.id) ?? [] : [],
         history: historyByRequest.get(request.id) ?? [],
       };
     });
@@ -291,6 +298,7 @@ export default function ProjectDetail() {
             <p className="mt-1.5 break-words font-semibold text-ink">{request.title || `Lot ${index + 1}`}</p>
             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink/65">{request.scope || 'Périmètre non renseigné.'}</p>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/65"><span>Budget indicatif : <span className="font-semibold tabular-nums text-ink">{formatTnd(request.budget_millimes)}</span></span><span>Version <span className="font-semibold tabular-nums text-ink/80">v{request.version_no ?? 1}</span></span></p>
+            <OfficialSubLotsPanel requestId={request.id} lotTitle={request.title || `Lot ${index + 1}`} items={request.sub_lots} canManage={isClient && canEditLots} onSaved={async () => { setSuccess('Sous-lots enregistrés : une nouvelle version du lot a été créée.'); await load(); }} />
           </td>
           <td role="cell" className="block min-w-0 space-y-3 border-t border-black/[0.06] pt-3 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
             {won ? <div className="rounded-xl border border-teal/20 bg-teal/[0.04] p-3"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-teal">Artisan retenu</p><p className="mt-1 break-words font-semibold text-ink">{won.name ? <Link href={`/app/professionals/${won.contractorId}`} className="hover:underline">{won.name}</Link> : 'Artisan retenu (identité publique non disponible)'}</p><p className="mt-0.5 text-xs text-ink/65">Offre retenue : <span className="font-semibold tabular-nums text-ink">{formatTnd(won.agreedMillimes)}</span> · non signée</p>
