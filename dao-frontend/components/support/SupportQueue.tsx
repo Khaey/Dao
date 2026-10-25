@@ -93,7 +93,7 @@ export default function SupportQueue() {
 
   return <section className="mx-auto w-full max-w-5xl space-y-6">
     <header className="space-y-2">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Gestion D.A.O.</p>
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Relations</p>
       <h1 className="text-3xl font-bold tracking-tight text-ink">Assistance</h1>
       <p className="max-w-2xl text-sm text-black/55">Demandes adressées à D.A.O. par les clients et les professionnels. Les conversations privées de chantier n’apparaissent jamais ici.</p>
     </header>

@@ -290,7 +290,7 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="space-y-2">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">
-          {review ? 'Gestion des dossiers' : 'Annuaire D.A.O'}
+          {review ? 'Relations' : 'Annuaire D.A.O'}
         </p>
         <h1 className="text-3xl font-bold tracking-tight text-ink">
           {review ? 'Dossiers professionnels à contrôler' : 'Professionnels vérifiés'}

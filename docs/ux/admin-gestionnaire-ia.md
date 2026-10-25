@@ -30,9 +30,18 @@ derniers, prêts à publier, publications actives, profils à vérifier), file d
 Gestionnaire : file de revue d'abord, puis « Ensuite ». Deux listes courtes seulement : dossiers à
 examiner, chantiers à publier.
 
+## En-tête et listes (`components/backoffice/PageChrome.tsx`)
+
+- `StaffHeader` : fil d'Ariane, sur-titre = groupe du menu, titre, phrase d'usage, action principale.
+  Utilisé par Revues, Chantiers, Publications, Professionnels, Clients, Utilisateurs & rôles, Historique ;
+  Avis, Assistance et Fiches professionnelles portent le même sur-titre « Relations ».
+- `StaffTabs` : vues sœurs d'un domaine (Professionnels : « Comptes et vérification » / « Fiches et médias »).
+- Liste type (Chantiers, Publications) : barre de recherche/filtres `role="search"`, compteur et
+  « Réinitialiser les filtres », erreur avec « Réessayer », squelette, vide expliqué ; Publications en
+  tableau sur desktop et liste compacte sur mobile.
+
 ## Étapes suivantes
 
-2. Gabarit liste commun (en-tête, filtres, tableau desktop / cartes mobile).
 3. Gabarit détail (actions sensibles séparées) ; Historique en onglets Journal / Emails.
 4. Suivi terrain Gestionnaire : **gate**, aucun accès staff au suivi natif ni aux réserves aujourd'hui ;
    décision du propriétaire puis backend DEV 3 et écran Mission 1.
