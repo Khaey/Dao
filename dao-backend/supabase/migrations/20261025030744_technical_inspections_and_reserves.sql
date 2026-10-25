@@ -684,21 +684,21 @@ begin
 end;
 $$;
 
-create function public.native_technical_inspections_v1(uuid,uuid,timestamptz,uuid,integer)
+create function public.native_technical_inspections_v1(p_project_id uuid,p_award_item_id uuid,p_before_created_at timestamptz,p_before_id uuid,p_limit integer)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.native_technical_inspections_v1($1,$2,$3,$4,$5); $$;
-create function public.native_technical_reserves_v1(uuid,uuid,uuid,timestamptz,uuid,integer)
+create function public.native_technical_reserves_v1(p_project_id uuid,p_award_item_id uuid,p_inspection_id uuid,p_before_created_at timestamptz,p_before_id uuid,p_limit integer)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.native_technical_reserves_v1($1,$2,$3,$4,$5,$6); $$;
-create function public.native_technical_inspection_events_v1(uuid,timestamptz,uuid,integer)
+create function public.native_technical_inspection_events_v1(p_inspection_id uuid,p_before_created_at timestamptz,p_before_id uuid,p_limit integer)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.native_technical_inspection_events_v1($1,$2,$3,$4); $$;
-create function public.native_technical_reserve_events_v1(uuid,timestamptz,uuid,integer)
+create function public.native_technical_reserve_events_v1(p_reserve_id uuid,p_before_created_at timestamptz,p_before_id uuid,p_limit integer)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.native_technical_reserve_events_v1($1,$2,$3,$4); $$;
-create function public.request_native_technical_inspection_v1(uuid,text,uuid[],text)
+create function public.request_native_technical_inspection_v1(p_award_item_id uuid,p_note text,p_document_ids uuid[],p_idempotency_key text)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.request_native_technical_inspection_v1($1,$2,$3,$4); $$;
-create function public.record_native_technical_inspection_event_v1(uuid,text,text,uuid[],integer,text)
+create function public.record_native_technical_inspection_event_v1(p_inspection_id uuid,p_action text,p_note text,p_document_ids uuid[],p_expected_revision integer,p_idempotency_key text)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.record_native_technical_inspection_event_v1($1,$2,$3,$4,$5,$6); $$;
-create function public.create_native_technical_reserve_v1(uuid,uuid,text,text,text,text,text,uuid,uuid,date,uuid[],text)
+create function public.create_native_technical_reserve_v1(p_award_item_id uuid,p_inspection_id uuid,p_title text,p_description text,p_category text,p_severity text,p_location text,p_bid_sub_lot_id uuid,p_native_activity_id uuid,p_due_date date,p_document_ids uuid[],p_idempotency_key text)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.create_native_technical_reserve_v1($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12); $$;
-create function public.record_native_technical_reserve_event_v1(uuid,text,text,uuid[],integer,text)
+create function public.record_native_technical_reserve_event_v1(p_reserve_id uuid,p_action text,p_note text,p_document_ids uuid[],p_expected_revision integer,p_idempotency_key text)
 returns jsonb language sql security invoker set search_path='' as $$ select dao_private.record_native_technical_reserve_event_v1($1,$2,$3,$4,$5,$6); $$;
 
 revoke all on function dao_private.site_technical_attach_evidence(uuid,uuid,uuid,uuid,uuid[]),
