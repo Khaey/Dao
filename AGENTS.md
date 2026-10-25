@@ -17,9 +17,13 @@ Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
 **Point d'entrée à jour : [`CLAUDE.md`](CLAUDE.md), [`docs/agents.md`](docs/agents.md),
 [`docs/decisions.md`](docs/decisions.md) et [`docs/architecture.md`](docs/architecture.md).**
 PILOT 12 coordonne via [issue #436](https://github.com/Khaey/Dao/issues/436) ; Coordinateur
-Mission 1 = suivi natif P10 frontend/UX (#419) ; Coordinateur Mission 2 = Settings, droits et
-délégations (#423, #426) ; DEV 3 = backend P11 réception technique et réserves (#425). Les autres
-agents (dont COPILOT 4) sont historiques ou inactifs sauf nouvelle affectation. Les sections
+Mission 1 = suivi natif P10 frontend/UX (#419) ; Coordinateur Mission 2 = Settings S1–S4
+livrés (#423, #426) ; Coordinateur Mission 3 = refonte Admin/Gestionnaire (#441) ;
+DEV 4 (ChatGPT Work) = P13 backend Gestionnaire (#446), en remplacement de DEV 3
+(P11/P12 terminés) ; OPT 4 (ChatGPT Work) = performance VPS et mode DEV allégé
+(#449). Les autres agents (dont COPILOT 4) sont historiques ou inactifs sauf
+nouvelle affectation. DAO Monitor / Telegram est temporairement PAUSED par
+décision propriétaire [#436](https://github.com/Khaey/Dao/issues/436#issuecomment-6397336068). Les sections
 ci-dessous (PILOT 5 à 7) sont **historiques** : leurs règles de quota, d'autonomie, de gates et
 d'OPS restent valables, leurs affectations d'agents ne le sont plus.
 
@@ -77,15 +81,23 @@ Report actual evidence and blockers; do not claim a live check from old logs.
 
 **One-time onboarding for NEW agents only:** before an agent's FIRST owned
 feature PR, confirm its official name, canonical issue and coordinator; merge
-its initial registration in `.github/dao-monitor-agents.json`, then verify
-the automatic DAO Monitor onboarding event. **For an agent ALREADY listed in
-the registry, a new authorized issue is immediately actionable:** its owner
-may open feature PRs and start CI with `Owner issue: #N` while a Pilot-owned
-registry update for that new issue is pending. Registry bookkeeping happens
-in parallel and must not become a cross-owner delivery gate. Reconcile the
-new issue mapping into the registry before claiming final Monitor attribution.
-Never confuse a GitHub mission enrollment with starting a ChatGPT/Work session
-or adding a human Telegram group member. See `docs/dao-monitor.md`.
+its initial registration in `.github/dao-monitor-agents.json`. This registry
+remains the GitHub issue/agent attribution source even while notifications
+are paused. **DAO Monitor / Telegram is PAUSED by owner decision (#436/#449)
+as of 2026-10-25:** there is NO requirement to receive or verify an automatic
+Telegram onboarding event, and no inactive watchdog/checkpoint can block PRs,
+CI, merging or deployment. Do not enable DAO Monitor to unblock an agent.
+When the owner explicitly re-enables monitoring, its event verification is
+an informational monitoring check, not a fourth CI gate.
+**For an agent ALREADY listed in the registry, a new authorized issue is
+immediately actionable:** its owner may open feature PRs and start CI with
+`Owner issue: #N` while a Pilot-owned registry update for that new issue is
+pending. Registry bookkeeping happens in parallel and must not become a
+cross-owner delivery gate. Reconcile the new issue mapping into the registry
+before claiming final attribution. Never confuse GitHub mission enrollment
+with starting a ChatGPT/Work session or adding a human Telegram member.
+Three required CI checks, security/RLS and deployment protections are unchanged.
+See `docs/dao-monitor.md`.
 
 In each owned PR body, declare `Owner issue: #N` on its own normal-text line,
 using the canonical authorized owner issue. Registration of an existing agent's

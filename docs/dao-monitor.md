@@ -1,5 +1,18 @@
 # DAO Monitor — GitHub vers Telegram (#93)
 
+> **PAUSED depuis le 25/10/2026 (décision propriétaire / PILOT 12, #436 et
+> #449).** Le workflow DAO Monitor, ses messages Telegram et son watchdog
+> sont volontairement suspendus pendant le mode DEV allégé. Les anciennes
+> étapes d'activation ci-dessous sont conservées **uniquement pour une
+> réactivation explicitement autorisée**. Aucune notification, heartbeat ou
+> confirmation Telegram ne constitue un prérequis d'inscription, de PR,
+> de tests CI ou de déploiement. Continuer le suivi dans les issues/PR GitHub ;
+> conserver le registre `.github/dao-monitor-agents.json` pour l'attribution.
+> Décision : https://github.com/Khaey/Dao/issues/436#issuecomment-6397336068
+>
+> **Ne pas réactiver le bot pour DEV 4 P13 #446** : enregistrement #448 fusionné,
+> trois checks CI verts ; la PR P13 peut suivre la procédure CI ordinaire.
+
 Bot public : https://t.me/DAOAlertsbot
 
 V1 : notifications **sortantes uniquement**, par GitHub Actions. Aucun processus
@@ -52,14 +65,15 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
    distincte des travaux des autres agents. Mettre `watchdog: true` uniquement
    pour une mission réellement suivie : cela ne déclenche une surveillance
    qu'après un checkpoint structuré `ACTIVE`.
-3. Faire valider/fusionner la PR avec les tests du Monitor. Le push sur `main`
-   qui modifie le registre déclenche automatiquement **une notification Telegram**
-   regroupant les nouveaux agents/associations (`DAOAlertsbot`). Le script lit
-   les deux révisions exactes de GitHub : il n'envoie pas de message en cas de
-   modification sans nouvel agent/mission.
-4. Vérifier l'exécution GitHub Actions de `DAO Monitor` et la réception du
-   message sur le canal existant. Sans succès prouvé, l'inscription est
-   **en attente**, même si le fichier est fusionné.
+3. Faire valider/fusionner la PR de registre avec les contrôles GitHub requis.
+   Pendant la pause DAO Monitor, l'inscription est **terminée lorsque le registre
+   est fusionné** : aucune notification ou exécution du bot n'est attendue.
+   Le push sur `main` ne déclenchera à nouveau un message Telegram que si
+   la surveillance est réactivée explicitement par le propriétaire.
+4. Lorsque DAO Monitor est officiellement réactivé, vérifier séparément son
+   bon fonctionnement et la réception d'une alerte de test. Cette vérification
+   concerne **la supervision**, pas l'autorisation de poursuivre les PR métier.
+   Une absence de message Telegram ne bloque jamais les trois checks CI requis.
 5. Tout renommage ou transfert d'issue doit mettre à jour le registre ; les
    missions terminées sont conservées pour l'attribution historique, mais leur
    `watchdog` doit être désactivé.
