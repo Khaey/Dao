@@ -7,7 +7,6 @@ const CURSOR = '00000000-0000-4000-8000-000000000002';
 const dto: any = {
   schemaVersion: 1, projectId: PROJECT, generatedAt: '2026-10-24T00:00:00Z',
   viewer: { workspace: 'client' },
-  capabilities: { canReadTracking: false, canReadInspections: false, canReadWorkSituations: false, canComment: true, canSuggestWorkSituations: true },
   sourceRevisions: { plan: 1, executionCursor: null },
   page: { limit: 50, nextCursor: null }, lots: [],
   activities: { supported: false, items: [] }, dependencies: [], forecast: null,

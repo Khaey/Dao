@@ -104,7 +104,7 @@ export default function DaoManagerDashboard() {
   const signals = <section aria-labelledby="signals-title" className="space-y-3">
     <h2 id="signals-title" className="text-lg font-bold text-ink">{admin ? 'À surveiller' : 'Ensuite'}</h2>
     <div className={`grid gap-3 ${admin ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3'}`}>
-      {admin && <Link href="/app/dao/history" className={`${signal} ${failedEmails === 'error' || (typeof failedEmails === 'number' && failedEmails > 0) ? 'border-red-200 bg-red-50/60' : ''}`}>
+      {admin && <Link href="/app/dao/history/emails" className={`${signal} ${failedEmails === 'error' || (typeof failedEmails === 'number' && failedEmails > 0) ? 'border-red-200 bg-red-50/60' : ''}`}>
         <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-ink">Emails en échec</span><span className="mt-0.5 block text-xs text-black/50">{failedHint}</span></span>
         <span className="text-2xl font-bold tabular-nums">{failedValue}</span><MailWarning aria-hidden="true" size={18} className="shrink-0 text-red-700" />
       </Link>}

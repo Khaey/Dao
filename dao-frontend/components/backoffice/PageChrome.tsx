@@ -27,3 +27,9 @@ export const professionalTabs = [
   { href: '/app/dao/professionals', label: 'Comptes et vérification' },
   { href: '/app/dao/professionals/dossiers', label: 'Fiches et médias' },
 ];
+
+// The email outbox is admin-only in the RPC, so these tabs are shown to the Admin only.
+export const historyTabs = [
+  { href: '/app/dao/history', label: 'Journal des actions' },
+  { href: '/app/dao/history/emails', label: 'Emails de suivi' },
+];
