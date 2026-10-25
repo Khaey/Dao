@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowRight, LockKeyhole, UserRound } from 'lucide-react';
-import { Card, SectionHeading } from '../../../components/ui';
+import { Card } from '../../../components/ui';
 import CounterOfferPreference from '../../../components/artisan/CounterOfferPreference';
 import MyOptions from '../../../components/settings/MyOptions';
 import { useMySettings } from '../../../lib/settings';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
-import { isDaoStaff, type AppRole } from '../../../lib/roles';
+import { type AppRole } from '../../../lib/roles';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -38,11 +38,6 @@ export default function SettingsPage() {
   }, [router]);
 
   if (!ready) return error ? <p role="alert">{error}</p> : <p role="status">Chargement des paramètres…</p>;
-  const links = [
-    { href: '/app/artisan/profile', title: 'Mon dossier professionnel', description: 'Votre présentation, vos coordonnées professionnelles et vos documents.', show: roles.includes('contractor') },
-    { href: '/app/projects', title: 'Mes chantiers', description: 'Retrouver les chantiers auxquels vous avez accès.', show: roles.includes('client') || roles.includes('contractor') },
-    { href: '/app/dao', title: 'Mon espace D.A.O', description: 'Retrouver votre tableau de bord et vos dossiers autorisés.', show: isDaoStaff(roles) },
-  ].filter(link => link.show);
 
   return <section className="mx-auto max-w-5xl space-y-6" aria-labelledby="settings-title">
     <div>
@@ -66,14 +61,7 @@ export default function SettingsPage() {
     </div>
     {roles.includes('contractor') && <CounterOfferPreference />}
     <MyOptions settings={settings} />
-    {links.length > 0 && <Card>
-      <SectionHeading title="Vos espaces" description="Retrouvez les informations et les options disponibles dans vos espaces." />
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {links.map(link => <Link key={link.href} href={link.href} className="min-w-0 rounded-xl border border-black/10 p-4 transition hover:border-teal focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal/30">
-          <h3 className="font-semibold">{link.title}</h3><p className="mt-2 text-sm text-black/55">{link.description}</p>
-        </Link>)}
-      </div>
-      {roles.includes('client') && roles.includes('contractor') && <p className="mt-4 text-sm text-black/55">Utilisez les boutons Client et Artisan du menu pour choisir votre espace. Vos coordonnées et votre mot de passe restent les mêmes.</p>}
-    </Card>}
+    {/* Spaces (dashboard, chantiers, dossier professionnel, Admin settings) live in the menu only: no duplicate shortcuts here. */}
+    {roles.includes('client') && roles.includes('contractor') && <p className="text-sm text-black/55">Utilisez les boutons Client et Artisan du menu pour choisir votre espace. Vos coordonnées et votre mot de passe restent les mêmes.</p>}
   </section>;
 }
