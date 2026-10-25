@@ -14,6 +14,7 @@ import NativeInstallmentScopes from './NativeInstallmentScopes';
 import NativeDependencies from './NativeDependencies';
 import NativeMilestones from './NativeMilestones';
 import NativeTechnicalQuality from './NativeTechnicalQuality';
+import NativeWorkSituations from './NativeWorkSituations';
 
 const outline = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal';
 
@@ -178,6 +179,7 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
       {selected.awardItemId && <NativeActivityPanel key={selected.awardItemId} plan={dto} lot={selected} onUpdated={reload} />}
       <p className="text-xs text-black/55">Le contrat n’est pas signé ici ; aucune échéance ne déclenche un paiement. Le Gestionnaire ne consent jamais au nom des parties.</p>
     </Card>}
+    {state.phase === 'ready' && dto && <NativeWorkSituations key={dto.projectId} plan={dto} />}
     <p className="text-xs text-black/50">Suivi natif D.A.O. sans OCE · les dates portent leur provenance · aucune progression calculée ni date inventée.</p>
   </section>;
 }
