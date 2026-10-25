@@ -25,6 +25,7 @@ import { RfiDocumentService } from '../services/RfiDocumentService.js';
 import { createNativeExecutionPlanHandler } from './nativeExecutionPlanHandler.js';
 import { createNativeExecutionScopeHandler } from './nativeExecutionScopeHandler.js';
 import { createNativeExecutionActivityHandler } from './nativeExecutionActivityHandler.js';
+import { createNativeExecutionDependencyHandler } from './nativeExecutionDependencyHandler.js';
 import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
 import { createNativeLotDatesHandler } from './nativeLotDatesHandler.js';
 
@@ -173,6 +174,12 @@ export function createNativeExecutionPlanApi(request: Request) {
 export function createNativeExecutionActivityApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createNativeExecutionActivityHandler(db, resolveActor);
+}
+
+/** Native dependency commands use DAO planning RPCs and do not enqueue OCE work. */
+export function createNativeExecutionDependencyApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeExecutionDependencyHandler(db, resolveActor);
 }
 
 /** Official Client sub-lot revisions are limited by the database to pre-publication drafts. */
