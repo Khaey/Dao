@@ -20,7 +20,7 @@ API = "https://api.github.com"
 GRAPHQL = API + "/graphql"
 OPTIONS = {
     "Agent": ["DAO Pilot 5", "DAO Chat 1", "DAO Chat 20", "DAO DEV 1", "DAO DEV 2",
-              "DAO DEV 20", "DAO OPT 2", "DAO OPT 3", "DAO OPT 20", "DAO AUD 1", "DAO AUD 2", "DAO Settings", "DAO Pilot 4",
+              "DAO DEV 20", "DAO OPT 2", "DAO OPT 3", "DAO OPT 20", "DAO AUD 1", "DAO AUD 2", "DAO Settings", "DAO UX Admin", "DAO Pilot 4",
               "DAO Pilot 6", "DAO Pilot 7", "DAO CoPilot 1", "DAO COP", "DAO DOW",
               "DAO TOW", "DAO Chat 21", "DAO Pilot 10", "DAO CH2", "DAO CoPilot 4",
               "OPT", "Non attribué"],
