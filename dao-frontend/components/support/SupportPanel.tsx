@@ -71,7 +71,11 @@ export default function SupportPanel({ onShowProjects, origin = null, startNew =
 
   async function openTicket(id: string) {
     setView({ kind: 'ticket', id }); setThread(null); setError('');
-    try { const result = await getTicket(id); setThread(result); if (result.ticket.unread_count > 0) void markTicketRead(id).catch(() => undefined); }
+    try {
+      const result = await getTicket(id); setThread(result);
+      // Le détail ne porte pas unread_count (#462) : toujours enregistrer la lecture, idempotente et contrôlée côté serveur.
+      void markTicketRead(id).then(() => setTickets((current) => current.map((ticket) => ticket.id === id ? { ...ticket, unread_count: 0 } : ticket))).catch(() => undefined);
+    }
     catch (exception) { setError((exception as Error).message); }
   }
   async function more() {

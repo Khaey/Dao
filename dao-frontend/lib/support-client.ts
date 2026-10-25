@@ -1,4 +1,5 @@
 import { supabaseBrowser } from './supabase-browser';
+import { notifyUnreadChanged } from './unread-events';
 
 // Typed client for the D.A.O. support API — contract v1 owned by DEV20 (#271, docs/messages-assistance.md).
 // Until the routes are deployed (404 without code, or 501), callers receive SupportUnavailable and the UI
@@ -87,7 +88,11 @@ export const createTicket = (input: { subject: string; category: TicketCategory;
   call<SupportTicket>('tickets', { method: 'POST', body: { ...input, idempotency_key: key() } });
 export const replyToTicket = (id: string, body: string) =>
   call<SupportMessage>(`tickets/${encodeURIComponent(id)}/messages`, { method: 'POST', body: { body, idempotency_key: key() } });
-export const markTicketRead = (id: string) => call<unknown>(`tickets/${encodeURIComponent(id)}/read`, { method: 'POST', body: {} });
+export async function markTicketRead(id: string) {
+  const result = await call<unknown>(`tickets/${encodeURIComponent(id)}/read`, { method: 'POST', body: {} });
+  notifyUnreadChanged();
+  return result;
+}
 
 export type QueueFilter = { status?: TicketStatus | null; assignee?: 'me' | 'unassigned' | 'all'; cursor?: string | null };
 export const listQueue = (filter: QueueFilter) =>
