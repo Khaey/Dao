@@ -2,21 +2,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../ui';
-import { readAllBackoffice } from '../../lib/backoffice';
+import { useTargets } from './useTargets';
+import AdminDelegations from './AdminDelegations';
 import {
   SETTINGS_CATALOG, adminSetTradeActive, adminSettingCommand, fetchAdminHistory, fetchAdminOverview, fetchAdminPreview, formatSettingValue,
   modeLabels, scopeLabels, settingLabel, sourceLabels, unitLabels, workspaceLabels, type AdminOverview, type EffectiveSettings, type SettingEvent, type SettingOverride,
 } from '../../lib/settings';
 
-type Tab = 'features' | 'values' | 'exceptions' | 'catalog' | 'preview' | 'history' | 'fixed';
-const tabs: Array<[Tab, string]> = [['features', 'Fonctions'], ['values', 'Règles & délais'], ['exceptions', 'Exceptions'], ['catalog', 'Référentiels'],
+type Tab = 'features' | 'values' | 'exceptions' | 'delegations' | 'catalog' | 'preview' | 'history' | 'fixed';
+const tabs: Array<[Tab, string]> = [['features', 'Fonctions'], ['values', 'Règles & délais'], ['exceptions', 'Exceptions'], ['delegations', 'Délégations'], ['catalog', 'Référentiels'],
   ['preview', 'Simulation'], ['history', 'Historique'], ['fixed', 'Règles fixes']];
 const fixedRules = ['Attribution commerciale par lot uniquement, jamais par sous-lot.', 'Accès aux données : JWT et RLS font foi ; un paramètre ne donne jamais un accès.',
   'Suspension de compte : gérée dans Utilisateurs & rôles, pas ici.', 'Signature électronique, effets juridiques de la réception et garanties : décision séparée.',
   'Devise TND / millimes ; fiscalité et paiements réels hors paramètres.', 'Notifications critiques (attribution, revue, contrat) non désactivables.',
   'Secrets et exploitation (Supabase, e-mail, VPS, OCE) hors de l’interface produit.', 'Choix des titulaires (opt-in Artisan, coordonnées publiques, contrat par chantier) : modifiables seulement par eux.'];
 type Pending = { action: 'set' | 'clear'; input: Record<string, unknown>; summary: string } | null;
-type Target = { id: string; name: string };
 
 export default function AdminSettings() {
   const [tab, setTab] = useState<Tab>('features'), [data, setData] = useState<AdminOverview | null>(null), [error, setError] = useState(''), [status, setStatus] = useState('');
@@ -74,6 +74,7 @@ export default function AdminSettings() {
       {tab === 'values' && <div className="space-y-3">{values.map(def => <ValueRow key={def.key} def={def} current={definitions.get(def.key)?.global_value ?? (def.default as number)} overridden={!!active(def.key, 'global')}
         onSave={value => ask('set', { key: def.key, scope: 'global', value }, `${def.label} : ${value} ${unitLabels[(def.type as any).unit]}`)} onReset={() => ask('clear', { key: def.key, scope: 'global' }, `${def.label} : revenir à ${def.default}`)} />)}</div>}
       {tab === 'exceptions' && <Exceptions overview={data} ask={ask} />}
+      {tab === 'delegations' && <AdminDelegations onStatus={setStatus} />}
       {tab === 'catalog' && <Card className="space-y-2"><h2 className="font-bold">Métiers</h2><p className="text-sm text-black/60">Un métier inactif n’est plus proposé pour les nouveaux lots ; les lots existants restent intacts.</p>
         <TradeList trades={data.trades} onChanged={async (msg) => { setStatus(msg); await load(); }} onError={setError} /></Card>}
       {tab === 'preview' && <Preview />}
@@ -92,16 +93,6 @@ function ValueRow({ def, current, overridden, onSave, onReset }: { def: any; cur
       <Button type="button" disabled={!valid} onClick={() => onSave(n)}>Enregistrer</Button>{overridden && <button type="button" className="min-h-10 px-2 text-sm font-semibold text-teal" onClick={onReset}>Défaut</button>}</div></Card>;
 }
 
-function useTargets() {
-  const [targets, setTargets] = useState<{ accounts: Array<Target & { roles: string[] }>; projects: Target[] } | null>(null), [error, setError] = useState('');
-  useEffect(() => { let live = true; Promise.all([readAllBackoffice('clients'), readAllBackoffice('professionals'), readAllBackoffice('projects')]).then(([clients, pros, projects]) => {
-    if (!live) return; const accounts = new Map<string, Target & { roles: string[] }>();
-    for (const c of clients) accounts.set(c.user_id || c.id, { id: c.user_id || c.id, name: c.display_name, roles: ['client'] });
-    for (const p of pros) { const id = p.user_id || p.id, prev = accounts.get(id); accounts.set(id, { id, name: prev?.name ?? p.business_name, roles: [...(prev?.roles ?? []), 'contractor'] }); }
-    setTargets({ accounts: [...accounts.values()].sort((a, b) => a.name.localeCompare(b.name)), projects: projects.map((p: any) => ({ id: p.id, name: p.version?.title ?? p.id })) });
-  }).catch(() => live && setError('Liste des comptes indisponible.')); return () => { live = false; }; }, []);
-  return { targets, error };
-}
 
 function Exceptions({ overview, ask }: { overview: AdminOverview; ask: (a: 'set' | 'clear', i: Record<string, unknown>, s: string) => void }) {
   const { targets, error } = useTargets();
