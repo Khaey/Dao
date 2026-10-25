@@ -6,7 +6,9 @@ const PROJECT = '00000000-0000-4000-8000-000000000001';
 const CURSOR = '00000000-0000-4000-8000-000000000002';
 const dto: any = {
   schemaVersion: 1, projectId: PROJECT, generatedAt: '2026-10-24T00:00:00Z',
-  viewer: { workspace: 'client' }, sourceRevisions: { plan: 1, executionCursor: null },
+  viewer: { workspace: 'client' },
+  capabilities: { canReadTracking: false, canReadInspections: false, canReadWorkSituations: false, canComment: true, canSuggestWorkSituations: true },
+  sourceRevisions: { plan: 1, executionCursor: null },
   page: { limit: 50, nextCursor: null }, lots: [],
   activities: { supported: false, items: [] }, dependencies: [], forecast: null,
 };
@@ -29,6 +31,20 @@ test('native plan API requires a verified actor and exposes GET only', async () 
   assert.equal((await handler(new Request(`https://dao.test/api/projects/native-execution?project_id=${PROJECT}`))).status, 401);
   assert.equal((await handler(request(`?project_id=${PROJECT}`, { method: 'POST' }))).status, 405);
   assert.equal(db.calls.length, 0);
+});
+
+test('native plan API advertises manager capabilities from the authorized viewer workspace', async () => {
+  const managerPlan = { ...dto, viewer: { workspace: 'dao_manager' } };
+  const response = await fixture(managerPlan).handler(request(`?project_id=${PROJECT}`));
+  assert.equal(response.status, 200);
+  const body = await response.json() as any;
+  assert.deepEqual(body.data.capabilities, {
+    canReadTracking: true,
+    canReadInspections: true,
+    canReadWorkSituations: true,
+    canComment: true,
+    canSuggestWorkSituations: true,
+  });
 });
 
 test('native plan includes activity dependencies in the shared DTO and forecast graph', async () => {

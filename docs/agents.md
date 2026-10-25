@@ -12,7 +12,7 @@ propriétaire ou de PILOT 12 sur #436 prime sur ce fichier ; mettre ce fichier �
 | **Coordinateur — Mission 1** (Claude Code) | Frontend et UX du suivi natif P10 | [#419](https://github.com/Khaey/Dao/issues/419), parent [#408](https://github.com/Khaey/Dao/issues/408) | Écrans Client/Artisan/Gestionnaire du suivi natif, sous-lots officiels, formulaires « Ajouter… », dates, dépendances/jalons, Gantt, intégration des API P10/P11 dans l'interface (ex. PR #438 contrôles et réserves) | Backend/SQL du suivi (sauf coordination), Settings |
 | **Coordinateur — Mission 2** (Claude Code) | Settings, droits et délégations | [#423](https://github.com/Khaey/Dao/issues/423), [#426](https://github.com/Khaey/Dao/issues/426), cadrage historique [#126](https://github.com/Khaey/Dao/issues/126) | Moteur de paramètres S1→S4 : catalogue typé, résolveur, écrans Admin, gating Client/Artisan, mandats Gestionnaire | S5 (non autorisé), activer OCE/BIM/HSE/Achats par toggle, rendre configurables RLS/signature/devise |
 | **UX Admin / Gestionnaire** (Claude Code) | Refonte UX/UI des espaces Admin et Gestionnaire | [#441](https://github.com/Khaey/Dao/issues/441) | Navigation staff, tableaux de bord `/app/dao`, gabarits liste/détail du back-office ([ux/admin-gestionnaire-ia.md](ux/admin-gestionnaire-ia.md)) | Règles métier, API/RLS, fichiers Settings (Mission 2) et suivi natif (Mission 1) |
-| **DEV 3** | Backend P11 : réception technique et réserves | [#425](https://github.com/Khaey/Dao/issues/425) (P11 livré par PR #434), backend P10 [#409](https://github.com/Khaey/Dao/issues/409) (clos) | SQL, RPC, API, sécurité JWT/RLS et tests backend du suivi natif et de la réception technique | Composants React des Missions 1/2 ; réception juridique, garantie légale, paiement |
+| **DEV 4** | Backend P13 : Gestionnaire de chantier opérationnel | [#446](https://github.com/Khaey/Dao/issues/446), après P12 (#443) | API/RPC/RLS ciblés et tests du suivi terrain, des réserves et situations pour Gestionnaires affectés ; contrat d’intégration avec Mission 1 et UX #441 | Frontend Mission 1/#441, Settings Mission 2, validation Client/Artisan, opérations juridiques ou financières |
 
 Les deux missions du coordinateur sont des **fils Claude Code distincts** ; il n'existe **aucun
 agent « AUD 2 »** (libellé historique à ignorer).
@@ -25,6 +25,7 @@ reprendre leurs branches :
 | Agent | Dernier périmètre connu | État |
 | --- | --- | --- |
 | COPILOT 4 / COPILOT 5 | Maquette #410, Artisan #356, précontrat UX #346, signature E1 #383 | En pause, #410 livré/archivé |
+| **DEV 3** | Backend P11/P12 (#425/#440) | P11 #434 et P12 #443 fusionnées/déployées ; clos après P12 |
 | DEV 20, OPT 20, Chat20/21 | Backlog [#395](https://github.com/Khaey/Dao/issues/395)/[#396](https://github.com/Khaey/Dao/issues/396), optimisation | Inactifs, backlog sans owner |
 | DEV 1, DEV 2, OPT | Fondations P1/P2, contrats, précontrat #345, OCE #58/#301 | Historiques |
 | CH2 | Multi-lots/contrats [#381](https://github.com/Khaey/Dao/issues/381) | Clos, ne pas reconstituer |

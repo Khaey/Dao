@@ -7,6 +7,14 @@ export interface NativeExecutionPlanDTO {
   projectId: string;
   generatedAt: string;
   viewer: { workspace: NativeExecutionWorkspace };
+  capabilities: {
+    canReadTracking: boolean;
+    canReadInspections: boolean;
+    canReadWorkSituations: boolean;
+    /** Manager-only technical comments; item-level permissions remain authoritative. */
+    canComment: boolean;
+    canSuggestWorkSituations: boolean;
+  };
   sourceRevisions: {
     plan: number | null;
     executionCursor: { createdAt: string; eventId: string } | null;
@@ -20,6 +28,8 @@ export interface NativeExecutionPlanDTO {
   changeProposalsTruncated: boolean;
   forecast: NativeForecast | null;
 }
+
+export type NativeExecutionPlanRpcDTO = Omit<NativeExecutionPlanDTO, 'capabilities'>;
 
 export interface NativeExecutionActivityDTO {
   id: string;

@@ -1,11 +1,11 @@
-import type { NativeExecutionPlanDTO } from '../native-tracking/contract.js';
+import type { NativeExecutionPlanDTO, NativeExecutionPlanRpcDTO } from '../native-tracking/contract.js';
 import { projectNativeForecast } from '../native-tracking/forecast.js';
 
 const headers = { 'Cache-Control': 'private, no-store', Vary: 'Authorization' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createNativeExecutionPlanHandler(
-  db: { rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: NativeExecutionPlanDTO | null; error: any }> },
+  db: { rpc(name: string, args: Record<string, unknown>): PromiseLike<{ data: NativeExecutionPlanRpcDTO | null; error: any }> },
   resolveActor: (authorization: string | null) => Promise<{ id: string } | null>,
 ) {
   const fail = (status: number, code: string, error: string, extra: Record<string, string> = {}) =>
@@ -47,12 +47,23 @@ export function createNativeExecutionPlanHandler(
         if (dependencyError?.code === '42501') return fail(403, 'FORBIDDEN', 'Accès au suivi du projet refusé.');
         return fail(503, 'UNAVAILABLE', 'Dépendances du planning temporairement indisponibles.');
       }
-      data.dependencies = dependencies as NativeExecutionPlanDTO['dependencies'];
-      let forecast = data.forecast;
-      if (cursor === null && data.page.nextCursor === null) {
-        forecast = projectNativeForecast([data]);
+      const managerWorkspace = data.viewer.workspace === 'dao_manager';
+      const planData: NativeExecutionPlanDTO = {
+        ...data,
+        dependencies: dependencies as NativeExecutionPlanDTO['dependencies'],
+        capabilities: {
+          canReadTracking: true,
+          canReadInspections: true,
+          canReadWorkSituations: true,
+          canComment: managerWorkspace,
+          canSuggestWorkSituations: managerWorkspace,
+        },
+      };
+      let forecast = planData.forecast;
+      if (cursor === null && planData.page.nextCursor === null) {
+        forecast = projectNativeForecast([planData]);
       } else {
-        const pages: NativeExecutionPlanDTO[] = [];
+        const pages: NativeExecutionPlanRpcDTO[] = [];
         let after: string | null = null;
         let truncated = false;
         for (let pageNumber = 0; pageNumber < 10; pageNumber++) {
@@ -71,7 +82,7 @@ export function createNativeExecutionPlanHandler(
         }
         else forecast = null;
       }
-      return Response.json({ data: { ...data, dependencies, forecast } }, { headers });
+      return Response.json({ data: { ...planData, forecast } }, { headers });
     } catch {
       return fail(503, 'UNAVAILABLE', 'Suivi du projet temporairement indisponible.');
     }
