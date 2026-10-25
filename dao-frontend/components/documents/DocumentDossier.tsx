@@ -7,7 +7,7 @@ import { ErrorPanel, fieldClass, Pill, primaryAction, secondaryAction } from '..
 import DocumentPreview from './DocumentPreview';
 import {
   categoryLabels, currentRevision, Dossier, dossierCommand, DossierFamily, eventLabels, formatDateTime, loadDossier, mimeLabels,
-  ReviewAction, reviewLabels, reviewTones, roleLabels, signedDocumentUrl, uploadPrivateFile, Visibility, visibilityLabels, type Category,
+  ReviewAction, reviewLabels, reviewTones, roleLabels, signedDocumentUrl, uploadPrivateFile, PROJECT_FILE_ACCEPT, Visibility, visibilityLabels, type Category,
 } from './dossier-model';
 
 export type LegacyDocument = { id: string; owner_id: string; share_scope: string; original_name: string; mime_type: string; size_bytes?: number; status: string; created_at?: string };
@@ -185,7 +185,7 @@ function FamilyCard({ family, dossier, userId, projectId, busy, run, onPreview }
       </div>
       <div className="flex flex-wrap items-center gap-2 pl-[3.25rem] sm:shrink-0 sm:pl-0">
         {applicable?.document && <button type="button" aria-label={`Consulter ${family.title}`} title="Consulter" onClick={() => onPreview(applicable.document!)} className={cn(iconButton, 'text-teal')}><Eye size={16} aria-hidden="true" /></button>}
-        {family.canAddRevision && <label className={cn(secondaryAction, 'cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-teal')}><Upload size={15} aria-hidden="true" />{busy === 'revision-' + family.id ? 'Envoi…' : 'Nouvelle version'}<input aria-label={`Nouvelle version de ${family.title}`} className="sr-only" type="file" accept=".pdf,image/jpeg,image/png,image/webp" disabled={busy !== null} onChange={event => { const file = event.target.files?.[0]; if (file) void addRevision(file); event.currentTarget.value = ''; }} /></label>}
+        {family.canAddRevision && <label className={cn(secondaryAction, 'cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-teal')}><Upload size={15} aria-hidden="true" />{busy === 'revision-' + family.id ? 'Envoi…' : 'Nouvelle version'}<input aria-label={`Nouvelle version de ${family.title}`} className="sr-only" type="file" accept={PROJECT_FILE_ACCEPT} disabled={busy !== null} onChange={event => { const file = event.target.files?.[0]; if (file) void addRevision(file); event.currentTarget.value = ''; }} /></label>}
         {family.isMine && family.canAddRevision && <button type="button" aria-label={`Modifier le classement de ${family.title}`} onClick={() => setEditing(!editing)} className={iconButton}><Pencil size={15} aria-hidden="true" /></button>}
       </div>
     </div>
