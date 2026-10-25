@@ -44,8 +44,17 @@ examiner, chantiers à publier.
   « Réinitialiser les filtres », erreur avec « Réessayer », squelette, vide expliqué ; Publications en
   tableau sur desktop et liste compacte sur mobile.
 
+## Fiche détail et Historique
+
+- Fiche « Dossier du compte » (Professionnels, Clients, Utilisateurs) : en-tête avec badges d'état,
+  puis sections Informations, Vérification et visibilité (Vérifier / Refuser), Dossiers liés,
+  Rôles cumulables, et un bloc « Actions sensibles » réservé à l'Admin (suspendre, réactiver,
+  identité publique). Mêmes commandes et confirmations qu'avant.
+- Historique : onglets « Journal des actions » / « Emails de suivi » (`/app/dao/history/emails`),
+  affichés à l'Admin seul car la file d'emails est réservée à l'Admin côté RPC. La tuile d'emails
+  en échec du tableau de bord pointe vers cet onglet.
+
 ## Étapes suivantes
 
-3. Gabarit détail (actions sensibles séparées) ; Historique en onglets Journal / Emails.
 4. Suivi terrain Gestionnaire : **gate**, aucun accès staff au suivi natif ni aux réserves aujourd'hui ;
    décision du propriétaire puis backend DEV 3 et écran Mission 1.
