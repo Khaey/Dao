@@ -3,7 +3,7 @@
 // (dao_private.setting_definitions) and a CI test fails when they diverge.
 // Defaults reproduce today's hard-coded behaviour: S1 changes nothing.
 
-export const SETTINGS_CATALOG_VERSION = 1;
+export const SETTINGS_CATALOG_VERSION = 2;
 
 export type SettingFamily = 'capability' | 'value' | 'catalog' | 'federated';
 export type SettingWorkspace = 'client' | 'contractor' | 'staff';
@@ -71,6 +71,11 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
     enforcedBy: ['propose_bid_counter'], label: 'Contre-propositions' }),
   capability({ key: 'bids.multi_lot', scopes: ['global', 'role', 'project'], workspaces: ['contractor'], delegable: false,
     implemented: true, enforcedBy: ['configure_bid_package'], label: 'Offres multi-lots' }),
+  // #463: prior D.A.O. review of edits to an already published réalisation. OFF = such an edit
+  // stays published. New réalisations, identity, legal data, files and suspensions stay gated.
+  capability({ key: 'moderation.portfolio_edit_review', scopes: ['global'], workspaces: ['contractor'], delegable: false,
+    sensitivity: 'sensitive', implemented: true, enforcedBy: ['settings_portfolio_republish'],
+    label: 'Contrôle D.A.O. des réalisations publiées modifiées' }),
   capability({ key: 'bids.quote_pdf', scopes: ['global', 'role', 'account'], workspaces: ['contractor'], delegable: true,
     implemented: true, enforcedBy: ['DocumentService.bid_documents'], label: 'Devis PDF joint' }),
   capability({ key: 'bids.quote_lines', scopes: ['global', 'role', 'account'], workspaces: ['contractor'], delegable: true,

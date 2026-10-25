@@ -14,12 +14,12 @@ const migrations = resolve('supabase/migrations');
 const catalogMigrations = () => readdirSync(migrations).filter(f => f.endsWith('.sql')).sort()
   .filter(f => CATALOG_BLOCK.test(readFileSync(resolve(migrations, f), 'utf8')));
 
-test('settings catalogue: 23 typed tranche-1 entries, consistent and validated', () => {
+test('settings catalogue: 24 typed entries, consistent and validated', () => {
   assertCatalogConsistent();
-  assert.equal(SETTINGS_CATALOG.length, 23);
+  assert.equal(SETTINGS_CATALOG.length, 24);
   const families = Object.fromEntries(['capability', 'value', 'catalog', 'federated']
     .map(f => [f, SETTINGS_CATALOG.filter(d => d.family === f).length]));
-  assert.deepEqual(families, { capability: 11, value: 6, catalog: 1, federated: 5 });
+  assert.deepEqual(families, { capability: 12, value: 6, catalog: 1, federated: 5 });
   // A1: delegable capabilities are exactly 1,2,3,4,6,7,8,9 of the S0 table.
   assert.deepEqual(SETTINGS_CATALOG.filter(d => d.delegable).map(d => d.key).sort(), [
     'bids.counter_proposals', 'bids.proposed_sub_lots', 'bids.quote_lines', 'bids.quote_pdf', 'bids.rfi',
@@ -95,7 +95,7 @@ test('settings S1 resolver: one JWT-scoped read, federated choices, refusals (PG
 
   await test('Client read: defaults equal current behaviour, neutral provenance, one call', async () => {
     const dto = await read(U.clientA, 'client');
-    assert.equal(dto.workspace, 'client'); assert.equal(dto.catalog_version, 1);
+    assert.equal(dto.workspace, 'client'); assert.equal(dto.catalog_version, SETTINGS_CATALOG_VERSION);
     assert.ok(Number.isInteger(Number(dto.version)));
     assert.deepEqual(dto.settings['client.invite_professionals'], { value: true, state: 'available', source: 'default' });
     assert.deepEqual(dto.settings['publication.default_submission_days'], { value: 30, state: 'available', source: 'default' });
