@@ -13,6 +13,7 @@ import NativeLotDatesForm from './NativeLotDatesForm';
 import NativeInstallmentScopes from './NativeInstallmentScopes';
 import NativeDependencies from './NativeDependencies';
 import NativeMilestones from './NativeMilestones';
+import NativeTechnicalQuality from './NativeTechnicalQuality';
 
 const outline = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal';
 
@@ -171,6 +172,7 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
           <NativeMilestones key={'m' + raw.award.awardItemId} lot={raw} onUpdated={reload} />
           <NativeDependencies key={'d' + raw.requestId} plan={dto} requestId={raw.requestId} canEdit={role === 'client' || role === 'dao_manager'} onUpdated={reload} />
           <NativeInstallmentScopes key={raw.award.awardId} plan={dto} lot={raw} onUpdated={reload} />
+          <NativeTechnicalQuality key={'q' + raw.award.awardItemId} plan={dto} lot={raw} />
         </> : null;
       })()}
       {selected.awardItemId && <NativeActivityPanel key={selected.awardItemId} plan={dto} lot={selected} onUpdated={reload} />}
