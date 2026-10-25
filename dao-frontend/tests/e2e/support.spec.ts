@@ -20,7 +20,7 @@ async function mockSupport(page: Page, staff: boolean) {
     const body = method === 'POST' ? route.request().postDataJSON() : null; requests.push({ path, body });
     const ok = (data: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data }) });
     const find = (id: string) => tickets.find((item) => item.id === id)!;
-    if (path === 'summary') return ok({ unread: 1, open: tickets.length });
+    if (path === 'summary') return ok({ unread: tickets.filter((item) => item.unread_count > 0).length, open: tickets.length });
     if (path === 'tickets' && method === 'GET') return ok({ items: tickets, next_cursor: null, total: tickets.length });
     if (path === 'queue' && staff) return ok({ items: tickets, next_cursor: null, total: tickets.length });
     if (path === 'tickets' && method === 'POST') {
@@ -29,9 +29,10 @@ async function mockSupport(page: Page, staff: boolean) {
       return ok(created);
     }
     const [, id, action] = path.split('/');
-    if (!action && method === 'GET') return ok({ ticket: find(id), messages: messages[id] });
+    // Like the real get_support_ticket RPC, the detail carries no unread_count (#462).
+    if (!action && method === 'GET') { const { unread_count: _unread, ...detail } = find(id); return ok({ ticket: detail, messages: messages[id] }); }
     if (action === 'messages') { const message = { id: `m${Date.now()}`, ticket_id: id, author_role: staff ? 'staff' : 'requester', author_label: staff ? 'Vous (D.A.O.)' : 'Vous', body: body.body, created_at: now }; messages[id].push(message); return ok(message); }
-    if (action === 'read') return ok({});
+    if (action === 'read') { find(id).unread_count = 0; return ok({}); }
     if (action === 'assign' && staff) { find(id).assignee_label = 'Vous'; return ok(find(id)); }
     if (action === 'status' && staff) {
       if (['resolved', 'closed'].includes(body.status) && !body.reason) return route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ error: 'invalid', code: 'invalid' }) });
@@ -78,6 +79,27 @@ test('Assistance : créer une demande avec consentement à la page d’origine, 
   await expect(page.getByRole('button', { name: /Invitation introuvable/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Accès à mon chantier/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+});
+
+test('Assistance : lire la réponse D.A.O. efface les pastilles cloche et menu (#462)', async ({ page, e2eClient }) => {
+  test.skip(!e2eClient, 'E2E Supabase credentials are not available');
+  await login(page, e2eClient!);
+  // Internal notifications isolated at zero: the bell then reflects only the Support reply.
+  await page.route(/\/api\/notifications(\?|$)/, route => route.request().method() === 'GET'
+    ? route.fulfill({ json: { data: { rows: [], workspace: 'client', unread_count: 0, next_cursor: null } } }) : route.fallback());
+  const requests = await mockSupport(page, false);
+  await page.goto('/app/messages?onglet=assistance');
+  await expect(page.getByTestId('support-bell-count')).toHaveText('1');
+  const desktop = test.info().project.name !== 'mobile';
+  if (desktop) await expect(page.getByRole('link', { name: /Messages & Assistance\s*1 réponse de D\.A\.O\. non lue/ })).toBeVisible();
+  await page.getByRole('button', { name: /Invitation introuvable/ }).click();
+  await expect(page.getByText('Pouvez-vous vérifier vos courriers indésirables ?', { exact: true })).toBeVisible();
+  await expect.poll(() => requests.some((request) => request.path.endsWith('/read'))).toBe(true);
+  // Same route, no reload: both badges disappear as soon as the read is recorded.
+  await expect(page.getByTestId('support-bell-count')).toHaveCount(0);
+  if (desktop) await expect(page.getByRole('link', { name: /réponse de D\.A\.O\. non lue/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Mes demandes' }).click();
+  await expect(page.getByRole('button', { name: /Invitation introuvable/ }).getByLabel(/non lu/)).toHaveCount(0);
 });
 
 test('Assistance staff : file, attribution, réponse et résolution motivée', async ({ page, e2eAdmin }) => {

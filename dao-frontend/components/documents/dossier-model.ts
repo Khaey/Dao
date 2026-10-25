@@ -34,7 +34,20 @@ export const eventLabels: Record<string, string> = {
   correction_requested: 'Correction demandée', reviewed: 'Revu techniquement', comment: 'Commentaire',
 };
 export const roleLabels: Record<string, string> = { author: 'Auteur', client: 'Client', manager: 'Gestionnaire', participant: 'Participant' };
-export const mimeLabels: Record<string, string> = { 'application/pdf': 'PDF', 'image/jpeg': 'Image JPG', 'image/png': 'Image PNG', 'image/webp': 'Image WebP' };
+export const mimeLabels: Record<string, string> = { 'application/pdf': 'PDF', 'image/jpeg': 'Image JPG', 'image/png': 'Image PNG', 'image/webp': 'Image WebP', 'image/vnd.dwg': 'Plan DWG' };
+// #464 : plans DWG acceptés (stockés privés, téléchargés, jamais prévisualisés). Les navigateurs
+// n'attribuent pas de type MIME aux .dwg : il est déduit de l'extension, le serveur revérifie.
+export const DWG_MIME = 'image/vnd.dwg';
+export const PROJECT_FILE_ACCEPT = '.pdf,image/jpeg,image/png,image/webp,.dwg';
+export const isDwg = (mimeType: string) => mimeType === DWG_MIME;
+export function projectFileMime(file: File) {
+  return file.name.toLowerCase().endsWith('.dwg') ? DWG_MIME : file.type;
+}
+/** Envoi d'octets vers l'URL signée préparée par le serveur, avec le type déclaré. */
+export async function uploadSignedProjectFile(path: string, token: string, file: File) {
+  const result = await supabaseBrowser().storage.from('dao-private').uploadToSignedUrl(path, token, file, { contentType: projectFileMime(file) });
+  if (result.error) throw result.error;
+}
 
 export const idempotencyKey = () => `doc-${crypto.randomUUID()}`;
 export const formatDateTime = (value?: string | null) => value ? new Intl.DateTimeFormat('fr-TN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '';
@@ -54,10 +67,9 @@ export function signedDocumentUrl(documentId: string) {
 /** Dépôt privé existant (URL signée après contrôle JWT) : le fichier reste « Moi uniquement » et en contrôle. */
 export async function uploadPrivateFile(projectId: string, file: File) {
   const data = await projectApi<{ document: { id: string }; path: string; token: string }>('/api/documents/project', {
-    project_id: projectId, original_name: file.name, mime_type: file.type, size_bytes: file.size, share_scope: 'owner_only',
+    project_id: projectId, original_name: file.name, mime_type: projectFileMime(file), size_bytes: file.size, share_scope: 'owner_only',
   });
-  const upload = await supabaseBrowser().storage.from('dao-private').uploadToSignedUrl(data.path, data.token, file);
-  if (upload.error) throw upload.error;
+  await uploadSignedProjectFile(data.path, data.token, file);
   return data.document;
 }
 

@@ -36,6 +36,15 @@ test('Lots : version, duplication, retrait et historique', async ({ page, e2eCli
   await expect(versionTwoRow).toHaveCount(1);
   await versionTwoRow.getByTitle('Dupliquer').click();
   await page.getByLabel('Métier').selectOption({ label: 'Électricité' });
+  // #465 : référentiel élargi et proposition contrôlée d'un métier absent, sans création publique.
+  await expect(page.getByLabel('Métier').getByRole('option', { name: 'Carrelage et faïence' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Métier absent de la liste ? Proposer un métier' }).first().click();
+  await page.getByLabel('Métier à proposer').fill('Carrelage et faience');
+  await page.getByRole('button', { name: 'Envoyer la proposition' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'existe déjà' })).toContainText('Carrelage et faïence');
+  await page.getByLabel('Métier à proposer').fill(`Pisciniste E2E ${test.info().project.name}`);
+  await page.getByRole('button', { name: 'Envoyer la proposition' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Proposition envoyée' })).toBeVisible();
   await page.getByLabel('Intitulé du lot').fill('Lot électricité E2E');
   await page.getByLabel('Budget indicatif du lot (TND)').fill('12000');
   await page.getByLabel('Périmètre des travaux').fill('Réseau électrique et appareillage.');

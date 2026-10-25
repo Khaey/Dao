@@ -15,6 +15,15 @@ test('Mon espace affiche le profil, permet de se déconnecter et de récupérer 
   await expect(page.getByText('Espace client', { exact: true })).toBeVisible();
   await expect(page.getByRole('main').getByText('Mes chantiers', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
+  // #466 : le formulaire mot de passe est replié par défaut, ouvert au clic, refermé par Échap.
+  const securityToggle = page.getByRole('button', { name: 'Modifier le mot de passe' });
+  await expect(securityToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByLabel('Nouveau mot de passe', { exact: true })).toHaveCount(0);
+  await securityToggle.click();
+  await expect(page.getByLabel('Nouveau mot de passe', { exact: true })).toBeVisible();
+  await page.getByLabel('Nouveau mot de passe', { exact: true }).press('Escape');
+  await expect(page.getByLabel('Nouveau mot de passe', { exact: true })).toHaveCount(0);
+  await expect(securityToggle).toBeFocused();
 
   const contractId = '11111111-1111-4111-8111-111111111111';
   const tnd = (millimes: number) => new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(millimes / 1000);

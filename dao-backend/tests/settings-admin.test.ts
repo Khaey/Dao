@@ -152,6 +152,37 @@ test('settings S2: Admin overrides, resolution order, audit and server enforceme
     await as(U.admin, () => db.query('select public.admin_set_trade_active($1,true,$2)', [trade.id, reason]));
   });
 
+  await test('trades referential (#465): admin add/rename audited, duplicates refused, proposals reviewed', async () => {
+    const save = (actor: string, id: string | null, name: string) =>
+      as(actor, async () => (await db.query<any>('select public.admin_save_trade($1,$2,null,$3) r', [id, name, reason])).rows[0].r);
+    assert.ok((await db.query<any>('select count(*)::int n from public.trades where active')).rows[0].n >= 25);
+    await assert.rejects(save(U.reviewer, null, 'Staff métier'), { code: '42501' });
+    await assert.rejects(save(U.admin, null, '  peinture '), { code: '23505' });
+    const created = await save(U.admin, null, 'Géomètre topographe');
+    assert.match(created.code, /^trade_/);
+    const renamed = await save(U.admin, created.trade_id, 'Géomètre');
+    assert.equal(renamed.changed, true);
+    assert.equal((await db.query<any>('select code from public.trades where id=$1', [created.trade_id])).rows[0].code, created.code);
+    const events = (await db.query<any>("select action from dao_private.setting_events where target_ref=$1 order by created_at", [created.code])).rows.map(r => r.action);
+    assert.deepEqual(events, ['trade_create', 'trade_rename']);
+    const propose = (actor: string, label: string) =>
+      as(actor, async () => (await db.query<any>("select public.propose_trade($1,'project') r", [label])).rows[0].r);
+    assert.equal((await propose(U.clientA, 'Carrelage et faience')).status, 'exists');
+    const pending = await propose(U.clientA, 'Pisciniste');
+    assert.equal(pending.status, 'pending');
+    assert.equal((await propose(U.clientA, 'pisciniste')).proposal_id, pending.proposal_id);
+    await assert.rejects(propose(U.pro, '<script>'), { code: '22023' });
+    assert.equal((await db.query<any>("select count(*)::int n from public.trades where name_fr='Pisciniste'")).rows[0].n, 0);
+    assert.equal((await as(U.clientB, () => db.query('select id from public.trade_proposals'))).rows.length, 0);
+    await assert.rejects(as(U.clientA, () => db.query('select public.admin_trade_proposals()')), { code: '42501' });
+    const queue = await as(U.admin, async () => (await db.query<any>('select public.admin_trade_proposals() r')).rows[0].r);
+    assert.equal(queue.length, 1);
+    const accepted = await as(U.admin, async () => (await db.query<any>("select public.admin_review_trade_proposal($1,'accept',null,'Piscine et spa',$2) r", [pending.proposal_id, reason])).rows[0].r);
+    assert.equal(accepted.status, 'accepted');
+    assert.equal((await db.query<any>('select name_fr,active from public.trades where id=$1', [accepted.trade_id])).rows[0].name_fr, 'Piscine et spa');
+    await assert.rejects(as(U.admin, () => db.query("select public.admin_review_trade_proposal($1,'reject',null,null,$2)", [pending.proposal_id, reason])), { code: '22023' });
+  });
+
   await test('moderation (#463): published réalisation edits stay published only when the Admin turns the prior review off', async () => {
     const cp = (await db.query<any>('select id from public.contractor_profiles where user_id=$1', [U.pro])).rows[0].id;
     await db.query("update public.contractor_profiles set public_identity_status='approved', verification_status='verified' where id=$1", [cp]);

@@ -18,6 +18,63 @@ BACKUP = Path('/etc/dao/dao-dev.env.previous')
 ALLOWED = {'RESEND_API_KEY', 'DAO_EMAIL_FROM', 'DAO_PUBLIC_URL'}
 
 
+def _stat_bytes(value):
+    match = re.fullmatch(r'\s*([0-9]+(?:\.[0-9]+)?)\s*(B|kB|KB|KiB|MB|MiB|GB|GiB|TB|TiB)\s*', str(value))
+    if not match:
+        raise ValueError('invalid Docker stat unit')
+    number = float(match[1])
+    unit = match[2]
+    scale = {'B': 1, 'kB': 1000, 'KB': 1000, 'KiB': 1024,
+             'MB': 1000 ** 2, 'MiB': 1024 ** 2, 'GB': 1000 ** 3,
+             'GiB': 1024 ** 3, 'TB': 1000 ** 4, 'TiB': 1024 ** 4}[unit]
+    return int(number * scale)
+
+
+def _stat_pair(value):
+    parts = str(value).split('/')
+    if len(parts) != 2:
+        raise ValueError('invalid Docker stat pair')
+    return [_stat_bytes(part.strip()) for part in parts]
+
+
+def _docker_stat_row(raw, alias):
+    if not isinstance(raw, str) or len(raw) > 65536:
+        raise ValueError('Docker stats response too large')
+    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    if len(rows) != 1 or not isinstance(rows[0], dict):
+        raise ValueError('unexpected Docker stats response')
+    row = rows[0]
+    cpu = re.fullmatch(r'\s*([0-9]+(?:\.[0-9]+)?)%\s*', str(row.get('CPUPerc', '')))
+    pids = row.get('PIDs')
+    if not cpu or not re.fullmatch(r'[0-9]+', str(pids or '')):
+        raise ValueError('invalid Docker stats fields')
+    memory = _stat_pair(row.get('MemUsage', ''))
+    block = _stat_pair(row.get('BlockIO', ''))
+    network = _stat_pair(row.get('NetIO', ''))
+    return {'alias': alias, 'cpu_percent': float(cpu[1]),
+            'memory_used_bytes': memory[0], 'memory_limit_bytes': memory[1],
+            'block_read_bytes': block[0], 'block_write_bytes': block[1],
+            'network_rx_bytes': network[0], 'network_tx_bytes': network[1],
+            'pids': int(pids)}
+
+
+def _docker_resource_stats(docker, targets):
+    """Query only inspected OCE/PostgreSQL IDs and emit numeric fields only."""
+    result = []
+    try:
+        for target in targets:
+            container_id = target.get('id')
+            alias = target.get('alias')
+            if not re.fullmatch(r'[0-9a-f]{64}', str(container_id or '')) or not re.fullmatch(
+                    r'(?:oce_app|peer_[1-9][0-9]*)', str(alias or '')):
+                raise ValueError('invalid Docker stats target')
+            raw = _run_safe([docker, 'stats', '--no-stream', '--format', '{{json .}}', container_id], timeout=12)
+            result.append(_docker_stat_row(raw, alias))
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError, json.JSONDecodeError):
+        return {'status': 'unavailable', 'containers': []}
+    return {'status': 'ok', 'containers': result}
+
+
 def _inventory_json(argv):
     raw = _run_safe(argv, timeout=12)
     if len(raw) > 8 * 1024 * 1024:
@@ -70,7 +127,7 @@ def _root_controlled_config(value):
         return False
 
 
-def _oce_topology(app, containers, image):
+def _oce_topology(app, containers, image, resource_targets=None):
     """Allowlisted metadata only; Docker inspection payloads are secret-bearing."""
     config = app.get('Config') or {}
     labels = config.get('Labels') or {}
@@ -91,6 +148,9 @@ def _oce_topology(app, containers, image):
         return False
 
     related, names = [], {}
+    resource_targets = resource_targets if resource_targets is not None else []
+    if (app.get('State') or {}).get('Running'):
+        resource_targets.append({'alias': 'oce_app', 'id': app.get('Id')})
     for row in sorted(containers, key=lambda r: r.get('Id', '')):
         if row.get('Id') == app.get('Id'):
             continue
@@ -110,6 +170,8 @@ def _oce_topology(app, containers, image):
         names[alias] = aliases
         image_name = str(cfg.get('Image') or '').rsplit('/', 1)[-1].split(':', 1)[0].split('@', 1)[0]
         family = image_name if image_name in {'postgres', 'mysql', 'mariadb', 'redis', 'caddy', 'nginx'} else 'other'
+        if family == 'postgres' and (row.get('State') or {}).get('Running'):
+            resource_targets.append({'alias': alias, 'id': row.get('Id')})
         related.append({'alias': alias, 'family': family,
                         'running': bool((row.get('State') or {}).get('Running')),
                         'same_compose_project': same_project, 'shared_storage': shared,
@@ -493,7 +555,9 @@ def oce_integration_inventory():
     images = _inventory_json([docker, 'image', 'inspect', image_id])
     if not isinstance(images, list) or len(images) != 1:
         raise ValueError('unexpected image inventory')
-    report = _oce_topology(app, containers, images[0])
+    targets = []
+    report = _oce_topology(app, containers, images[0], targets)
+    report['container_resources'] = _docker_resource_stats(docker, targets)
     report['host_available_bytes'] = shutil.disk_usage('/').free
     print(json.dumps(report, sort_keys=True))
 
