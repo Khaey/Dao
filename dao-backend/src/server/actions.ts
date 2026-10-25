@@ -11,6 +11,7 @@ import { ContractReadService } from '../services/ContractReadService.js';
 import { ContractConfigurationService } from '../services/ContractConfigurationService.js';
 import { PrecontractAgreementService } from '../services/PrecontractAgreementService.js';
 import { SiteExecutionService } from '../services/SiteExecutionService.js';
+import { SiteTechnicalQualityService } from '../services/SiteTechnicalQualityService.js';
 import { QuotePdfService } from '../services/QuotePdfService.js';
 import { DomainError } from '../lib/errors.js';
 
@@ -27,6 +28,7 @@ export type BackendServices = {
   contractConfiguration: ContractConfigurationService;
   precontractAgreements: PrecontractAgreementService;
   siteExecution: SiteExecutionService;
+  siteTechnicalQuality: SiteTechnicalQualityService;
   quotePdf: QuotePdfService;
 };
 

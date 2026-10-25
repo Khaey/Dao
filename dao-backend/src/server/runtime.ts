@@ -1,6 +1,6 @@
 import { createBackofficeHandler, authAdministration } from './backofficeHandler.js';
 import { createClient } from '@supabase/supabase-js';
-import { ProjectService, PublicationService, BidService, AwardService, DocumentService, ProfileService, AIService, MessageService, ContractReadService, ContractConfigurationService, PrecontractAgreementService, SiteExecutionService, QuotePdfService } from '../services/index.js';
+import { ProjectService, PublicationService, BidService, AwardService, DocumentService, ProfileService, AIService, MessageService, ContractReadService, ContractConfigurationService, PrecontractAgreementService, SiteExecutionService, SiteTechnicalQualityService, QuotePdfService } from '../services/index.js';
 import { createDaoApi } from './nextHandlers.js';
 import { InvitationAuthorization } from '../services/InvitationAuthorization.js';
 import { ProjectInvitationEmailService, invitationSecretColumns } from '../services/ProjectInvitationEmailService.js';
@@ -74,7 +74,7 @@ export function createRequestApi(request: Request) {
     awards: new AwardService(db), documents: new DocumentService(db, storageAdmin),
     profiles: new ProfileService(db), ai: new AIService(db), messages: new MessageService(db),
     contracts: new ContractReadService(db), contractConfiguration: new ContractConfigurationService(db), precontractAgreements: new PrecontractAgreementService(db),
-    siteExecution: new SiteExecutionService(db), quotePdf: new QuotePdfService(db)
+    siteExecution: new SiteExecutionService(db), siteTechnicalQuality: new SiteTechnicalQualityService(db), quotePdf: new QuotePdfService(db)
   };
   return createDaoApi(services, resolveActor);
 }
