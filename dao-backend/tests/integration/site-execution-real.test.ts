@@ -446,7 +446,7 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   });
   assert.ifError(reserveHistory.error);
   assert.equal(reserveHistory.data.items.length, 9);
-  assert.equal(reserveHistory.data.items.find((event: any) => event.kind === 'correction_declared').evidence[0].name, 'preuve.jpg');
+  assert.equal(reserveHistory.data.items.find((event: any) => event.kind === 'correction_declared' && event.evidence.length > 0).evidence[0].name, 'preuve.jpg');
   assert.equal(JSON.stringify(reserveHistory.data).includes('object_path'), false);
   const pageOne = await owner.db.rpc('native_technical_inspection_events_v1', {
     p_inspection_id: inspectionId, p_before_created_at: null, p_before_id: null, p_limit: 1,
