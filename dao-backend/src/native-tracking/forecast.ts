@@ -55,6 +55,10 @@ export function projectNativeForecast(pages: PlanPage[], truncated = false): Nat
       }
       for (const link of lot.dependencies) {
         const id = link.id;
+        // The project-level graph has already resolved native activity endpoints.
+        // A lot-level projection can carry the same link with a null endpoint
+        // (and state 'unresolved'). Never overwrite the authoritative link.
+        if (rawDependencies.has(id)) continue;
         rawDependencies.set(id, {
           id,
           from: link.from,

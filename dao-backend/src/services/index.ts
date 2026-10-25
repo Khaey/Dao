@@ -11,6 +11,7 @@ export { ContractReadService } from './ContractReadService.js';
 export { ContractConfigurationService } from './ContractConfigurationService.js';
 export { PrecontractAgreementService } from './PrecontractAgreementService.js';
 export { SiteExecutionService } from './SiteExecutionService.js';
+export { SiteTechnicalQualityService } from './SiteTechnicalQualityService.js';
 export { QuotePdfService } from './QuotePdfService.js';
 export { requireActor } from '../server/auth.js';
 export * from '../server/actions.js';
