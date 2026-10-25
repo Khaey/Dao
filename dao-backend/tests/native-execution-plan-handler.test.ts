@@ -44,6 +44,9 @@ test('native plan API advertises manager capabilities from the authorized viewer
     canComment: true,
     canSuggestWorkSituations: true,
   });
+  const client = await (await fixture(dto).handler(request(`?project_id=${PROJECT}`))).json() as any;
+  assert.equal(client.data.capabilities.canComment, false);
+  assert.equal(client.data.capabilities.canSuggestWorkSituations, false);
 });
 
 test('native plan includes activity dependencies in the shared DTO and forecast graph', async () => {
