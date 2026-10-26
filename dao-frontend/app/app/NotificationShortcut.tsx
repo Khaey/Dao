@@ -64,7 +64,7 @@ export default function NotificationShortcut() {
     };
   }, [pathname, sessionId]);
 
-  return <nav aria-label="Notifications" className="fixed right-[68px] top-[10px] z-[41] lg:absolute lg:right-10 lg:top-1 lg:z-30">
+  return <nav aria-label="Notifications" className="fixed right-[68px] top-[10px] z-[41] lg:static lg:z-auto">
     <Link href="/app/notifications" aria-label="Ouvrir mes notifications" title={unread > 0 ? `${unread} notification(s) non lue(s)` : 'Mes notifications'}
       className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-teal transition hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
       <Bell size={19} aria-hidden="true" />
