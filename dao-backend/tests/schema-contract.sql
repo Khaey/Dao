@@ -7,7 +7,7 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019140000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020050000','20261020060000','20261020070000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233','20261023010000','20261024060000','20261024080000','20261024090000','20261024100000','20261024110000','20261024120000','20261024130000','20261025030744','20261025043812','20261025100000','20261025120000','20261025140000','20261025160000','20261025180000','20261025200000','20261025210000','20261025220000','20261025230000','20261025233000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020060000','20261020070000','20261020050000','20261019140000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233','20261023010000','20261024060000','20261024080000','20261024090000','20261024100000','20261024110000','20261024120000','20261024130000','20261025030744','20261025100000','20261025120000','20261025140000','20261025160000','20261025043812','20261025180000','20261025200000','20261025210000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','oce_lot_plans','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
@@ -20,7 +20,7 @@ DECLARE
     'document_grants','documents','document_families','document_revisions','document_family_lots','document_dossier_events','governorates','localities','messages',
     'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts','technical_questions','technical_clarifications','technical_rfi_reads','technical_rfi_receipts','technical_rfi_documents',
     'profiles','project_contract_settings','project_members','project_invitations','project_private_details','project_request_versions',
-    'project_requests','project_reviews','project_version_requests','trade_proposals',
+    'project_requests','project_reviews','project_version_requests',
     'project_versions','projects','publication_recipients',
     'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','site_technical_inspections','site_technical_inspection_events','site_technical_reserves','site_technical_reserve_events','site_technical_evidence','site_work_situations','site_work_situation_events','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
   ];
@@ -29,6 +29,7 @@ DECLARE
   missing_name text;
   state record;
 BEGIN
+  expected_versions := array_append(expected_versions, '20261026010000');
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
     FROM supabase_migrations.schema_migrations;
@@ -617,8 +618,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM storage.buckets b
       WHERE b.id='dao-private' AND b.name='dao-private' AND NOT b.public
         AND b.file_size_limit=20971520
-        AND b.allowed_mime_types @> ARRAY['application/pdf','image/jpeg','image/png','image/webp','image/vnd.dwg']::text[]
-        AND cardinality(b.allowed_mime_types)=5)
+        AND b.allowed_mime_types @> ARRAY['application/pdf','image/jpeg','image/png','image/webp']::text[]
+        AND cardinality(b.allowed_mime_types)=4)
      OR NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
        WHERE n.nspname='storage' AND c.relname='objects' AND c.relrowsecurity) THEN
     RAISE EXCEPTION 'schema contract: private dao-private Storage bucket configuration or objects RLS is missing';
