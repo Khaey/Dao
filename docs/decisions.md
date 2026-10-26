@@ -160,6 +160,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | FULL E2E sur pile Supabase **jetable** ; la base DEV partagée n'est jamais réinitialisée ; pas de comptes factices créés en DEV partagé sans autorisation. | Permanent | D-026, #436 |
 | Migrations **additives et idempotentes** ; vérifier le ledger DEV avant application ; une migration mergée n'est pas attestée appliquée. | Permanent | #409, #436 |
 | Performance : mesurer avant/après ; lints Supabase = pistes à qualifier, pas d'index en masse ; préférer un RPC de projection consolidé à des appels N+1. | Cadré | [#408 perf](https://github.com/Khaey/Dao/issues/408#issuecomment-6388919006), D-028 |
+| **Design cible « Chantier net »** (validé le 2026-10-26) : Inter + chiffres tabulaires, encre/sable/teal (argile = marque seulement), trois arrondis `control`/`card`/`panel`, bordures plutôt qu'ombres, statuts via `components/ui/StatusBadge`. Apports B (Admin/Gestionnaire : tableaux denses) et C (Client/Artisan : mobile d'abord). Mise en œuvre écran par écran, un seul parcours. | En cours (#387 phase 4) | `dao-frontend/tailwind.config.ts`, `components/ui/` |
 | Pas de modification WireGuard pour du travail applicatif ; opérations VPS via workflows contrôlés. | Permanent | D-018, [ops-control.md](ops-control.md) |
 
 ## Questions ouvertes (ne pas trancher sans le propriétaire)
