@@ -55,6 +55,6 @@ test('Questions techniques : lien lot vers formulaire artisan',async({page,e2eAr
  await page.getByLabel('Question technique').fill('Le plan électrique est-il contractuel ?');
  await page.getByRole('button',{name:'Envoyer au Client'}).click();
  await expect(page.getByText('Le plan électrique est-il contractuel ?',{exact:true})).toBeVisible();
- expect(commands.find(command=>command.path==='/api/rfi'&&command.method==='POST')?.body.publication_request_id).toBe(lotId);
+ await expect.poll(()=>commands.find(command=>command.path==='/api/rfi'&&command.method==='POST')?.body.publication_request_id).toBe(lotId);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
 });
