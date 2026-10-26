@@ -23,7 +23,7 @@ OPTIONS = {
               "DAO DEV 20", "DAO OPT 2", "DAO OPT 3", "DAO OPT 20", "DAO AUD 1", "DAO AUD 2", "DAO Settings", "DAO UX Admin", "DAO DEV 4", "DAO Pilot 4",
               "DAO Pilot 6", "DAO Pilot 7", "DAO CoPilot 1", "DAO COP", "DAO DOW",
               "DAO TOW", "DAO Chat 21", "DAO Pilot 10", "DAO CH2", "DAO CoPilot 4",
-              "OPT", "Non attribué"],
+              "DAO Mission 5", "DAO Coordinateur Bugs 2", "OPT", "Non attribué"],
     "Priorité": ["P0", "P1", "P2", "P3", "Non définie"],
     "Domaine": ["Client", "Artisan", "Gestionnaire", "Contrats", "OPS/Infra",
                  "Monitoring", "Produit/UX", "Pilotage", "Autre"],
