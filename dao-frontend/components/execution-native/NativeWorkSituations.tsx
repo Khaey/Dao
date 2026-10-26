@@ -5,18 +5,21 @@ import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tra
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { cn } from '../../lib/utils';
 import { Card, SectionHeading } from '../ui';
-import { fromMilli, situationActions, situationEvent, situationStatus, toMilli, type SituationAction, type SituationStatus } from './work-situation-model';
+import { attachableInterventions, fromMilli, situationActions, situationEvent, situationStatus, sumMilli, toMilli, type JournalIntervention, type SituationAction, type SituationStatus } from './work-situation-model';
 
 // The plan may carry project-level capabilities (P13 #453); absent fields fall back to the server-scoped workspace.
 type Plan = NativeExecutionPlanDTO & Partial<{ canReadWorkSituations: boolean; canComment: boolean }>;
 type Lot = NativeExecutionPlanDTO['lots'][number];
 type Summary = { id: string; createdAt: string; contractorId: string; periodStart: string; periodEnd: string; status: SituationStatus; revision: number; lineCount: number };
-type Line = { lineId: string; awardItemId: string; quoteLineId: string | null; label: string; quantityUnit: string; quantityReportedMilli: string; quantityValidatedMilli: string | null };
+type Line = { lineId: string; awardItemId: string; quoteLineId: string | null; label: string; quantityUnit: string; quantityReportedMilli: string; quantityValidatedMilli: string | null; sourceEventIds?: string[]; evidenceDocumentIds?: string[] };
 type Statement = { lineId: string; previouslyValidatedMilli: string; currentValidatedMilli: string | null; cumulativeValidatedMilli: string | null };
 type Detail = Summary & { lines: Line[]; technicalStatement: Statement[] };
 type HistoryEvent = { id: string; createdAt: string; actorRole: string; revision: number; kind: string; statusAfter: SituationStatus; note: string | null; payload?: { suggestedLines?: Array<{ line_id?: string; lineId?: string; quantity_milli?: string; quantityValidatedMilli?: string }> } };
 type Page<T> = { items: T[]; hasMore: boolean; nextCursor: string | null };
-type DraftLine = { lineId: string; awardItemId: string; quoteLineId: string; label: string; unit: string; quantity: string };
+type DraftLine = { lineId: string; awardItemId: string; quoteLineId: string; label: string; unit: string; quantity: string; sources: string[]; documents: string[] };
+type EvidenceDocument = { id: string; original_name: string };
+// Facultatif : interventions du carnet et justificatifs de l’Artisan, lus avec ses droits (API du carnet, RLS documents).
+type Links = { events: JournalIntervention[]; documents: EvidenceDocument[]; truncated: boolean };
 type Editor = { mode: 'create' | 'save_draft'; situation: Detail | null; periodStart: string; periodEnd: string; lines: DraftLine[]; key: string };
 type Pending = { action: SituationAction; key: string; note: string; quantities: Record<string, string> };
 
@@ -36,6 +39,21 @@ const confirmText: Partial<Record<SituationAction, string>> = {
 };
 const pretty = (raw: string) => new Date(raw.length === 10 ? raw + 'T00:00:00Z' : raw).toLocaleDateString('fr-TN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const newKey = () => 'ws-' + crypto.randomUUID();
+const blankLine = (awardItemId: string): DraftLine => ({ lineId: crypto.randomUUID(), awardItemId, quoteLineId: '', label: '', unit: '', quantity: '', sources: [], documents: [] });
+
+/** Lecture seule : interventions récentes du carnet et justificatifs approuvés que l’Artisan peut déjà joindre. Aucun lien n’est créé tant qu’il ne coche rien. */
+async function loadLinks(projectId: string): Promise<Links> {
+  const supabase = supabaseBrowser();
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) throw new Error('session');
+  const [journal, documents] = await Promise.all([
+    fetch(`/api/projects/execution?project_id=${encodeURIComponent(projectId)}&limit=50`, { cache: 'no-store', headers: { Authorization: 'Bearer ' + data.session.access_token } })
+      .then(async response => response.ok ? ((await response.json()) as { data?: { events?: JournalIntervention[]; next_cursor?: string | null } }).data ?? null : null).catch(() => null),
+    supabase.from('documents').select('id,original_name').eq('project_id', projectId).eq('owner_id', data.session.user.id)
+      .eq('status', 'approved').eq('share_scope', 'project_members').order('created_at', { ascending: false }),
+  ]);
+  return { events: (journal?.events ?? []).filter(event => event.kind === 'intervention' && event.quantity), documents: (documents.data ?? []) as EvidenceDocument[], truncated: Boolean(journal?.next_cursor) };
+}
 
 class SituationError extends Error { constructor(public readonly status: number, message: string) { super(message); } }
 
@@ -77,6 +95,7 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
   const [history, setHistory] = useState<Page<HistoryEvent> | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [links, setLinks] = useState<Links | null>(null);
 
   const loadList = useCallback(async () => {
     const page = await situationApi<Page<Summary>>(`?project_id=${encodeURIComponent(plan.projectId)}&limit=30`);
@@ -95,6 +114,15 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
     setPhase('loading');
     loadList().catch(cause => { setPhase('error'); setError(cause instanceof Error ? cause.message : 'Situations indisponibles.'); });
   }, [loadList, plan.canReadWorkSituations]);
+
+  // Loaded once, only when an Artisan opens the editor; failure just hides the optional attachments.
+  const editorOpen = Boolean(editor);
+  useEffect(() => {
+    if (!editorOpen || links || workspace !== 'contractor') return;
+    let active = true;
+    loadLinks(plan.projectId).then(next => { if (active) setLinks(next); }).catch(() => { if (active) setLinks({ events: [], documents: [], truncated: false }); });
+    return () => { active = false; };
+  }, [editorOpen, links, plan.projectId, workspace]);
 
   const groups = useMemo(() => {
     const byContractor = new Map<string, Summary[]>();
@@ -151,12 +179,13 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
     const first = ownLots[0];
     setPending(null); setOpenId(null); setDetail(null); setNotice(''); setError('');
     setEditor({ mode: 'create', situation: null, periodStart: '', periodEnd: '', key: newKey(),
-      lines: [{ lineId: crypto.randomUUID(), awardItemId: first.award.awardItemId, quoteLineId: '', label: '', unit: '', quantity: '' }] });
+      lines: [blankLine(first.award.awardItemId)] });
   }
   function startEdit(situation: Detail) {
     setPending(null); setNotice(''); setError('');
     setEditor({ mode: 'save_draft', situation, periodStart: situation.periodStart, periodEnd: situation.periodEnd, key: newKey(),
-      lines: situation.lines.map(line => ({ lineId: line.lineId, awardItemId: line.awardItemId, quoteLineId: line.quoteLineId ?? '', label: line.label, unit: line.quantityUnit, quantity: fromMilli(line.quantityReportedMilli) })) });
+      lines: situation.lines.map(line => ({ lineId: line.lineId, awardItemId: line.awardItemId, quoteLineId: line.quoteLineId ?? '', label: line.label, unit: line.quantityUnit, quantity: fromMilli(line.quantityReportedMilli),
+        sources: line.sourceEventIds ?? [], documents: line.evidenceDocumentIds ?? [] })) });
   }
   const editorLines = editor?.lines.map(line => ({ line, milli: toMilli(line.quantity) })) ?? [];
   const editorValid = Boolean(editor) && editorLines.length > 0 && editorLines.every(({ line, milli }) => milli && line.label.trim() && line.unit.trim() && line.awardItemId)
@@ -165,7 +194,7 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
     event.preventDefault();
     if (!editor || busy || !editorValid) return;
     const lines = editorLines.map(({ line, milli }) => ({ line_id: line.lineId, award_item_id: line.awardItemId, quote_line_id: line.quoteLineId || null,
-      label: line.label.trim(), quantity_unit: line.unit.trim(), quantity_reported_milli: milli }));
+      label: line.label.trim(), quantity_unit: line.unit.trim(), quantity_reported_milli: milli, source_event_ids: line.sources, evidence_document_ids: line.documents }));
     if (editor.mode === 'create') void send({ action: 'create', project_id: plan.projectId, contractor_id: ownContractorId, period_start: editor.periodStart, period_end: editor.periodEnd, lines, idempotency_key: editor.key },
       'Brouillon créé. Soumettez-le au Client quand les quantités sont prêtes.', null);
     else void send({ action: 'save_draft', situation_id: editor.situation!.id, lines, expected_revision: editor.situation!.revision, idempotency_key: editor.key },
@@ -173,6 +202,15 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
   }
   function updateLine(index: number, patch: Partial<DraftLine>) {
     setEditor(current => current && { ...current, lines: current.lines.map((line, i) => i === index ? { ...line, ...patch } : line) });
+  }
+  // Ticking interventions makes the declared quantity their exact sum: the server rejects any other value.
+  function toggleSource(index: number, event: JournalIntervention, checked: boolean) {
+    const line = editor!.lines[index];
+    const sources = checked ? [...line.sources, event.id] : line.sources.filter(id => id !== event.id);
+    // Delta on the current sum, so sources attached earlier but absent from the recent journal page still count.
+    const base = line.sources.length ? BigInt(toMilli(line.quantity, true) ?? '0') : BigInt(0);
+    const delta = BigInt(sumMilli([event]));
+    updateLine(index, { sources, unit: line.unit.trim() || event.quantity?.unit || '', quantity: sources.length ? fromMilli((checked ? base + delta : base - delta).toString()) : '' });
   }
 
   function prepare(action: SituationAction, situation: Detail) {
@@ -203,6 +241,33 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
   }
 
 
+  const linksBlock = (line: DraftLine, index: number) => {
+    if (!editor) return null;
+    const taken = new Set(editor.lines.filter((_, i) => i !== index).flatMap(other => other.sources));
+    const candidates = links ? attachableInterventions(links.events, line, { start: editor.periodStart, end: editor.periodEnd }, taken) : [];
+    // Already-attached items stay listed (and removable) even if they fell out of the recent page.
+    const shown = [...candidates, ...line.sources.filter(id => !candidates.some(item => item.id === id)).map(id => links?.events.find(item => item.id === id) ?? null).filter((item): item is JournalIntervention => Boolean(item))];
+    const count = line.sources.length + line.documents.length;
+    return <details className="rounded-lg bg-sand/60 px-3 py-2 text-xs sm:col-span-2 lg:col-span-6">
+      <summary className="cursor-pointer font-semibold">Interventions et justificatifs — facultatif{count ? ` (${count})` : ''}</summary>
+      {!links ? <p role="status" className="mt-2 text-black/55">Chargement…</p> : <div className="mt-2 grid gap-3 sm:grid-cols-2">
+        <fieldset className="space-y-1"><legend className="font-semibold">Interventions du carnet</legend>
+          {shown.length === 0 ? <p className="text-black/55">Aucune intervention avec quantité sur ce lot{line.unit.trim() ? ` en ${line.unit.trim()}` : ''} dans la période.</p>
+            : shown.map(item => <label key={item.id} className="flex min-h-9 items-center gap-2"><input type="checkbox" className="h-4 w-4 accent-teal" checked={line.sources.includes(item.id)} disabled={busy || (!line.sources.includes(item.id) && line.sources.length >= 20)}
+              onChange={e => toggleSource(index, item, e.target.checked)} /><span>{pretty(item.work_date || item.created_at)} · {fromMilli(String(item.quantity?.executed_quantity_milli))} {item.quantity?.unit}{item.quantity?.designation ? ` — ${item.quantity.designation}` : ''}</span></label>)}
+          {line.sources.length > 0 && <p className="text-black/60">La quantité déclarée est la somme exacte des interventions cochées.</p>}
+          {links.truncated && <p className="text-black/55">Seules les 50 dernières déclarations du carnet sont proposées.</p>}
+        </fieldset>
+        <fieldset className="space-y-1"><legend className="font-semibold">Justificatifs</legend>
+          {links.documents.length === 0 ? <p className="text-black/55">Aucun justificatif approuvé et partagé avec le chantier.</p>
+            : links.documents.map(document => <label key={document.id} className="flex min-h-9 items-center gap-2"><input type="checkbox" className="h-4 w-4 accent-teal" checked={line.documents.includes(document.id)} disabled={busy || (!line.documents.includes(document.id) && line.documents.length >= 10)}
+              onChange={e => updateLine(index, { documents: e.target.checked ? [...line.documents, document.id] : line.documents.filter(id => id !== document.id) })} /><span className="break-all">{document.original_name}</span></label>)}
+        </fieldset>
+        <p className="text-black/55 sm:col-span-2">Rattacher ne crée ni ne modifie aucune intervention ni aucun document.</p>
+      </div>}
+    </details>;
+  };
+
   const editorForm = editor && <form onSubmit={submitEditor} className="space-y-3 rounded-xl border border-teal/20 bg-teal/[0.03] p-3" aria-label={editor.mode === 'create' ? 'Nouvelle situation de travaux' : 'Modifier le brouillon'}>
     {editor.mode === 'create' ? <div className="grid gap-2 sm:grid-cols-2">
       <label className="block text-xs font-semibold">Début de période<input type="date" className={field} required value={editor.periodStart} disabled={busy} onChange={e => setEditor({ ...editor, periodStart: e.target.value })} /></label>
@@ -212,21 +277,22 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
       const lot = ownLots.find(item => item.award.awardItemId === line.awardItemId);
       const quoteLines = (lot?.quantities ?? []).filter(item => item.quoteLineId);
       return <li key={line.lineId} className="grid gap-2 rounded-lg border border-black/10 bg-white p-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_6rem_8rem_auto] lg:items-end">
-        <label className="block text-xs font-semibold">Lot<select className={field} value={line.awardItemId} disabled={busy} onChange={e => updateLine(index, { awardItemId: e.target.value, quoteLineId: '' })}>
+        <label className="block text-xs font-semibold">Lot<select className={field} value={line.awardItemId} disabled={busy} onChange={e => updateLine(index, { awardItemId: e.target.value, quoteLineId: '', sources: [] })}>
           {ownLots.map(item => <option key={item.award.awardItemId} value={item.award.awardItemId}>{item.title || 'Lot attribué'}</option>)}</select></label>
         <label className="block text-xs font-semibold">Poste du devis — facultatif<select className={field} value={line.quoteLineId} disabled={busy || quoteLines.length === 0}
-          onChange={e => { const picked = quoteLines.find(item => item.quoteLineId === e.target.value); updateLine(index, { quoteLineId: e.target.value, unit: picked?.unit ?? line.unit }); }}>
+          onChange={e => { const picked = quoteLines.find(item => item.quoteLineId === e.target.value); updateLine(index, { quoteLineId: e.target.value, unit: picked?.unit ?? line.unit, sources: [] }); }}>
           <option value="">{quoteLines.length ? 'Aucun' : 'Aucun poste quantifié'}</option>
           {quoteLines.map(item => <option key={item.quoteLineId!} value={item.quoteLineId!}>{item.unit} · réalisé déclaré {fromMilli(item.executedMilli)}{item.referenceMilli ? ` / prévu ${fromMilli(item.referenceMilli)}` : ''}</option>)}</select></label>
         <label className="block text-xs font-semibold">Intitulé<input className={field} required maxLength={240} value={line.label} disabled={busy} onChange={e => updateLine(index, { label: e.target.value })} placeholder={line.quoteLineId ? 'Remplacé par l’intitulé du devis' : 'Ex. Pose de carrelage'} /></label>
-        <label className="block text-xs font-semibold">Unité<input className={field} required maxLength={40} value={line.unit} disabled={busy || Boolean(line.quoteLineId)} onChange={e => updateLine(index, { unit: e.target.value })} placeholder="m², u…" /></label>
-        <label className="block text-xs font-semibold">Quantité déclarée<input className={field} required inputMode="decimal" value={line.quantity} disabled={busy} aria-invalid={line.quantity !== '' && !toMilli(line.quantity)} onChange={e => updateLine(index, { quantity: e.target.value })} placeholder="12,5" /></label>
+        <label className="block text-xs font-semibold">Unité<input className={field} required maxLength={40} value={line.unit} disabled={busy || Boolean(line.quoteLineId)} onChange={e => updateLine(index, { unit: e.target.value, sources: [] })} placeholder="m², u…" /></label>
+        <label className="block text-xs font-semibold">Quantité déclarée<input className={field} required inputMode="decimal" value={line.quantity} disabled={busy} readOnly={line.sources.length > 0} aria-invalid={line.quantity !== '' && !toMilli(line.quantity)} onChange={e => updateLine(index, { quantity: e.target.value })} placeholder="12,5" /></label>
         <button type="button" className={button} disabled={busy || editor.lines.length === 1} onClick={() => setEditor({ ...editor, lines: editor.lines.filter((_, i) => i !== index) })} aria-label={`Retirer la ligne ${index + 1}`}>Retirer</button>
+        {linksBlock(line, index)}
       </li>;
     })}</ul>
     <p className="text-xs text-black/55">Quantités physiques avec 3 décimales au plus, sans prix ni montant. Une même situation peut couvrir plusieurs de vos lots.</p>
     <div className="flex flex-wrap gap-2">
-      <button type="button" className={button} disabled={busy || editor.lines.length >= 100} onClick={() => setEditor({ ...editor, lines: [...editor.lines, { lineId: crypto.randomUUID(), awardItemId: editor.lines.at(-1)?.awardItemId ?? ownLots[0].award.awardItemId, quoteLineId: '', label: '', unit: '', quantity: '' }] })}>Ajouter une ligne</button>
+      <button type="button" className={button} disabled={busy || editor.lines.length >= 100} onClick={() => setEditor({ ...editor, lines: [...editor.lines, blankLine(editor.lines.at(-1)?.awardItemId ?? ownLots[0].award.awardItemId)] })}>Ajouter une ligne</button>
       <button type="submit" className={primary} disabled={busy || !editorValid}>{busy ? 'Enregistrement…' : 'Enregistrer le brouillon'}</button>
       <button type="button" className={button} disabled={busy} onClick={() => setEditor(null)}>Annuler</button>
     </div>
@@ -243,7 +309,9 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
           {withQuantities && <th className="py-1 pl-2 font-semibold">{pending!.action === 'manager_suggestion' ? 'Suggestion' : 'Quantité validée'}</th>}</tr></thead>
         <tbody className="divide-y divide-black/5">{situation.lines.map(line => {
           const row = statement.get(line.lineId);
-          return <tr key={line.lineId}><td className="py-1.5 pr-2">{lotTitle(line.awardItemId)}</td><td className="break-words py-1.5 pr-2">{line.label}</td><td className="py-1.5 pr-2">{line.quantityUnit}</td>
+          return <tr key={line.lineId}><td className="py-1.5 pr-2">{lotTitle(line.awardItemId)}</td><td className="break-words py-1.5 pr-2">{line.label}{(line.sourceEventIds?.length || line.evidenceDocumentIds?.length) ? <span className="block text-black/50">{[
+              line.sourceEventIds?.length ? `${line.sourceEventIds.length} intervention${line.sourceEventIds.length > 1 ? 's' : ''} du carnet` : '',
+              line.evidenceDocumentIds?.length ? `${line.evidenceDocumentIds.length} justificatif${line.evidenceDocumentIds.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')}</span> : null}</td><td className="py-1.5 pr-2">{line.quantityUnit}</td>
             <td className="py-1.5 pr-2 text-right tabular-nums">{fromMilli(line.quantityReportedMilli)}</td><td className="py-1.5 pr-2 text-right tabular-nums">{fromMilli(line.quantityValidatedMilli)}</td>
             <td className="py-1.5 pr-2 text-right tabular-nums">{fromMilli(row?.previouslyValidatedMilli)}</td><td className="py-1.5 text-right tabular-nums">{fromMilli(row?.cumulativeValidatedMilli)}</td>
             {withQuantities && <td className="py-1.5 pl-2"><input aria-label={`Quantité pour ${line.label}`} inputMode="decimal" className="w-24 rounded-lg border border-black/15 px-2 py-1.5 text-right" value={pending!.quantities[line.lineId] ?? ''} disabled={busy}
@@ -290,7 +358,8 @@ export default function NativeWorkSituations({ plan }: { plan: Plan }) {
     {phase === 'loading' && <div aria-busy="true" className="h-20 animate-pulse rounded-xl bg-black/5" />}
     {phase === 'error' && !list && <button type="button" className={button} onClick={() => { setError(''); setPhase('loading'); loadList().catch(cause => { setPhase('error'); setError(cause instanceof Error ? cause.message : 'Situations indisponibles.'); }); }}>Réessayer</button>}
     {phase === 'ready' && list && <>
-      {list.items.length === 0 && <p className="rounded-xl bg-sand p-4 text-sm">Aucune situation de travaux sur ce chantier pour l’instant.{workspace === 'contractor' && ownContractorId ? ' Créez la première pour déclarer les quantités d’une période.' : ''}</p>}
+      {list.items.length === 0 && <p className="rounded-xl bg-sand p-4 text-sm">Aucune situation de travaux sur ce chantier pour l’instant. Une intervention du carnet ne crée pas de situation : {workspace === 'contractor' && ownContractorId
+        ? 'préparez un décompte technique de la période quand vous le souhaitez, en y rattachant au besoin vos interventions.' : 'l’Artisan attributaire peut préparer un décompte technique de la période.'}</p>}
       {groups.map(group => <div key={group.id} className="space-y-2">
         <h4 className="text-sm font-bold text-ink">{contractorName(group.id)}</h4>
         <ul className="space-y-2">{group.items.map(item => <li key={item.id} className="rounded-xl border border-black/10 bg-white p-3 text-sm">
