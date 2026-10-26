@@ -154,7 +154,7 @@ test('Client #346 : depuis son chantier, voir les offres, choisir l’Artisan et
   await expect(row).toBeVisible();
 
   // A click on the overflow menu must not navigate the chantier row.
-  await expect(row.getByRole('link', { name: /^(Ouvrir|Suivre les travaux) — / })).toHaveCount(0);
+  await expect(row.getByRole('link', { name: /^(Ouvrir|Suivi du chantier) — / })).toHaveCount(0);
   const rowMenu = row.getByRole('button', { name: 'Autres actions — ' + project.title });
   await rowMenu.click();
   await expect(page).toHaveURL(new RegExp('/app/projects$'));

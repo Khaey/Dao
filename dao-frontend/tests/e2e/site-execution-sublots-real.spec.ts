@@ -55,8 +55,8 @@ test('Suivi B2 réel : sous-lot attribué, quantité déclarée, confirmation te
 
   // Awarded Artisan, not a team member: award-scoped journal only.
   await artisan.reload();
-  await artisan.getByRole('link', { name: /Carnet de chantier de votre lot/ }).click();
-  await expect(artisan).toHaveURL(`/app/execution/${project.projectId}`);
+  await artisan.getByRole('link', { name: /Suivi du chantier de votre lot/ }).click();
+  await expect(artisan).toHaveURL(`/app/native-execution/${project.projectId}?section=journal`);
   await expect(artisan.getByText('Votre lot', { exact: true })).toBeVisible();
   const subLots = artisan.getByRole('list', { name: 'Sous-lots de l’offre attribuée' });
   await expect(subLots).toContainText(subLot);

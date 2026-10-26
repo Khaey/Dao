@@ -8,7 +8,7 @@ import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { stageLabels } from '../../../lib/collaboration';
 import { effectiveProjectStatus, displayProjectStatus, approvedVersionLabel, statusLabel } from '../../../lib/utils';
 import { DossierMeter, dossierStepText, dossierSummary, ErrorPanel, fieldClass, Pill, primaryAction, StatusPill } from './_components/ProjectUi';
-import { agreementSummary, conditionsLinkLabel, useAgreementStates, useAwardedWork, useLiveJournals, type AgreementState, type AwardedProject } from '../../../components/artisan/AwardedWork';
+import { agreementSummary, conditionsLinkLabel, useAgreementStates, useAwardedWork, type AgreementState, type AwardedProject } from '../../../components/artisan/AwardedWork';
 import RowActions, { type RowAction } from '../../../components/projects/RowActions';
 import { clientOfferLabels, myOfferLabels, useClientOffers, useMyOffers, type ClientOffers, type MyOfferState } from '../../../components/projects/offer-signals';
 
@@ -77,7 +77,6 @@ export default function Projects() {
     return [...byId.values()];
   }, [rows, awarded.projects, clientOffers.signals, myOffers.byProject, contractor]);
   const agreementStates = useAgreementStates(lines.flatMap(line => line.award?.awardIds ?? []));
-  const liveJournals = useLiveJournals(lines.filter(line => line.award && !line.project).map(line => line.id));
 
   const filtered = useMemo(() => { const normalized = query.trim().toLocaleLowerCase('fr'); return lines.filter(line => {
     const project = line.project;
@@ -100,29 +99,30 @@ export default function Projects() {
     { label: 'Travaux en cours', value: rows.filter(row => row.project_stage === 'in_progress').length },
   ];
 
-  const nativeTracking = (projectId: string): RowAction => ({ label: 'Tableau de suivi et Gantt', href: `/app/native-execution/${projectId}` });
+  // #387 phase 2: one « Suivi du chantier » destination per chantier. Awarded lots open the native follow-up (lots,
+  // planning, journal, documents, conditions); a chantier followed only by its own team keeps its project tab.
+  const followUp = (line: Line): RowAction => ({ label: 'Suivi du chantier', href: line.award || (line.offers?.awardedLots ?? 0) > 0 || !line.project ? `/app/native-execution/${line.id}` : `/app/projects/${line.id}?tab=tracking` });
   function actions(line: Line): { primary: RowAction | null; more: RowAction[] } {
     const more: RowAction[] = [];
     const conditions = (line.award?.awardIds ?? []).filter(id => agreementStates[id]).map((id, _index, list) => ({ label: list.length > 1 ? conditionsLinkLabel(line.award!.lots, id) : 'Conditions et calendrier', href: `/app/awards/${id}/conditions` }));
     const dao = line.award?.publicationId ? { label: 'Voir le DAO', href: `/app/artisan/publications/${line.award.publicationId}` } : null;
     if (line.project) {
       const open = { label: 'Ouvrir', href: `/app/projects/${line.id}` };
-      const tracking = { label: 'Suivre les travaux', href: `/app/projects/${line.id}?tab=tracking` };
+      const tracking = followUp(line);
+      const hasWorks = Boolean(line.award) || (line.offers?.awardedLots ?? 0) > 0 || ['in_progress', 'completed'].includes(line.project.project_stage);
       const compare = line.offers?.publicationId && line.offers.state === 'to_compare' ? { label: 'Comparer les offres', href: `/app/publications/${line.offers.publicationId}#offres` } : null;
       const primary = line.project.project_stage === 'in_progress' ? tracking : compare ?? open;
       if (primary !== open) more.push({ label: 'Ouvrir le chantier', href: open.href });
       if (line.offers?.publicationId && primary !== compare && line.offers.state !== 'none' && line.offers.state !== 'unknown') more.push({ label: 'Voir les offres et l’attribution', href: `/app/publications/${line.offers.publicationId}#offres` });
+      if (hasWorks && primary !== tracking) more.push(tracking);
       more.push(...conditions);
-      if (line.award && primary !== tracking) more.push({ label: 'Carnet de chantier', href: tracking.href });
-      if (line.award || (line.offers?.awardedLots ?? 0) > 0 || ['in_progress', 'completed'].includes(line.project.project_stage)) more.push(nativeTracking(line.id));
       if (dao) more.push(dao);
       return { primary, more };
     }
     // Award without team membership: never the private project page (RLS), only award-scoped destinations.
     const primary = conditions[0] ? { label: 'Conditions', href: conditions[0].href } : dao;
+    if (line.award) more.push(followUp(line));
     more.push(...conditions.slice(primary === dao ? 0 : 1));
-    if (liveJournals.includes(line.id)) more.push({ label: 'Carnet de chantier', href: `/app/execution/${line.id}` });
-    if (line.award) more.push(nativeTracking(line.id));
     if (dao && primary !== dao) more.push(dao);
     return { primary, more };
   }

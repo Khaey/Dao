@@ -240,7 +240,9 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
 
   // #325 B : planning global. Le lien proposé n'est effectif qu'après attribution du lot ET confirmation du Client.
   await page.goto(`/app/projects/${project.projectId}`);
-  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivi du chantier', exact: true }).click();
+  // #387 phase 2: the global/OCE planning is optional and folded under one summary in « Suivi du chantier ».
+  await page.locator('summary').filter({ hasText: 'Planning global et OpenConstructionERP (facultatif)' }).click();
   const globalPlan = page.getByTestId('project-global-plan');
   await expect(globalPlan).toBeVisible();
   await expect(globalPlan.getByTestId('plan-lot')).toHaveCount(1);
