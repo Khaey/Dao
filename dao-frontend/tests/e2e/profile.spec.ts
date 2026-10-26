@@ -75,7 +75,7 @@ test('Mon espace affiche le profil, permet de se déconnecter et de récupérer 
     });
     expect(response.ok()).toBeTruthy();
     const inbox = await response.json() as { messages: Array<{ ID: string; Subject: string }> };
-    const messages = inbox.messages.filter(message => /reset|password/i.test(message.Subject));
+    const messages = inbox.messages.filter(message => /reset|password|mot de passe/i.test(message.Subject));
     if (messages.length === 1) messageId = messages[0].ID;
     return messages.length;
   }).toBe(1);
