@@ -29,6 +29,13 @@ export default function RoleNav() {
     const load = async (knownSession?: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
       const data = knownSession === undefined ? (await supabase.auth.getSession()).data : { session: knownSession };
       if (!active) return;
+      if (!data.session && knownSession === undefined) {
+        // A transient storage/refresh hiccup must not look like an expiry: confirm once before leaving.
+        await new Promise(resolve => setTimeout(resolve, 600));
+        if (!active) return;
+        const retry = (await supabase.auth.getSession()).data;
+        if (retry.session) { void load(retry.session); return; }
+      }
       if (!data.session) { setRoles([]);setEmail('');setReady(false);router.replace(wasDeliberateSignOut() ? '/auth/login' : expiredSessionLoginUrl(window.location.pathname + window.location.search));return; }
       const userId=data.session.user.id;
       setReady(false);setRoles([]);setEmail(data.session.user.email ?? '');setSupportUnread(0);
