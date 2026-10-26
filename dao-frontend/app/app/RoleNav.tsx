@@ -141,10 +141,10 @@ export default function RoleNav() {
     <button disabled={switching} onClick={() => void switchWorkspace('client')} className={['min-h-11 rounded-lg px-2 py-2', workspace === 'client' ? 'bg-white text-teal shadow-sm' : 'text-black/50'].join(' ')}>Client</button>
     <button disabled={switching} onClick={() => void switchWorkspace('contractor')} className={['min-h-11 rounded-lg px-2 py-2', workspace === 'contractor' ? 'bg-white text-teal shadow-sm' : 'text-black/50'].join(' ')}>Artisan</button>
   </div>;
-  const renderLink = (item: typeof links[number]) => {
+  const renderLink = (item: typeof links[number], dark = false) => {
     const Icon = item.icon;
     return <Link key={item.href} href={item.href} onClick={() => setOpen(false)} aria-current={active(item.href) ? 'page' : undefined}
-      className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition lg:py-2.5', active(item.href) ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
+      className={['flex min-h-11 items-center gap-3 rounded-control px-3 py-3 text-sm font-semibold transition lg:py-2.5', active(item.href) ? (dark ? 'bg-white/10 text-white' : 'bg-teal/10 text-teal') : (dark ? 'text-white/65 hover:bg-white/5 hover:text-white' : 'text-black/60 hover:bg-sand hover:text-ink')].join(' ')}>
       <Icon size={18} strokeWidth={1.8} className="shrink-0" /><span>{item.label}</span>
       {item.href === '/app/messages' && supportUnread > 0 && <span className="ml-auto rounded-full bg-clay px-2 py-0.5 text-xs font-bold text-white">
         {supportUnread}<span className="sr-only"> réponse{supportUnread > 1 ? 's' : ''} de D.A.O. non lue{supportUnread > 1 ? 's' : ''}</span></span>}
@@ -152,25 +152,25 @@ export default function RoleNav() {
   };
   const visibleLinks = links.filter(item => item.show);
   const groups = [...new Set(visibleLinks.map(item => item.group).filter((group): group is string => !!group))];
-  const navigationLinks = <>
-    {visibleLinks.filter(item => !item.group).map(renderLink)}
+  const navigationLinks = (dark = false) => <>
+    {visibleLinks.filter(item => !item.group).map(item => renderLink(item, dark))}
     {groups.map(group => <div key={group} role="group" aria-label={group} className="pt-3">
-      <p aria-hidden="true" className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-black/35">{group}</p>
-      <div className="space-y-1">{visibleLinks.filter(item => item.group === group).map(renderLink)}</div>
+      <p aria-hidden="true" className={['px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.14em]', dark ? 'text-white/40' : 'text-black/35'].join(' ')}>{group}</p>
+      <div className="space-y-1">{visibleLinks.filter(item => item.group === group).map(item => renderLink(item, dark))}</div>
     </div>)}
   </>;
   // Personal account and platform settings (Admin) or delegations share one entry, with tabs on the page.
   const settingsActive = active('/app/settings') || pathname === '/app/dao/settings' || pathname === '/app/profile';
-  const account = <div className="shrink-0 border-t border-black/5 pt-3">
+  const account = (dark = false) => <div className={['shrink-0 border-t pt-3', dark ? 'border-white/10' : 'border-black/5'].join(' ')}>
     <Link href="/app/settings" onClick={() => setOpen(false)} aria-current={settingsActive ? 'page' : undefined}
-      className={['flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition', settingsActive ? 'bg-teal/10 text-teal' : 'text-black/60 hover:bg-sand hover:text-ink'].join(' ')}>
+      className={['flex min-h-11 items-center gap-3 rounded-control px-3 py-3 text-sm font-semibold transition', settingsActive ? (dark ? 'bg-white/10 text-white' : 'bg-teal/10 text-teal') : (dark ? 'text-white/65 hover:bg-white/5 hover:text-white' : 'text-black/60 hover:bg-sand hover:text-ink')].join(' ')}>
       <Settings size={18} className="shrink-0" aria-hidden="true" />Paramètres
     </Link>
     <div className="flex min-w-0 items-center gap-3 p-3">
       <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">{email.slice(0, 1).toUpperCase() || 'D'}</span>
-      <span className="min-w-0 flex-1"><span className="sr-only">Connecté en tant que </span><span className="block truncate text-xs text-black/45">{email}</span></span>
+      <span className="min-w-0 flex-1"><span className="sr-only">Connecté en tant que </span><span className={['block truncate text-xs', dark ? 'text-white/55' : 'text-black/45'].join(' ')}>{email}</span></span>
     </div>
-    <button type="button" onClick={() => void signOut()} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-black/55 hover:bg-red-50 hover:text-red-700"><LogOut size={18} className="shrink-0" />Déconnexion</button>
+    <button type="button" onClick={() => void signOut()} className={['flex min-h-11 w-full items-center gap-3 rounded-control px-3 py-3 text-sm font-semibold', dark ? 'text-white/65 hover:bg-white/5 hover:text-white' : 'text-black/55 hover:bg-red-50 hover:text-red-700'].join(' ')}><LogOut size={18} className="shrink-0" />Déconnexion</button>
   </div>;
 
   if (!ready) return <div className="h-10 w-10 animate-pulse rounded-xl bg-sand" aria-label="Chargement de la navigation" />;
@@ -182,15 +182,15 @@ export default function RoleNav() {
         <Link href="/app/profile" aria-label="Mon compte" className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-teal"><UserRound size={21} /></Link>
       </div>
     </header>
-    <aside className="hidden w-64 shrink-0 border-r border-black/5 bg-white lg:flex lg:flex-col">
+    <aside className={['hidden w-64 shrink-0 border-r lg:flex lg:flex-col', admin ? 'border-night bg-night text-white' : 'border-black/5 bg-white'].join(' ')}>
       <div className="sticky top-0 flex h-dvh min-h-0 flex-col p-4">
         <Link href={homeHref} className="shrink-0 px-3 py-3 text-xl font-bold tracking-tight">D.A.O<span className="text-clay">.</span></Link>
         <div className="shrink-0 px-3 pb-3">
-          <p className={['inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em]', staff ? (admin ? 'bg-ink text-white' : 'bg-teal/10 text-teal') : 'px-0 text-black/35'].join(' ')}>{workspaceLabel}</p>
-          {workspacePurpose && <p className="mt-1.5 text-xs text-black/45">{workspacePurpose}</p>}
+          <p className={['inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em]', staff ? (admin ? 'bg-white/10 text-white' : 'bg-teal/10 text-teal') : 'px-0 text-black/35'].join(' ')}>{workspaceLabel}</p>
+          {workspacePurpose && <p className={['mt-1.5 text-xs', admin ? 'text-white/55' : 'text-black/45'].join(' ')}>{workspacePurpose}</p>}
         </div>
-        <nav aria-label={workspaceLabel} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pb-3">{workspaceSwitch}{navigationLinks}</nav>
-        {account}
+        <nav aria-label={workspaceLabel} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pb-3">{workspaceSwitch}{navigationLinks(admin)}</nav>
+        {account(admin)}
       </div>
     </aside>
     {open && <div className="fixed inset-0 z-50 lg:hidden">
@@ -201,8 +201,8 @@ export default function RoleNav() {
           <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-black/45">{workspaceLabel}</p>
           {workspacePurpose && <p className="mt-0.5 text-xs text-black/45">{workspacePurpose}</p>}
         </div>
-        <nav aria-label={workspaceLabel} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">{workspaceSwitch}{navigationLinks}</nav>
-        <div className="shrink-0 px-3 pb-3">{account}</div>
+        <nav aria-label={workspaceLabel} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">{workspaceSwitch}{navigationLinks()}</nav>
+        <div className="shrink-0 px-3 pb-3">{account()}</div>
       </aside>
     </div>}
   </>;
