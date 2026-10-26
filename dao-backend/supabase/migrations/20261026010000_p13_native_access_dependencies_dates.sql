@@ -32,7 +32,9 @@ declare base jsonb;
 begin
   perform set_config('dao.native_tracking_scope','assigned',true);
   base:=dao_private.native_execution_plan_v1(p_project_id,p_after_request_id,p_limit);
-  return dao_private.native_execution_activity_overlay(p_project_id,base);
+  base:=dao_private.native_execution_activity_overlay(p_project_id,base);
+  base:=dao_private.native_execution_installment_scope_overlay(base);
+  return dao_private.native_execution_activity_event_overlay(base);
 end;
 $$;
 
