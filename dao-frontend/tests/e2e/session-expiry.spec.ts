@@ -1,4 +1,5 @@
 import { test, expect } from './support/fixtures';
+import { signOut } from './support/collaboration';
 
 // #387 phase 1: an expired or missing session is never shown as « Accès réservé »; the person reconnects and
 // lands back on the page they were reading. A deliberate « Déconnexion » shows no « session expirée » notice.
@@ -13,7 +14,7 @@ test('Session expirée : retour à la connexion avec la raison, puis à la page 
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).toHaveURL(/\/app\/dao\/review\?vue=mine$/);
 
-  await page.getByRole('button', { name: 'Déconnexion' }).first().click();
+  await signOut(page);
   await expect(page).toHaveURL(/\/auth\/login$/);
   await expect(page.getByText('Votre session a expiré')).toHaveCount(0);
 });
