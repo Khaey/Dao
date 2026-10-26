@@ -28,6 +28,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Montants en **TND millimes entiers** ; pas de taxe, devise ou somme déduite implicitement. | Permanent | D-014 |
 | Versions soumises/acceptées **immuables**, historiques **append-only**, commandes **idempotentes**, pas de suppression d'archives. | Permanent | BUSINESS_RULES §16 |
 | Les états déclaratifs ne se confondent jamais : avancement déclaré ≠ vérification Client ≠ réception ≠ échéance autorisée ≠ argent versé. | Permanent | [#408 spec gelée §8](https://github.com/Khaey/Dao/issues/408#issuecomment-6388003011) |
+| **Statuts vrais, nommés et par lot** : `client_review` = « En attente de validation D.A.O. » (jamais « Validation client ») ; l'état des conditions est lu par attribution (« Conditions convenues / à convenir ») et les liens nomment le lot (« Conditions — Plomberie ») ; « À faire » ne liste que les actions de l'utilisateur, les attentes sont séparées ; la complétude du dossier ne compte que l'obligatoire (budget et documents affichés comme facultatifs). | Livré (phase 1 UX) | [#387](https://github.com/Khaey/Dao/issues/387), [#483](https://github.com/Khaey/Dao/issues/483) |
 | Erreurs visibles : un échec de lecture n'affiche jamais « aucun chantier / aucune offre » ; `null` (non renseigné) ≠ `0 %`. | Livré | #405, #408 |
 
 ## 1. Chantier, rôles et espaces

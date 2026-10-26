@@ -72,18 +72,17 @@ const money = (value: number) => new Intl.NumberFormat('fr-TN', { style: 'curren
 
 /** « Mes chantiers attribués » — the Artisan's active awards grouped by chantier, with the useful next actions. */
 export function AwardedProjects({ projects, compact = false }: { projects: AwardedProject[]; compact?: boolean }) {
-  const live = useLiveAgreements(projects.flatMap(project => project.awardIds));
+  const states = useAgreementStates(projects.flatMap(project => project.awardIds));
   const journals = useLiveJournals(projects.map(project => project.projectId));
   if (!projects.length) return null;
   return <section aria-labelledby="awarded-title" className="rounded-2xl border border-teal/20 bg-teal/[0.03] p-5 sm:p-6">
     <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="awarded-title" className="flex items-center gap-2 text-xl font-bold text-ink"><Trophy aria-hidden="true" size={19} className="text-teal" />Mes chantiers attribués</h2><p className="text-sm text-black/55">{projects.length} chantier{projects.length > 1 ? 's' : ''} · {projects.reduce((sum, project) => sum + project.lots.length, 0)} lot{projects.reduce((sum, project) => sum + project.lots.length, 0) > 1 ? 's' : ''} retenu{projects.reduce((sum, project) => sum + project.lots.length, 0) > 1 ? 's' : ''}</p></div>
-    <p className="mt-1 text-sm text-black/60">Le Client vous a choisi pour ces lots. Les travaux ne sont pas démarrés et aucun contrat n’est signé : convenez d’abord des conditions.</p>
+    <p className="mt-1 text-sm text-black/60">Le Client vous a choisi pour ces lots. Convenir des conditions est facultatif et ne signe aucun contrat.</p>
     <ul className={`mt-4 grid gap-3 ${compact ? '' : 'lg:grid-cols-2'}`}>{projects.map(project => <li key={project.projectId} className="min-w-0 rounded-2xl border border-black/[0.06] bg-white p-4">
       <h3 className="break-words font-bold text-ink">{project.title}</h3>
-      <ul className="mt-2 divide-y divide-black/5 text-sm">{project.lots.map(lot => <li key={lot.awardItemId} className="flex flex-wrap items-baseline justify-between gap-2 py-2"><span className="min-w-0 break-words text-ink">{lot.title}</span><span className="tabular-nums text-black/60">{money(lot.agreedMillimes)}</span></li>)}</ul>
-      <p className="mt-2 text-xs text-black/55">Lot retenu · Conditions à convenir · Travaux non démarrés</p>
+      <ul className="mt-2 divide-y divide-black/5 text-sm">{project.lots.map(lot => <li key={lot.awardItemId} className="py-2"><span className="flex flex-wrap items-baseline justify-between gap-2"><span className="min-w-0 break-words text-ink">{lot.title}</span><span className="tabular-nums text-black/60">{money(lot.agreedMillimes)}</span></span><span className="mt-0.5 block text-xs text-black/55">Lot retenu{states[lot.awardId] ? ` · ${agreementStateLabel[states[lot.awardId]]}` : ''}</span></li>)}</ul>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        {project.awardIds.filter(id => live.includes(id)).map((id, index, list) => <Link key={id} href={`/app/awards/${id}/conditions`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-teal"><CalendarClock aria-hidden="true" size={16} />Voir les conditions du lot{list.length > 1 ? ` (${index + 1})` : ''}</Link>)}
+        {project.awardIds.filter(id => states[id]).map(id => <Link key={id} href={`/app/awards/${id}/conditions`} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold ${states[id] === 'agreed' ? 'border border-black/10 bg-white text-ink hover:border-teal' : 'bg-ink text-white hover:bg-teal'}`}><CalendarClock aria-hidden="true" size={16} />{conditionsLinkLabel(project.lots, id)}</Link>)}
         {journals.includes(project.projectId) && <Link href={`/app/execution/${project.projectId}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink hover:border-teal"><Hammer aria-hidden="true" size={16} />Carnet de chantier</Link>}
         {project.publicationId && <Link href={`/app/artisan/publications/${project.publicationId}`} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl px-3 text-sm font-semibold text-teal hover:bg-teal/5">Voir le DAO<ChevronRight aria-hidden="true" size={15} /></Link>}
       </div>
@@ -91,15 +90,50 @@ export function AwardedProjects({ projects, compact = false }: { projects: Award
   </section>;
 }
 
-export function useLiveAgreements(awardIds: string[]) {
-  const [live, setLive] = useState<string[]>([]);
+/** Where « Conditions et calendrier » really stands for one award, from the viewer's own agreement snapshot. */
+export type AgreementState = 'none' | 'to_answer' | 'waiting' | 'agreed';
+export const agreementStateLabel: Record<AgreementState, string> = {
+  none: 'Conditions à convenir',
+  to_answer: 'Proposition de conditions à examiner',
+  waiting: 'Conditions proposées, en attente de réponse',
+  agreed: 'Conditions convenues',
+};
+
+/** Agreement state per award whose agreement service answers; unreadable awards are absent (never guessed). */
+export function useAgreementStates(awardIds: string[]) {
+  const [states, setStates] = useState<Record<string, AgreementState>>({});
   const key = awardIds.join(',');
   useEffect(() => {
     let active = true;
-    void Promise.all(awardIds.map(id => readAgreement(id).then(() => id).catch(() => null))).then(rows => { if (active) setLive(rows.filter((id): id is string => Boolean(id))); });
+    void Promise.all(awardIds.map(id => readAgreement(id).then(snapshot => {
+      const status = snapshot?.agreement?.status;
+      const state: AgreementState = status === 'agreed' ? 'agreed' : status === 'negotiating' ? (snapshot.permissions?.can_accept ? 'to_answer' : 'waiting') : 'none';
+      return [id, state] as const;
+    }).catch(() => null))).then(rows => { if (active) setStates(Object.fromEntries(rows.filter((row): row is readonly [string, AgreementState] => Boolean(row)))); });
     return () => { active = false; };
   }, [key]);
-  return live;
+  return states;
+}
+
+export function useLiveAgreements(awardIds: string[]) {
+  return Object.keys(useAgreementStates(awardIds));
+}
+
+/** « Conditions — Plomberie » instead of an anonymous « (1) / (2) » when a chantier has several awards. */
+export function conditionsLinkLabel(lots: AwardedLot[], awardId: string, base = 'Conditions et calendrier') {
+  const titles = lots.filter(lot => lot.awardId === awardId).map(lot => lot.title);
+  return titles.length ? `Conditions — ${titles.join(' + ')}` : base;
+}
+
+/** One honest line for several awards: « Conditions convenues », « 1 lot sur 2 avec conditions convenues »… */
+export function agreementSummary(lots: AwardedLot[], states: Record<string, AgreementState>) {
+  const known = lots.filter(lot => states[lot.awardId]);
+  if (!lots.length || known.length < lots.length) return undefined;
+  const agreed = known.filter(lot => states[lot.awardId] === 'agreed').length;
+  if (agreed === lots.length) return agreementStateLabel.agreed;
+  if (agreed > 0) return `Conditions convenues pour ${agreed} lot${agreed > 1 ? 's' : ''} sur ${lots.length}`;
+  const first = states[lots[0].awardId];
+  return lots.every(lot => states[lot.awardId] === first) ? agreementStateLabel[first] : 'Conditions en cours';
 }
 
 /** Projects whose award-scoped journal answers for this viewer (hidden while the service fails, e.g. #355). */

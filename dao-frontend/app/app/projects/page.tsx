@@ -8,7 +8,7 @@ import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { stageLabels } from '../../../lib/collaboration';
 import { effectiveProjectStatus, displayProjectStatus, approvedVersionLabel, statusLabel } from '../../../lib/utils';
 import { DossierMeter, dossierStepText, dossierSummary, ErrorPanel, fieldClass, Pill, primaryAction, StatusPill } from './_components/ProjectUi';
-import { useAwardedWork, useLiveAgreements, useLiveJournals, type AwardedProject } from '../../../components/artisan/AwardedWork';
+import { agreementSummary, conditionsLinkLabel, useAgreementStates, useAwardedWork, useLiveJournals, type AgreementState, type AwardedProject } from '../../../components/artisan/AwardedWork';
 import RowActions, { type RowAction } from '../../../components/projects/RowActions';
 import { clientOfferLabels, myOfferLabels, useClientOffers, useMyOffers, type ClientOffers, type MyOfferState } from '../../../components/projects/offer-signals';
 
@@ -30,8 +30,9 @@ const subscribeWide = (notify: () => void) => { const media = window.matchMedia(
 const useWideLayout = () => useSyncExternalStore(subscribeWide, () => window.matchMedia(wideQuery).matches, () => true);
 
 /** Commercial state of a line, from ACTIVE awards only; never « travaux » or « contrat » from an award alone. */
-function commercial(line: Line): { text: string; tone: 'teal' | 'clay'; sub?: string } | null {
-  if (line.award) { const count = line.award.lots.length; return { text: count > 1 ? `${count} lots attribués` : 'Lot attribué', tone: 'teal', sub: 'Conditions à convenir' }; }
+// The conditions line comes from each award's real agreement state; it stays empty while that state is unknown.
+function commercial(line: Line, agreements: Record<string, AgreementState> = {}): { text: string; tone: 'teal' | 'clay'; sub?: string } | null {
+  if (line.award) { const count = line.award.lots.length; return { text: count > 1 ? `${count} lots attribués` : 'Lot attribué', tone: 'teal', sub: agreementSummary(line.award.lots, agreements) }; }
   const offers = line.offers;
   if (offers && offers.awardedLots > 0) return offers.awardedLots >= offers.lots ? { text: offers.lots > 1 ? 'Tous les lots attribués' : 'Artisan choisi', tone: 'teal' } : { text: `${offers.awardedLots} lots sur ${offers.lots} attribués`, tone: 'clay' };
   return null;
@@ -75,15 +76,15 @@ export default function Projects() {
     }
     return [...byId.values()];
   }, [rows, awarded.projects, clientOffers.signals, myOffers.byProject, contractor]);
-  const liveAgreements = useLiveAgreements(lines.flatMap(line => line.award?.awardIds ?? []));
+  const agreementStates = useAgreementStates(lines.flatMap(line => line.award?.awardIds ?? []));
   const liveJournals = useLiveJournals(lines.filter(line => line.award && !line.project).map(line => line.id));
 
   const filtered = useMemo(() => { const normalized = query.trim().toLocaleLowerCase('fr'); return lines.filter(line => {
     const project = line.project;
     const matchesStatus = !status || (status in businessStatuses ? businessStatus(line).has(status) : project ? displayProjectStatus(project.status) === status : false);
     const matchesOffers = !offerFilter || (contractor ? line.myOffers === offerFilter : line.offers?.state === offerFilter);
-    const text = [line.title, project?.location, project ? typeLabels[project.project_type] : '', project ? statusLabel[displayProjectStatus(project.status)] : '', commercial(line)?.text, ...(line.award?.lots.map(lot => lot.title) ?? [])].join(' ').toLocaleLowerCase('fr');
-    return matchesStatus && matchesOffers && (!normalized || text.includes(normalized)); }); }, [query, lines, status, offerFilter, contractor]);
+    const text = [line.title, project?.location, project ? typeLabels[project.project_type] : '', project ? statusLabel[displayProjectStatus(project.status)] : '', commercial(line, agreementStates)?.text, ...(line.award?.lots.map(lot => lot.title) ?? [])].join(' ').toLocaleLowerCase('fr');
+    return matchesStatus && matchesOffers && (!normalized || text.includes(normalized)); }); }, [query, lines, status, offerFilter, contractor, agreementStates]);
   const filtersActive = Boolean(query || status || offerFilter);
   const clearFilters = () => { setQuery(''); setStatus(''); setOfferFilter(''); };
   const createLabel = contractor ? 'Ajouter un chantier client' : 'Nouveau chantier';
@@ -102,7 +103,7 @@ export default function Projects() {
   const nativeTracking = (projectId: string): RowAction => ({ label: 'Tableau de suivi et Gantt', href: `/app/native-execution/${projectId}` });
   function actions(line: Line): { primary: RowAction | null; more: RowAction[] } {
     const more: RowAction[] = [];
-    const conditions = (line.award?.awardIds ?? []).filter(id => liveAgreements.includes(id)).map((id, index, list) => ({ label: `Conditions et calendrier${list.length > 1 ? ` (${index + 1})` : ''}`, href: `/app/awards/${id}/conditions` }));
+    const conditions = (line.award?.awardIds ?? []).filter(id => agreementStates[id]).map((id, _index, list) => ({ label: list.length > 1 ? conditionsLinkLabel(line.award!.lots, id) : 'Conditions et calendrier', href: `/app/awards/${id}/conditions` }));
     const dao = line.award?.publicationId ? { label: 'Voir le DAO', href: `/app/artisan/publications/${line.award.publicationId}` } : null;
     if (line.project) {
       const open = { label: 'Ouvrir', href: `/app/projects/${line.id}` };
@@ -138,7 +139,7 @@ export default function Projects() {
     router.push(href);
   };
 
-  const statusCell = (line: Line) => { const business = commercial(line), project = line.project; return <>
+  const statusCell = (line: Line) => { const business = commercial(line, agreementStates), project = line.project; return <>
     {business ? <Pill tone={business.tone}>{business.text}</Pill> : project ? <StatusPill status={displayProjectStatus(project.status)} /> : null}
     {business?.sub && <p className="mt-1.5 text-xs font-medium text-ink/70">{business.sub}</p>}
     {project && business && <p className="mt-1.5 text-xs text-ink/65">Dossier : {statusLabel[displayProjectStatus(project.status)] ?? 'à préciser'}</p>}

@@ -128,12 +128,12 @@ test('Projet autonome : création, édition, lot principal et soumission @fast',
 
   await page.goto(`/app/projects/${project.projectId}/review`);
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(page.getByText('Validation client', { exact: true })).toBeVisible();
+  await expect(page.getByText('En attente de validation D.A.O.', { exact: true })).toBeVisible();
 
   await page.goto('/app');
   const dashboardProject = page.getByRole('link').filter({ hasText: laterTitle });
   await expect(dashboardProject).toHaveCount(1);
-  await expect(dashboardProject).toContainText('Validation client');
+  await expect(dashboardProject).toContainText('En attente de validation D.A.O.');
   await page.goto('/app/projects');
   await page.getByLabel('Rechercher un projet').fill(laterTitle);
   await page.getByLabel('Filtrer par statut').selectOption('client_review');
