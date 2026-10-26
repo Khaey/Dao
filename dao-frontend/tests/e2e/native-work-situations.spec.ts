@@ -11,6 +11,17 @@ const ITEM_B = '00000000-0000-4000-a000-0000000000a2';
 const SITUATION = '00000000-0000-4000-b000-0000000000b1';
 const LINE_A = '00000000-0000-4000-c000-0000000000d1';
 const LINE_B = '00000000-0000-4000-c000-0000000000d2';
+const EVENT_1 = '00000000-0000-4000-e000-0000000000e1';
+const EVENT_2 = '00000000-0000-4000-e000-0000000000e2';
+const DOC = '00000000-0000-4000-d000-0000000000d9';
+// Carnet : deux interventions en m² dans la période, une hors période, une sans quantité, une sur l’autre lot en ml.
+const journal = { project_id: PROJECT, can_observe: false, lots: [], next_cursor: null, events: [
+  { id: EVENT_1, kind: 'intervention', award_item_id: ITEM_A, work_date: '2026-10-03', created_at: '2026-10-03T09:00:00Z', quantity: { executed_quantity_milli: 5000, unit: 'm²' } },
+  { id: EVENT_2, kind: 'intervention', award_item_id: ITEM_A, work_date: '2026-10-10', created_at: '2026-10-10T09:00:00Z', quantity: { executed_quantity_milli: 7500, unit: 'm²' } },
+  { id: '00000000-0000-4000-e000-0000000000e3', kind: 'intervention', award_item_id: ITEM_A, work_date: '2026-10-20', created_at: '2026-10-20T09:00:00Z', quantity: { executed_quantity_milli: 9000, unit: 'm²' } },
+  { id: '00000000-0000-4000-e000-0000000000e4', kind: 'intervention', award_item_id: ITEM_A, work_date: '2026-10-05', created_at: '2026-10-05T09:00:00Z', quantity: null },
+  { id: '00000000-0000-4000-e000-0000000000e5', kind: 'intervention', award_item_id: ITEM_B, work_date: '2026-10-06', created_at: '2026-10-06T09:00:00Z', quantity: { executed_quantity_milli: 2000, unit: 'ml' } },
+] };
 
 type Workspace = 'client' | 'contractor' | 'dao_manager';
 const lot = (requestId: string, awardItemId: string, title: string, declare: boolean) => ({
@@ -47,6 +58,9 @@ type State = { list: unknown[]; detail: unknown; listStatus?: number; posts: any
 async function stub(page: Page, workspace: Workspace, state: State) {
   const json = (route: Route, status: number, body: unknown) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   await page.route(/\/api\/projects\/native-execution\?/, route => json(route, 200, { data: plan(workspace) }));
+  await page.route(/\/api\/projects\/execution\?/, route => json(route, 200, { data: journal }));
+  await page.route(/\/rest\/v1\/documents\?/, route => route.request().method() === 'GET'
+    ? json(route, 200, [{ id: DOC, original_name: 'photo-murs.jpg', owner_id: CONTRACTOR, share_scope: 'project_members', status: 'approved' }]) : route.continue());
   await page.route(/\/api\/projects\/native-execution\/work-situations\/events\?/, route => json(route, 200, { data: events }));
   await page.route(/\/api\/projects\/native-execution\/work-situations(\?|$)/, async route => {
     const request = route.request();
@@ -76,13 +90,21 @@ test('Situations de travaux : l’Artisan crée un brouillon multi-lots en quant
   await openTracking(page);
   const situations = panel(page);
   await expect(situations.getByText('Aucune situation de travaux sur ce chantier pour l’instant.', { exact: false })).toBeVisible();
+  await expect(situations.getByText('Une intervention du carnet ne crée pas de situation', { exact: false })).toBeVisible();
   await situations.getByRole('button', { name: 'Nouvelle situation de travaux' }).click();
   const form = situations.getByRole('form', { name: 'Nouvelle situation de travaux' });
   await form.getByLabel('Début de période').fill('2026-10-01');
   await form.getByLabel('Fin de période').fill('2026-10-15');
   await form.getByLabel('Intitulé').fill('Murs porteurs');
   await form.getByLabel('Unité').fill('m²');
-  await form.getByLabel('Quantité déclarée').fill('12,5');
+  // Optional link to the journal: only the two in-period m² interventions of the lot are offered; the quantity becomes their sum.
+  await form.getByText('Interventions et justificatifs — facultatif').first().click();
+  const sources = form.getByRole('group', { name: 'Interventions du carnet' }).first();
+  await expect(sources.getByRole('checkbox')).toHaveCount(2);
+  await sources.getByRole('checkbox').nth(0).check();
+  await sources.getByRole('checkbox').nth(1).check();
+  await expect(form.getByLabel('Quantité déclarée').first()).toHaveValue('12,5');
+  await form.getByRole('group', { name: 'Justificatifs' }).first().getByRole('checkbox', { name: 'photo-murs.jpg' }).check();
   await form.getByRole('button', { name: 'Ajouter une ligne' }).click();
   await form.getByLabel('Lot').nth(1).selectOption({ label: 'Lot carrelage' });
   await form.getByLabel('Intitulé').nth(1).fill('Faïence');
@@ -95,6 +117,9 @@ test('Situations de travaux : l’Artisan crée un brouillon multi-lots en quant
   expect(create).toMatchObject({ action: 'create', project_id: PROJECT, contractor_id: CONTRACTOR, period_start: '2026-10-01', period_end: '2026-10-15' });
   expect(create.idempotency_key).toMatch(/^ws-/);
   expect(create.lines.map((line: any) => [line.award_item_id, line.quantity_reported_milli])).toEqual([[ITEM_A, '12500'], [ITEM_B, '3000']]);
+  expect(create.lines[0]).toMatchObject({ evidence_document_ids: [DOC] });
+  expect([...create.lines[0].source_event_ids].sort()).toEqual([EVENT_1, EVENT_2]);
+  expect(create.lines[1]).toMatchObject({ source_event_ids: [], evidence_document_ids: [] });
   await expect(situations.getByRole('button', { name: 'Soumettre au Client' })).toBeVisible();
   await expect(situations.getByRole('button', { name: 'Modifier le brouillon' })).toBeVisible();
   await expect(situations.getByRole('button', { name: 'Valider techniquement les quantités' })).toHaveCount(0);

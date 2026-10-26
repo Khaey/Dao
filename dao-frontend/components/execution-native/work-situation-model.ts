@@ -53,3 +53,26 @@ export function situationActions(workspace: NativeExecutionWorkspace, status: Si
   }
   return opts.canComment && ['submitted', 'under_review', 'contested'].includes(status) ? ['manager_suggestion'] : [];
 }
+
+/** Intervention du carnet de chantier telle que renvoyée par l’API du carnet (quantité facultative). */
+export type JournalIntervention = { id: string; kind: string; award_item_id: string; work_date?: string | null; created_at: string;
+  quantity?: { executed_quantity_milli: number | string; unit?: string | null; quote_line_id?: string | null; designation?: string | null } | null };
+
+/**
+ * Interventions rattachables à une ligne : même lot, même unité (et même poste du devis s’il est choisi), quantité renseignée,
+ * date des travaux dans la période et non déjà rattachées à une autre ligne. Le serveur revérifie tout et exige la somme exacte.
+ */
+export function attachableInterventions(events: JournalIntervention[], line: { awardItemId: string; quoteLineId: string; unit: string },
+  period: { start: string; end: string }, takenElsewhere: Set<string>): JournalIntervention[] {
+  const unit = line.unit.trim();
+  return events.filter(event => event.kind === 'intervention' && event.award_item_id === line.awardItemId && event.quantity
+    && /^\d+$/.test(String(event.quantity.executed_quantity_milli)) && (!unit || (event.quantity.unit ?? '') === unit)
+    && (!line.quoteLineId || event.quantity.quote_line_id === line.quoteLineId)
+    && (!period.start || (event.work_date ?? '') >= period.start) && (!period.end || (event.work_date ?? '') <= period.end)
+    && !takenElsewhere.has(event.id));
+}
+
+/** Somme exacte (BigInt) des quantités des interventions choisies, en milli-unités. */
+export function sumMilli(events: JournalIntervention[]): string {
+  return events.reduce((total, event) => total + BigInt(String(event.quantity?.executed_quantity_milli ?? 0)), BigInt(0)).toString();
+}
