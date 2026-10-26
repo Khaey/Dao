@@ -73,7 +73,6 @@ const money = (value: number) => new Intl.NumberFormat('fr-TN', { style: 'curren
 /** « Mes chantiers attribués » — the Artisan's active awards grouped by chantier, with the useful next actions. */
 export function AwardedProjects({ projects, compact = false }: { projects: AwardedProject[]; compact?: boolean }) {
   const states = useAgreementStates(projects.flatMap(project => project.awardIds));
-  const journals = useLiveJournals(projects.map(project => project.projectId));
   if (!projects.length) return null;
   return <section aria-labelledby="awarded-title" className="rounded-2xl border border-teal/20 bg-teal/[0.03] p-5 sm:p-6">
     <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="awarded-title" className="flex items-center gap-2 text-xl font-bold text-ink"><Trophy aria-hidden="true" size={19} className="text-teal" />Mes chantiers attribués</h2><p className="text-sm text-black/55">{projects.length} chantier{projects.length > 1 ? 's' : ''} · {projects.reduce((sum, project) => sum + project.lots.length, 0)} lot{projects.reduce((sum, project) => sum + project.lots.length, 0) > 1 ? 's' : ''} retenu{projects.reduce((sum, project) => sum + project.lots.length, 0) > 1 ? 's' : ''}</p></div>
@@ -83,7 +82,7 @@ export function AwardedProjects({ projects, compact = false }: { projects: Award
       <ul className="mt-2 divide-y divide-black/5 text-sm">{project.lots.map(lot => <li key={lot.awardItemId} className="py-2"><span className="flex flex-wrap items-baseline justify-between gap-2"><span className="min-w-0 break-words text-ink">{lot.title}</span><span className="tabular-nums text-black/60">{money(lot.agreedMillimes)}</span></span><span className="mt-0.5 block text-xs text-black/55">Lot retenu{states[lot.awardId] ? ` · ${agreementStateLabel[states[lot.awardId]]}` : ''}</span></li>)}</ul>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {project.awardIds.filter(id => states[id]).map(id => <Link key={id} href={`/app/awards/${id}/conditions`} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold ${states[id] === 'agreed' ? 'border border-black/10 bg-white text-ink hover:border-teal' : 'bg-ink text-white hover:bg-teal'}`}><CalendarClock aria-hidden="true" size={16} />{conditionsLinkLabel(project.lots, id)}</Link>)}
-        {journals.includes(project.projectId) && <Link href={`/app/execution/${project.projectId}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink hover:border-teal"><Hammer aria-hidden="true" size={16} />Carnet de chantier</Link>}
+        <Link href={`/app/native-execution/${project.projectId}`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink hover:border-teal"><Hammer aria-hidden="true" size={16} />Suivi du chantier</Link>
         {project.publicationId && <Link href={`/app/artisan/publications/${project.publicationId}`} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl px-3 text-sm font-semibold text-teal hover:bg-teal/5">Voir le DAO<ChevronRight aria-hidden="true" size={15} /></Link>}
       </div>
     </li>)}</ul>

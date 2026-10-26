@@ -35,7 +35,7 @@ test('Artisan initiateur : client à confirmer, confirmation distincte du DAO et
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 'Le tableau de bord client doit tenir dans la largeur de l’écran').toBe(0);
   await page.goto(`/app/projects/${project.projectId}`);
   await expect(page.getByRole('heading', { name: project.title, exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivi du chantier', exact: true }).click();
   await page.getByLabel('Avancement actuel du chantier').selectOption('completed');
   await page.getByLabel('Situation du paiement — optionnel').selectOption('unpaid');
   await page.getByRole('button', { name: 'Enregistrer le suivi' }).click();

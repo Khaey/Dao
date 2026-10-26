@@ -105,6 +105,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Activités d'exécution post-award versionnées, propositions acceptées par les parties (`native_execution_activit*`). | Livré | #409 N2, #410, #416 |
 | Dates par provenance : devis proposé, **baseline convenue** (accord), prévision révisable, réel ; une prévision ne réécrit jamais une date acceptée. Activité sans date visible au Tableau, absente du Gantt. | Livré | #408 §7 |
 | Dépendances **Fin→Début, latence 0** en V1 ; graphe acyclique validé serveur ; liens inter-lots confirmés par le Client ; CPM natif (chemin critique, prévision, retard) sans OCE. Liens mixtes lot↔activité ne dégradent pas le forecast. | Livré | #413/#415/#422/#427, #433 |
+| **Une seule entrée « Suivi du chantier »** (`/app/native-execution/[id]`) : sections Lots et planning (Tableau/Gantt, dates, sous-lots, dépendances, jalons, contrôles, situations), Carnet de chantier (avancement, interventions), Documents, Conditions ; chaque section n'apparaît que si les droits serveur répondent. `/app/execution/[id]` redirige vers le Carnet. Le planning global/OCE est replié comme option dans l'onglet « Suivi du chantier » de la fiche. Aucun module supprimé. | Livré (phase 2 UX) | [#387](https://github.com/Khaey/Dao/issues/387) |
 | Tableau et Gantt lisent **une seule source** ; Gantt de lecture accessible depuis « Mes chantiers ». | Livré | #414, #420, #427 |
 | Planning global OCE (`project_plan_*`) : historique/comparaison, jamais affiché comme calcul natif. | Livré | #325, #408 audit |
 

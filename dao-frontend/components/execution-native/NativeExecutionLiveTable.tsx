@@ -78,7 +78,7 @@ function Row({ node, lot, expanded, onToggle, onOptions, subLot = false }: {
 }
 
 /** Vraie lecture N1 du backend DEV 3, sans modifier les pages #346/#356. */
-export default function NativeExecutionLiveTable({ projectId }: { projectId: string }) {
+export default function NativeExecutionLiveTable({ projectId, onOpenJournal }: { projectId: string; onOpenJournal?: () => void }) {
   const [state, setState] = useState<{ phase: 'loading' | 'ready' | 'error'; dto: NativeExecutionPlanDTO | null; message: string }>({
     phase: 'loading', dto: null, message: '',
   });
@@ -125,7 +125,7 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
   const role = dto?.viewer.workspace ?? null;
   return <section className="mx-auto w-full max-w-7xl space-y-5" aria-label="Suivi natif du chantier">
     <Card className="space-y-3">
-      <SectionHeading title="Tableau de suivi du chantier" description="Un seul parcours. Dates, sous-lots, dépendances, jalons et échéancier restent facultatifs." />
+      <SectionHeading title="Lots et planning" description="Tableau ou Gantt des lots attribués. Les dates portent leur provenance : proposées dans le devis, convenues entre les parties, ou constatées sur le chantier." />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-black/60">{role && <>Vue <strong>{workspaceLabels[role]}</strong> · </>}Lecture de vos lots autorisés</div>
         <div className="flex flex-wrap items-center gap-2">
@@ -163,8 +163,8 @@ export default function NativeExecutionLiveTable({ projectId }: { projectId: str
         <div><dt className="text-black/50">Échéances informatives</dt><dd>{selected.installmentInformational ? selected.installmentCount : 'Non disponibles'}</dd></div>
       </dl>
       <div className="flex flex-wrap gap-2">
-        {selected.awardId && (selected.canDeclareProgress || selected.canReviewProgress) && <Link className={outline + ' hover:bg-sand'} href={'/app/execution/' + encodeURIComponent(projectId)}>Suivre les travaux</Link>}
-        {selected.awardId && role !== 'dao_manager' && selected.canRead && <Link className={outline + ' hover:bg-sand'} href={'/app/awards/' + encodeURIComponent(selected.awardId) + '/conditions'}>Voir les conditions du lot</Link>}
+        {selected.awardId && (selected.canDeclareProgress || selected.canReviewProgress) && onOpenJournal && <button type="button" className={outline + ' hover:bg-sand'} onClick={onOpenJournal}>Carnet : avancement et interventions</button>}
+        {selected.awardId && role !== 'dao_manager' && selected.canRead && <Link className={outline + ' hover:bg-sand'} href={'/app/awards/' + encodeURIComponent(selected.awardId) + '/conditions'}>{'Conditions — ' + selected.title}</Link>}
       </div>
       {(role === 'client' || role === 'dao_manager') && <NativeLotDatesForm key={selected.requestId} projectId={projectId} lotId={selected.requestId} onSaved={reload} />}
       {(() => {
