@@ -118,7 +118,7 @@ test('Situations de travaux : le Client démarre la revue, gère le conflit puis
   await expect(situations.getByRole('cell', { name: '12,5' })).toBeVisible();
   await situations.getByRole('button', { name: 'Démarrer la revue' }).click();
   await situations.getByRole('form', { name: 'Démarrer la revue' }).getByRole('button', { name: 'Confirmer' }).click();
-  expect(state.posts[0]).toMatchObject({ action: 'start_review', situation_id: SITUATION, expected_revision: 2 });
+  await expect.poll(() => state.posts[0]).toMatchObject({ action: 'start_review', situation_id: SITUATION, expected_revision: 2 });
 
   await situations.getByRole('button', { name: 'Valider techniquement les quantités' }).click();
   let decision = situations.getByRole('form', { name: 'Valider techniquement les quantités' });
@@ -154,7 +154,7 @@ test('Situations de travaux : le Gestionnaire suggère seulement et un refus res
   await situations.getByLabel('Quantité pour Murs porteurs').fill('12');
   await situations.getByRole('form', { name: 'Suggérer des quantités' }).getByRole('button', { name: 'Confirmer' }).click();
   await expect(situations.getByRole('status').filter({ hasText: 'Suggestion transmise' })).toBeVisible();
-  expect(state.posts[0]).toMatchObject({ action: 'manager_suggestion', expected_revision: 3, validated_lines: [{ line_id: LINE_A, quantity_milli: '12000' }] });
+  await expect.poll(() => state.posts[0]).toMatchObject({ action: 'manager_suggestion', expected_revision: 3, validated_lines: [{ line_id: LINE_A, quantity_milli: '12000' }] });
 
   state.listStatus = 403;
   await page.reload();
