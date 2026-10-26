@@ -72,7 +72,7 @@ export default function AssistantWidget() {
   return <div className="print:hidden">
     {!open && <button ref={trigger} type="button" onClick={() => { opener.current = null; setOpen(true); }} aria-haspopup="dialog" aria-expanded={false} aria-controls={panelId}
       aria-label="Aide D.A.O." title="Aide D.A.O."
-      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[45] inline-flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white shadow-[0_10px_30px_rgba(23,32,42,0.25)] transition hover:bg-teal focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/40 sm:right-6 sm:bottom-6 [body:has([data-dao-bottom-bar])_&]:bottom-28 sm:[body:has([data-dao-bottom-bar])_&]:bottom-28">
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[45] inline-flex h-12 w-12 items-center justify-center rounded-full bg-teal text-white shadow-[0_10px_30px_rgba(23,32,42,0.25)] transition hover:bg-tealdark focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/40 sm:right-6 sm:bottom-6 [body:has([data-dao-bottom-bar])_&]:bottom-28 sm:[body:has([data-dao-bottom-bar])_&]:bottom-28">
       <MessageCircleQuestion aria-hidden="true" size={22} />
     </button>}
 

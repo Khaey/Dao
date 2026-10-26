@@ -21,7 +21,7 @@ export default function TradeProposalLink({ context }: { context: 'project' | 'p
   return <div className="mt-2 space-y-2 rounded-xl bg-sand/60 p-3 text-sm">
     <label className="block text-xs font-semibold">Métier à proposer<input aria-label="Métier à proposer" className="mt-1 min-h-11 w-full rounded-xl border border-black/10 bg-white px-3" maxLength={80} value={label}
       onChange={event => setLabel(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (label.trim().length >= 2 && !busy) void submit(); } }} placeholder="Ex. Pisciniste" /></label>
-    <div className="flex gap-2"><button type="button" disabled={busy || label.trim().length < 2} onClick={() => void submit()} className="min-h-10 rounded-xl bg-ink px-3 text-xs font-semibold text-white disabled:opacity-50">{busy ? 'Envoi…' : 'Envoyer la proposition'}</button>
+    <div className="flex gap-2"><button type="button" disabled={busy || label.trim().length < 2} onClick={() => void submit()} className="min-h-10 rounded-xl bg-teal px-3 text-xs font-semibold text-white hover:bg-tealdark disabled:opacity-50">{busy ? 'Envoi…' : 'Envoyer la proposition'}</button>
       <button type="button" onClick={() => { setOpen(false); setResult({}); }} className="min-h-10 rounded-xl px-3 text-xs font-semibold text-black/60">Fermer</button></div>
     {result.ok && <p role="status" className="text-xs text-teal">{result.ok}</p>}
     {result.error && <p role="alert" className="text-xs text-red-700">{result.error}</p>}

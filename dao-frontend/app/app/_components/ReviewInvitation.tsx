@@ -12,7 +12,7 @@ export function pendingReviewOpportunities(items: ReviewOpportunity[]) {
 }
 
 const SHOWN = 2;
-const cta = 'inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl md:max-lg:w-auto xl:w-auto bg-ink px-5 text-sm font-semibold text-white transition hover:bg-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal';
+const cta = 'inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl md:max-lg:w-auto xl:w-auto bg-teal px-5 text-sm font-semibold text-white transition hover:bg-tealdark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal';
 
 /**
  * Client dashboard: a non-persistent invitation to review the professionals of started chantiers.

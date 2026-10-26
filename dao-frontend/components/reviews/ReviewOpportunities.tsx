@@ -48,7 +48,7 @@ function Opportunity({ item, showProject, onChanged }: { item: ReviewOpportunity
       onSaved={async (status) => { setEditing(false); setNotice(status === 'hidden' ? 'Avis enregistré. Il reste masqué jusqu’à la décision de D.A.O.' : 'Merci ! Votre avis est publié.'); await onChanged(); }} />
       : <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => { setEditing(true); setNotice(''); setConfirming(false); }}
-          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-4 focus:ring-teal/20 ${active ? 'border border-black/10 bg-white text-ink hover:border-teal hover:text-teal' : 'bg-ink text-white hover:bg-teal'}`}>
+          className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition focus:outline-none focus:ring-4 focus:ring-teal/20 ${active ? 'border border-black/10 bg-white text-ink hover:border-teal hover:text-teal' : 'bg-teal text-white hover:bg-tealdark'}`}>
           {active ? 'Modifier mon avis' : <><Star aria-hidden="true" size={16} />Donner mon avis</>}
         </button>
         {active && !confirming && <button type="button" onClick={() => setConfirming(true)}

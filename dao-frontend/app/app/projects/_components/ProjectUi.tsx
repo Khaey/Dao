@@ -130,6 +130,6 @@ export function ErrorPanel({ title, message, onRetry, backHref }: { title: strin
 }
 
 /* Styles d’action partagés par les deux écrans (liens et boutons). */
-export const primaryAction = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50';
+export const primaryAction = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-tealdark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50';
 export const secondaryAction = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-ink ring-1 ring-inset ring-black/10 transition hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50';
 export const fieldClass = 'min-h-11 w-full rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm text-ink transition focus:border-teal focus:outline-none focus:ring-4 focus:ring-teal/10';

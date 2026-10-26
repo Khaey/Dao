@@ -43,7 +43,7 @@ export default function Home() {
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link className={`rounded-xl px-3 py-2 text-sm font-semibold text-ink hover:bg-ink/5 ${focus}`} href="/auth/login">Se connecter</Link>
-            <Link className={`rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-ink/90 ${focus}`} href="/auth/register">Créer un compte</Link>
+            <Link className={`rounded-xl bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-tealdark ${focus}`} href="/auth/register">Créer un compte</Link>
           </div>
         </div>
       </header>
@@ -55,7 +55,7 @@ export default function Home() {
             <h1 id="titre-hero" className="mt-4 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">Du projet au chantier, chaque étape devient claire.</h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-ink/70">D.A.O réunit maîtres d’ouvrage, artisans et entreprises dans un même espace : décrire les travaux par lots, comparer des offres et suivre le chantier ensemble.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/auth/register" className={`inline-flex items-center justify-center rounded-xl bg-ink px-6 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-ink/90 ${focus}`}>J’ai un projet</Link>
+              <Link href="/auth/register" className={`inline-flex items-center justify-center rounded-xl bg-teal px-6 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-tealdark ${focus}`}>J’ai un projet</Link>
               <Link href="/auth/register" className={`inline-flex items-center justify-center rounded-xl border-2 border-ink bg-transparent px-6 py-3.5 text-base font-semibold text-ink hover:bg-ink hover:text-white ${focus}`}>Je suis professionnel</Link>
             </div>
             <p className="mt-4 text-sm text-ink/65">À l’inscription, vous choisissez votre type de compte : Client ou Artisan / Entreprise.</p>

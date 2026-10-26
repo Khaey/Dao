@@ -63,7 +63,7 @@ function ReportControl({ reviewId }: { reviewId: string }) {
       <option value="">Motif…</option>
       {Object.entries(reportReasons).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
     </select>
-    <button type="button" disabled={state === 'sending'} onClick={() => void send()} className="min-h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-teal disabled:opacity-60">{state === 'sending' ? 'Envoi…' : 'Signaler'}</button>
+    <button type="button" disabled={state === 'sending'} onClick={() => void send()} className="min-h-11 rounded-xl bg-teal px-4 text-sm font-semibold text-white hover:bg-tealdark disabled:opacity-60">{state === 'sending' ? 'Envoi…' : 'Signaler'}</button>
     <button type="button" onClick={() => { setOpen(false); setMessage(''); }} className="min-h-11 px-2 text-sm font-semibold text-black/55">Annuler</button>
     {message && <p role="alert" className="w-full text-xs text-red-700">{message}</p>}
   </div>;
