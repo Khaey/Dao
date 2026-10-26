@@ -109,6 +109,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
   await artisan.getByLabel('Délai (jours)').fill('22');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');
+  // #387 phase 2: price, delay and proposal first; posts, sub-lots and exclusions sit under one optional summary.
+  await artisan.locator('summary').filter({hasText:'Détailler ce lot (facultatif)'}).click();
   await artisan.getByRole('button',{name:'Ajouter un poste'}).click();
   await artisan.getByLabel('Catégorie').selectOption('materials');
   await artisan.getByLabel('Désignation').fill('Tube cuivre');
@@ -116,6 +118,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Quantité').fill('2');
   await artisan.getByLabel('PU TND').fill('13000');
   await expect(artisan.getByText('Total du lot :')).toContainText('26');
+  // The delete button must fit the mobile width once scrolled to (the optional block moved the row lower).
+  await artisan.getByRole('button',{name:'Supprimer le poste 1'}).scrollIntoViewIfNeeded();
   await expect(artisan.getByRole('button',{name:'Supprimer le poste 1'})).toBeInViewport();
   expect(await artisan.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
   // #325 : décomposition technique proposée + enchaînement (proposition seulement, l'attribution reste par lot).
@@ -127,6 +131,7 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Sous-lot 2',{exact:true}).fill('Câblage E2E');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Début',{exact:true}).fill('2027-01-15');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Fin',{exact:true}).fill('2027-01-20');
+  await artisan.locator('summary').filter({hasText:'Compléments facultatifs'}).click();
   await artisan.getByRole('button',{name:'Ajouter un lien'}).click();
   const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');
   const successorValue=await artisan.locator('option',{hasText:'Câblage E2E'}).first().getAttribute('value');
