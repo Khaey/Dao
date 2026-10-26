@@ -103,10 +103,12 @@ export default function DaoReview() {
 
   // Keep the filter in the URL so « retour » from a dossier lands on the same view.
   useEffect(() => {
+    // Wait for the access check: an expired session must keep the requested URL for the reconnect return.
+    if (allowed !== true) return;
     const href = view === 'all' ? '/app/dao/review' : `/app/dao/review?vue=${view}`;
     try { if (window.location.pathname + window.location.search !== href) window.history.replaceState(window.history.state, '', href); } catch { /* history unavailable */ }
     rememberList(href);
-  }, [view]);
+  }, [view, allowed]);
 
   function announce(next: Notice) { setNotice(next); requestAnimationFrame(() => noticeRef.current?.focus()); }
   const setRowError = (id: string, text: string) => setRowErrors(current => ({ ...current, [id]: text }));
