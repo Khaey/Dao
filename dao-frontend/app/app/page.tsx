@@ -80,7 +80,7 @@ export default function Dashboard() {
     : published(row) ? 'published'
     : row.status === 'client_review' ? 'client-review'
     : ['dao_review', 'approved'].includes(row.status) ? 'dao-review' : 'preparation';
-  const pills = ([['preparation', 'En préparation'], ['client-review', 'Validation client'], ['dao-review', 'En revue D.A.O.'], ['published', 'Publiés, en attente de choix'], ['awarded', 'Artisan choisi'], ['works', 'Travaux en cours']] as const)
+  const pills = ([['preparation', 'En préparation'], ['client-review', 'En attente de validation D.A.O.'], ['dao-review', 'En revue D.A.O.'], ['published', 'Publiés, en attente de choix'], ['awarded', 'Artisan choisi'], ['works', 'Travaux en cours']] as const)
     .map(([key, label]) => ({ key, label, count: rows.filter(row => bucket(row) === key).length }));
   const offersReady = rows.filter(published).every(row => offerSignals.signals[row.id]);
   type Todo = { key: string; title: string; detail: string; href: string; cta: string; waiting?: boolean; rank: number };
@@ -99,8 +99,10 @@ export default function Dashboard() {
       else if (agreement.state === 'waiting') todos.push({ key: agreement.awardId, title: 'Conditions envoyées à l’Artisan', detail: `${title} · en attente de sa réponse`, href: `/app/awards/${agreement.awardId}/conditions`, cta: 'Suivre', waiting: true, rank: 5 });
     }
   }
-  const actions = todos.filter(item => !item.waiting).length;
   todos.sort((a, b) => a.rank - b.rank);
+  const actionTodos = todos.filter(item => !item.waiting);
+  const waitingTodos = todos.filter(item => item.waiting);
+  const actions = actionTodos.length;
   const rowPill = (row: Row) => {
     const signal = signalOf(row);
     if (!signal) return null;
@@ -140,13 +142,22 @@ export default function Dashboard() {
     <section aria-labelledby="todo-title" className="rounded-2xl border border-teal/20 bg-white p-4 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="todo-title" className="text-xl font-bold text-ink">À faire maintenant</h2>{offerSignals.failed && <p role="status" className="text-xs text-red-700">Offres momentanément indisponibles : certaines actions peuvent manquer.</p>}</div>
       {!offersReady ? <div aria-busy="true" className="mt-4 h-20 animate-pulse rounded-xl bg-black/[0.04]"><span className="sr-only">Chargement des actions…</span></div>
-        : todos.length === 0 ? <p className="mt-3 rounded-xl bg-sand/70 px-4 py-3 text-sm text-black/65">Rien à faire pour le moment. Vous serez prévenu dès qu’une offre arrive ou qu’une décision est prise.</p>
-        : <ul className="mt-4 space-y-3">{(showAll ? todos : todos.slice(0, 5)).map(item => <li key={item.key} className={`flex flex-col gap-3 rounded-xl p-4 sm:flex-row sm:items-center ${item.waiting ? 'bg-sand/60' : 'bg-clay/[0.07]'}`}>
-          <span aria-hidden="true" className={`hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white sm:flex ${item.waiting ? 'text-ink/60' : 'text-[#b4532a]'}`}>{item.waiting ? <Hourglass size={19} /> : <Inbox size={19} />}</span>
+        : actionTodos.length === 0 ? <p className="mt-3 rounded-xl bg-sand/70 px-4 py-3 text-sm text-black/65">{waitingTodos.length ? 'Rien à faire de votre côté pour le moment.' : 'Rien à faire pour le moment.'} Vous serez prévenu dès qu’une offre arrive ou qu’une décision est prise.</p>
+        : <ul className="mt-4 space-y-3">{(showAll ? actionTodos : actionTodos.slice(0, 5)).map(item => <li key={item.key} className="flex flex-col gap-3 rounded-xl bg-clay/[0.07] p-4 sm:flex-row sm:items-center">
+          <span aria-hidden="true" className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#b4532a] sm:flex"><Inbox size={19} /></span>
           <div className="min-w-0 flex-1"><h3 className="font-bold text-ink">{item.title}</h3><p className="mt-0.5 break-words text-sm text-black/60">{item.detail}</p></div>
-          <Link href={item.href} className={`${item.waiting ? secondaryAction : primaryAction} w-full shrink-0 sm:w-auto`}>{item.cta}<ArrowRight aria-hidden="true" size={16} /></Link>
+          <Link href={item.href} className={`${primaryAction} w-full shrink-0 sm:w-auto`}>{item.cta}<ArrowRight aria-hidden="true" size={16} /></Link>
         </li>)}</ul>}
-      {offersReady && todos.length > 5 && <button type="button" aria-expanded={showAll} onClick={() => setShowAll(value => !value)} className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-lg px-1 text-sm font-semibold text-teal hover:underline">{showAll ? 'Afficher moins' : `Afficher les ${todos.length - 5} autres`}</button>}
+      {offersReady && actionTodos.length > 5 && <button type="button" aria-expanded={showAll} onClick={() => setShowAll(value => !value)} className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-lg px-1 text-sm font-semibold text-teal hover:underline">{showAll ? 'Afficher moins' : `Afficher les ${actionTodos.length - 5} autres`}</button>}
+      {/* Waiting states are information, not actions: listed apart, never counted in « actions vous attendent ». */}
+      {offersReady && waitingTodos.length > 0 && <div className="mt-5 border-t border-black/[0.06] pt-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/60">En attente d’un autre acteur · {waitingTodos.length}</p>
+        <ul className="mt-2 divide-y divide-black/5">{waitingTodos.map(item => <li key={item.key} className="flex items-center gap-3 py-2.5">
+          <Hourglass aria-hidden="true" size={16} className="shrink-0 text-ink/45" />
+          <div className="min-w-0 flex-1"><h3 className="text-sm font-semibold text-ink">{item.title}</h3><p className="break-words text-xs text-black/55">{item.detail}</p></div>
+          <Link href={item.href} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-teal hover:underline">{item.cta}<ArrowRight aria-hidden="true" size={15} /></Link>
+        </li>)}</ul>
+      </div>}
     </section>
 
     <ReviewInvitation />

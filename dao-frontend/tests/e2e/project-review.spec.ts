@@ -17,7 +17,7 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await expect(page.getByText('v2', { exact: true })).toBeVisible();
   await page.goto(`/app/projects/${project.projectId}/review`);
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(page.getByText('Validation client', { exact: true })).toBeVisible();
+  await expect(page.getByText('En attente de validation D.A.O.', { exact: true })).toBeVisible();
 
   const reviewerContext = await browser.newContext();
   const reviewer = await reviewerContext.newPage();
@@ -58,7 +58,7 @@ test('Revue DAO : soumission, rejet, correction, resoumission et approbation', a
   await expect(reviewLink).toHaveCount(1);
   await reviewLink.click();
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(page.getByText('Validation client', { exact: true })).toBeVisible();
+  await expect(page.getByText('En attente de validation D.A.O.', { exact: true })).toBeVisible();
 
   await reviewer.goto('/app/dao/review');
   const finalHeading = reviewer.getByRole('heading', { name: project.title, exact: true });

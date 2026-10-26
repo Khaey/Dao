@@ -269,6 +269,12 @@
       "watchdog": false
     },
     {
+      "issue": 387,
+      "agent": "DAO Coordinateur UX",
+      "role": "DEV",
+      "watchdog": false
+    },
+    {
       "issue": 419,
       "agent": "DAO AUD 2",
       "role": "DEV",

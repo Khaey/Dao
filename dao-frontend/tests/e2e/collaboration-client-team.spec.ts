@@ -66,7 +66,7 @@ test('Client avec équipe existante : invitation, chantier commun et publication
   await expect(page.getByRole('button', { name: 'Soumettre pour revue DAO' })).toBeEnabled();
   expect(await adminRows('publications', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(page.getByRole('main').getByText('Validation client', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByText('En attente de validation D.A.O.', { exact: true })).toBeVisible();
   const reviewerContext = await browser.newContext({ viewport: page.viewportSize() || undefined });
   try {
     const reviewer = await reviewerContext.newPage();
