@@ -7,6 +7,7 @@ import { Activity, Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, L
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 import { onUnreadChanged } from '../../lib/unread-events';
+import { expiredSessionLoginUrl, noteDeliberateSignOut, wasDeliberateSignOut } from '../../lib/session-return';
 
 export default function RoleNav() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function RoleNav() {
     const load = async (knownSession?: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
       const data = knownSession === undefined ? (await supabase.auth.getSession()).data : { session: knownSession };
       if (!active) return;
-      if (!data.session) { setRoles([]);setEmail('');setReady(false);router.replace('/auth/login');return; }
+      if (!data.session) { setRoles([]);setEmail('');setReady(false);router.replace(wasDeliberateSignOut() ? '/auth/login' : expiredSessionLoginUrl(window.location.pathname + window.location.search));return; }
       const userId=data.session.user.id;
       setReady(false);setRoles([]);setEmail(data.session.user.email ?? '');setSupportUnread(0);
       const [{ data: roleRows }, { data: profile }] = await Promise.all([
@@ -94,7 +95,7 @@ export default function RoleNav() {
     };
   }, [open]);
 
-  async function signOut() { await supabaseBrowser().auth.signOut(); router.replace('/auth/login'); }
+  async function signOut() { noteDeliberateSignOut(); await supabaseBrowser().auth.signOut(); router.replace('/auth/login'); }
   async function switchWorkspace(next:'client'|'contractor') { setSwitching(true); const {error}=await supabaseBrowser().rpc('set_my_workspace',{p_workspace:next}); if(!error){setWorkspace(next);setOpen(false);router.push('/app');router.refresh()} setSwitching(false); }
   const has = (role: AppRole) => roles.includes(role);
   const staff = isDaoStaff(roles);

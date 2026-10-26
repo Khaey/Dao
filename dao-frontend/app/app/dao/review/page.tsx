@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2, ClipboardCheck, Inbox, Lock, RefreshCw } from
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 import { statusLabel } from '../../../../lib/utils';
 import { isDaoStaff, type AppRole } from '../../../../lib/roles';
+import { redirectToLoginAfterExpiry } from '../../../../lib/session-return';
 import { commandBackoffice } from '../../../../lib/backoffice';
 import { Badge, Button, Card } from '../../../../components/ui';
 import { StaffHeader } from '../../../../components/backoffice/PageChrome';
@@ -89,7 +90,8 @@ export default function DaoReview() {
     void (async () => {
       const supabase = supabaseBrowser();
       const { data: userResult } = await supabase.auth.getUser();
-      if (!userResult.user) { setAllowed(false); setLoading(false); return; }
+      // No valid session = expired session, not « Accès réservé »: reconnect and come back here.
+      if (!userResult.user) { redirectToLoginAfterExpiry(); return; }
       setViewerId(userResult.user.id);
       const roleResult = await supabase.from('user_roles').select('role').eq('user_id', userResult.user.id);
       const roles = (roleResult.data ?? []).map(row => row.role as AppRole);

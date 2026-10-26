@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, History, Lock, MailWarning, Megaphone, RefreshCw, ShieldCheck, SlidersHorizontal, UserCheck, UserCog, UserPlus, UserRoundCheck, type LucideIcon } from 'lucide-react';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../../lib/roles';
+import { redirectToLoginAfterExpiry } from '../../../lib/session-return';
 import { effectiveProjectStatus, statusLabel } from '../../../lib/utils';
 import { Badge, Button, Card, SectionHeading } from '../../../components/ui';
 import { AssignmentBadge, assignmentOf, pendingReview, reviewStatusLabel, type Assignment } from '../../../components/backoffice/assignment';
@@ -58,7 +59,8 @@ export default function DaoManagerDashboard() {
     void (async () => {
       const supabase = supabaseBrowser();
       const { data: userResult } = await supabase.auth.getUser();
-      if (!userResult.user) { if (active) setAllowed(false); return; }
+      // No valid session = expired session, not « Accès réservé »: reconnect and come back here.
+      if (!userResult.user) { redirectToLoginAfterExpiry(); return; }
       const roleResult = await supabase.from('user_roles').select('role').eq('user_id', userResult.user.id);
       const roles = (roleResult.data ?? []).map(row => row.role as AppRole);
       if (!isDaoStaff(roles)) { if (active) setAllowed(false); return; }
