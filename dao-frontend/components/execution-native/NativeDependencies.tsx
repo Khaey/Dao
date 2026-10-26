@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tracking/contract';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 
@@ -54,15 +54,16 @@ export default function NativeDependencies({ plan, requestId, canEdit, onUpdated
     for (const lot of plan.lots) for (const sub of lot.executionSubLots) map.set(sub.nodeKey, `node:${sub.id}`);
     return map;
   }, [plan, targets]);
-  const links = useMemo(() => {
+  const allLinks = useMemo(() => {
     // Les liens projet (activités) priment : la vue par lot ne voit pas les extrémités « activité ».
     const all = new Map<string, Link>();
     for (const link of plan.dependencies ?? []) all.set(link.id, link);
     for (const lot of plan.lots) for (const link of lot.dependencies) if (!all.has(link.id)) all.set(link.id, link);
     const resolve = (value: string | null) => value ? aliases.get(value) ?? null : null;
-    return [...all.values()].filter(link => link.state !== 'rejected').map(link => ({ ...link, from: resolve(link.from), to: resolve(link.to) }))
-      .filter(link => [link.from, link.to].some(key => key && targets.get(key)?.requestId === requestId));
-  }, [plan, aliases, targets, requestId]);
+    return [...all.values()].filter(link => link.state !== 'rejected').map(link => ({ ...link, from: resolve(link.from), to: resolve(link.to) }));
+  }, [plan, aliases]);
+  const links = useMemo(() => allLinks.filter(link => [link.from, link.to].some(key => key && targets.get(key)?.requestId === requestId)),
+    [allLinks, targets, requestId]);
 
   const own = [...targets.entries()].filter(([, value]) => value.requestId === requestId);
   const [pred, setPred] = useState(own[0]?.[0] ?? '');
@@ -72,16 +73,34 @@ export default function NativeDependencies({ plan, requestId, canEdit, onUpdated
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [warning, setWarning] = useState('');
+  // Une commande acceptée n'est annoncée comme réussie qu'après relecture du planning (#488).
+  const [verify, setVerify] = useState<{ since: Plan; add?: { pred: string; succ: string }; removed?: string } | null>(null);
+
+  useEffect(() => {
+    if (!verify || plan === verify.since) return;
+    if (verify.add) {
+      const { pred: from, succ: to } = verify.add;
+      const found = allLinks.some(link => link.from === from && link.to === to);
+      if (found) setNotice('Dépendance ajoutée et confirmée à la relecture du planning.' + ([from, to].some(key => targets.get(key)?.requestId === requestId) ? '' : ' Elle apparaît dans les lots concernés.'));
+      else setWarning('Le serveur a accepté la dépendance, mais elle n’apparaît pas à la relecture du planning. Actualisez ; si elle reste absente, ne la considérez pas comme enregistrée.');
+    } else if (verify.removed) {
+      if (allLinks.some(link => link.id === verify.removed)) setWarning('Le retrait a été accepté, mais la dépendance apparaît encore à la relecture. Actualisez avant de recommencer.');
+      else setNotice('Dépendance retirée et confirmée à la relecture du planning.');
+    }
+    setVerify(null);
+  }, [plan, verify, allLinks, targets, requestId]);
 
   if (!own.length) return null;
   const label = (key: string | null) => key ? targets.get(key)?.label ?? 'Élément non visible' : 'Élément non planifié';
   const invalid = !pred || !succ || pred === succ;
 
-  async function run(body: Record<string, unknown>, message: string) {
-    setBusy(true); setError(''); setNotice('');
+  async function run(body: Record<string, unknown>) {
+    setBusy(true); setError(''); setNotice(''); setWarning('');
     try {
       await postDependency({ projectId: plan.projectId, ...body });
-      setNotice(message); setAdding(false); setRemoving(null); setSucc('');
+      setVerify({ since: plan, ...(body.action === 'add' ? { add: { pred: String(body.predTarget), succ: String(body.succTarget) } } : { removed: String(body.linkId) }) });
+      setAdding(false); setRemoving(null); setSucc('');
       onUpdated();
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Commande impossible.'); }
     finally { setBusy(false); }
@@ -89,14 +108,16 @@ export default function NativeDependencies({ plan, requestId, canEdit, onUpdated
   function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || invalid) return;
-    void run({ action: 'add', predTarget: pred, succTarget: succ }, 'Dépendance ajoutée. Le Gantt et la prévision sont recalculés à partir des dates enregistrées.');
+    void run({ action: 'add', predTarget: pred, succTarget: succ });
   }
 
   return <div className="space-y-3 rounded-xl border border-black/10 bg-white p-4">
     <div><h3 className="text-sm font-bold text-ink">Dépendances (facultatif)</h3>
       <p className="mt-1 text-xs text-black/60">Un lien « fin → début » indique qu’un élément doit être terminé avant que le suivant commence. Il ne déplace aucune date enregistrée et n’engage aucune partie.</p></div>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+    {verify && <p role="status" className="rounded-xl border border-black/10 bg-sand/60 p-3 text-sm text-black/70">Commande acceptée, vérification à la relecture du planning…</p>}
     {notice && <p role="status" className="rounded-xl border border-teal/20 bg-teal/[0.04] p-3 text-sm text-teal">{notice}</p>}
+    {warning && <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{warning}</p>}
     {links.length === 0 ? <p className="text-sm text-black/55">Aucune dépendance pour ce lot.</p>
       : <ul className="space-y-2">{links.map(link => <li key={link.id} className="space-y-2 rounded-xl border border-black/10 p-3 text-sm">
         <p className="break-words"><span className="font-semibold">{label(link.from)}</span> <span aria-hidden="true">→</span><span className="sr-only">doit finir avant</span> <span className="font-semibold">{label(link.to)}</span></p>
@@ -104,7 +125,7 @@ export default function NativeDependencies({ plan, requestId, canEdit, onUpdated
         {canEdit && removing !== link.id && <button type="button" className={button} disabled={busy} onClick={() => setRemoving(link.id)}>Retirer</button>}
         {removing === link.id && <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs">
           <p>Retirer cette dépendance du planning ?</p>
-          <div className="mt-2 flex flex-wrap gap-2"><button type="button" className={button + ' bg-teal text-white'} disabled={busy} onClick={() => void run({ action: 'remove', linkId: link.id }, 'Dépendance retirée.')}>{busy ? 'Retrait…' : 'Confirmer'}</button>
+          <div className="mt-2 flex flex-wrap gap-2"><button type="button" className={button + ' bg-teal text-white'} disabled={busy} onClick={() => void run({ action: 'remove', linkId: link.id })}>{busy ? 'Retrait…' : 'Confirmer'}</button>
             <button type="button" className={button} disabled={busy} onClick={() => setRemoving(null)}>Annuler</button></div></div>}
       </li>)}</ul>}
     {canEdit && !adding && <button type="button" className={button} disabled={busy} onClick={() => { setAdding(true); setPred(own[0][0]); setSucc(''); }}>Ajouter une dépendance</button>}
