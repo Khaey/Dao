@@ -109,6 +109,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
   await artisan.getByLabel('Délai (jours)').fill('22');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');
+  // #387 phase 2: price, delay and proposal first; posts, sub-lots and exclusions sit under one optional summary.
+  await artisan.locator('summary').filter({hasText:'Détailler ce lot (facultatif)'}).click();
   await artisan.getByRole('button',{name:'Ajouter un poste'}).click();
   await artisan.getByLabel('Catégorie').selectOption('materials');
   await artisan.getByLabel('Désignation').fill('Tube cuivre');
@@ -127,6 +129,7 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Sous-lot 2',{exact:true}).fill('Câblage E2E');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Début',{exact:true}).fill('2027-01-15');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Fin',{exact:true}).fill('2027-01-20');
+  await artisan.locator('summary').filter({hasText:'Compléments facultatifs'}).click();
   await artisan.getByRole('button',{name:'Ajouter un lien'}).click();
   const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');
   const successorValue=await artisan.locator('option',{hasText:'Câblage E2E'}).first().getAttribute('value');

@@ -39,6 +39,7 @@ test('Suivi B2 réel : sous-lot attribué, quantité déclarée, confirmation te
   await line.getByLabel('Prix proposé (TND)').fill('1800');
   await line.getByLabel('Délai (jours)').fill('10');
   await line.getByLabel('Proposition technique / inclusions').fill('Saignées et gaines');
+  await line.locator('summary').filter({ hasText: 'Détailler ce lot (facultatif)' }).click();
   await artisan.getByRole('button', { name: 'Ajouter un sous-lot' }).click();
   await artisan.getByLabel('Sous-lot 1', { exact: true }).fill(subLot);
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
