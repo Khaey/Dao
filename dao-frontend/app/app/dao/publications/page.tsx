@@ -55,15 +55,15 @@ export default function DaoPublications() {
       : rows === null ? <div aria-busy="true" className="space-y-2">{[0, 1, 2].map(key => <div key={key} className="h-16 animate-pulse rounded-2xl bg-black/5" />)}</div>
       : filtered.length === 0 ? <Card className="flex items-start gap-3 border-dashed"><Megaphone aria-hidden="true" size={20} className="mt-0.5 shrink-0 text-black/35" /><div><p className="text-sm font-semibold text-ink">{active ? 'Aucune publication ne correspond à ces critères.' : 'Aucune publication pour le moment.'}</p>{active && <button type="button" onClick={reset} className="mt-1 min-h-11 text-sm font-semibold text-teal hover:underline">Réinitialiser les filtres</button>}</div></Card>
       : <Card className="overflow-hidden p-0">
-        <table className="hidden w-full text-left text-sm md:table">
-          <thead className="bg-sand/60 text-xs font-semibold uppercase tracking-[0.08em] text-black/45"><tr><th scope="col" className="px-4 py-3">Publication</th><th scope="col" className="px-4 py-3">Visibilité</th><th scope="col" className="px-4 py-3">Publiée le</th><th scope="col" className="px-4 py-3">Limite des offres</th><th scope="col" className="px-4 py-3">Statut</th><th scope="col" className="px-4 py-3"><span className="sr-only">Action</span></th></tr></thead>
+        <table className="hidden w-full text-left text-[13px] md:table">
+          <thead className="bg-sand/60 text-xs font-semibold uppercase tracking-[0.08em] text-black/45"><tr><th scope="col" className="px-3 py-2">Publication</th><th scope="col" className="px-3 py-2">Visibilité</th><th scope="col" className="px-3 py-2">Publiée le</th><th scope="col" className="px-3 py-2">Limite des offres</th><th scope="col" className="px-3 py-2">Statut</th><th scope="col" className="px-3 py-2"><span className="sr-only">Action</span></th></tr></thead>
           <tbody className="divide-y divide-black/5">{filtered.map(publication => <tr key={publication.id} className="hover:bg-sand/40">
-            <td className="max-w-xs px-4 py-3"><Link href={`/app/publications/${publication.id}`} className="block truncate font-semibold text-ink hover:text-teal hover:underline">{publication.safe_title}</Link></td>
-            <td className="px-4 py-3 text-black/65">{publicationVisibilityLabel[publication.visibility] ?? publication.visibility}</td>
-            <td className="px-4 py-3 tabular-nums text-black/65">{formatDate(publication.published_at)}</td>
-            <td className="px-4 py-3 tabular-nums text-black/65">{formatDate(publication.submission_deadline)}</td>
-            <td className="px-4 py-3"><Badge tone={publication.status === 'published' ? 'teal' : 'neutral'}>{publicationStatusLabel[publication.status] ?? publication.status}</Badge></td>
-            <td className="px-4 py-3 text-right"><Link href={`/app/publications/${publication.id}`} aria-label={`Ouvrir ${publication.safe_title}`} className="inline-flex min-h-11 items-center text-teal"><ArrowRight aria-hidden="true" size={16} /></Link></td>
+            <td className="max-w-xs px-3 py-2"><Link href={`/app/publications/${publication.id}`} className="block truncate font-semibold text-ink hover:text-teal hover:underline">{publication.safe_title}</Link></td>
+            <td className="px-3 py-2 text-black/65">{publicationVisibilityLabel[publication.visibility] ?? publication.visibility}</td>
+            <td className="px-3 py-2 tabular-nums text-black/65">{formatDate(publication.published_at)}</td>
+            <td className="px-3 py-2 tabular-nums text-black/65">{formatDate(publication.submission_deadline)}</td>
+            <td className="px-3 py-2"><Badge tone={publication.status === 'published' ? 'teal' : 'neutral'}>{publicationStatusLabel[publication.status] ?? publication.status}</Badge></td>
+            <td className="px-3 py-2 text-right"><Link href={`/app/publications/${publication.id}`} aria-label={`Ouvrir ${publication.safe_title}`} className="inline-flex min-h-8 min-w-8 items-center justify-end text-teal"><ArrowRight aria-hidden="true" size={16} /></Link></td>
           </tr>)}</tbody>
         </table>
         <ul className="divide-y divide-black/5 md:hidden">{filtered.map(publication => <li key={publication.id}><Link href={`/app/publications/${publication.id}`} className="block p-4 hover:bg-sand/40">
