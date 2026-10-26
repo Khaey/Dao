@@ -26,7 +26,7 @@ test('Tableau client : nom canonique, compteurs et prochaine action distinguent 
   await createMainLot(page, project.title, 'Lot principal pour la recette des états du tableau.');
   await page.goto(`/app/projects/${project.projectId}/review`);
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(page.getByText('Validation client', { exact: true })).toBeVisible();
+  await expect(page.getByText('En attente de validation D.A.O.', { exact: true })).toBeVisible();
   await page.goto('/app');
   await expect(page.getByTestId('dashboard-stat-client-review')).toContainText('1');
   await expect(page.getByTestId('dashboard-stat-dao-review')).toContainText('0');

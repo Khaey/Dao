@@ -16,6 +16,8 @@ begin
   insert into public.contractor_profiles(user_id,business_name,verification_status) values(b,'Artisan B','verified') returning id into pb;
   select id into trade from public.trades limit 1;
   insert into public.projects(client_id) values(c) returning id into proj;
+  -- Native DAO tracking is assignment-scoped, including for dao_admin users.
+  insert into public.review_assignments(project_id,reviewer_id,assigned_at) values(proj,stf,now());
   insert into public.project_requests(project_id) values(proj) returning id into r1;
   insert into public.project_requests(project_id) values(proj) returning id into r2;
   insert into public.project_requests(project_id) values(proj) returning id into r3;
@@ -100,6 +102,12 @@ begin
   d:=public.native_execution_plan_v1(proj,null,1);
   if d->'viewer'->>'workspace'<>'dao_manager' or jsonb_array_length(d->'lots')<>1
     or d->'page'->>'nextCursor' is null then raise exception 'manager scope or bounded pagination missing: %',d; end if;
+  delete from public.review_assignments where project_id=proj and reviewer_id=stf;
+  begin
+    perform public.native_execution_plan_v1(proj,null,50);
+    raise exception 'unassigned Admin unexpectedly read native tracking';
+  exception when insufficient_privilege then null; end;
+  insert into public.review_assignments(project_id,reviewer_id,assigned_at) values(proj,stf,now());
 
   perform set_config('request.jwt.claim.sub',c::text,true);
   d:=public.get_project_plan(proj);

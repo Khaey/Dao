@@ -95,5 +95,10 @@ test('Accord avant contrat #346 réel : Client propose, Artisan attributaire acc
   expect(final.status).toBe('agreed');
   expect((await adminRows('precontract_agreement_acceptances', `agreement_id=eq.${agreement.id}&select=party_role`)).map(row => row.party_role).sort()).toEqual(['client', 'contractor']);
   expect(await adminRows('contracts', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(0);
+  // #387 phase 1: the Artisan's dashboard states the real per-lot agreement, not a frozen « Conditions à convenir ».
+  await artisan.goto('/app');
+  const wonLot = artisan.getByRole('region', { name: 'Mes chantiers attribués' }).getByRole('listitem').filter({ hasText: lotTitle });
+  await expect(wonLot.getByText('Lot retenu · Conditions convenues', { exact: true })).toBeVisible();
+  await expect(artisan.getByRole('link', { name: `Conditions — ${lotTitle}` })).toHaveAttribute('href', `/app/awards/${award.award_id}/conditions`);
   await ac.close();
 });

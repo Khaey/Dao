@@ -7,7 +7,8 @@ import { displayProjectStatus, statusLabel } from '../../lib/utils';
 import { readAllBackoffice } from '../../lib/backoffice';
 import { StaffHeader } from './PageChrome';
 
-// Published or closed chantiers the viewer manages (assigned review, or Admin): the entry point to native tracking.
+// Published or closed chantiers assigned to the current reviewer. Native tracking
+// deliberately does not treat the global Admin role as a project assignment.
 const tracked = (status: string) => status === 'open' || status === 'closed';
 
 export default function Tracking() {
@@ -19,7 +20,7 @@ export default function Tracking() {
 
   useEffect(() => {
     let active = true; setLoading(true); setError('');
-    void readAllBackoffice('projects', { mine: 'false' })
+    void readAllBackoffice('projects', { mine: 'true' })
       .then(all => { if (active) setRows(all.filter((p: any) => p.can_manage && tracked(p.status))); })
       .catch(e => { if (active) { setError((e as Error).message || 'Chantiers indisponibles.'); setRows(null); } })
       .finally(() => { if (active) setLoading(false); });
