@@ -82,7 +82,7 @@ export default function ProjectFollowUpPage() {
       <SiteExecutionJournal projectId={projectId} userId={viewer.userId} documents={documents} />
     </>}
     {current === 'documents' && viewer && (viewer.owner
-      ? <Card className="p-5 sm:p-6"><SectionHeading title="Plans et documents du chantier" description="Versions, partage par lot et revue technique se gèrent dans l’onglet Documents du chantier." /><Link href={`/app/projects/${projectId}?tab=documents`} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-ink px-4 text-sm font-semibold text-white hover:bg-teal">Ouvrir les documents du chantier</Link></Card>
+      ? <Card className="p-5 sm:p-6"><SectionHeading title="Plans et documents du chantier" description="Versions, partage par lot et revue technique se gèrent dans l’onglet Documents du chantier." /><Link href={`/app/projects/${projectId}?tab=documents`} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-teal px-4 text-sm font-semibold text-white hover:bg-tealdark">Ouvrir les documents du chantier</Link></Card>
       : <LotDocumentsCard projectId={projectId} userId={viewer.userId} />)}
     {current === 'conditions' && <Card className="space-y-4 p-5 sm:p-6">
       <SectionHeading title="Conditions et calendrier" description="Accord facultatif entre le Client et l’Artisan, lot par lot. Il ne signe aucun contrat et ne déclenche aucun paiement." />

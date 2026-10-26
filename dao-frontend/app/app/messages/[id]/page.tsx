@@ -99,7 +99,7 @@ export default function ThreadPage() {
             className="max-h-[200px] min-h-11 flex-1 resize-none rounded-2xl border border-black/10 bg-sand/40 px-4 py-3 text-sm outline-none transition focus:border-teal focus:bg-white focus:ring-4 focus:ring-teal/10"
             placeholder="Écrire un message…" value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={onKey} />
           <button type="submit" disabled={sending || !body.trim()} aria-label="Envoyer le message"
-            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-3 text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:cursor-not-allowed disabled:opacity-40 sm:px-5">
+            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-teal px-3 text-sm font-semibold text-white transition hover:bg-tealdark focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:cursor-not-allowed disabled:opacity-40 sm:px-5">
             <Send aria-hidden="true" size={17} /><span className="hidden sm:inline">Envoyer</span>
           </button>
         </div>

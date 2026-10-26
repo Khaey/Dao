@@ -12,7 +12,7 @@ import {
 
 const fieldClass = 'w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-black/35 focus:border-teal focus:ring-4 focus:ring-teal/10';
 const secondary = 'inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal focus:outline-none focus:ring-4 focus:ring-teal/20';
-const primary = 'inline-flex min-h-11 items-center justify-center rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:opacity-60';
+const primary = 'inline-flex min-h-11 items-center justify-center rounded-xl bg-teal px-4 text-sm font-semibold text-white transition hover:bg-tealdark focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:opacity-60';
 
 function ResponseForm({ review, onDone, onCancel }: { review: ReceivedReview; onDone: () => Promise<void>; onCancel: () => void }) {
   const [body, setBody] = useState(review.response?.body ?? '');

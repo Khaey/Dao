@@ -1,7 +1,7 @@
 import { cn } from '../lib/utils';
 
 export function Button({ className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button className={cn('inline-flex min-h-10 items-center justify-center rounded-control bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:cursor-not-allowed disabled:opacity-50', className)} {...props} />;
+  return <button className={cn('inline-flex min-h-10 items-center justify-center rounded-control bg-teal px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-tealdark focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:cursor-not-allowed disabled:opacity-50', className)} {...props} />;
 }
 
 export function Input({ className, pattern, inputMode, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {

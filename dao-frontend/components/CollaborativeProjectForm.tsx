@@ -211,7 +211,7 @@ export default function CollaborativeProjectForm({ contractor }: { contractor: b
             <Button className="mt-3 bg-white text-ink ring-1 ring-black/10 hover:bg-white" onClick={async () => { try { await navigator.clipboard.writeText(item.link); setCopiedInvitationId(item.id); } catch { setError('Sélectionnez et copiez le lien ci-dessus.'); } }}>{copiedInvitationId === item.id ? 'Lien copié' : 'Copier le lien'}</Button>
           </article>)}
         </div>
-        <Link href={`/app/projects/${projectId}?tab=team`} className="inline-flex min-h-10 items-center rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white">Ouvrir le chantier</Link>
+        <Link href={`/app/projects/${projectId}?tab=team`} className="inline-flex min-h-10 items-center rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-white hover:bg-tealdark">Ouvrir le chantier</Link>
       </div> : <form onSubmit={step === 4 ? create : next} className="space-y-5">
         <p className="text-xs font-semibold text-black/45">Étape {step} sur 4</p>
 

@@ -57,7 +57,7 @@ export default function ReviewForm({ projectId, contractorId, contractorName, ex
     {error && <p role="alert" className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
       {onCancel && <button type="button" onClick={onCancel} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal">Annuler</button>}
-      <button type="submit" disabled={saving} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-ink px-5 text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:opacity-60">
+      <button type="submit" disabled={saving} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-teal px-5 text-sm font-semibold text-white transition hover:bg-tealdark focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:opacity-60">
         {saving ? 'Publication…' : existing && existing.status !== 'withdrawn' ? 'Enregistrer les modifications' : 'Publier mon avis'}
       </button>
     </div>

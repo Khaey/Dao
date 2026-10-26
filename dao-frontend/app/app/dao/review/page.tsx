@@ -169,7 +169,7 @@ export default function DaoReview() {
 
     {notice && <div ref={noticeRef} tabIndex={-1} role="status" className="flex flex-wrap items-center gap-3 rounded-2xl bg-teal/[0.08] px-4 py-3 text-sm font-medium text-teal outline-none focus-visible:ring-4 focus-visible:ring-teal/20">
       <CheckCircle2 aria-hidden="true" size={18} className="shrink-0" /><span className="min-w-0 flex-1">{notice.text}</span>
-      {notice.href && <Link href={notice.href} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-ink px-4 font-semibold text-white hover:bg-teal">{notice.cta}<ArrowRight aria-hidden="true" size={15} /></Link>}
+      {notice.href && <Link href={notice.href} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-teal px-4 font-semibold text-white hover:bg-tealdark">{notice.cta}<ArrowRight aria-hidden="true" size={15} /></Link>}
     </div>}
 
     {loading ? <div aria-busy="true" className="space-y-3"><p role="status" className="sr-only">Chargement de la file des revues…</p>{[0, 1, 2].map(key => <div key={key} className="h-40 animate-pulse rounded-2xl bg-black/5" />)}</div>

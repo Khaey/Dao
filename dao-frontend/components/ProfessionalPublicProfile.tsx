@@ -349,11 +349,11 @@ export default function ProfessionalPublicProfile({ id, previewOverride }: { id:
           {!showPreview && <div className="space-y-2 border-t border-black/5 pt-4">
             {projectContext && profile.professional_email
               ? <button type="button" onClick={() => void sendDirectInvitation()} disabled={invitationStatus !== 'idle'}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-ink px-4 text-center text-sm font-semibold text-white transition hover:bg-teal disabled:cursor-default disabled:opacity-70 focus:outline-none focus:ring-4 focus:ring-teal/20">
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-teal px-4 text-center text-sm font-semibold text-white transition hover:bg-tealdark disabled:cursor-default disabled:opacity-70 focus:outline-none focus:ring-4 focus:ring-teal/20">
                   {invitationStatus === 'sending' ? 'Envoi de l’invitation…' : invitationStatus === 'sent' ? 'Invitation envoyée ✓' : 'Envoyer une invitation à cet Artisan'}
                 </button>
               : <Link href={projectContext || '/app/projects'}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-ink px-4 text-center text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20">
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-teal px-4 text-center text-sm font-semibold text-white transition hover:bg-tealdark focus:outline-none focus:ring-4 focus:ring-teal/20">
                   {projectContext ? 'Inviter depuis l’équipe du chantier' : 'Inviter depuis mes chantiers'}
                 </Link>}
             {invitationStatus === 'sent' && <p role="status" className="text-sm font-semibold text-teal">Invitation envoyée. Le professionnel pourra accepter depuis son compte.</p>}

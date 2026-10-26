@@ -50,7 +50,7 @@ export default function TicketThread({ ticket, messages, viewer, onSent }: {
           className="w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none transition focus:border-teal focus:ring-4 focus:ring-teal/10" />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-black/45">{body.length} / {LIMITS.body}</span>
-          <button type="submit" disabled={sending || !body.trim()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-teal disabled:opacity-50">
+          <button type="submit" disabled={sending || !body.trim()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal px-4 text-sm font-semibold text-white transition hover:bg-tealdark disabled:opacity-50">
             <Send aria-hidden="true" size={16} />{sending ? 'Envoi…' : 'Envoyer la réponse'}
           </button>
         </div>
