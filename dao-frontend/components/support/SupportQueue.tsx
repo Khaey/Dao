@@ -32,7 +32,7 @@ function StatusForm({ ticket, onChanged }: { ticket: SupportTicket; onChanged: (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <label className="block flex-1 text-sm font-semibold text-ink">Statut<select value={status} onChange={(event) => { dirty.current = true; setStatus(event.target.value as TicketStatus); }} className={`${select} mt-1.5 w-full`}>
         {supportStatuses.map((value) => <option key={value} value={value}>{staffStatusLabels[value]}</option>)}</select></label>
-      <button type="submit" disabled={saving || (status === ticket.status && !needsReason)} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-teal disabled:opacity-50">{saving ? 'Enregistrement…' : 'Mettre à jour'}</button>
+      <button type="submit" disabled={saving || (status === ticket.status && !needsReason)} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-teal px-4 text-sm font-semibold text-white transition hover:bg-tealdark disabled:opacity-50">{saving ? 'Enregistrement…' : 'Mettre à jour'}</button>
     </div>
     {needsReason && <label className="block text-sm font-semibold text-ink">Motif (visible par le demandeur)<textarea rows={2} maxLength={LIMITS.reason} value={reason} onChange={(event) => { dirty.current = true; setReason(event.target.value); }}
       className="mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none focus:border-teal focus:ring-4 focus:ring-teal/10" /></label>}
@@ -93,7 +93,7 @@ export default function SupportQueue() {
 
   return <section className="mx-auto w-full max-w-5xl space-y-6">
     <header className="space-y-2">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Gestion D.A.O.</p>
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Relations</p>
       <h1 className="text-3xl font-bold tracking-tight text-ink">Assistance</h1>
       <p className="max-w-2xl text-sm text-black/55">Demandes adressées à D.A.O. par les clients et les professionnels. Les conversations privées de chantier n’apparaissent jamais ici.</p>
     </header>

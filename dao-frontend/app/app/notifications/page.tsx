@@ -9,10 +9,11 @@ import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead, NotificationApiError, type NotificationItem, type NotificationPage } from '../../../lib/notifications';
 import StaffSupportNotifications from './StaffSupportNotifications';
 import { supportAvailability } from '../../../lib/support-client';
+import { onUnreadChanged } from '../../../lib/unread-events';
 
 const dates=new Intl.DateTimeFormat('fr-FR',{dateStyle:'medium',timeStyle:'short'});
 const workspaceLabels={client:'Espace Client',contractor:'Espace Artisan',staff:'Espace D.A.O'};
-const icons={review_approved:ClipboardCheck,review_rejected:ClipboardCheck,invitation_received:Mail,invitation_accepted:CheckCheck,project_message:MessageCircle,invitation_expiring:Bell};
+const icons={review_approved:ClipboardCheck,review_rejected:ClipboardCheck,invitation_received:Mail,invitation_accepted:CheckCheck,project_message:MessageCircle,invitation_expiring:Bell,rfi_question:MessageCircle,rfi_clarification:ClipboardCheck,bid_result:ClipboardCheck};
 
 export default function NotificationsPage() {
   const router=useRouter();
@@ -82,7 +83,8 @@ export default function NotificationsPage() {
     const onFocus=()=>{if(document.visibilityState==='visible')void refresh();};
     window.addEventListener('focus',onFocus);
     document.addEventListener('visibilitychange',onFocus);
-    return()=>{active=false;window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);};
+    const stopUnread=onUnreadChanged(()=>void refresh());
+    return()=>{active=false;stopUnread();window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);};
   },[identity]);
 
   async function markRead(item:NotificationItem) {

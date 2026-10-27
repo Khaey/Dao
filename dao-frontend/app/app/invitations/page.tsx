@@ -46,7 +46,7 @@ function InvitationCard({ row, busy, onRespond }: { row: Invitation; busy: boole
         <button type="button" disabled={busy} onClick={() => onRespond(row, false)}
           className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-black/70 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-4 focus:ring-red-100 disabled:opacity-50 sm:flex-none">Refuser</button>
         <button type="button" disabled={busy} onClick={() => onRespond(row, true)}
-          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-ink px-5 text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:opacity-50 sm:flex-none">Accepter</button>
+          className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-teal px-5 text-sm font-semibold text-white transition hover:bg-tealdark focus:outline-none focus:ring-4 focus:ring-teal/20 disabled:opacity-50 sm:flex-none">Accepter</button>
       </div> : row.status === 'accepted' ? <Link href={`/app/projects/${row.project_id}`}
         className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal sm:w-auto">Voir le chantier<ArrowRight aria-hidden="true" size={15} /></Link> : null}
     </div>

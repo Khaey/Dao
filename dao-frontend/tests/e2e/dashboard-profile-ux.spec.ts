@@ -15,18 +15,22 @@ test('Tableau client : nom canonique, compteurs et prochaine action distinguent 
 
   await page.goto('/app');
   await expect(page.getByRole('heading', { name: `Bonjour ${displayName}`, exact: true })).toBeVisible();
-  await expect(page.getByTestId('dashboard-stat-client-review')).toContainText('0');
-  await expect(page.getByTestId('dashboard-stat-dao-review')).toContainText('0');
+  // #477: without any chantier the dashboard shows the empty state (no counters); otherwise both reviews start at 0.
+  await expect(page.getByTestId('dashboard-stat-client-review').or(page.getByText('Votre espace est prêt', { exact: true }))).toBeVisible();
+  if (await page.getByTestId('dashboard-stat-client-review').count()) {
+    await expect(page.getByTestId('dashboard-stat-client-review')).toContainText('0');
+    await expect(page.getByTestId('dashboard-stat-dao-review')).toContainText('0');
+  }
 
   const project = await createDraftProject(page, testInfo, 'dashboard-ux');
   await createMainLot(page, project.title, 'Lot principal pour la recette des états du tableau.');
   await page.goto(`/app/projects/${project.projectId}/review`);
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(page.getByText('Validation client', { exact: true })).toBeVisible();
+  await expect(page.getByText('En attente de validation D.A.O.', { exact: true })).toBeVisible();
   await page.goto('/app');
   await expect(page.getByTestId('dashboard-stat-client-review')).toContainText('1');
   await expect(page.getByTestId('dashboard-stat-dao-review')).toContainText('0');
-  await expect(page.getByRole('heading', { name: 'Suivre la validation client', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dossier envoyé à D.A.O.', exact: true })).toBeVisible();
 
   const reviewerContext = await browser.newContext();
   const reviewer = await reviewerContext.newPage();
@@ -40,7 +44,7 @@ test('Tableau client : nom canonique, compteurs et prochaine action distinguent 
   await page.goto('/app');
   await expect(page.getByTestId('dashboard-stat-client-review')).toContainText('0');
   await expect(page.getByTestId('dashboard-stat-dao-review')).toContainText('1');
-  await expect(page.getByRole('heading', { name: 'Suivre la revue DAO', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Revue D.A.O. en cours', exact: true })).toBeVisible();
 });
 
 test('Profil Admin et Client : activité et Mes chantiers restent limités aux projets du client', async ({ page, browser, e2eUxAdmin, e2eClient }, testInfo) => {

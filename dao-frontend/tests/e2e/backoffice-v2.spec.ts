@@ -10,21 +10,21 @@ test('Back-office : prise en charge, nouvelle version et sous-lots visibles côt
  const oc=await browser.newContext(),other=await oc.newPage();await login(other,e2eOtherReviewer!);await other.goto(`/app/dao/projects/${project.projectId}`);await expect(other.getByText(/Lecture seule : ce dossier/)).toBeVisible();await expect(other.getByRole('button',{name:'Modifier le dossier'})).toHaveCount(0);const forged=await actorCommand(other,e2eOtherReviewer!,'/api/dao/backoffice',{action:'claim',input:{project_id:project.projectId},idempotency_key:randomUUID()});expect(forged.status()).toBe(403);
  await other.goto('/app/dao/review');
  await expect(other.getByRole('link',{name:project.title,exact:true})).toBeVisible();
- await other.getByRole('checkbox',{name:'Mes revues'}).check();
+ await other.getByRole('radio',{name:'Mes revues'}).check();
  await expect(other.getByRole('link',{name:project.title,exact:true})).toHaveCount(0);
  await expect(other.getByText('Aucune revue ne vous est attribuée.',{exact:true})).toBeVisible();
  await oc.close();
  const assignedName=(await adminRows('profiles',`user_id=eq.${e2eReviewer!.id}&select=display_name`))[0].display_name;
  await expect(reviewer.getByText(`Pris en charge par : ${assignedName}`,{exact:true})).toBeVisible();
  await reviewer.goto('/app/dao/review');
- await reviewer.getByRole('checkbox',{name:'Mes revues'}).check();
+ await reviewer.getByRole('radio',{name:'Mes revues'}).check();
  await expect(reviewer.getByRole('link',{name:project.title,exact:true})).toBeVisible();
  await reviewer.goto(`/app/dao/projects/${project.projectId}`);
  const ac=await browser.newContext(),admin=await ac.newPage();
  await login(admin,e2eAdmin!);
  await admin.goto('/app/dao/review');
  await expect(admin.getByRole('link',{name:project.title,exact:true})).toBeVisible();
- await admin.getByRole('checkbox',{name:'Mes revues'}).check();
+ await admin.getByRole('radio',{name:'Mes revues'}).check();
  await expect(admin.getByRole('link',{name:project.title,exact:true})).toHaveCount(0);
  await expect(admin.getByText('Aucune revue ne vous est attribuée.',{exact:true})).toBeVisible();
  await ac.close();
@@ -76,8 +76,8 @@ test('Back-office : attribution assistée et retrait motivé conservent offre et
    else await route.continue();
  });
  await artisan.reload();
- await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
- await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
+ // #356: a DAO with no lot still open to offers leaves « DAO disponibles » (offers stay in « Mes offres »).
+ await expect(card).toHaveCount(0);
  await artisan.unroute(availabilityEndpoint);
  // Closed lot on a still published DAO: the authoritative RPC rejects new offers.
  await artisan.route(availabilityEndpoint,async route=>{
@@ -85,8 +85,8 @@ test('Back-office : attribution assistée et retrait motivé conservent offre et
    else await route.continue();
  });
  await artisan.reload();
- await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
- await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
+ // #356: a DAO with no lot still open to offers leaves « DAO disponibles » (offers stay in « Mes offres »).
+ await expect(card).toHaveCount(0);
  await artisan.unroute(availabilityEndpoint);
  // Simulate an expired deadline without changing the stored fixture.
  const publicationEndpoint='**/rest/v1/publications*';
@@ -97,7 +97,7 @@ test('Back-office : attribution assistée et retrait motivé conservent offre et
    await route.fulfill({response,body:JSON.stringify(Array.isArray(body)?body.map(expired):expired(body))});
  });
  await artisan.reload();
- await expect(card.getByText('Fermé',{exact:true}).first()).toBeVisible();
+ await expect(card).toHaveCount(0);
  await artisan.unroute(publicationEndpoint);
  // An unverified professional can consult, but cannot respond even to an open DAO.
  const profileEndpoint='**/rest/v1/contractor_profiles*';
@@ -112,7 +112,7 @@ test('Back-office : attribution assistée et retrait motivé conservent offre et
  await expect(card.getByText('À répondre',{exact:true})).toHaveCount(0);
  await artisan.unroute(profileEndpoint);
  await artisan.goto(`/app/artisan/publications/${pub}`);await artisan.getByLabel('Prix proposé (TND)').fill('1000.001');await artisan.getByLabel('Délai (jours)').fill('10');await artisan.getByLabel('Proposition technique / inclusions').fill('Offre BO immuable');await artisan.getByRole('button',{name:'Soumettre l’offre'}).click();await expect(artisan.getByRole('heading',{name:'Offre envoyée'})).toBeVisible();const before=await adminRows('bid_items',`project_id=eq.${project.projectId}&select=id,price_millimes,inclusions`);
- await staff.reload();await expect(staff.getByText(/Actions pour le compte du client/)).toBeVisible();await staff.getByLabel('Contexte de la demande du client').fill('Demande du client de comparer et attribuer cette offre');await staff.getByRole('button',{name:'Attribuer cette offre'}).click();await staff.getByRole('button',{name:'Confirmer l’attribution'}).click();await expect(staff.getByText('Lot attribué',{exact:true})).toBeVisible();await staff.getByRole('button',{name:'Retirer de la publication'}).click();let withdrawal=staff.getByRole('dialog',{name:'Retirer un lot'});await withdrawal.getByLabel('Motif',{exact:true}).selectOption('correction');await withdrawal.getByRole('button',{name:'Confirmer le retrait'}).click();await expect(withdrawal.getByRole('alert')).toContainText('Annuler d’abord');await withdrawal.getByRole('button',{name:'Annuler',exact:true}).click();await staff.getByRole('button',{name:'Annuler l’attribution',exact:true}).click();const cancellation=staff.getByRole('group',{name:'Annulation de l’attribution'});await cancellation.getByLabel('Motif d’annulation').selectOption('award_error');await cancellation.getByRole('button',{name:'Confirmer l’annulation'}).click();await expect(staff.getByRole('button',{name:'Attribuer cette offre'})).toBeVisible();
+ await staff.reload();await expect(staff.getByText(/Actions pour le compte du client/)).toBeVisible();await expect(staff.getByLabel('Motif d’intervention au nom du Client')).toHaveCount(0);await staff.getByRole('button',{name:'Attribuer cette offre'}).click();await expect(staff.getByRole('button',{name:'Confirmer l’attribution'})).toBeDisabled();await staff.getByLabel('Motif d’intervention au nom du Client').fill('Demande du client de comparer et attribuer cette offre');await expect(staff.getByText('Ce motif sera enregistré lors de la confirmation',{exact:false})).toBeVisible();await staff.getByRole('button',{name:'Confirmer l’attribution'}).click();await expect(staff.getByText('Lot attribué',{exact:true})).toBeVisible();await staff.getByRole('button',{name:'Retirer de la publication'}).click();let withdrawal=staff.getByRole('dialog',{name:'Retirer un lot'});await withdrawal.getByLabel('Motif',{exact:true}).selectOption('correction');await withdrawal.getByRole('button',{name:'Confirmer le retrait'}).click();await expect(withdrawal.getByRole('alert')).toContainText('Annuler d’abord');await withdrawal.getByRole('button',{name:'Annuler',exact:true}).click();await staff.getByRole('button',{name:'Annuler l’attribution',exact:true}).click();const cancellation=staff.getByRole('group',{name:'Annulation de l’attribution'});await cancellation.getByLabel('Motif d’annulation').selectOption('award_error');await cancellation.getByRole('button',{name:'Confirmer l’annulation'}).click();await expect(staff.getByRole('button',{name:'Attribuer cette offre'})).toBeVisible();
  await staff.getByRole('button',{name:'Retirer de la publication'}).click();withdrawal=staff.getByRole('dialog',{name:'Retirer un lot'});await withdrawal.getByLabel('Motif',{exact:true}).selectOption('other');await expect(withdrawal.getByRole('button',{name:'Confirmer le retrait'})).toBeDisabled();await withdrawal.getByLabel('Commentaire obligatoire').fill('Corriger le périmètre');await withdrawal.getByRole('button',{name:'Confirmer le retrait'}).click();await expect(staff.getByText('Retiré de la publication',{exact:true})).toBeVisible();
  await staff.goto(`/app/dao/projects/${project.projectId}`);
  await staff.getByRole('button',{name:'Modifier le dossier',exact:true}).click();
@@ -132,5 +132,5 @@ test('Admin : rôles cumulables, gestion professionnelle et contrôle des accès
 
 test('Admin : invitation Supabase standard puis activation et connexion du nouveau staff',async({page,browser,request,e2eAdmin},info)=>{
  expect(e2eAdmin).toBeTruthy();await login(page,e2eAdmin!);await page.goto('/app/dao/users');const email=`dao-e2e-invited-${randomUUID()}@example.invalid`;const form=page.getByRole('heading',{name:'Inviter un membre staff'}).locator('..').locator('form');await form.getByLabel('Nom',{exact:true}).fill('Gestionnaire invité E2E');await form.getByLabel('Email',{exact:true}).fill(email);await form.getByLabel('Rôle',{exact:true}).selectOption('dao_reviewer');await form.getByRole('button',{name:'Envoyer l’invitation'}).click();await expect(page.getByRole('status')).toContainText('Compte staff invité');const invitation=await adminRows('staff_invitation_requests',`email=eq.${email}&select=status,target_user_id`);expect(invitation).toHaveLength(1);expect(invitation[0].status).toBe('completed');recordE2EValue(info,'users',invitation[0].target_user_id);
- let messageId='';await expect.poll(async()=>{const r=await request.get('http://127.0.0.1:54324/api/v1/search',{params:{query:`to:${email}`}});expect(r.ok()).toBeTruthy();const inbox=await r.json();const messages=inbox.messages.filter((m:any)=>/invite/i.test(m.Subject));if(messages.length===1)messageId=messages[0].ID;return messages.length;}).toBe(1);const captured=await request.get(`http://127.0.0.1:54324/api/v1/message/${messageId}`);expect(captured.ok()).toBeTruthy();const mail=await captured.json();const links=Array.from(String(mail.HTML).matchAll(/href="([^"]+)"/g),m=>m[1].replaceAll('&amp;','&'));const inviteLink=links.find(link=>{const u=new URL(link);return u.origin==='http://127.0.0.1:54321'&&u.pathname==='/auth/v1/verify'&&u.searchParams.get('type')==='invite';});expect(inviteLink).toBeTruthy();const context=await browser.newContext(),staff=await context.newPage();await staff.goto(inviteLink!);await expect(staff).toHaveURL(/\/auth\/activate-staff/);const password='Invited!'+randomUUID();await staff.getByLabel('Nouveau mot de passe',{exact:true}).fill(password);await staff.getByLabel('Confirmer le mot de passe',{exact:true}).fill(password);await staff.getByRole('button',{name:'Activer mon accès'}).click();await expect(staff.getByRole('status')).toContainText('mot de passe est enregistré');await staff.getByRole('link',{name:'Ouvrir le back-office'}).click();await expect(staff.getByRole('heading',{name:'Pilotage D.A.O'})).toBeVisible();await context.close();
+ let messageId='';await expect.poll(async()=>{const r=await request.get('http://127.0.0.1:54324/api/v1/search',{params:{query:`to:${email}`}});expect(r.ok()).toBeTruthy();const inbox=await r.json();const messages=inbox.messages.filter((m:any)=>/invit/i.test(m.Subject));if(messages.length===1)messageId=messages[0].ID;return messages.length;}).toBe(1);const captured=await request.get(`http://127.0.0.1:54324/api/v1/message/${messageId}`);expect(captured.ok()).toBeTruthy();const mail=await captured.json();const links=Array.from(String(mail.HTML).matchAll(/href="([^"]+)"/g),m=>m[1].replaceAll('&amp;','&'));const inviteLink=links.find(link=>{const u=new URL(link);return u.origin==='http://127.0.0.1:54321'&&u.pathname==='/auth/v1/verify'&&u.searchParams.get('type')==='invite';});expect(inviteLink).toBeTruthy();const context=await browser.newContext(),staff=await context.newPage();await staff.goto(inviteLink!);await expect(staff).toHaveURL(/\/auth\/activate-staff/);const password='Invited!'+randomUUID();await staff.getByLabel('Nouveau mot de passe',{exact:true}).fill(password);await staff.getByLabel('Confirmer le mot de passe',{exact:true}).fill(password);await staff.getByRole('button',{name:'Activer mon accès'}).click();await expect(staff.getByRole('status')).toContainText('mot de passe est enregistré');await staff.getByRole('link',{name:'Ouvrir le back-office'}).click();await expect(staff.getByRole('heading',{name:'Pilotage D.A.O'})).toBeVisible();await context.close();
 });

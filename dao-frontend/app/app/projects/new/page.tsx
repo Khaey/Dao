@@ -58,7 +58,7 @@ const stepDescriptions = ['Un titre clair aide les professionnels à comprendre 
 function MarketplaceProjectForm({ onCancel }: { onCancel: () => void }) {
   const router = useRouter(); const panelRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ title: '', description: '', type: 'renovation', surface: '', budget: '', date: '', endDate: '', governorate: '', delegation: '', locality: '' });
+  const [form, setForm] = useState({ title: '', description: '', type: 'renovation', surface: '', budget: '', date: '', endDate: '', governorate: '', delegation: '', locality: '', address: '' });
   const [governorates, setGovernorates] = useState<Territory[]>([]); const [delegations, setDelegations] = useState<Territory[]>([]); const [localities, setLocalities] = useState<Territory[]>([]);
   const [territoryError, setTerritoryError] = useState(false);
   const [error, setError] = useState(''); const [fieldErrors, setFieldErrors] = useState<FieldErrors>({}); const [saving, setSaving] = useState(false);
@@ -106,6 +106,11 @@ function MarketplaceProjectForm({ onCancel }: { onCancel: () => void }) {
       const updated = await fetch('/api/projects', { method: 'PATCH', headers, body: JSON.stringify({ project_id: projectId, title: form.title, description: form.description, ...fields }) });
       const updatePayload = await updated.json().catch(() => ({}));
       if (!updated.ok) { setError(`${updatePayload.error || 'Projet créé mais informations incomplètes.'} Réessayez : le projet déjà créé sera complété, sans doublon.`); setSaving(false); return; }
+      // #467 : quartier/adresse libre, enregistré uniquement dans les informations privées du chantier.
+      if (form.address.trim()) {
+        const saved = await fetch('/api/projects/private-details', { method: 'POST', headers, body: JSON.stringify({ project_id: projectId, exact_address: form.address.trim() }) });
+        if (!saved.ok) { const savedPayload = await saved.json().catch(() => ({})); setError(`${savedPayload.error || 'Projet créé, mais la précision d’adresse n’a pas été enregistrée.'} Réessayez, ou complétez-la depuis la fiche du chantier.`); setSaving(false); return; }
+      }
       router.push(`/app/projects/${projectId}`);
     } catch {
       setError(createdId ? 'La connexion a été interrompue. Réessayez : le projet déjà créé sera complété, sans doublon.' : 'La connexion a été interrompue. Vérifiez dans Mes chantiers si le projet a été créé avant de réessayer.');
@@ -139,6 +144,7 @@ function MarketplaceProjectForm({ onCancel }: { onCancel: () => void }) {
               <Field id="project-delegation" label="Délégation" optional hint={!form.governorate ? 'Choisissez d’abord le gouvernorat.' : undefined}><select {...describe('project-delegation', undefined, !form.governorate ? 'x' : undefined)} aria-label="Délégation" className={controlClass()} disabled={!form.governorate} value={form.delegation} onChange={event => update('delegation', event.target.value)}><option value="">Choisir…</option>{delegations.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></Field>
               <Field id="project-locality" label="Localité" optional hint={!form.delegation ? 'Choisissez d’abord la délégation.' : undefined}><select {...describe('project-locality', undefined, !form.delegation ? 'x' : undefined)} aria-label="Localité" className={controlClass()} disabled={!form.delegation} value={form.locality} onChange={event => update('locality', event.target.value)}><option value="">Choisir…</option>{localities.map(item => <option key={item.id} value={item.id}>{item.name_fr}</option>)}</select></Field>
             </div>
+            <div className="mt-5"><Field id="project-address" label="Quartier ou adresse précise" optional hint="Votre quartier n’est pas dans la liste (ex. Sahloul 3) ? Indiquez-le ici. Information privée : réservée aux participants autorisés, jamais affichée sur l’annonce publique."><input {...describe('project-address', undefined, 'x')} aria-label="Quartier ou adresse précise" className={controlClass()} maxLength={300} autoComplete="street-address" value={form.address} onChange={event => update('address', event.target.value)} placeholder="Ex. Sahloul 3, près de la mosquée" /></Field></div>
           </>}
           {step === 3 && <div className="grid gap-5 sm:grid-cols-3">
             <Field id="project-budget" label="Budget indicatif (TND)" optional error={fieldErrors.budget} hint={budgetHint}><input {...describe('project-budget', fieldErrors.budget, budgetHint)} aria-label="Budget indicatif (TND)" className={controlClass(fieldErrors.budget)} type="number" inputMode="decimal" min="0" step="0.001" value={form.budget} onChange={event => update('budget', event.target.value)} placeholder="150000" /></Field>
@@ -147,7 +153,7 @@ function MarketplaceProjectForm({ onCancel }: { onCancel: () => void }) {
           </div>}
           {step === 4 && <div className="grid gap-3 sm:grid-cols-2">
             <SummaryBlock title="Projet" onEdit={() => setStep(1)} editLabel="Modifier le projet"><p className="break-words font-semibold">{form.title}</p><p className="mt-0.5 text-ink/70">{types[form.type as keyof typeof types]}{form.surface ? ` · ${form.surface} m²` : ''}</p></SummaryBlock>
-            <SummaryBlock title="Localisation" onEdit={() => setStep(2)} editLabel="Modifier la localisation"><p className="flex items-start gap-1.5 font-semibold"><MapPin size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-ink/55" />{location || 'À préciser'}</p></SummaryBlock>
+            <SummaryBlock title="Localisation" onEdit={() => setStep(2)} editLabel="Modifier la localisation"><p className="flex items-start gap-1.5 font-semibold"><MapPin size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-ink/55" />{location || 'À préciser'}</p>{form.address.trim() && <p className="mt-1 text-sm text-black/60">Précision privée : {form.address.trim()}</p>}</SummaryBlock>
             <SummaryBlock title="Budget" onEdit={() => setStep(3)} editLabel="Modifier le budget"><p className="font-semibold tabular-nums">{form.budget ? formatTnd(form.budget) : 'À préciser'}</p></SummaryBlock>
             <SummaryBlock title="Calendrier" onEdit={() => setStep(3)} editLabel="Modifier le calendrier"><p className="flex items-start gap-1.5 font-semibold"><CalendarDays size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-ink/55" />{form.date ? formatDay(form.date) : 'À préciser'}{form.endDate ? ` → ${formatDay(form.endDate)}` : ''}</p>{(!form.date || !form.endDate) && <p className="mt-1 text-xs text-amber-800">Les deux dates seront nécessaires avant la revue du DAO.</p>}</SummaryBlock>
             {form.description && <SummaryBlock title="Description" onEdit={() => setStep(1)} editLabel="Modifier la description"><p className="whitespace-pre-wrap text-ink/80">{form.description}</p></SummaryBlock>}

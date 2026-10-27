@@ -14,6 +14,34 @@
 
 # D.A.O — Decisions
 
+## D-046 — Préparation du brouillon contrat après award configurable (#390)
+
+Le contrat est désactivé par défaut et choisi par le Client propriétaire avant
+la première attribution active. L'identité D.A.O n'est jamais déduite : la
+configuration administrative nomme explicitement un représentant `dao_admin`
+actif de **LogicLab Tunisie** et conserve un historique. Lorsqu'un nouvel award
+est créé sur un chantier activé, sa fondation canonique non engageante est
+préparée dans la même transaction après insertion de toutes ses lignes. Échec
+de préparation = rollback de l'award ; retry = même résultat sans doublon.
+
+Les contrats restent strictement 1/award. Plusieurs awards du même Artisan sont
+regroupables uniquement en lecture chantier × Artisan. Aucun avenant, accord,
+signature, validation D.A.O, effet juridique, finance ou exécution n'est
+déclenché automatiquement. Le réglage désactivé n'appelle pas la fondation.
+
+## D-045 — Accord Client–Artisan facultatif avant contrat (#345)
+
+Validé le 20 octobre 2026 : après attribution active et avant préparation du
+contrat, le Client et l’Artisan titulaire peuvent négocier puis accepter la
+même version immuable de conditions simples ou avancées. Chaque révision
+invalide fonctionnellement les accords de la version précédente tout en
+conservant l’historique append-only. Dates, sous-lots et échéanciers restent
+facultatifs. Les montants éventuels restent en millimes TND et leur somme doit
+égaler le prix attribué. Le résultat est une annexe technique non signée :
+aucun effet juridique, réception, dette ou mouvement financier. DEV 2 possède
+SQL/API/sécurité ; DOW possède exclusivement l’UX ; COP conserve OCE/planning.
+
+
 ## D-044 — Messagerie privée liée aux memberships actifs (#116)
 
 Le fil réutilise `conversations(project_id, contractor_id)`, les participants

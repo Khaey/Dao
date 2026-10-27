@@ -1,6 +1,6 @@
 import {
   OceGateway, OceGatewayError, requests,
-  type EnsureDependencyInput, type EnsureProjectInput, type EnsureScheduleInput, type EnsureWbsInput, type MappingRef, type UpsertActivityInput,
+  type EnsureDependencyInput, type EnsureProjectInput, type RemoveActivityInput, type RemoveDependencyInput, type EnsureScheduleInput, type EnsureWbsInput, type MappingRef, type UpsertActivityInput,
 } from './gatewayContract.js';
 
 type Row = { project: boolean; wbs: Set<string>; schedule: boolean; activities: Map<string, any>; dependencies: Map<string, any> };
@@ -47,6 +47,15 @@ export class InMemoryOceGateway implements OceGateway {
     const id = `${body.predecessor_activity_code}->${body.successor_activity_code}`; const previous = row.dependencies.get(id);
     const updated = Boolean(previous) && JSON.stringify(previous) !== JSON.stringify(body); row.dependencies.set(id, body);
     return { ok: true as const, created: !previous, updated };
+  }
+  async removeDependency(input: RemoveDependencyInput) {
+    const body = requests.removeDependency(input); const row = this.row(body, 'removeDependency');
+    return { ok: true as const, removed: row.dependencies.delete(`${body.predecessor_activity_code}->${body.successor_activity_code}`) };
+  }
+  async removeActivity(input: RemoveActivityInput) {
+    const body = requests.removeActivity(input); const row = this.row(body, 'removeActivity');
+    for (const key of row.dependencies.keys()) { const [pred, succ] = key.split('->'); if (pred === body.activity_code || succ === body.activity_code) throw new OceGatewayError('conflict', 'activity_has_dependencies', 409); }
+    return { ok: true as const, removed: row.activities.delete(body.activity_code) };
   }
   async calculatePlanning(input: MappingRef) {
     const row = this.row(requests.mapping(input), 'calculatePlanning'); this.need(row.schedule, 'schedule_not_ensured');

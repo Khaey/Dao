@@ -107,7 +107,7 @@ test('Projet autonome : création, édition, lot principal et soumission @fast',
   await expect(mainLotRow).toContainText('Entreprise générale');
   await expect(mainLotRow).toContainText('v1');
   await expect(mainLotRow).toContainText('Installation plomberie complète');
-  await expect(mainLotRow.getByRole('cell').nth(2)).toContainText('175');
+  await expect(mainLotRow.getByRole('cell').first()).toContainText('175');
   expect(mainLotPosts).toBe(1);
   await expect(page.getByRole('button', { name: 'Ajouter un lot' })).toHaveCount(1);
 
@@ -123,17 +123,17 @@ test('Projet autonome : création, édition, lot principal et soumission @fast',
   await page.getByRole('button', { name: /^Lots/ }).click();
   await expect(mainLotRow).not.toContainText(laterTitle);
   await expect(mainLotRow).toContainText('Installation plomberie complète');
-  await expect(mainLotRow.getByRole('cell').nth(2)).toContainText('175');
+  await expect(mainLotRow.getByRole('cell').first()).toContainText('175');
   expect(mainLotPosts).toBe(1);
 
   await page.goto(`/app/projects/${project.projectId}/review`);
   await page.getByRole('button', { name: 'Soumettre pour revue DAO' }).click();
-  await expect(page.getByText('Validation client', { exact: true })).toBeVisible();
+  await expect(page.getByText('En attente de validation D.A.O.', { exact: true })).toBeVisible();
 
   await page.goto('/app');
   const dashboardProject = page.getByRole('link').filter({ hasText: laterTitle });
   await expect(dashboardProject).toHaveCount(1);
-  await expect(dashboardProject).toContainText('Validation client');
+  await expect(dashboardProject).toContainText('En attente de validation D.A.O.');
   await page.goto('/app/projects');
   await page.getByLabel('Rechercher un projet').fill(laterTitle);
   await page.getByLabel('Filtrer par statut').selectOption('client_review');

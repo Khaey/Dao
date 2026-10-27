@@ -6,10 +6,20 @@ import { Badge, Button, Card } from '../../../../components/ui';
 import { commandBackoffice } from '../../../../lib/backoffice';
 import { projectApi } from '../../../../lib/collaboration';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
+import AgreementLinks from '../../../../components/precontract/AgreementLinks';
+import { settingAvailable, useMySettings } from '../../../../lib/settings';
 
+type CounterState = {allowed:boolean;status?:'pending'|'accepted'|'declined'|null;amount_millimes?:number|null};
+const parseTnd = (input:string):number|null=>{
+  const match=input.trim().replace(',','.').match(/^(\d+)(?:\.(\d{1,3}))?$/);
+  if(!match)return null;
+  const val=Number(match[1])*1000+Number((match[2]||'').padEnd(3,'0'));
+  return Number.isSafeInteger(val)&&val>0?val:null;
+};
 type Lot = { id: string; request_version_id: string; safe_title: string };
 type Offer = {
   itemId: string;
+  contractorId: string;
   versionId: string;
   versionNo: number;
   requestId: string;
@@ -22,7 +32,7 @@ type Offer = {
   groupId: string | null;
   result: string;
 };
-type Award = { id: string; request_id: string; bid_item_id: string; agreed_millimes: number; active: boolean };
+type Award = { id: string; award_id: string; request_id: string; bid_item_id: string; agreed_millimes: number; active: boolean };
 type QuoteDocument = { id:string; bid_version_id:string; original_name:string; size_bytes:number; status:string };
 type SubLotView = { bid_item_id:string; bid_version_id:string; node_key:string; position:number; title:string; scope:string|null; start_date:string|null; end_date:string|null; duration_days:number|null; budget_millimes:number|null };
 type SubLotLinkView = { bid_version_id:string; pred_kind:string; pred_ref:string; succ_kind:string; succ_ref:string };
@@ -44,6 +54,13 @@ function formatTnd(value: number) {
 
 export default function PublicationOffersPanel({ projectId, publicationId, lots, canManage=true, assisted=false }: { projectId: string; publicationId: string; lots: Lot[]; canManage?:boolean; assisted?:boolean }) {
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [counterOptions,setCounterOptions]=useState<Record<string,CounterState>>({});
+  const [counterDraft,setCounterDraft]=useState<string|null>(null);
+  const [counterAmount,setCounterAmount]=useState('');
+  const [counterMessage,setCounterMessage]=useState('');
+  const [counterBusy,setCounterBusy]=useState(false);
+  // Staff (assisted) views are not gated here; the server checks the Client's settings.
+  const settings=useMySettings(assisted?undefined:'client',projectId);
   const [awards, setAwards] = useState<Award[]>([]);
   const [availability, setAvailability] = useState<Record<string, string>>({});
   const [cancellations, setCancellations] = useState<any[]>([]);
@@ -65,12 +82,13 @@ export default function PublicationOffersPanel({ projectId, publicationId, lots,
     setLoading(true);
     setError('');
     const supabase = supabaseBrowser();
-    const bidsResult = await supabase.from('bids').select('id').eq('project_id', projectId);
+    const bidsResult = await supabase.from('bids').select('id,contractor_id').eq('project_id', projectId);
     if (bidsResult.error) throw new Error('Les offres ne sont pas disponibles.');
     const bidIds = (bidsResult.data ?? []).map((bid: { id: string }) => bid.id);
+    const contractorByBid = new Map((bidsResult.data ?? []).map((bid: { id: string; contractor_id: string }) => [bid.id, bid.contractor_id]));
     const awardResult = await supabase
       .from('award_items')
-      .select('id,request_id,bid_item_id,agreed_millimes,active,bid_items!award_items_bid_item_id_fkey(bid_version_id)')
+      .select('id,award_id,request_id,bid_item_id,agreed_millimes,active,bid_items!award_items_bid_item_id_fkey(bid_version_id)')
       .eq('project_id', projectId);
     if (awardResult.error) throw new Error('Les attributions ne sont pas disponibles.');
     setAwards((awardResult.data ?? []).filter((row) => row.active) as Award[]);
@@ -139,6 +157,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
       const version = versionById.get(item.bid_version_id) as any;
       return {
         itemId: item.id,
+        contractorId: contractorByBid.get(version?.bid_id) ?? '',
         versionId: item.bid_version_id,
         versionNo: Number(version?.version_no ?? 0),
         requestId: item.request_id,
@@ -174,6 +193,29 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
   }, [offers]);
   const activeAward = useMemo(() => new Map(awards.map((award) => [award.request_id, award])), [awards]);
 
+  async function loadCounterOptions() {
+    if(assisted) return;
+    const {data,error}=await supabaseBrowser().rpc('client_bid_counter_options',{p_publication_id:publicationId});
+    if(error || !Array.isArray(data)) {setCounterOptions({});return;}
+    const byItem:Record<string,CounterState>={};
+    for(const entry of data) if(typeof entry.bid_item_id==='string')
+      byItem[entry.bid_item_id]={allowed:entry.allowed===true,status:entry.status,amount_millimes:entry.amount_millimes};
+    setCounterOptions(byItem);
+  }
+  useEffect(()=>{void loadCounterOptions();},[publicationId,assisted,offers.length]);
+  async function proposeCounter(item:Offer){
+    const mills=parseTnd(counterAmount);
+    if(mills==null){setError('Indiquez un montant valide en TND (jusqu’à 3 décimales).');return;}
+    if(!window.confirm(`Proposer ${formatTnd(mills)} à cet Artisan pour ce lot ?`))return;
+    setCounterBusy(true);setError('');
+    const {error}=await supabaseBrowser().rpc('propose_bid_counter',{
+      p_bid_item_id:item.itemId,p_amount_millimes:mills,p_message:counterMessage.trim(),p_key:crypto.randomUUID()
+    });
+    if(error)setError('Impossible d’envoyer cette contre-proposition. Le lot ou la préférence Artisan a peut-être changé.');
+    else {setCounterDraft(null);setCounterAmount('');setCounterMessage('');await loadCounterOptions();setMessage('Contre-proposition transmise à l’Artisan. Le devis original reste inchangé.');}
+    setCounterBusy(false);
+  }
+
   async function award(offer: Offer) {
     setSaving(true);
     setError('');
@@ -207,12 +249,15 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
   async function downloadQuote(documentId:string){setError('');try{const {data}=await supabaseBrowser().auth.getSession();if(!data.session)throw new Error('Session expirée.');const response=await fetch('/api/documents/download',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${data.session.access_token}`},body:JSON.stringify({document_id:documentId})});const body=await response.json();if(!response.ok)throw new Error(body.error||'Téléchargement refusé.');window.open(body.data,'_blank','noopener,noreferrer');}catch(cause:any){setError(cause?.message||'Téléchargement impossible.');}}
   async function exportQuote(versionId:string){setError('');try{const {data}=await supabaseBrowser().auth.getSession();if(!data.session)throw new Error('Session expirée.');const response=await fetch(`/api/bids/quote/export?version_id=${encodeURIComponent(versionId)}`,{headers:{Authorization:`Bearer ${data.session.access_token}`}});if(!response.ok){const body=await response.json();throw new Error(body.error||'Export refusé.');}const url=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=url;link.download='devis-dao.pdf';link.click();URL.revokeObjectURL(url);}catch(cause:any){setError(cause?.message||'Export impossible.');}}
 
-  return <Card className="space-y-5 p-5 sm:p-7">
+  // #346: the staff motif lives next to the decision it justifies; it is sent only with that command (never
+  // shown as saved before the server confirms) and kept on screen if the command fails.
+  const assistField = <label className="mt-3 block text-sm font-semibold text-ink">Motif d’intervention au nom du Client<textarea rows={2} className={field} value={assistanceReason} onChange={e=>setAssistanceReason(e.target.value)} placeholder="Demande du client, échange ou référence utile" /><span className="mt-1 block text-xs font-normal text-black/55">Obligatoire. Ce motif sera enregistré lors de la confirmation.</span></label>;
+  return <Card id="offres" className="scroll-mt-20 space-y-5 p-5 sm:p-7">
     <h2 className="text-2xl font-bold tracking-tight text-ink">Comparer et attribuer les offres</h2>
-    <div className="flex items-start gap-2.5 rounded-2xl bg-sand/70 px-4 py-3 text-sm text-black/65"><Info aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-teal" /><p>Seule la version soumise actuelle de chaque offre est comparée. L’attribution porte sur un lot et ne crée ni contrat ni démarrage de travaux.</p></div>
+    <div className="flex items-start gap-2.5 rounded-2xl bg-sand/70 px-4 py-3 text-sm text-black/65"><Info aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-teal" /><p><strong className="text-ink">Attribuer une offre, c’est choisir l’Artisan d’un lot.</strong> Ce n’est ni une signature ni un contrat, et les travaux ne démarrent pas : les conditions et le calendrier se conviennent ensuite avec l’Artisan. Seule la version soumise actuelle de chaque offre est comparée.</p></div>
     {assisted&&<p className="text-sm font-medium text-teal">Actions pour le compte du client · Votre identité staff est conservée dans l’historique.</p>}
     {!canManage&&<p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Lecture seule : seul le gestionnaire affecté ou l’Admin peut attribuer ou annuler.</p>}
-    {assisted&&canManage&&<label className="block text-sm font-semibold text-ink">Contexte de la demande du client<textarea className={field} value={assistanceReason} onChange={e=>setAssistanceReason(e.target.value)} placeholder="Demande du client, échange ou référence utile" /></label>}
+    {assisted&&canManage&&!loading&&offers.length===0&&awards.length===0&&<p className="rounded-xl bg-sand/70 px-4 py-3 text-sm text-black/65">Aucune offre à attribuer pour le moment ; un motif d’intervention pourra être renseigné au moment de la décision.</p>}
     {loading && <div aria-busy="true" className="space-y-3"><span className="sr-only">Chargement des offres…</span>{[0, 1].map(item => <div key={item} className="h-40 animate-pulse rounded-2xl bg-black/5" />)}</div>}
     {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
     {message && <p role="status" className="flex items-start gap-2 rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal"><CheckCircle2 aria-hidden="true" size={17} className="mt-0.5 shrink-0" />{message}</p>}
@@ -221,13 +266,14 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
       const awarded = activeAward.get(availability[lot.id]);
       const lowest = lotOffers.length ? Math.min(...lotOffers.map(offer => offer.priceMillimes)) : 0;
       const fastest = lotOffers.length ? Math.min(...lotOffers.map(offer => offer.durationDays)) : 0;
-      const compare = lotOffers.length > 1;
+      const compare = lotOffers.length > 1 && settingAvailable(settings,'client.offer_comparison');
       return <section key={lot.id} className={`rounded-2xl border p-4 sm:p-5 ${awarded ? 'border-teal/25 bg-teal/[0.03]' : 'border-black/[0.08]'}`} aria-labelledby={`lot-${lot.id}`}>
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <h3 id={`lot-${lot.id}`} className="min-w-0 flex-1 break-words text-lg font-bold tracking-tight text-ink">{lot.safe_title}</h3>
           <div className="flex flex-wrap items-center gap-2">
             {awarded && <Badge tone="teal">Lot attribué</Badge>}
-            {awarded && <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className={`min-h-11 ${ghost}`} onClick={() => { setCancelling(awarded); setReason(''); setComment(''); }}>Annuler l’attribution</Button>}
+            {awarded && <AgreementLinks awardId={awarded.award_id} compact />}
+            {awarded && <Button disabled={!canManage || saving} className={`min-h-11 ${ghost}`} onClick={() => { setCancelling(awarded); setReason(''); setComment(''); }}>Annuler l’attribution</Button>}
           </div>
           <p className="w-full text-sm text-black/55">{lotOffers.length ? `${plural(lotOffers.length, 'offre')} · à partir de ${formatTnd(lowest)}` : 'En attente d’offres'}</p>
         </div>
@@ -243,6 +289,7 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/45">Offre {index + 1}</p>
+                  {offer.contractorId && <a href={`/app/professionals/${offer.contractorId}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-teal underline-offset-4 hover:underline">Consulter la fiche professionnelle</a>}
                   <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-ink">{formatTnd(offer.priceMillimes)}</p>
                   {compare && gap > 0 && !awarded && <p className="text-xs font-medium text-black/50">+{gap} % par rapport à la moins chère</p>}
                 </div>
@@ -261,12 +308,25 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
               <div className="mt-4 rounded-xl bg-sand/55 p-3"><p className="text-xs font-bold uppercase tracking-wide text-black/45">Devis</p>{details.length?<><div className="mt-2 overflow-x-auto"><table className="w-full min-w-[430px] text-left text-xs"><thead><tr className="text-black/45"><th className="pb-1 pr-2">Poste</th><th className="pb-1 pr-2">Qté</th><th className="pb-1 pr-2">PU</th><th className="pb-1 text-right">Total</th></tr></thead><tbody>{details.map(line=><tr key={line.id} className="border-t border-black/5"><td className="py-1.5 pr-2 font-medium text-ink">{line.designation} <span className="text-black/40">· {line.unit}</span></td><td className="py-1.5 pr-2 tabular-nums">{Number(line.quantity_milli)/1000}</td><td className="py-1.5 pr-2 tabular-nums">{formatTnd(Number(line.unit_price_millimes))}</td><td className="py-1.5 text-right font-semibold tabular-nums">{formatTnd(Number(line.total_millimes))}</td></tr>)}</tbody></table></div><p className="mt-2 text-xs text-black/50">Détail structuré disponible · total réconcilié avec l’offre.</p></>:<p className="mt-1 text-xs text-black/50">Pas de détail structuré : comparez le prix global et le périmètre annoncé.</p>}
               <div className="mt-2 flex flex-wrap gap-2"><Button className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void exportQuote(offer.versionId)}>Exporter le devis PDF</Button>{attached.map(document=><Button key={document.id} className="min-h-9 bg-white text-ink ring-1 ring-inset ring-black/10 hover:bg-sand" onClick={()=>void downloadQuote(document.id)}>Voir {document.original_name}</Button>)}</div>{attached.length===0&&<p className="mt-2 text-xs text-black/50">Pas de devis PDF joint — l’offre reste complète en ligne.</p>}</div>
               <p className="mt-3 text-xs text-black/40">Version {offer.versionNo} · soumise le {new Date(offer.submittedAt).toLocaleDateString('fr-TN')}</p>
-              <div className="mt-auto pt-4">
+              {canManage&&!assisted&&!awarded&&offer.groupId===null&&counterOptions[offer.itemId]?.allowed&&(settingAvailable(settings,'bids.counter_proposals')||counterOptions[offer.itemId]?.status)&&
+                <div className="mt-4 rounded-xl border border-teal/15 bg-teal/[0.035] p-3.5">
+                  <p className="text-xs font-semibold text-teal">Artisan ouvert à la négociation</p>
+                  {counterOptions[offer.itemId]?.status==='pending'?<p className="mt-2 text-sm text-black/65">Contre-proposition de {formatTnd(Number(counterOptions[offer.itemId].amount_millimes))} en attente de sa réponse.</p>
+                  :counterOptions[offer.itemId]?.status==='accepted'?<p className="mt-2 text-sm font-semibold text-teal">Nouveau prix accepté : {formatTnd(Number(counterOptions[offer.itemId].amount_millimes))}. Il sera pris en compte à l’attribution.</p>
+                  :counterDraft===offer.itemId?<div className="mt-2 space-y-2">
+                    <label className="block text-xs font-semibold text-ink">Nouveau montant (TND)<input inputMode="decimal" className={field} value={counterAmount} onChange={e=>setCounterAmount(e.target.value)} placeholder="25000.000"/></label>
+                    <label className="block text-xs font-semibold text-ink">Message facultatif<textarea maxLength={2000} rows={2} className={field} value={counterMessage} onChange={e=>setCounterMessage(e.target.value)} /></label>
+                    <div className="flex flex-wrap gap-2"><Button disabled={counterBusy} onClick={()=>void proposeCounter(offer)}>Envoyer la proposition</Button>
+                    <Button className={ghost} disabled={counterBusy} onClick={()=>setCounterDraft(null)}>Annuler</Button></div>
+                  </div>:<Button className={ghost} onClick={()=>{setCounterDraft(offer.itemId);setCounterAmount('');setCounterMessage('');}}>Faire une contre-proposition</Button>}
+                </div>}
+                <div className="mt-auto pt-4">
               {isWinner ? <p className="flex items-center gap-1.5 rounded-xl bg-teal/10 px-3 py-2.5 text-sm font-semibold text-teal"><CheckCircle2 aria-hidden="true" size={16} />Offre retenue · {formatTnd(Number(awarded.agreed_millimes))}</p> : declined ? <p className="text-sm font-semibold text-black/55">Non retenue</p> : !awarded && confirming === offer.itemId ? <div className="rounded-xl border border-clay/25 bg-clay/[0.05] p-3.5">
                 <p className="flex items-start gap-2 text-sm font-medium text-ink"><AlertTriangle aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-clay" />{offer.groupId ? 'Confirmer l’attribution de tous les lots de ce package indivisible ?' : 'Confirmer l’attribution de ce lot à cette offre ?'}</p>
+                {assisted && assistField}
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Button className="min-h-11" disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} onClick={() => void award(offer)}>{saving ? 'Attribution…' : 'Confirmer l’attribution'}</Button>
-                  <Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className={`min-h-11 ${ghost}`} onClick={() => setConfirming(null)}>Annuler</Button>
+                  <Button disabled={saving} className={`min-h-11 ${ghost}`} onClick={() => setConfirming(null)}>Annuler</Button>
                 </div>
               </div> : !awarded && <Button disabled={!canManage || saving || (offer.groupId != null && offers.some(member => member.groupId === offer.groupId && (member.result === 'not_selected' || activeAward.has(member.requestId))))} className="min-h-11 w-full" onClick={() => setConfirming(offer.itemId)}>{offer.groupId ? 'Attribuer tout le package' : 'Attribuer cette offre'}</Button>}
               </div>
@@ -280,7 +340,8 @@ const indivisibleItems = new Map((groupItemsResult.data ?? []).filter(item => (g
       <p className="mt-1 text-sm text-black/60">Le lot redevient ouvert aux offres. Pour un package indivisible, tous ses lots seront rouverts ensemble.</p></div>
       <label className="block text-sm font-semibold text-ink">Motif d’annulation<select className={field} value={reason} onChange={event => setReason(event.target.value)}><option value="">Choisir un motif</option>{Object.entries(cancellationReasons).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label className="block text-sm font-semibold text-ink">Commentaire<textarea rows={3} className={field} value={comment} onChange={event => setComment(event.target.value)} required={reason === 'other'} /></label>
-      <div className="flex flex-col gap-2 sm:flex-row"><Button className="min-h-11" disabled={!canManage || saving || (assisted&&!assistanceReason.trim()) || !reason || (reason === 'other' && !comment.trim())} onClick={() => void cancelAward()}>Confirmer l’annulation</Button><Button disabled={!canManage || saving || (assisted&&!assistanceReason.trim())} className={`min-h-11 ${ghost}`} onClick={() => setCancelling(null)}>Fermer</Button></div>
+      {assisted && assistField}
+      <div className="flex flex-col gap-2 sm:flex-row"><Button className="min-h-11" disabled={!canManage || saving || (assisted&&!assistanceReason.trim()) || !reason || (reason === 'other' && !comment.trim())} onClick={() => void cancelAward()}>Confirmer l’annulation</Button><Button disabled={saving} className={`min-h-11 ${ghost}`} onClick={() => setCancelling(null)}>Fermer</Button></div>
     </div>}
     {cancellations.length > 0 && <section className="border-t border-black/5 pt-5"><h3 className="font-bold text-ink">Historique des annulations</h3><ul className="mt-3 space-y-2">{cancellations.map(event => <li key={event.id} className="break-words rounded-xl bg-sand/60 px-3.5 py-2.5 text-sm text-black/70"><span className="font-semibold text-ink">{cancellationReasons[event.reason] ?? event.reason}</span> · {new Date(event.created_at).toLocaleString('fr-TN')}{assisted && ` · Auteur : ${event.actor_id}`}{event.comment && ` · ${event.comment}`}</li>)}</ul></section>}
   </Card>;

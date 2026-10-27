@@ -16,12 +16,15 @@ Owner issue: #289
 ## Matrice d’autorisation
 
 Les contrôles sont recalculés en base à chaque lecture et écriture. Un rôle global
-ne remplace jamais une participation active au chantier.
+ne remplace jamais l'attribution commerciale active du lot ni les contrôles de sécurité.
+L'Artisan attributaire n'a pas besoin d'une invitation d'équipe supplémentaire pour
+le carnet de ses lots ; une participation explicitement révoquée lui ferme néanmoins
+cet accès. Le droit au carnet ne donne **aucun droit global** sur les documents privés.
 
 | Acteur et contexte réel | Lire le carnet du lot | Déclarer progrès/intervention/jalon | Observer / contester | Voir un justificatif |
 | --- | --- | --- | --- | --- |
 | Client confirmé, membre accepté, compte actif, espace Client | Oui, sur son chantier | Non | Oui | Seulement si le RLS `documents` l’autorise |
-| Artisan attributaire actif, membre accepté, compte et profil non suspendus, espace Contractor | Oui, sur ses lots attribués | Oui, sur ses lots attribués | Non | Seulement si le RLS `documents` l’autorise |
+| Artisan attributaire actif (équipe facultative, révocation explicite refusée), compte et profil non suspendus, espace Contractor | Oui, sur ses lots attribués | Oui, sur ses lots attribués | Non | Seulement si le RLS `documents` l’autorise |
 | Même utilisateur avec deux rôles | Selon `profiles.last_workspace` | Seulement en espace Contractor et s’il est attributaire | Seulement en espace Client et s’il est le Client confirmé | Selon les mêmes règles documentaires |
 | Artisan accepté mais non attributaire, invité en attente, concurrent | Non | Non | Non | Aucun droit ajouté |
 | Client d’un autre chantier | Non | Non | Non | Aucun droit ajouté |
@@ -32,9 +35,10 @@ ne remplace jamais une participation active au chantier.
 Un chantier est exploitable uniquement si `projects.client_id` et
 `projects.confirmed_at` sont renseignés, si le Client possède toujours son
 membership accepté et si le lot possède un `award_item.active = true` rattaché à
-un award non annulé. L’artisan de l’award doit également posséder un membership
-Contractor accepté sur ce chantier. Une attribution commerciale ne crée donc pas
-à elle seule un accès au carnet.
+un award non annulé. L’Artisan de l’award actif est autorisé **sur ce lot uniquement** sans membership
+Contractor supplémentaire. Une révocation explicite de sa participation d'équipe
+empêche l'écriture et la lecture, sans modifier le contrat ni l'attribution.
+L’accès aux pièces du chantier reste soumis à leurs permissions propres.
 
 ## Modèle additif minimal
 
@@ -107,3 +111,29 @@ lot.
 Réception juridique, signature, pénalités, facturation, paiement, BOQ, mesures
 certifiées, modification des contrats/awards, notification nouvelle et toute
 interaction OCE/VPS restent exclus.
+
+## Extension P9-A2 — sous-lots et quantités réelles
+
+L’API existante `/api/projects/execution` utilise désormais la projection et
+les commandes `*_v2`, tout en conservant les RPC V1 pour compatibilité :
+
+- `progress` accepte un `bid_sub_lot_id` facultatif. La base vérifie que ce
+  sous-lot appartient exactement au `bid_item` du lot attribué ;
+- `intervention` accepte le même sous-lot et une quantité décimale facultative
+  en milli-unités (`executed_quantity_milli`, `quantity_unit`). Un
+  `quote_line_id` facultatif n’est accepté que s’il appartient au même poste de
+  l’offre attribuée et si son unité correspond exactement ;
+- le snapshot expose, sous chaque lot, ses vrais sous-lots issus de l’offre
+  retenue, leur dernier avancement et des cumuls séparés par poste/unité. Un
+  ratio n’est calculé que lorsqu’un poste de devis fournit le dénominateur ;
+  aucune unité ni aucun pourcentage hétérogène n’est additionné ;
+- l’observation Client `technical_validated`, avec réserve facultative, reste
+  liée à l’identifiant immuable de l’événement exact. Elle ne vaut ni réception,
+  ni acceptation juridique, ni autorisation de paiement.
+
+Une offre ancienne sans sous-lot continue à utiliser le suivi au niveau du lot.
+Les écritures restent réservées au lot activement attribué, même sans invitation
+d'équipe, mais une révocation explicite bloque l'accès au carnet. Les justificatifs
+restent privés et vérifiés indépendamment : l'attribution seule n'autorise pas la
+lecture des documents d'un autre membre ou d'un autre lot. L’historique
+append-only n’est ni révisé ni supprimé lors d’une annulation/réattribution.

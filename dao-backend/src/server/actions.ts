@@ -8,7 +8,10 @@ import { ProfileService } from '../services/ProfileService.js';
 import { AIService } from '../services/AIService.js';
 import { MessageService } from '../services/MessageService.js';
 import { ContractReadService } from '../services/ContractReadService.js';
+import { ContractConfigurationService } from '../services/ContractConfigurationService.js';
+import { PrecontractAgreementService } from '../services/PrecontractAgreementService.js';
 import { SiteExecutionService } from '../services/SiteExecutionService.js';
+import { SiteTechnicalQualityService } from '../services/SiteTechnicalQualityService.js';
 import { QuotePdfService } from '../services/QuotePdfService.js';
 import { DomainError } from '../lib/errors.js';
 
@@ -22,7 +25,10 @@ export type BackendServices = {
   ai: AIService;
   messages: MessageService;
   contracts: ContractReadService;
+  contractConfiguration: ContractConfigurationService;
+  precontractAgreements: PrecontractAgreementService;
   siteExecution: SiteExecutionService;
+  siteTechnicalQuality: SiteTechnicalQualityService;
   quotePdf: QuotePdfService;
 };
 
@@ -91,6 +97,18 @@ export async function awardRequest(s: BackendServices, actor: AuthenticatedActor
   requireActor(actor);
   return s.awards.award(input);
 }
+export async function projectContractConfiguration(s: BackendServices, actor: AuthenticatedActor, projectId: string) {
+  requireActor(actor);
+  return s.contractConfiguration.project(projectId);
+}
+export async function setProjectContractConfiguration(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.contractConfiguration.setProject(input);
+}
+export async function configureContractRuntime(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.contractConfiguration.configureRuntime(input);
+}
 export async function signedUpload(s: BackendServices, actor: AuthenticatedActor, input: { bidVersionId: string; originalName: string; mimeType: string; sizeBytes: number }) {
   requireActor(actor);
   return s.documents.signedUploadForActor(actor.id, input);
@@ -145,6 +163,15 @@ export async function deleteProjectDocument(s: BackendServices, actor: Authentic
   requireActor(actor);
   return s.documents.deleteProjectDocument(documentId);
 }
+
+function normalizeOptionalTunisianPhone(value: unknown) {
+  if (value == null || typeof value !== 'string' || !value.trim()) return null;
+  const compact = value.trim().replace(/[\s().-]/g, '');
+  if (/^\d{8}$/.test(compact)) return `+216${compact}`;
+  if (/^00216\d{8}$/.test(compact)) return `+${compact.slice(2)}`;
+  return compact;
+}
+
 export async function initializeProfile(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown> = {}) {
   requireActor(actor);
   if (input.account_type !== 'client' && input.account_type !== 'contractor') {
@@ -160,14 +187,17 @@ export async function initializeProfile(s: BackendServices, actor: Authenticated
   }
   return s.profiles.initialize({
     display_name: input.display_name,
-    phone_e164: input.phone_e164,
+    phone_e164: normalizeOptionalTunisianPhone(input.phone_e164),
     account_type: accountType,
     business_name: accountType === 'contractor' ? businessName : null,
   });
 }
 export async function updateProfile(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
   requireActor(actor);
-  return s.profiles.update(input);
+  return s.profiles.update({
+    ...input,
+    phone_e164: normalizeOptionalTunisianPhone(input.phone_e164),
+  });
 }
 export async function generateAiProposal(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
   requireActor(actor);

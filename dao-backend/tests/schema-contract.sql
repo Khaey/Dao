@@ -7,27 +7,30 @@ DECLARE
     '20260921094728','20260922133633','20260922142354','20260922142355',
     '20260922160410','20260922192016','20260922192148','20260922202247',
     '20260926092748','20260927102942','20260930084047','20260930163650','20260930165307',
-    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261019140000'
+    '20261003015740','20261003030134','20261004120000','20261006203956','20261007182403','20261009103053','20261009180000','20261012220000','20261013014522','20261013211500','20261014183000','20261014194000','20261014230755','20261015010000','20261017140000','20261017190000','20261018000000','20261018020000','20261018030000','20261018040000','20261018050000','20261018060000','20261018070000','20261018071000','20261018072000','20261018080000','20261019012000','20261019020000','20261019104500','20261019130000','20261019140000','20261019160000','20261019170000','20261019180000','20261019190000','20261019200000','20261019210000','20261020010000','20261020020000','20261020030000','20261020050000','20261020060000','20261020070000','20261020080000','20261021010000','20261021020000','20261021030000','20261021040000','20261022230233','20261023010000','20261024060000','20261024080000','20261024090000','20261024100000','20261024110000','20261024120000','20261024130000','20261025030744','20261025043812','20261025100000','20261025120000','20261025140000','20261025160000','20261025180000','20261025200000','20261025210000','20261025220000','20261025230000','20261025233000','20261026010000','20261027020000'
   ];
   expected_tables text[] := ARRAY[
     'account_states','review_assignments','request_sub_lots','request_sub_lot_versions','publication_lot_withdrawals','notification_outbox','oce_sync_mappings','oce_sync_wbs','oce_sync_activities','oce_sync_dependencies','oce_sync_journal','oce_lot_plans','staff_invitation_requests','ai_proposals','ai_runs','audit_events','award_cancellations','award_items','awards','bid_item_results',
-    'bid_documents','bid_group_items','bid_groups','bid_items','bid_quote_lines','bid_sub_lot_links','bid_sub_lots','project_plan_contexts','project_plan_link_decisions','project_plan_results','bid_versions','bids',
-    'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions',
+    'native_execution_activities','native_execution_activity_revisions','native_execution_activity_commands','native_execution_activity_proposals','native_execution_activity_proposal_acceptances','native_installment_scope_proposals','native_installment_scope_acceptances',
+    'bid_documents','bid_group_items','bid_groups','bid_items','bid_quote_lines','bid_sub_lot_links','bid_sub_lots','project_plan_contexts','project_plan_link_decisions','project_plan_manual_link_removals','project_plan_manual_links','project_plan_results','bid_versions','bids',
+    'command_receipts','contract_acceptances','contract_amendment_acceptances','contract_amendment_events','contract_amendment_versions','contract_amendments','contract_archives','contract_events','contract_items','contract_parties','contract_versions','precontract_agreements','precontract_agreement_versions','precontract_agreement_acceptances','precontract_agreement_events','precontract_installment_events',
     'contractor_profiles','contractor_service_areas','contractor_trades','contractor_profile_details','contractor_files',
     'contractor_reviews','contractor_review_responses','contractor_review_reports',
     'contracts','conversation_participants','conversations','delegations',
-    'document_grants','documents','governorates','localities','messages',
-    'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts',
-    'profiles','project_members','project_invitations','project_private_details','project_request_versions',
-    'project_requests','project_reviews','project_version_requests',
+    'document_grants','documents','document_families','document_revisions','document_family_lots','document_dossier_events','governorates','localities','messages',
+    'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts','technical_questions','technical_clarifications','technical_rfi_reads','technical_rfi_receipts','technical_rfi_documents',
+    'profiles','project_contract_settings','project_members','project_invitations','project_private_details','project_request_versions',
+    'project_requests','project_reviews','project_version_requests','trade_proposals',
     'project_versions','projects','publication_recipients',
-    'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
+    'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','site_technical_inspections','site_technical_inspection_events','site_technical_reserves','site_technical_reserve_events','site_technical_evidence','site_work_situations','site_work_situation_events','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
   ];
   actual_versions text[];
   actual_tables text[];
   missing_name text;
   state record;
 BEGIN
+  expected_versions := expected_versions || ARRAY['20261027013511'];
+  expected_versions := expected_versions || ARRAY['20261027031408'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
     FROM supabase_migrations.schema_migrations;
@@ -116,6 +119,9 @@ BEGIN
       'public.respond_project_invitation(text,boolean)',
       'public.update_project_tracking(uuid,text,text)',
       'public.prepare_contract_foundation(uuid,uuid,uuid,text,uuid)',
+      'public.configure_contract_runtime(uuid,text,boolean,text)',
+      'public.set_project_contract_enabled(uuid,boolean,text)',
+      'public.project_contract_configuration(uuid)',
       'public.start_contract_acceptance(uuid,uuid,text,boolean,uuid)',
       'public.record_contract_acceptance(uuid,uuid,uuid,text,text,text,jsonb,timestamp with time zone,uuid)',
       'public.validate_contract_acceptance(uuid,uuid,text,uuid)',
@@ -165,12 +171,40 @@ BEGIN
       'public.support_queue(integer,timestamptz,uuid,text,text)',
       'public.assign_support_ticket_to_me(uuid)',
       'public.set_support_ticket_status(uuid,text,text)',
+      'public.create_rfi_question(uuid,text,text)',
+      'public.list_rfi_questions(integer,timestamp with time zone,uuid,uuid)',
+      'public.publish_rfi_clarification(uuid,text,boolean,text)',
+      'public.mark_rfi_read(uuid)',
+      'public.create_rfi_document(uuid,uuid,text,text,text,bigint)',
+      'public.approve_rfi_document(uuid)',
+      'public.delete_rfi_document(uuid)',
       'public.record_site_progress(uuid,text,integer,text,uuid[],text)',
       'public.record_site_intervention(uuid,date,text,integer,uuid[],text)',
+      'public.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text)',
+      'public.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text)',
       'public.create_site_milestone(uuid,text,date,text,text,text)',
       'public.update_site_milestone(uuid,date,text,text,text)',
       'public.record_site_observation(uuid,text,text,text)',
       'public.site_execution_snapshot(uuid,timestamp with time zone,uuid,integer)',
+      'public.site_execution_snapshot_v2(uuid,timestamp with time zone,uuid,integer)',
+      'public.native_execution_plan_v1(uuid,uuid,integer)',
+      'public.native_execution_activity_write(uuid,uuid,text,uuid,text,text,text,integer,date,date,integer,integer,text)',
+      'public.native_execution_prepare_activity_change(uuid,text,uuid,uuid,text,text,text,integer,date,date,integer,integer,text)',
+      'public.native_execution_accept_activity_change(uuid,text,text)',
+      'public.record_native_activity_event_v1(uuid,uuid,text,text,integer,date,text,date,text,uuid,bigint,text,uuid[],text)',
+      'public.native_execution_prepare_installment_scope(uuid,integer,text,uuid,uuid,uuid,date,date,text)',
+      'public.native_execution_accept_installment_scope(uuid,text,text)',
+      'public.my_effective_settings(text,uuid)',
+      'public.admin_setting_command(text,jsonb)',
+      'public.admin_set_trade_active(uuid,boolean,text)',
+      'public.admin_settings_overview()',
+      'public.admin_settings_history(text,integer,timestamp with time zone,uuid)',
+      'public.admin_preview_settings(uuid,text,uuid)',
+      'public.admin_delegation_command(text,jsonb)',
+      'public.admin_settings_delegations()',
+      'public.my_settings_delegation()',
+      'public.manager_setting_command(text,jsonb)',
+      'public.manager_preview_settings(uuid,text,uuid)',
       'dao_private.withdraw_project_request(uuid)',
       'dao_private.publish_project(uuid,text,uuid[],uuid[],timestamptz)'
     ]) AS required(signature)
@@ -197,6 +231,12 @@ BEGIN
      OR has_table_privilege('authenticated','public.notifications','UPDATE') THEN
     RAISE EXCEPTION 'schema contract: messaging writes must stay RPC-only';
   END IF;
+  IF has_table_privilege('authenticated','public.project_contract_settings','INSERT')
+     OR has_table_privilege('authenticated','public.project_contract_settings','UPDATE')
+     OR has_table_privilege('authenticated','public.project_contract_settings','DELETE')
+     OR has_table_privilege('anon','public.project_contract_settings','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: project contract configuration writes must stay RPC-only';
+  END IF;
   IF has_table_privilege('authenticated','public.notification_preferences','SELECT')
      OR has_table_privilege('authenticated','public.notification_preferences','INSERT')
      OR has_table_privilege('authenticated','public.notification_preferences','UPDATE')
@@ -215,14 +255,121 @@ BEGIN
      OR has_table_privilege('authenticated','public.site_log_events','UPDATE')
      OR has_table_privilege('authenticated','public.site_log_evidence','INSERT')
      OR has_table_privilege('authenticated','public.site_client_observations','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_inspections','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_inspections','UPDATE')
+     OR has_table_privilege('authenticated','public.site_technical_inspections','DELETE')
+     OR has_table_privilege('authenticated','public.site_technical_inspection_events','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_reserves','INSERT')
+     OR has_table_privilege('authenticated','public.site_technical_reserves','UPDATE')
+     OR has_table_privilege('authenticated','public.site_technical_reserve_events','DELETE')
+     OR has_table_privilege('authenticated','public.site_technical_evidence','INSERT')
+     OR has_table_privilege('anon','public.site_technical_reserves','SELECT')
      OR has_column_privilege('authenticated','public.site_log_events','command_payload','SELECT')
      OR has_column_privilege('authenticated','public.site_log_events','idempotency_key','SELECT') THEN
     RAISE EXCEPTION 'schema contract: site execution writes and idempotency payloads must stay RPC-only';
   END IF;
+  IF has_column_privilege('authenticated','public.site_technical_inspections','command_payload','SELECT')
+     OR has_column_privilege('authenticated','public.site_technical_inspections','idempotency_key','SELECT')
+     OR has_column_privilege('authenticated','public.site_technical_reserve_events','command_payload','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: technical quality payloads and attachment/authorization helpers must stay private';
+  END IF;
+  IF has_table_privilege('authenticated','public.site_work_situations','INSERT')
+     OR has_table_privilege('authenticated','public.site_work_situations','UPDATE')
+     OR has_table_privilege('authenticated','public.site_work_situations','DELETE')
+     OR has_column_privilege('authenticated','public.site_work_situations','lines','SELECT')
+     OR has_column_privilege('authenticated','public.site_work_situations','command_payload','SELECT')
+     OR has_table_privilege('authenticated','public.site_work_situation_events','INSERT')
+     OR has_table_privilege('authenticated','public.site_work_situation_events','UPDATE')
+     OR has_column_privilege('authenticated','public.site_work_situation_events','command_payload','SELECT')
+     OR has_table_privilege('anon','public.site_work_situations','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: work situation writes and payloads must stay behind scoped RPCs';
+  END IF;
+  IF has_table_privilege('authenticated','public.native_execution_activities','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activities','INSERT')
+     OR has_table_privilege('authenticated','public.native_execution_activities','UPDATE')
+     OR has_table_privilege('authenticated','public.native_execution_activity_revisions','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activity_commands','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activity_proposals','SELECT')
+     OR has_table_privilege('authenticated','public.native_execution_activity_proposal_acceptances','SELECT')
+     OR has_table_privilege('anon','public.native_execution_activities','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: native activities and history must stay behind JWT-scoped RPCs';
+  END IF;
+  IF NOT EXISTS(select 1 from information_schema.columns where table_schema='public'
+      and table_name='site_log_events' and column_name='native_activity_id')
+     OR has_table_privilege('authenticated','public.site_log_events','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: native activity journal link missing or journal table exposed';
+  END IF;
+  IF has_table_privilege('authenticated','public.native_installment_scope_proposals','SELECT')
+     OR has_table_privilege('authenticated','public.native_installment_scope_acceptances','SELECT')
+     OR has_table_privilege('anon','public.native_installment_scope_proposals','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: installment scope history must stay behind JWT-scoped RPCs';
+  END IF;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.native_execution_plan_v1(uuid,uuid,integer)',
+    'public.native_execution_dependencies_v1(uuid)',
+    'public.native_execution_activity_write(uuid,uuid,text,uuid,text,text,text,integer,date,date,integer,integer,text)',
+    'public.native_execution_prepare_activity_change(uuid,text,uuid,uuid,text,text,text,integer,date,date,integer,integer,text)',
+    'public.native_execution_accept_activity_change(uuid,text,text)',
+    'public.record_native_activity_event_v1(uuid,uuid,text,text,integer,date,text,date,text,uuid,bigint,text,uuid[],text)',
+    'public.native_execution_prepare_installment_scope(uuid,integer,text,uuid,uuid,uuid,date,date,text)',
+    'public.native_execution_accept_installment_scope(uuid,text,text)',
+    'public.native_technical_inspections_v1(uuid,uuid,timestamptz,uuid,integer)',
+    'public.native_technical_reserves_v1(uuid,uuid,uuid,timestamptz,uuid,integer)',
+    'public.native_technical_inspection_events_v1(uuid,timestamptz,uuid,integer)',
+    'public.native_technical_reserve_events_v1(uuid,timestamptz,uuid,integer)',
+    'public.request_native_technical_inspection_v1(uuid,text,uuid[],text)',
+    'public.record_native_technical_inspection_event_v1(uuid,text,text,uuid[],integer,text)',
+    'public.create_native_technical_reserve_v1(uuid,uuid,text,text,text,text,text,uuid,uuid,date,uuid[],text)',
+    'public.record_native_technical_reserve_event_v1(uuid,text,text,uuid[],integer,text)',
+    'public.native_work_situations_v1(uuid,uuid,timestamptz,uuid,integer)',
+    'public.native_work_situation_events_v1(uuid,timestamptz,uuid,integer)',
+    'public.native_work_situation_command_v1(text,uuid,uuid,uuid,date,date,jsonb,jsonb,text,integer,text)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: native tracking RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  IF has_function_privilege('authenticated','dao_private.native_activity_save_revision(uuid,text,uuid)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.native_execution_activity_overlay(uuid,jsonb)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.native_activity_engagement_guard()','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.native_execution_dependencies_v1(uuid)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.native_dependency_endpoint_award_item(uuid,text)','EXECUTE')
+     OR NOT EXISTS(select 1 from pg_trigger where tgname='native_execution_activity_engagement_guard' and not tgisinternal) THEN
+    RAISE EXCEPTION 'schema contract: internal native activity helpers must not be callable directly';
+  END IF;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text)',
+    'public.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text)',
+    'public.site_execution_snapshot_v2(uuid,timestamp with time zone,uuid,integer)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: site execution V2 RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'dao_private.record_site_progress_v2(uuid,uuid,text,integer,text,uuid[],text)',
+    'dao_private.record_site_intervention_v2(uuid,uuid,date,text,integer,uuid,bigint,text,uuid[],text)',
+    'dao_private.site_execution_snapshot_v2(uuid,timestamp with time zone,uuid,integer)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: site execution V2 internal grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
   IF has_function_privilege('anon','public.my_support_summary()','EXECUTE')
      OR NOT has_function_privilege('authenticated','public.my_support_summary()','EXECUTE')
      OR has_function_privilege('authenticated','dao_private.my_support_summary()','EXECUTE') THEN
     RAISE EXCEPTION 'schema contract: support RPC facade grants differ';
+  END IF;
+  IF has_table_privilege('authenticated','public.technical_questions','INSERT')
+     OR has_table_privilege('authenticated','public.technical_clarifications','INSERT')
+     OR has_table_privilege('authenticated','public.technical_rfi_receipts','SELECT')
+     OR has_table_privilege('anon','public.technical_questions','SELECT')
+     OR has_function_privilege('anon','public.create_rfi_question(uuid,text,text)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.create_rfi_question(uuid,text,text)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: RFI tables or RPC grants differ';
   END IF;
   IF has_function_privilege('authenticated','dao_private.dry_run_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
      OR has_function_privilege('authenticated','dao_private.generate_invitation_expiry_reminders(integer,timestamptz)','EXECUTE')
@@ -472,8 +619,8 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM storage.buckets b
       WHERE b.id='dao-private' AND b.name='dao-private' AND NOT b.public
         AND b.file_size_limit=20971520
-        AND b.allowed_mime_types @> ARRAY['application/pdf','image/jpeg','image/png','image/webp']::text[]
-        AND cardinality(b.allowed_mime_types)=4)
+        AND b.allowed_mime_types @> ARRAY['application/pdf','image/jpeg','image/png','image/webp','image/vnd.dwg']::text[]
+        AND cardinality(b.allowed_mime_types)=5)
      OR NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
        WHERE n.nspname='storage' AND c.relname='objects' AND c.relrowsecurity) THEN
     RAISE EXCEPTION 'schema contract: private dao-private Storage bucket configuration or objects RLS is missing';
@@ -493,6 +640,93 @@ BEGIN
        WHERE d.code='E2E_TEST_DELEGATION' AND l.name_fr='Localité E2E') THEN
     RAISE EXCEPTION 'schema contract: synthetic E2E territory seed is missing';
   END IF;
+
+  -- P9-A1: tables stay closed; authenticated callers use only the bounded RPC contract.
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'precontract_agreements','precontract_agreement_versions',
+    'precontract_agreement_acceptances','precontract_agreement_events',
+    'precontract_installment_events'
+  ]) LOOP
+    IF has_table_privilege('anon','public.'||missing_name,'SELECT')
+      OR has_table_privilege('authenticated','public.'||missing_name,'SELECT')
+      OR has_table_privilege('authenticated','public.'||missing_name,'INSERT')
+      OR has_table_privilege('authenticated','public.'||missing_name,'UPDATE')
+      OR has_table_privilege('authenticated','public.'||missing_name,'DELETE')
+      OR NOT EXISTS(
+        SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='public' AND c.relname=missing_name AND c.relrowsecurity
+      ) THEN
+      RAISE EXCEPTION 'precontract agreement table exposure mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.propose_precontract_agreement(uuid,uuid,jsonb,uuid)',
+    'public.accept_precontract_agreement(uuid,uuid,uuid)',
+    'public.reject_precontract_agreement(uuid,uuid,text,uuid)',
+    'public.precontract_agreement_snapshot(uuid)',
+    'public.precontract_installment_snapshot(uuid)',
+    'public.record_precontract_installment_event(uuid,uuid,integer,text,text,uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'precontract agreement RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'dao_private.precontract_party_for_award(uuid,uuid)',
+    'dao_private.precontract_award_reference(uuid)',
+    'dao_private.precontract_normalize_terms(uuid,jsonb)',
+    'dao_private.propose_precontract_agreement(uuid,uuid,jsonb,uuid)',
+    'dao_private.accept_precontract_agreement(uuid,uuid,uuid)',
+    'dao_private.reject_precontract_agreement(uuid,uuid,text,uuid)',
+    'dao_private.precontract_agreement_snapshot(uuid)',
+    'dao_private.precontract_latest_agreed_version(uuid)',
+    'dao_private.precontract_installment_snapshot(uuid)',
+    'dao_private.record_precontract_installment_event(uuid,uuid,integer,text,text,uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'precontract internal helper exposed: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR state IN
+    SELECT * FROM (VALUES
+      ('precontract_agreements','controlled_precontract_agreement_update'),
+      ('precontract_agreements','immutable_precontract_agreements'),
+      ('precontract_agreement_versions','immutable_precontract_versions'),
+      ('precontract_agreement_acceptances','immutable_precontract_acceptances'),
+      ('precontract_agreement_events','immutable_precontract_events'),
+      ('precontract_installment_events','immutable_precontract_installment_events')
+    ) AS required(table_name,trigger_name)
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+      JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relname=state.table_name
+        AND t.tgname=state.trigger_name AND NOT t.tgisinternal AND t.tgenabled='O'
+    ) THEN
+      RAISE EXCEPTION 'precontract immutability trigger missing: %.%',state.table_name,state.trigger_name;
+    END IF;
+  END LOOP;
+
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.native_request_sub_lots_v1(uuid)',
+    'public.replace_client_request_sub_lots_v1(uuid,uuid,jsonb)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'client official sub-lot API grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'dao_private.native_request_sub_lots_v1(uuid)',
+    'dao_private.replace_client_request_sub_lots_v1(uuid,uuid,jsonb)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+      OR has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'client official sub-lot internal helper exposed: %',missing_name;
+    END IF;
+  END LOOP;
 
   RAISE NOTICE 'schema contract passed: migrations, RLS, event trigger, RPCs, immutability, Storage, trades, and E2E seed';
 END

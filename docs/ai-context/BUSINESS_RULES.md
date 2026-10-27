@@ -23,6 +23,23 @@ The current assigned-review/version/sublot/withdrawal/assisted-award and notific
 - Aucun consentement, signature, PDF exécutoire, paiement ou mouvement financier
   n'est introduit. Voir [le design canonique](../product/contract-v1-design.md).
 
+## Préparation automatique configurable après attribution (#390)
+
+- L'absence de réglage chantier signifie **contrat désactivé**. Seul le Client
+  propriétaire actif choisit explicitement avant la première attribution active.
+- L'activation exige une configuration D.A.O explicite : porteur juridique
+  `LogicLab Tunisie` et représentant actif possédant réellement le rôle
+  `dao_admin`. Aucun « premier admin » n'est sélectionné automatiquement.
+- Pour chaque nouvel award, le choix est figé dans la même transaction. Si le
+  contrat est activé, la fondation canonique 1 contrat/award est préparée avant
+  validation de l'attribution ; tout échec annule l'ensemble. Si le contrat est
+  désactivé, aucune fondation n'est appelée et l'attribution reste inchangée.
+- Un deuxième lot attribué plus tard crée un nouvel award et donc, si activé,
+  un second brouillon canonique. Le regroupement chantier × Artisan reste une
+  présentation ; aucun contrat ou snapshot existant n'est modifié.
+- Le résultat reste `draft`, `non_engaging=true` : aucune acceptation, signature,
+  validation juridique, avenant, paiement ou démarrage n'est automatique.
+
 ## Contrat V1 — avenants simples non engageants P2.2-C (#174)
 
 - Seul le Client partie au contrat initie une proposition d'avenant.
@@ -514,3 +531,23 @@ ne vaut ni réception, ni acceptation juridique, ni paiement, ni modification du
 contrat ou de l’attribution. Le modèle fournit des codes événementiels stables
 mais n’exécute aucune synchronisation OCE.
 
+## 25. Accord précontractuel bilatéral P9-A1 (#345)
+
+- L’accord est facultatif, lié à un award actif et disponible uniquement avant
+  la création du contrat. Il ne remplace ni l’offre attribuée ni le contrat.
+- Client et Artisan peuvent proposer ou contre-proposer. Chaque proposition
+  crée une version immuable et hashée ; modifier une version exige de nouveaux
+  accords des deux parties.
+- L’état « convenu » exige l’acceptation de la même version par le Client et
+  l’Artisan titulaire. Un refus est motivé et conserve l’historique.
+- Le parcours simple fonctionne sans date, sous-lot ou échéancier. Les dates,
+  durées, modalités d’exécution, calendriers de sous-lots et échéances sont
+  facultatifs.
+- Une échéance chiffrée reste informative et la somme fournie doit égaler le
+  prix attribué. Aucune taxe, devise ou somme n’est déduite.
+- Toute version reste non engageante : aucune signature, réception, dette,
+  facture, autorisation bancaire ou transaction n’est créée. Les trois drapeaux
+  restent `non_engaging=true`, `legal_effect_enabled=false` et `contract_signed=false`.
+- Seuls le Client exact et l’Artisan titulaire, actifs et membres acceptés du
+  chantier, peuvent lire ou agir. Concurrents, tiers, simples membres, staff et
+  comptes suspendus sont refusés.

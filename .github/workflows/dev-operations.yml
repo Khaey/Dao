@@ -1,7 +1,6 @@
 name: DAO DEV operations
 
 on:
-  # Only the dispatcher listens directly to comments; manual operations stay available.
   workflow_call:
   workflow_dispatch:
     inputs:
@@ -10,7 +9,7 @@ on:
         type: choice
         required: true
         default: status
-        options: [status, health, restart, env-sync, log-summary, diagnostics, ops-status, ops-preflight, ops-upgrade, ops-rollback, backup-status, oce-integration-inventory, oce-gateway-plan, oce-gateway-apply, oce-gateway-qualify, oce-gateway-restart, oce-enable-dev, oce-disable-dev, oce-recette-admit, oce-recette-revoke, oce-status, oce-audit, oce-probe, oce-start, oce-stop]
+        options: [status, health, restart, env-sync, log-summary, diagnostics, ops-status, ops-preflight, ops-upgrade, ops-rollback, backup-status, oce-integration-inventory, oce-gateway-plan, oce-gateway-apply, oce-gateway-qualify, oce-gateway-restart, oce-enable-dev, oce-disable-dev, oce-recette-admit, oce-recette-revoke, oce-status, oce-audit, oce-probe, oce-start, oce-stop, perf-snapshot]
 
 permissions:
   contents: read
@@ -22,7 +21,7 @@ jobs:
           (github.event_name == 'workflow_dispatch' ||
            (github.event.action == 'created' && github.event.issue.number == 91 &&
             github.event.issue.pull_request == null &&
-            contains(fromJSON('["/dao-ops status","/dao-ops health","/dao-ops restart","/dao-ops env-sync","/dao-ops log-summary","/dao-ops diagnostics","/dao-ops ops-status","/dao-ops ops-preflight","/dao-ops ops-upgrade","/dao-ops ops-rollback","/dao-ops backup-status","/dao-ops oce-integration-inventory","/dao-ops oce-gateway-plan","/dao-ops oce-gateway-apply","/dao-ops oce-gateway-qualify","/dao-ops oce-gateway-restart","/dao-ops oce-enable-dev","/dao-ops oce-disable-dev","/dao-ops oce-recette-admit","/dao-ops oce-recette-revoke","/dao-ops oce-status","/dao-ops oce-audit","/dao-ops oce-probe","/dao-ops oce-start","/dao-ops oce-stop"]'), github.event.comment.body))) }}
+            contains(fromJSON('["/dao-ops status","/dao-ops health","/dao-ops restart","/dao-ops env-sync","/dao-ops log-summary","/dao-ops diagnostics","/dao-ops ops-status","/dao-ops ops-preflight","/dao-ops ops-upgrade","/dao-ops ops-rollback","/dao-ops backup-status","/dao-ops oce-integration-inventory","/dao-ops oce-gateway-plan","/dao-ops oce-gateway-apply","/dao-ops oce-gateway-qualify","/dao-ops oce-gateway-restart","/dao-ops oce-enable-dev","/dao-ops oce-disable-dev","/dao-ops oce-recette-admit","/dao-ops oce-recette-revoke","/dao-ops oce-status","/dao-ops oce-audit","/dao-ops oce-probe","/dao-ops oce-start","/dao-ops oce-stop","/dao-ops perf-snapshot"]'), github.event.comment.body))) }}
     concurrency:
       group: dao-dev-operations
       cancel-in-progress: false

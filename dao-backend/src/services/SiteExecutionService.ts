@@ -2,10 +2,11 @@ import { DomainError } from '../lib/errors.js';
 
 export type SiteProgressStatus = 'not_started' | 'in_progress' | 'completed';
 export type SiteMilestoneStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
-export type SiteObservationOutcome = 'acknowledged' | 'disputed';
+export type SiteObservationOutcome = 'acknowledged' | 'disputed' | 'technical_validated';
 
 export type RecordProgressInput = {
   award_item_id: string;
+  bid_sub_lot_id?: string | null;
   status: SiteProgressStatus;
   percent: number;
   reason: string;
@@ -15,9 +16,13 @@ export type RecordProgressInput = {
 
 export type RecordInterventionInput = {
   award_item_id: string;
+  bid_sub_lot_id?: string | null;
   work_date: string;
   note: string;
   percent?: number | null;
+  quote_line_id?: string | null;
+  executed_quantity_milli?: number | null;
+  quantity_unit?: string | null;
   document_ids?: string[];
   idempotency_key: string;
 };
@@ -62,6 +67,19 @@ function uuid(value: unknown, field: string) {
   return result;
 }
 
+function optionalUuid(value: unknown, field: string) {
+  return value == null || value === '' ? null : uuid(value, field);
+}
+
+function quantityMilli(value: unknown) {
+  if (value == null || value === '') return null;
+  const result = Number(value);
+  if (!Number.isSafeInteger(result) || result < 1 || result > 1_000_000_000_000) {
+    throw new DomainError('executed_quantity_milli must be a positive bounded integer', 'BAD_REQUEST');
+  }
+  return result;
+}
+
 function date(value: unknown, field: string, optional = false) {
   if (optional && (value == null || value === '')) return null;
   const result = requiredText(value, field);
@@ -84,6 +102,27 @@ function documents(value: unknown) {
   return value.map(id => uuid(id, 'document_id'));
 }
 
+async function recordNativeActivityEvent(db: any, input: Record<string, unknown>, eventKind: string, values: Record<string, unknown>) {
+  const { data, error } = await db.rpc('record_native_activity_event_v1', {
+    p_award_item_id: uuid(input.award_item_id, 'award_item_id'),
+    p_native_activity_id: uuid(input.native_activity_id, 'native_activity_id'),
+    p_event_kind: eventKind,
+    p_status: values.status ?? null,
+    p_percent: values.percent ?? null,
+    p_work_date: values.workDate ?? null,
+    p_title: values.title ?? null,
+    p_target_date: values.targetDate ?? null,
+    p_note: values.note ?? null,
+    p_quote_line_id: values.quoteLineId ?? null,
+    p_executed_quantity_milli: values.executedQuantityMilli ?? null,
+    p_quantity_unit: values.quantityUnit ?? null,
+    p_document_ids: values.documentIds ?? [],
+    p_idempotency_key: requiredText(input.idempotency_key, 'idempotency_key'),
+  });
+  if (error) throw error;
+  return data;
+}
+
 export class SiteExecutionService {
   constructor(private readonly db: any) {}
 
@@ -100,7 +139,7 @@ export class SiteExecutionService {
       }
     }
     const pageSize = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 50) : 30;
-    const { data, error } = await this.db.rpc('site_execution_snapshot', {
+    const { data, error } = await this.db.rpc('site_execution_snapshot_v2', {
       p_project_id: projectId,
       p_before_created_at: cursor?.created_at ?? null,
       p_before_id: cursor?.id ?? null,
@@ -116,8 +155,15 @@ export class SiteExecutionService {
   }
 
   async progress(input: Record<string, unknown>) {
-    const { data, error } = await this.db.rpc('record_site_progress', {
+    if (optionalUuid(input.native_activity_id, 'native_activity_id')) {
+      return recordNativeActivityEvent(this.db, input, 'progress', {
+        status: requiredText(input.status, 'status'), percent: percent(input.percent),
+        note: requiredText(input.reason, 'reason'), documentIds: documents(input.document_ids),
+      });
+    }
+    const { data, error } = await this.db.rpc('record_site_progress_v2', {
       p_award_item_id: uuid(input.award_item_id, 'award_item_id'),
+      p_bid_sub_lot_id: optionalUuid(input.bid_sub_lot_id, 'bid_sub_lot_id'),
       p_status: requiredText(input.status, 'status'),
       p_percent: percent(input.percent),
       p_reason: requiredText(input.reason, 'reason'),
@@ -129,11 +175,23 @@ export class SiteExecutionService {
   }
 
   async intervention(input: Record<string, unknown>) {
-    const { data, error } = await this.db.rpc('record_site_intervention', {
+    if (optionalUuid(input.native_activity_id, 'native_activity_id')) {
+      return recordNativeActivityEvent(this.db, input, 'intervention', {
+        workDate: date(input.work_date, 'work_date'), note: requiredText(input.note, 'note'),
+        percent: percent(input.percent, true), quoteLineId: optionalUuid(input.quote_line_id, 'quote_line_id'),
+        executedQuantityMilli: quantityMilli(input.executed_quantity_milli), quantityUnit: optionalText(input.quantity_unit),
+        documentIds: documents(input.document_ids),
+      });
+    }
+    const { data, error } = await this.db.rpc('record_site_intervention_v2', {
       p_award_item_id: uuid(input.award_item_id, 'award_item_id'),
+      p_bid_sub_lot_id: optionalUuid(input.bid_sub_lot_id, 'bid_sub_lot_id'),
       p_work_date: date(input.work_date, 'work_date'),
       p_note: requiredText(input.note, 'note'),
       p_percent: percent(input.percent, true),
+      p_quote_line_id: optionalUuid(input.quote_line_id, 'quote_line_id'),
+      p_executed_quantity_milli: quantityMilli(input.executed_quantity_milli),
+      p_quantity_unit: optionalText(input.quantity_unit),
       p_document_ids: documents(input.document_ids),
       p_idempotency_key: requiredText(input.idempotency_key, 'idempotency_key'),
     });
@@ -142,6 +200,12 @@ export class SiteExecutionService {
   }
 
   async createMilestone(input: Record<string, unknown>) {
+    if (optionalUuid(input.native_activity_id, 'native_activity_id')) {
+      return recordNativeActivityEvent(this.db, input, 'milestone', {
+        title: requiredText(input.title, 'title'), targetDate: date(input.target_date, 'target_date', true),
+        status: requiredText(input.status, 'status'), note: optionalText(input.note),
+      });
+    }
     const { data, error } = await this.db.rpc('create_site_milestone', {
       p_award_item_id: uuid(input.award_item_id, 'award_item_id'),
       p_title: requiredText(input.title, 'title'),

@@ -52,7 +52,7 @@ orchestration `ensure-*`, résumé technique exposé dans D.A.O, plan d'activati
 
 ## Technical summary route (#58, read-only)
 
-`GET /api/oce/planning-summary?project_id=<uuid>&lot_id=<uuid>` returns the gateway's `planning-summary` for one lot. It is **not displayed anywhere yet** and stays `503 OCE_DISABLED` until `DAO_OCE_ENABLED=1`.
+`GET /api/oce/planning-summary?project_id=<uuid>&lot_id=<uuid>` returns the gateway's `planning-summary` for one lot. The `OceLotPlanning` component displays it in the project's **Suivi** tab once the lot is synchronized; the route stays `503 OCE_DISABLED` until `DAO_OCE_ENABLED=1`.
 
 - **Who may read (v1):** the Client who owns the project, and D.A.O project management (`dao_admin`, or the reviewer assigned to the project). Professionals, other members, unassigned reviewers and strangers are refused. Extending to project members is an explicit owner decision, not implied.
 - **When:** only for a lot of that project, not withdrawn, in a non-archived project, whose mapping is *admitted* (`oce_summary_access`, decided by the database from the caller's JWT, live roles and account status).

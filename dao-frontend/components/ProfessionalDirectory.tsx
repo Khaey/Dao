@@ -290,7 +290,7 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div className="space-y-2">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">
-          {review ? 'Gestion des dossiers' : 'Annuaire D.A.O'}
+          {review ? 'Relations' : 'Annuaire D.A.O'}
         </p>
         <h1 className="text-3xl font-bold tracking-tight text-ink">
           {review ? 'Dossiers professionnels à contrôler' : 'Professionnels vérifiés'}
@@ -384,7 +384,7 @@ export default function ProfessionalDirectory({ review = false }: { review?: boo
       <p className="max-w-md text-sm text-black/55">{searching
         ? 'Essayez un autre nom ou une autre ville, ou retirez un filtre.'
         : review ? 'Les nouveaux dossiers apparaîtront ici dès leur soumission.' : 'Revenez prochainement pour découvrir les professionnels référencés sur D.A.O.'}</p>
-      {searching && <button type="button" onClick={resetAll} className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-teal focus:outline-none focus:ring-4 focus:ring-teal/20">Réinitialiser la recherche</button>}
+      {searching && <button type="button" onClick={resetAll} className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-teal px-4 text-sm font-semibold text-white transition hover:bg-tealdark focus:outline-none focus:ring-4 focus:ring-teal/20">Réinitialiser la recherche</button>}
       {!searching && !review && <Link href="/app/projects" className="mt-2 inline-flex min-h-11 items-center rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:border-teal hover:text-teal">Retour à mes chantiers</Link>}
     </Card>}
 

@@ -8,7 +8,7 @@ test('Carnet d’exécution : lot attribué, intervention justifiée et observat
   await login(page, e2eClient!);
   const project = await createProjectWithMainLot(page, testInfo, 'site-execution', 'Pose et essais du réseau.', 'Lot plomberie carnet E2E');
 
-  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivi du chantier', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Suivi du chantier' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Carnet de chantier' })).toBeVisible();
   await expect(page.getByText('Aucun lot attribué accessible')).toBeVisible();
@@ -36,7 +36,7 @@ test('Carnet d’exécution : lot attribué, intervention justifiée et observat
   const document = (await adminRows('documents', `project_id=eq.${project.projectId}&original_name=eq.preuve-intervention.jpg&select=id`))[0];
   await approveDocument(document.id);
   await page.reload();
-  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivi du chantier', exact: true }).click();
   await expect(page.getByText('Votre lot', { exact: true })).toBeVisible();
   const intervention = page.locator('details').filter({ hasText: 'Consigner une intervention' });
   await intervention.locator('summary').click();
@@ -67,7 +67,7 @@ test('Carnet d’exécution : lot attribué, intervention justifiée et observat
   await clientContext.close();
 
   await page.reload();
-  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivi du chantier', exact: true }).click();
   const artisanEvent = page.locator('li').filter({ hasText: 'Pose du réseau principal et contrôle visuel.' }).first();
   await expect(artisanEvent.getByText('Observation Client', { exact: true }).locator('..')).toContainText('Merci d’ajouter une photo du raccord final.');
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);

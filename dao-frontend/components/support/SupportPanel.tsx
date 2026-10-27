@@ -43,7 +43,7 @@ function NewRequest({ origin, onCancel, onCreated }: { origin: SupportOrigin | n
     {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
     <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
       <button type="button" onClick={onCancel} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink hover:border-teal">Annuler</button>
-      <button type="submit" disabled={sending} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-ink px-5 text-sm font-semibold text-white transition hover:bg-teal disabled:opacity-50">{sending ? 'Envoi…' : 'Envoyer la demande'}</button>
+      <button type="submit" disabled={sending} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-teal px-5 text-sm font-semibold text-white transition hover:bg-tealdark disabled:opacity-50">{sending ? 'Envoi…' : 'Envoyer la demande'}</button>
     </div>
   </form>;
 }
@@ -71,7 +71,11 @@ export default function SupportPanel({ onShowProjects, origin = null, startNew =
 
   async function openTicket(id: string) {
     setView({ kind: 'ticket', id }); setThread(null); setError('');
-    try { const result = await getTicket(id); setThread(result); if (result.ticket.unread_count > 0) void markTicketRead(id).catch(() => undefined); }
+    try {
+      const result = await getTicket(id); setThread(result);
+      // Le détail ne porte pas unread_count (#462) : toujours enregistrer la lecture, idempotente et contrôlée côté serveur.
+      void markTicketRead(id).then(() => setTickets((current) => current.map((ticket) => ticket.id === id ? { ...ticket, unread_count: 0 } : ticket))).catch(() => undefined);
+    }
     catch (exception) { setError((exception as Error).message); }
   }
   async function more() {
@@ -122,7 +126,7 @@ export default function SupportPanel({ onShowProjects, origin = null, startNew =
     : <Card className="space-y-4 p-5 sm:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-lg font-bold text-ink">Mes demandes à D.A.O.</h2><p className="text-sm text-black/55">{availability.summary.open > 0 ? `${availability.summary.open} en cours` : 'Aucune demande en cours'}</p></div>
-        <button type="button" onClick={() => { setNotice(''); setView({ kind: 'new' }); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-semibold text-white transition hover:bg-teal"><Plus aria-hidden="true" size={16} />Nouvelle demande</button>
+        <button type="button" onClick={() => { setNotice(''); setView({ kind: 'new' }); }} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal px-4 text-sm font-semibold text-white transition hover:bg-tealdark"><Plus aria-hidden="true" size={16} />Nouvelle demande</button>
       </div>
       {tickets.length === 0 ? <p className="rounded-xl border border-dashed border-black/10 px-4 py-8 text-center text-sm text-black/55">Vous n’avez encore envoyé aucune demande.</p>
         : <ul className="divide-y divide-black/5 rounded-xl border border-black/[0.07]">{tickets.map((ticket) => <li key={ticket.id}>

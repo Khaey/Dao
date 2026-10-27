@@ -29,7 +29,7 @@ portent sur le mandat et les préconditions, pas sur des clés individuelles.
 
 | Rôle agent | Opérations fixes | Préconditions | Preuve à conserver |
 | --- | --- | --- | --- |
-| DEV, OPT, Pilot actuels et futurs | `status`, `health`, `diagnostics`, `log-summary` | Scripts main transportés ; log-summary : helper DEV installé | Run + release/service/readiness ; diagnostics : hashes et grants booléens ; logs : compteurs sans messages |
+| DEV, OPT, Pilot actuels et futurs | `status`, `health`, `diagnostics`, `log-summary`, `perf-snapshot` | Scripts main transportés ; log-summary : helper DEV installé | Run + release/service/readiness ; diagnostics : hashes et grants booléens ; logs : compteurs sans messages ; perf-snapshot : mesures bornées, sans secrets ni lignes de commande |
 | DEV/OPT chargé de récupération DEV | `restart`, `env-sync` | Accord sur la mutation partagée ; sudoers DEV existants ; env-sync : trois clés protégées disponibles | Run + smoke/status ; sync idempotent ou restauration de l'env précédente |
 | OPT responsable maintenance, autres agents sous mandat explicite | `ops-status`, `ops-preflight`, `ops-upgrade`, `ops-rollback` | Bootstrap OPS ; upgrade : main/CI/admission explicite ; services concernés inactifs ; aucune dérive installée | Run + version actuelle/précédente, fichiers changés, CI et commentaire d'admission ; rollback : restauration vérifiée |
 | DEV/OPT en lecture OCE | `oce-integration-inventory`, `oce-gateway-plan`, `backup-status`, `oce-status` | Helpers installés ; backup-status nécessite bootstrap OPS et état de backup existant | Métadonnées expurgées ; aucun nouveau backup/restore ou basculement |
@@ -326,3 +326,10 @@ du catalogue. #91 reste ouverte pour le périmètre global/prochain mandat.
 En cas de crash/quota Work, reprendre le dernier HEAD publié/checkpoint selon
 [WORK_CHECKPOINTS.md](ai-context/WORK_CHECKPOINTS.md), jamais des edits locaux
 non sauvegardés. Aucun arrêt brutal Work n'est intercepté automatiquement.
+
+
+### `perf-snapshot` — mesure DEV ponctuelle
+
+Cette opération est une lecture ponctuelle, accessible via `/dao-ops perf-snapshot` ou `workflow_dispatch`. Elle émet un JSON borné (48 Ko max) avec date, uptime, charge, mémoire, pression CPU/mémoire/I/O, espace disque, CPU hôte sur un intervalle, processus principaux (PID, libellé autorisé, CPU et RSS), état/restarts/mémoire/CPU et compteurs OOM des unités fixes, puis latences p50/p95 et erreurs pour quatre routes HTTP fixes. Les requêtes HTTP sont anonymes, limitées en durée et en taille de corps; le corps, les arguments, les environnements, noms d'utilisateur et chemins ne sont jamais émis.
+
+Les métriques de conteneur sont `unavailable` : aucun accès au socket Docker ni nouveau droit n'est accordé. Cette commande ne modifie aucun service et ne met pas OCE en pause. Une comparaison avant/après nécessite des snapshots dans les mêmes conditions; un arrêt OCE reste soumis aux dépendances et préconditions de `oce-stop`.

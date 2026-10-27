@@ -31,6 +31,25 @@ d'attribution au niveau du chantier : soit l'annulation gagne, soit le contrat
 est préparé, jamais les deux. La règle P2.1 interdisant l'annulation après
 création d'un contrat reste inchangée.
 
+### Activation par chantier après #390
+
+Le défaut reste OFF. Le Client propriétaire actif fixe le choix avant la
+première attribution active via une commande JWT/RLS auditée. L'activation est
+refusée tant que D.A.O n'a pas configuré explicitement un représentant
+`dao_admin` actif de **LogicLab Tunisie** ; aucune identité n'est choisie par
+ordre de création ou rôle implicite.
+
+Un trigger différé sur la création de l'award attend l'insertion de toutes les
+lignes, puis appelle la fondation interne dans la même transaction. La création
+de l'award, son reçu idempotent, les lignes et le brouillon sont donc validés
+ensemble ou annulés ensemble. OFF crée uniquement une trace technique
+`disabled` et n'appelle pas la fondation. Les retries de la commande d'award ne
+réexécutent pas le trigger et ne créent jamais un second contrat.
+
+Le choix s'applique aux nouveaux awards seulement. Un lot remporté plus tard
+reste un nouvel award et prépare son propre contrat ; le dossier chantier ×
+Artisan est une projection UI qui ne fusionne ni ne réécrit les snapshots.
+
 ## Accès
 
 | Acteur actif | Lecture |

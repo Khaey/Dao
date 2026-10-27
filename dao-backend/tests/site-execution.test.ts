@@ -21,24 +21,46 @@ test('site execution service maps only server-approved RPC parameters', async ()
   const service = new SiteExecutionService(fake.db);
   const award = '11111111-1111-4111-8111-111111111111';
   const document = '22222222-2222-4222-8222-222222222222';
+  const subLot = '33333333-3333-4333-8333-333333333333';
+  const quoteLine = '44444444-4444-4444-8444-444444444444';
   await service.progress({
-    award_item_id: award, status: 'in_progress', percent: 35, reason: 'Pose en cours',
+    award_item_id: award, bid_sub_lot_id: subLot, status: 'in_progress', percent: 35, reason: 'Pose en cours',
     document_ids: [document], idempotency_key: 'progress-123',
     actor_id: 'forged', project_id: 'forged', contractor_id: 'forged',
   });
   await service.intervention({
-    award_item_id: award, work_date: '2026-10-19', note: 'Pose terminée', percent: 50,
+    award_item_id: award, bid_sub_lot_id: subLot, work_date: '2026-10-19', note: 'Pose terminée', percent: 50,
+    quote_line_id: quoteLine, executed_quantity_milli: 2500, quantity_unit: 'm²',
     idempotency_key: 'intervention-123',
   });
   assert.deepEqual(fake.calls, [
-    { name: 'record_site_progress', args: {
-      p_award_item_id: award, p_status: 'in_progress', p_percent: 35,
+    { name: 'record_site_progress_v2', args: {
+      p_award_item_id: award, p_bid_sub_lot_id: subLot, p_status: 'in_progress', p_percent: 35,
       p_reason: 'Pose en cours', p_document_ids: [document], p_idempotency_key: 'progress-123',
     } },
-    { name: 'record_site_intervention', args: {
-      p_award_item_id: award, p_work_date: '2026-10-19', p_note: 'Pose terminée',
-      p_percent: 50, p_document_ids: [], p_idempotency_key: 'intervention-123',
+    { name: 'record_site_intervention_v2', args: {
+      p_award_item_id: award, p_bid_sub_lot_id: subLot, p_work_date: '2026-10-19', p_note: 'Pose terminée',
+      p_percent: 50, p_quote_line_id: quoteLine, p_executed_quantity_milli: 2500,
+      p_quantity_unit: 'm²', p_document_ids: [], p_idempotency_key: 'intervention-123',
     } },
+  ]);
+});
+
+test('site execution routes native activity progress, metrics and milestones through the activity RPC', async () => {
+  const fake = database();
+  const service = new SiteExecutionService(fake.db);
+  const award = '11111111-1111-4111-8111-111111111111';
+  const activity = '55555555-5555-4555-8555-555555555555';
+  await service.progress({ award_item_id: award, native_activity_id: activity, status: 'in_progress', percent: 35,
+    reason: 'Pose en cours', idempotency_key: 'native-progress-1' });
+  await service.intervention({ award_item_id: award, native_activity_id: activity, work_date: '2026-10-19',
+    note: 'Pose terminée', executed_quantity_milli: 2500, quantity_unit: 'm²', idempotency_key: 'native-intervention-1' });
+  await service.createMilestone({ award_item_id: award, native_activity_id: activity, title: 'Contrôle',
+    target_date: '2026-10-25', status: 'planned', idempotency_key: 'native-milestone-1' });
+  assert.deepEqual(fake.calls.map(call => [call.name, call.args.p_native_activity_id, call.args.p_event_kind]), [
+    ['record_native_activity_event_v1', activity, 'progress'],
+    ['record_native_activity_event_v1', activity, 'intervention'],
+    ['record_native_activity_event_v1', activity, 'milestone'],
   ]);
 });
 
@@ -64,4 +86,8 @@ test('site execution service validates cursor and document list before RPC', asy
     award_item_id: '11111111-1111-4111-8111-111111111111', status: 'in_progress', percent: 1, reason: 'Motif',
     document_ids: 'forged', idempotency_key: 'progress-123',
   }), /document_ids must be an array/);
+  await assert.rejects(() => service.intervention({
+    award_item_id: '11111111-1111-4111-8111-111111111111', work_date: '2026-10-19', note: 'Motif',
+    executed_quantity_milli: 1.5, quantity_unit: 'm', idempotency_key: 'intervention-123',
+  }), /executed_quantity_milli/);
 });

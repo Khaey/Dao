@@ -11,17 +11,22 @@ async function openSettings(page: Page) {
   await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/app\/settings$/);
   await expect(page.locator('#mobile-workspace-menu')).toHaveCount(0);
+  // Right after a workspace switch the session refresh can hold getUser() for a few seconds: wait for the
+  // page's own loading state to end (same heading assertion afterwards), instead of the default 5 s.
+  await expect(page.getByRole('status').filter({ hasText: 'Chargement des paramètres' })).toHaveCount(0, { timeout: 20_000 });
   await expect(page.getByRole('heading', { name: 'Paramètres', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
 }
 
-async function checkSettings(page: Page, user: E2EUser | null, professional: boolean, staff: boolean) {
+async function checkSettings(page: Page, user: E2EUser | null) {
   expect(user).toBeTruthy();
   await login(page, user!);
   await openSettings(page);
   const main = page.getByRole('main');
-  await expect(main.getByRole('link', { name: /Mon dossier professionnel/ })).toHaveCount(professional ? 1 : 0);
-  await expect(main.getByRole('link', { name: /Mon espace D.A.O/ })).toHaveCount(staff ? 1 : 0);
+  // Spaces are reached from the menu only: the settings page never duplicates them (#441).
+  await expect(main.getByRole('link', { name: /Mon dossier professionnel/ })).toHaveCount(0);
+  await expect(main.getByRole('link', { name: /Mon espace D.A.O/ })).toHaveCount(0);
+  await expect(main.getByRole('link', { name: /Paramètres D.A.O./ })).toHaveCount(0);
   await expect(main.getByRole('link', { name: /Paramètres de la plateforme|Utilisateurs & rôles/ })).toHaveCount(0);
   await expect(main.getByRole('switch')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -39,19 +44,19 @@ async function checkSettings(page: Page, user: E2EUser | null, professional: boo
 }
 
 test('Paramètres Client : compte et sécurité personnels', async ({ page, e2eClient }) => {
-  await checkSettings(page, e2eClient, false, false);
+  await checkSettings(page, e2eClient);
 });
 test('Paramètres Artisan : dossier professionnel conditionnel', async ({ page, e2eArtisan }) => {
-  await checkSettings(page, e2eArtisan, true, false);
+  await checkSettings(page, e2eArtisan);
 });
 test('Paramètres Gestionnaire : aucun réglage global', async ({ page, e2eReviewer }) => {
-  await checkSettings(page, e2eReviewer, false, true);
+  await checkSettings(page, e2eReviewer);
 });
 test('Paramètres Admin : mêmes réglages personnels', async ({ page, e2eAdmin }) => {
-  await checkSettings(page, e2eAdmin, false, true);
+  await checkSettings(page, e2eAdmin);
 });
 test('Paramètres double rôle : compte commun après bascule', async ({ page, e2eDualRole }) => {
-  await checkSettings(page, e2eDualRole, true, false);
+  await checkSettings(page, e2eDualRole);
   await login(page, e2eDualRole!);
   const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
   await expect.poll(async () => (await menu.isVisible()) || (await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).count()) > 0).toBe(true);

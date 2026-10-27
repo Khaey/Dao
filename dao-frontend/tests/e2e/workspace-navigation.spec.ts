@@ -79,6 +79,10 @@ test('Gestionnaire : navigation mobile avec dossier rempli, portrait et écran c
   await expect(menu).toBeHidden();
   await expect(page.getByRole('navigation', { name: 'Espace Gestionnaire DAO' }).getByRole('link', { name: 'Avis', exact: true })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Espace Gestionnaire DAO' }).getByRole('link', { name: 'Historique', exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Espace Gestionnaire DAO' }).getByRole('link', { name: 'Suivi terrain', exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/dao\/tracking$/);
+  await expect(page.getByRole('heading', { name: 'Suivi terrain', exact: true })).toBeVisible();
+  await expect(page.getByRole('search').getByLabel('Rechercher un chantier suivi')).toBeVisible();
 });
 
 test('Avis : navigation Admin visible et accès Client refusé', async ({ page, e2eAdmin, e2eClient }) => {
@@ -102,5 +106,5 @@ test('Avis : navigation Admin visible et accès Client refusé', async ({ page, 
   if (await menu.isVisible()) await menu.click();
   await expect(page.getByRole('link', { name: 'Avis', exact: true })).toHaveCount(0);
   await page.goto('/app/dao/reviews');
-  await expect(page.getByText('Action non autorisée pour cet avis.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Action non autorisée pour cet avis.' })).toBeVisible();
 });

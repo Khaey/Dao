@@ -151,3 +151,22 @@ test('in-memory double follows the gateway rules (admission, order, idempotence)
   gw.revoke(ref); await rejects(gw.planningSummary(ref), 'not_authorized');
   gw.authorize(ref); gw.failNext = new OceGatewayError('unavailable', 'x'); await rejects(gw.health().then(() => gw.planningSummary(ref)), 'unavailable');
 });
+
+// #325 — retraits : chemins constants, corps exacts, refus de suppression = résultat stable (jamais une panne qui ouvre le disjoncteur).
+test('removal operations use constant paths with exact bodies; delete refusals are stable rejections', async () => {
+  const gw = await fakeGateway((s, res, n) => n <= 2 ? gw.json(res, 200, { ok: true, removed: true }) : gw.json(res, 502, { ok: false, error: 'oce_delete_unsupported' }));
+  try {
+    const client = fast(gw.socket);
+    assert.deepEqual(await client.removeDependency({ ...ref, predecessor_activity_code: 'A1', successor_activity_code: 'A2' }), { ok: true, removed: true });
+    assert.deepEqual(await client.removeActivity({ ...ref, activity_code: 'A2' }), { ok: true, removed: true });
+    assert.deepEqual(gw.seen.map(s => [s.method, s.url]), [['POST', '/v1/remove-dependency'], ['POST', '/v1/remove-activity']]);
+    assert.deepEqual(gw.seen[0].body, { ...ref, predecessor_activity_code: 'A1', successor_activity_code: 'A2' });
+    const error = await rejects(client.removeActivity({ ...ref, activity_code: 'A2' }), 'rejected', 'oce_delete_unsupported');
+    assert.equal(error.retryable, false); assert.equal(error.countsAsOutage, false);
+    assert.equal(gw.seen.length, 3, 'a refused deletion is not retried');
+    await rejects(client.removeActivity({ ...ref, activity_code: 'bad code' } as any), 'invalid_request', 'invalid_activity_code');
+    await rejects(client.removeDependency({ ...ref, predecessor_activity_code: 'A1', successor_activity_code: 'A1' }), 'invalid_request', 'dependency_self_reference');
+    await rejects(client.removeActivity({ ...ref, activity_code: 'A2', oce_id: 'x' } as any), 'invalid_request', 'unexpected_field');
+    assert.equal(gw.seen.length, 3, 'invalid input never reaches the socket');
+  } finally { await gw.close(); }
+});

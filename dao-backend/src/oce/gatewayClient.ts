@@ -1,7 +1,7 @@
 import http from 'node:http';
 import {
   OceGateway, OceGatewayError, requests, responses,
-  type EnsureDependencyInput, type EnsureProjectInput, type EnsureScheduleInput, type EnsureWbsInput, type MappingRef, type UpsertActivityInput,
+  type EnsureDependencyInput, type EnsureProjectInput, type RemoveActivityInput, type RemoveDependencyInput, type EnsureScheduleInput, type EnsureWbsInput, type MappingRef, type UpsertActivityInput,
 } from './gatewayContract.js';
 
 export const DEFAULT_GATEWAY_SOCKET = '/run/dao-oce-gateway/gateway.sock';
@@ -12,6 +12,7 @@ const PATHS = {
   health: ['GET', '/health'], ready: ['GET', '/ready'],
   ensureProject: ['POST', '/v1/ensure-project'], ensureWbs: ['POST', '/v1/ensure-wbs'], ensureSchedule: ['POST', '/v1/ensure-schedule'],
   upsertActivity: ['POST', '/v1/upsert-activity'], ensureDependency: ['POST', '/v1/ensure-dependency'],
+  removeDependency: ['POST', '/v1/remove-dependency'], removeActivity: ['POST', '/v1/remove-activity'],
   calculatePlanning: ['POST', '/v1/calculate-planning'], planningSummary: ['POST', '/v1/planning-summary'],
 } as const;
 type Operation = keyof typeof PATHS;
@@ -51,6 +52,8 @@ function failure(error: unknown): OceGatewayError {
 function fromStatus(status: number, raw: string): OceGatewayError {
   let code = 'gateway_error';
   try { const parsed = JSON.parse(raw); if (typeof parsed?.error === 'string' && /^[a-z0-9_]{1,64}$/.test(parsed.error)) code = parsed.error; } catch { /* keep the generic code */ }
+  // La suppression refusée ou sans effet côté OCE est un résultat métier stable : ni nouvelle tentative, ni panne de passerelle.
+  if (status === 502 && /^oce_delete_/.test(code)) return new OceGatewayError('rejected', code, status);
   if (status === 403) return new OceGatewayError('not_authorized', code, status);
   if (status === 409) return new OceGatewayError('conflict', code, status);
   if (status === 400 || status === 411 || status === 413) return new OceGatewayError('invalid_request', code, status);
@@ -128,6 +131,8 @@ export class OceGatewayClient implements OceGateway {
   async ensureSchedule(input: EnsureScheduleInput) { return this.call('ensureSchedule', responses.ensure, requests.ensureSchedule(input)); }
   async upsertActivity(input: UpsertActivityInput) { return this.call('upsertActivity', responses.ensure, requests.upsertActivity(input)); }
   async ensureDependency(input: EnsureDependencyInput) { return this.call('ensureDependency', responses.dependency, requests.ensureDependency(input)); }
+  async removeDependency(input: RemoveDependencyInput) { return this.call('removeDependency', responses.removal, requests.removeDependency(input)); }
+  async removeActivity(input: RemoveActivityInput) { return this.call('removeActivity', responses.removal, requests.removeActivity(input)); }
   async calculatePlanning(input: MappingRef) { return this.call('calculatePlanning', responses.planning, requests.mapping(input)); }
   async planningSummary(input: MappingRef) { return this.call('planningSummary', responses.summary, requests.mapping(input)); }
 }

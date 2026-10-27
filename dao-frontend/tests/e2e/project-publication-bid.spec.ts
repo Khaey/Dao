@@ -53,6 +53,13 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(publishButton).toBeDisabled();
   await lotCheckbox.check();
   await expect(publishButton).toBeEnabled();
+  // #520: reject an expired deadline without sending an SQL-invalid publication.
+  const deadline=reviewer.locator('input[type="datetime-local"]');
+  await deadline.fill('2026-10-16T04:06');
+  await expect(reviewer.getByText(/La date limite des offres doit être postérieure/)).toBeVisible();
+  await expect(publishButton).toBeDisabled();
+  await deadline.fill('');
+  await expect(publishButton).toBeEnabled();
   await publishButton.click();
   await expect(reviewer).toHaveURL(/\/app\/publications\/[^/]+/);
   const publicationUrl = reviewer.url();
@@ -61,6 +68,23 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   recordE2EValue(testInfo, 'publications', publicationId);
   await expect(reviewer.getByRole('heading', { name: project.title })).toBeVisible();
   await reviewerContext.close();
+
+  // #340: a published chantier keeps its own status even while the latest DAO version remains approved.
+  await page.goto('/app/projects');
+  const clientProjectRow = page.getByTestId(`project-row-${project.projectId}`);
+  await expect(clientProjectRow.getByText('Publié', { exact: true })).toBeVisible();
+  await expect(clientProjectRow.getByText(/Version \d+ approuvée/)).toBeVisible();
+  await expect(clientProjectRow.getByText('Prêt à publier', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Filtrer par statut').selectOption('published');
+  await expect(clientProjectRow).toBeVisible();
+  await page.goto('/app');
+  const dashboardProject = page.locator(`a[href="/app/projects/${project.projectId}"]`);
+  // #477: the dashboard row shows the commercial state; the progress marks the chantier as published (not « Prêt à publier »).
+  await expect(dashboardProject.getByRole('list', { name: 'Avancement du chantier' })).toContainText('Publié : fait');
+  await expect(dashboardProject).not.toContainText('Prêt à publier');
+  await page.goto(`/app/projects/${project.projectId}`);
+  await expect(page.getByText('Publié', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Prêt à publier', { exact: true })).toHaveCount(0);
 
   const artisanContext = await browser.newContext();
   const artisan = await artisanContext.newPage();
@@ -74,6 +98,10 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   const publishedLotHeading = artisan.getByRole('article').getByRole('heading', { name: project.lotTitle, exact: true });
   await expect(publishedLotHeading).toBeVisible();
   await artisan.getByLabel('Répondre à ce lot').check();
+  await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
+  const validationToast = artisan.getByTestId('error-toast');
+  await expect(validationToast).toContainText('Complétez le prix, le délai et la proposition technique');
+  await expect(validationToast).toBeHidden({ timeout: 8000 });
   await artisan.getByLabel('Prix proposé (TND)').fill('25000');
   await artisan.getByLabel('Délai (jours)').fill('21');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Fourniture, pose, essais et remise en état.');
@@ -88,6 +116,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
   await artisan.getByLabel('Délai (jours)').fill('22');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');
+  // #387 phase 2: price, delay and proposal first; posts, sub-lots and exclusions sit under one optional summary.
+  await artisan.locator('summary').filter({hasText:'Détailler ce lot (facultatif)'}).click();
   await artisan.getByRole('button',{name:'Ajouter un poste'}).click();
   await artisan.getByLabel('Catégorie').selectOption('materials');
   await artisan.getByLabel('Désignation').fill('Tube cuivre');
@@ -95,6 +125,10 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Quantité').fill('2');
   await artisan.getByLabel('PU TND').fill('13000');
   await expect(artisan.getByText('Total du lot :')).toContainText('26');
+  // The delete button must fit the mobile width once scrolled to (the optional block moved the row lower).
+  await artisan.getByRole('button',{name:'Supprimer le poste 1'}).scrollIntoViewIfNeeded();
+  await expect(artisan.getByRole('button',{name:'Supprimer le poste 1'})).toBeInViewport();
+  expect(await artisan.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBe(0);
   // #325 : décomposition technique proposée + enchaînement (proposition seulement, l'attribution reste par lot).
   await artisan.getByRole('button',{name:'Ajouter un sous-lot'}).click();
   await artisan.getByLabel('Sous-lot 1',{exact:true}).fill('Rainures E2E');
@@ -104,6 +138,17 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Sous-lot 2',{exact:true}).fill('Câblage E2E');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Début',{exact:true}).fill('2027-01-15');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Fin',{exact:true}).fill('2027-01-20');
+  // #486: the budget summary states the real allocation (26 000 TND total from the detail lines).
+  const budgetLine=artisan.getByText(/Budgets déclarés/);
+  await artisan.getByTestId('bid-sub-lot').nth(0).getByLabel('Budget (TND)').fill('10000');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Budget (TND)').fill('2000');
+  await expect(budgetLine).toContainText('restent non répartis');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Budget (TND)').fill('20000');
+  await expect(budgetLine).toContainText('le total dépasse le prix proposé');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Budget (TND)').fill('16000');
+  await expect(budgetLine).toContainText('tout le prix est réparti');
+  await expect(budgetLine).not.toContainText('non répartis');
+  await artisan.locator('summary').filter({hasText:'Compléments facultatifs'}).click();
   await artisan.getByRole('button',{name:'Ajouter un lien'}).click();
   const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');
   const successorValue=await artisan.locator('option',{hasText:'Câblage E2E'}).first().getAttribute('value');
@@ -152,6 +197,9 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(page.getByText('client-e2e@example.invalid', { exact: true })).toHaveCount(0);
   const comparison = page.getByRole('heading', { name: 'Comparer et attribuer les offres' }).locator('..');
   await expect(comparison.getByTestId('offer-card')).toHaveCount(2);
+  const profileLinks = comparison.getByRole('link', { name: 'Consulter la fiche professionnelle' });
+  await expect(profileLinks).toHaveCount(2);
+  await expect(profileLinks.first()).toHaveAttribute('href', /\/app\/professionals\/[0-9a-f-]{36}$/i);
   await expect(comparison.getByText('Version révisée avec délai actualisé.', { exact: true })).toBeVisible();
   await expect(comparison.getByText('Tube cuivre', { exact: false })).toBeVisible();
   await expect(comparison.getByTestId('offer-sub-lots')).toContainText('Rainures E2E');
@@ -214,7 +262,9 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
 
   // #325 B : planning global. Le lien proposé n'est effectif qu'après attribution du lot ET confirmation du Client.
   await page.goto(`/app/projects/${project.projectId}`);
-  await page.getByRole('button', { name: 'Suivi', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivi du chantier', exact: true }).click();
+  // #387 phase 2: the global/OCE planning is optional and folded under one summary in « Suivi du chantier ».
+  await page.locator('summary').filter({ hasText: 'Planning global et OpenConstructionERP (facultatif)' }).click();
   const globalPlan = page.getByTestId('project-global-plan');
   await expect(globalPlan).toBeVisible();
   await expect(globalPlan.getByTestId('plan-lot')).toHaveCount(1);
@@ -229,5 +279,32 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(proposed).toContainText('Effectif');
   await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Câblage E2E', { exact: true }) })).toContainText('Commence après : Rainures E2E');
   expect(await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=decision`)).toEqual([{ decision: 'confirmed' }]);
+
+  // #325 : aucun lien n'est irréversible. Retirer, rétablir, ajouter puis remplacer, chaque fois en UNE action métier.
+  const cablage = globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Câblage E2E', { exact: true }) });
+  await proposed.getByRole('button', { name: 'Retirer le lien' }).click();
+  await proposed.getByRole('group', { name: 'Retirer ce lien' }).getByRole('button', { name: 'Retirer', exact: true }).click();
+  await expect(proposed).toContainText('Rejeté');
+  await expect(cablage).not.toContainText('Commence après');
+  await proposed.getByRole('button', { name: 'Reconsidérer' }).click();
+  await expect(proposed).toContainText('Effectif');
+  await expect(cablage).toContainText('Commence après : Rainures E2E');
+  await globalPlan.getByRole('button', { name: 'Modifier le lien' }).click();
+  const editor = globalPlan.getByTestId('plan-link-editor');
+  await editor.getByLabel('Doit être terminé').selectOption({ label: 'Câblage E2E' });
+  await editor.getByLabel('Avant que commence').selectOption({ label: 'Rainures E2E' });
+  await editor.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Rainures E2E', { exact: true }) })).toContainText('Commence après : Câblage E2E');
+  await expect(cablage).not.toContainText('Commence après');
+  const decisions = await adminRows('project_plan_link_decisions', `project_id=eq.${project.projectId}&select=decision&order=seq.asc`);
+  expect(decisions.map(row => row.decision)).toEqual(['confirmed', 'rejected', 'confirmed', 'rejected']);
+  expect(await adminRows('project_plan_manual_links', `project_id=eq.${project.projectId}&select=id`)).toHaveLength(1);
+  // Retirer le lien ajouté : il quitte le plan, l'historique reste (retrait append-only).
+  const added = globalPlan.getByTestId('plan-link').filter({ hasText: 'ajouté par le Client' });
+  await added.getByRole('button', { name: 'Retirer le lien' }).click();
+  await added.getByRole('group', { name: 'Retirer ce lien' }).getByRole('button', { name: 'Retirer', exact: true }).click();
+  await expect(added).toHaveCount(0);
+  await expect(globalPlan.getByTestId('plan-node').filter({ has: page.getByText('Rainures E2E', { exact: true }) })).not.toContainText('Commence après');
+  expect(await adminRows('project_plan_manual_link_removals', `project_id=eq.${project.projectId}&select=link_id`)).toHaveLength(1);
 
 });

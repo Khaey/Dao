@@ -7,6 +7,7 @@ import { projectApi, Team } from '../lib/collaboration';
 import { cn } from '../lib/utils';
 import InvitationEmailButton, { PreparedInvitation } from './InvitationEmailButton';
 import { fieldClass, Pill, primaryAction, secondaryAction, type Tone } from '../app/app/projects/_components/ProjectUi';
+import { RESTRICTED_MESSAGE, settingAvailable, useMySettings } from '../lib/settings';
 
 const invitationLabels: Record<string, string> = { pending: 'En attente de confirmation', accepted: 'Acceptée', declined: 'Refusée', revoked: 'Révoquée', expired: 'Expirée' };
 const invitationTones: Record<string, Tone> = { pending: 'clay', accepted: 'teal', declined: 'red', revoked: 'neutral', expired: 'neutral' };
@@ -18,7 +19,8 @@ export default function ProjectTeam({ projectId, team, needsClient, archived, lo
   const [recipientName, setRecipientName] = useState(''); const [email, setEmail] = useState(''); const [requestId, setRequestId] = useState(() => lots.some(lot => lot.id === initialLotId) ? initialLotId! : ''); const [privateAccess, setPrivateAccess] = useState(false);
   const [link, setLink] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const [copied, setCopied] = useState(false);
   const [invitation, setInvitation] = useState<PreparedInvitation | null>(null);
-  const canInvite = !archived && (team.is_client || (needsClient && team.can_prepare));
+  const inviteAllowed = settingAvailable(useMySettings(team.is_client ? 'client' : undefined, projectId), 'client.invite_professionals');
+  const canInvite = !archived && ((team.is_client && inviteAllowed) || (needsClient && team.can_prepare));
   const pendingLotIds = new Set(team.invitations.filter(invite => invite.expected_role === 'contractor' && invite.status === 'pending' && new Date(invite.expires_at).getTime() > Date.now()).map(invite => invite.principal_request_id).filter(Boolean));
   const availableLots = lots.filter(lot => !pendingLotIds.has(lot.id));
   const pendingClient = team.invitations.some(invite => invite.expected_role === 'client' && invite.status === 'pending' && new Date(invite.expires_at).getTime() > Date.now());
@@ -52,6 +54,7 @@ export default function ProjectTeam({ projectId, team, needsClient, archived, lo
         {member.participation_role === 'contractor' && <label className="mt-3 flex min-h-11 items-start gap-3 rounded-lg bg-sand/70 px-3 py-2.5 text-sm text-ink"><input type="checkbox" className={checkboxClass} checked={member.can_view_private_details} disabled={!team.is_client || archived || saving} onChange={event => void change('/api/projects/members', { member_id: member.id, can_view_private_details: event.target.checked })} />Accès aux coordonnées privées pour {member.name || 'ce participant'}</label>}
       </li>)}</ul>
     </Card>
+    {!archived && team.is_client && !inviteAllowed && <Card className="p-5 sm:p-6"><p className="rounded-xl bg-sand px-4 py-3 text-sm text-ink/70">{RESTRICTED_MESSAGE}</p></Card>}
     {canInvite && <Card className="p-5 sm:p-6"><SectionHeading title={needsClient ? 'Invitation au chantier — Client' : 'Inviter un artisan ou une entreprise'} description="Cette invitation donne accès au chantier. Elle est distincte d’un DAO sur invitation." />
       {pendingClient ? <p className="mt-4 rounded-xl bg-sand px-4 py-3 text-sm text-ink/70">Une invitation client est déjà en attente. Révoquez-la avant d’en créer une autre.</p> : <form onSubmit={invite} className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>{needsClient ? 'Nom du client' : 'Nom de l’artisan / entreprise'}<Input aria-label="Nom du destinataire" className="mt-2 min-h-11" value={recipientName} onChange={event => setRecipientName(event.target.value)} maxLength={160} required={Boolean(email.trim())} /></label>

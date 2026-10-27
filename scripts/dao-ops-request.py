@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 OPERATIONS = (
-    'status', 'health', 'restart', 'env-sync', 'log-summary', 'diagnostics',
+    'status', 'health', 'restart', 'env-sync', 'log-summary', 'diagnostics', 'perf-snapshot',
     'ops-status', 'ops-preflight', 'ops-upgrade', 'ops-rollback', 'backup-status',
     'oce-integration-inventory', 'oce-gateway-plan',
     'oce-gateway-apply', 'oce-gateway-qualify',

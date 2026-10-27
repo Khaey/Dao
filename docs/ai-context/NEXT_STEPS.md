@@ -1,5 +1,15 @@
 # D.A.O — Next Steps
 
+## DEV 2 — #390 livré, ne pas rejouer
+
+PR #391 fusionnée, CI PR/main verte, application DEV déployée et migration DEV
+appliquée une fois (`20261023004608 / contract_preparation_after_award`). Les
+smokes OFF/ON, atomicité, idempotence et JWT/RLS ont réussi avec rollback. Le
+compte réel `ahmed` est configuré comme représentant actif de LogicLab Tunisie
+(révision 1) ; aucun chantier ni contrat n'est actif. Ne pas réappliquer la
+migration ni recréer l'adaptateur. La seule activation future est le choix
+chantier par chantier du Client propriétaire avant attribution. Aucune PROD.
+
 ## DEV 20 — #231 notifications internes S1
 
 Terminer les lots backend/UX avec tests JWT réels et FULL E2E jetables.

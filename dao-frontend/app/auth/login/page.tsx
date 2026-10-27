@@ -8,6 +8,7 @@ import { supabaseBrowser } from '../../../lib/supabase-browser';
 import { Button, Input } from '../../../components/ui';
 import { invitationReturn } from '../../../lib/collaboration';
 import { isStaffOnly, type AppRole } from '../../../lib/roles';
+import { appReturnPath } from '../../../lib/session-return';
 
 const focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal';
 
@@ -26,7 +27,12 @@ function loginErrorMessage(error: { code?: string; status?: number; name?: strin
 
 export default function Login() {
   const [returnTo, setReturnTo] = useState<string | null>(null);
-  useEffect(() => setReturnTo(invitationReturn(window.location.search)), []);
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    const search = window.location.search;
+    setReturnTo(invitationReturn(search) ?? appReturnPath(search));
+    setExpired(new URLSearchParams(search).get('raison') === 'session');
+  }, []);
   const r = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -108,6 +114,7 @@ export default function Login() {
             </div>
 
             <form onSubmit={submit} className="space-y-5 rounded-[1.75rem] border border-ink/10 bg-white p-6 shadow-[0_20px_60px_rgba(23,32,42,.07)] sm:p-8">
+              {expired && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Votre session a expiré. Reconnectez-vous : vous reviendrez à la page que vous consultiez.</p>}
               <div>
                 <label htmlFor="dao-login-email" className="mb-2 block text-sm font-semibold text-ink">Adresse e-mail</label>
                 <Input id="dao-login-email" type="email" autoComplete="email" placeholder="Votre email" value={email} onChange={e => setEmail(e.target.value)} required className="min-h-12" />

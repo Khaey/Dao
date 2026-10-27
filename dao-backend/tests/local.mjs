@@ -23,6 +23,8 @@ await db.exec(readFileSync(new URL('../supabase/seed.sql',import.meta.url),'utf8
 await test('bid sub-lots contract (#325)',async()=>{await db.exec('begin');try{await db.exec(readFileSync(new URL('./bid-sub-lots-contract.sql',import.meta.url),'utf8'));}finally{await db.exec('rollback');}});
 await test('project plan contract (#325 B)',async()=>{await db.exec('begin');try{await db.exec(readFileSync(new URL('./project-plan-contract.sql',import.meta.url),'utf8'));}finally{await db.exec('rollback');}});
 await test('shared fresh-database schema contract',()=>db.exec(readFileSync(new URL('./schema-contract.sql',import.meta.url),'utf8')));
+await test('contract preparation configuration and trigger contract',()=>db.exec(readFileSync(new URL('./contract-preparation-contract.sql',import.meta.url),'utf8')));
+await test('technical RFI schema and grants contract',()=>db.exec(readFileSync(new URL('./technical-rfi-contract.sql',import.meta.url),'utf8')));
 await test('add_project_request overloads resolve at exact four- and five-argument arities',async()=>{
  const functions=(await db.query(`select n.nspname as schema_name,p.pronargs::int as argument_count,p.pronargdefaults::int as default_count
  ,pg_get_userbyid(p.proowner) as owner,p.prosecdef as security_definer,p.proconfig as config,p.proacl::text as acl
@@ -53,7 +55,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,88);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,120);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -113,6 +115,11 @@ const rejectedProjectVersion=await insert('project_versions',{project_id:correct
 const correctionRequest=await insert('project_requests',{project_id:correctionProject});
 const rejectedRequestVersion=await insert('project_request_versions',{request_id:correctionRequest,project_id:correctionProject,version_no:1,trade_id:trade,title:'Rejected lot',scope:'Test'});
 await insert('project_version_requests',{project_id:correctionProject,project_version_id:rejectedProjectVersion,request_version_id:rejectedRequestVersion});
+const nativeSubProject=await insert('projects',{client_id:U.clientA});
+const nativeSubProjectVersion=await insert('project_versions',{project_id:nativeSubProject,version_no:1,title:'Native sub-lots',description:'Test',governorate_id:gov,status:'draft'});
+const nativeSubRequest=await insert('project_requests',{project_id:nativeSubProject});
+const nativeSubRequestVersion=await insert('project_request_versions',{request_id:nativeSubRequest,project_id:nativeSubProject,version_no:1,trade_id:trade,title:'Lot with optional details',scope:'Test'});
+await insert('project_version_requests',{project_id:nativeSubProject,project_version_id:nativeSubProjectVersion,request_version_id:nativeSubRequestVersion});
 const publicationProject=await insert('projects',{client_id:U.clientA});
 const approvedPublicationVersion=await insert('project_versions',{project_id:publicationProject,version_no:1,title:'Publication test',description:'Test',governorate_id:gov,status:'approved'});
 const activePublicationRequest=await insert('project_requests',{project_id:publicationProject});
@@ -167,6 +174,37 @@ await test('project review submission requires both dates and preserves an open 
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
 }));
 await test('client cannot withdraw a request after the project version leaves draft',()=>as('clientA',()=>denied(`select public.withdraw_project_request('${withdrawalRequests[1].request}')`,'23514')));
+await test('Client official sub-lots create immutable revisions and support reorder, edit and logical retirement',()=>as('clientA',async()=>{
+ const initial=await db.query('select public.native_request_sub_lots_v1($1) as data',[nativeSubRequest]);
+ eq(initial.rows[0].data.canEdit,true);eq(initial.rows[0].data.items.length,0);
+ const first=await db.query('select public.replace_client_request_sub_lots_v1($1,$2,$3::jsonb) as data',[
+   nativeSubRequest,nativeSubRequestVersion,JSON.stringify([
+     {id:null,title:'Dépose',scope:'Retirer l’ancien équipement',budgetMillimes:null},
+     {id:null,title:'Pose',scope:'Installer le nouvel équipement',budgetMillimes:'123456'},
+   ]),
+ ]);
+ eq(first.rows[0].data.requestVersion,2);eq(first.rows[0].data.items.length,2);
+ const firstItems=first.rows[0].data.items;
+ const second=await db.query('select public.replace_client_request_sub_lots_v1($1,$2,$3::jsonb) as data',[
+   nativeSubRequest,first.rows[0].data.requestVersionId,JSON.stringify([
+     {...firstItems[1],title:'Pose finale'},
+     firstItems[0],
+   ]),
+ ]);
+ eq(second.rows[0].data.requestVersion,3);eq(second.rows[0].data.items[0].id,firstItems[1].id);
+ eq(second.rows[0].data.items[0].title,'Pose finale');
+ const third=await db.query('select public.replace_client_request_sub_lots_v1($1,$2,$3::jsonb) as data',[
+   nativeSubRequest,second.rows[0].data.requestVersionId,JSON.stringify([second.rows[0].data.items[0]]),
+ ]);
+ eq(third.rows[0].data.requestVersion,4);eq(third.rows[0].data.items.length,1);
+ const history=await db.query('select count(*)::int as n from public.request_sub_lot_versions where sub_lot_id=$1',[firstItems[0].id]);
+ eq(history.rows[0].n,2);
+ await denied(`select public.replace_client_request_sub_lots_v1('${nativeSubRequest}','${nativeSubRequestVersion}','[]'::jsonb)`,'40001');
+}));
+await test('another Client cannot read or mutate official sub-lots',()=>as('clientB',async()=>{
+ await denied(`select public.native_request_sub_lots_v1('${nativeSubRequest}')`,'42501');
+ await denied(`select public.replace_client_request_sub_lots_v1('${nativeSubRequest}','${nativeSubRequestVersion}','[]'::jsonb)`,'42501');
+}));
 await test('withdrawal after review leaves the request active and linked',async()=>{
  const request=await db.query('select status from public.project_requests where id=$1',[withdrawalRequests[1].request]);eq(request.rows[0].status,'open');
  const link=await db.query('select id from public.project_version_requests where project_version_id=$1 and request_version_id=$2',[withdrawalProjectVersion,withdrawalRequests[1].requestVersion]);eq(link.rows.length,1);
@@ -208,6 +246,46 @@ await test('publication uses the exact lot snapshot attached to the approved pro
 await test('publication keeps the approved snapshot instead of a later lot version',async()=>{
  const publication=await db.query('select id from public.publications where project_id=$1',[publicationProject]);eq(publication.rows.length,1);
  const publishedRequest=await db.query('select request_version_id from public.publication_requests where publication_id=$1',[publication.rows[0].id]);eq(publishedRequest.rows.length,1);eq(publishedRequest.rows[0].request_version_id,approvedRequestSnapshot);eq(publishedRequest.rows[0].request_version_id===latestRequestSnapshot,false);
+});
+const rfiPublication=(await db.query('select id from public.publications where project_id=$1',[publicationProject])).rows[0].id;
+const rfiPublicationRequest=(await db.query('select id from public.publication_requests where publication_id=$1',[rfiPublication])).rows[0].id;
+let rfiQuestion;
+await test('eligible artisan creates one idempotent private technical question',()=>as('proA',async()=>{
+ const first=(await db.query('select public.create_rfi_question($1,$2,$3) as value',[rfiPublicationRequest,'Quelle section de câble ?','rfi-create-0001'])).rows[0].value;
+ const replay=(await db.query('select public.create_rfi_question($1,$2,$3) as value',[rfiPublicationRequest,'Texte ignoré','rfi-create-0001'])).rows[0].value;
+ rfiQuestion=first.id;eq(replay.id,rfiQuestion);eq(first.mine,true);
+}));
+let pendingRfiDocument;
+await test('RFI document owner can finalize only their own quarantined metadata',()=>as('proA',async()=>{
+ const row=(await db.query("select (d).id,(d).owner_id,(d).status from (select public.create_rfi_document($1,null,$2,'plan.pdf','application/pdf',128) d) created",[rfiQuestion,`rfi/${rfiQuestion}/plan.pdf`])).rows[0];
+ pendingRfiDocument=row.id;
+ eq(row.owner_id,U.proA);eq(row.status,'quarantined');
+ eq((await db.query('select id from public.technical_rfi_documents where id=$1',[pendingRfiDocument])).rows.length,1);
+}));
+await test('another artisan cannot observe quarantined RFI metadata',()=>as('proB',async()=>{
+ eq((await db.query('select id from public.technical_rfi_documents where id=$1',[pendingRfiDocument])).rows.length,0);
+}));
+await test('question remains private before the official clarification',async()=>{
+ await as('proB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
+ await as('clientB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
+ await as('clientA',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items[0].id,rfiQuestion));
+});
+await test('owner publishes immutable clarification versions for every eligible artisan',()=>as('clientA',async()=>{
+ const first=(await db.query('select public.publish_rfi_clarification($1,$2,$3,$4) as value',[rfiQuestion,'Utiliser une section de 6 mm².',true,'rfi-answer-0001'])).rows[0].value;
+ const second=(await db.query('select public.publish_rfi_clarification($1,$2,$3,$4) as value',[rfiQuestion,'Correction officielle : 10 mm².',true,'rfi-answer-0002'])).rows[0].value;
+ eq(first.clarifications.length,1);eq(second.clarifications.length,2);eq(second.clarifications[0].body,'Utiliser une section de 6 mm².');eq(second.clarifications[1].version_no,2);
+}));
+await test('eligible competitor sees the same clarification with an anonymized author',()=>as('proB',async()=>{
+ const item=(await db.query('select public.list_rfi_questions() as value')).rows[0].value.items[0];eq(item.id,rfiQuestion);eq(item.author_label,'Soumissionnaire');eq(item.clarifications.length,2);
+}));
+await test('unrelated client and direct authenticated mutations stay blocked',async()=>{
+ await as('clientB',async()=>eq((await db.query('select * from public.technical_questions where id=$1',[rfiQuestion])).rows.length,0));
+ await as('proB',()=>denied(`update public.technical_questions set body='altéré' where id='${rfiQuestion}'`,'42501'));
+});
+await test('suspended artisan immediately loses RFI visibility',async()=>{
+ await db.query("update public.contractor_profiles set verification_status='suspended' where id=$1",[C.proB]);
+ await as('proB',async()=>eq((await db.query('select public.list_rfi_questions() as value')).rows[0].value.items.length,0));
+ await db.query("update public.contractor_profiles set verification_status='verified' where id=$1",[C.proB]);
 });
 const A=await insert('awards',{project_id:P,contractor_id:C.proA});const A2=await insert('awards',{project_id:P,contractor_id:C.proB});const AQ=await insert('awards',{project_id:Q,contractor_id:C.proA});const AG=await insert('awards',{project_id:P,contractor_id:C.general});
 function awardSql(a,c,i,request,proj=P){return `insert into public.award_items(award_id,project_id,contractor_id,request_id,bid_item_id,agreed_millimes) values('${a}','${proj}','${c}','${request}','${i}',11500000)`}

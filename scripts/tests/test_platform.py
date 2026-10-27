@@ -333,8 +333,7 @@ class VpsOwnerPlanWorkflowTests(unittest.TestCase):
     def test_read_only_plan_requires_exact_owner_and_issue_comment(self):
         workflow = (ROOT / '.github/workflows/vps-oce-plan.yml').read_text()
         dispatcher = (ROOT / '.github/workflows/dao-comment-dispatcher.yml').read_text()
-        # Only the dispatcher listens to comments; the privileged child runs
-        # as a reusable workflow. Check both halves of the security boundary.
+        # The dispatcher owns the comment trigger; the privileged workflow remains restricted.
         self.assertIn('issue_comment:', dispatcher)
         self.assertIn('types: [created]', dispatcher)
         self.assertIn('workflow_call:', workflow)

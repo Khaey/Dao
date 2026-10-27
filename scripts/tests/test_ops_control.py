@@ -596,7 +596,7 @@ class TransportTests(unittest.TestCase):
                               cwd=root, capture_output=True, text=True)
 
     def test_fixed_scripts_and_optional_payload_keep_relative_transfer_paths(self):
-        names = ('dao-operations.sh', 'dev-status.sh', 'validate-dev.sh', 'dao-ops-diagnostics.py')
+        names = ('dao-operations.sh', 'dev-status.sh', 'validate-dev.sh', 'dao-ops-diagnostics.py', 'dao-ops-perf-snapshot.py')
         for with_payload in (False, True):
             with self.subTest(with_payload=with_payload), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -655,7 +655,7 @@ class TransportTests(unittest.TestCase):
                 host = root / 'host'
                 host.mkdir(mode=0o700)
                 (root / 'scripts').mkdir()
-                for name in ('dao-operations.sh', 'dev-status.sh', 'validate-dev.sh', 'dao-ops-diagnostics.py', 'stage-dev-private-dir.sh'):
+                for name in ('dao-operations.sh', 'dev-status.sh', 'validate-dev.sh', 'dao-ops-diagnostics.py', 'dao-ops-perf-snapshot.py', 'stage-dev-private-dir.sh'):
                     source = (ROOT / 'scripts' / name).read_text()
                     (root / 'scripts' / name).write_text(source.replace('/opt/dao', str(host)))
                 (root / 'dao-env.json').write_text('{"fictional":"fictional-secret"}')

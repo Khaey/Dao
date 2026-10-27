@@ -36,6 +36,32 @@ test('Espace Artisan : une erreur de chargement ne devient pas un faux état vid
   await page.getByRole('button', { name: 'Réessayer', exact: true }).click();
   await expect(page.getByText('Vos offres n’ont pas pu être chargées', { exact: true })).toHaveCount(0);
 
+  // #356: an award-items outage must never turn an awarded offer into a false "Attribution annulée".
+  const restoreAwards = await failUntilRetry(page, '/rest/v1/award_items');
+  await page.goto('/app/artisan/offers');
+  await expect(page.getByText('Statut de vos attributions indisponible', { exact: true })).toBeVisible();
+  await expect(page.getByText('Attribution annulée', { exact: true })).toHaveCount(0);
+  await restoreAwards();
+  await page.getByRole('button', { name: 'Réessayer', exact: true }).click();
+  await expect(page.getByText('Statut de vos attributions indisponible', { exact: true })).toHaveCount(0);
+
+  // #356: the merged list must not claim there are no offers if the Artisan's signals fail.
+  const restoreProjectOffers = await failUntilRetry(page, '/rest/v1/rpc/my_bid_summaries');
+  await page.goto('/app/projects');
+  await expect(page.getByText('Offres et attributions indisponibles', { exact: true })).toBeVisible();
+  await expect(page.getByText('Aucun chantier client pour le moment', { exact: true })).toHaveCount(0);
+  await restoreProjectOffers();
+  await page.getByRole('button', { name: 'Réessayer', exact: true }).click();
+  await expect(page.getByText('Offres et attributions indisponibles', { exact: true })).toHaveCount(0);
+
+  // #356: an award lookup error must not be interpreted as zero awarded chantiers.
+  const restoreProjectAwards = await failUntilRetry(page, '/rest/v1/award_items');
+  await page.goto('/app/projects');
+  await expect(page.getByText('Offres et attributions indisponibles', { exact: true })).toBeVisible();
+  await restoreProjectAwards();
+  await page.getByRole('button', { name: 'Réessayer', exact: true }).click();
+  await expect(page.getByText('Offres et attributions indisponibles', { exact: true })).toHaveCount(0);
+
   const restoreInvitations = await failUntilRetry(page, '/rest/v1/rpc/my_project_invitations');
   await page.goto('/app/invitations');
   await expect(page.getByText('Vos invitations n’ont pas pu être chargées', { exact: true })).toBeVisible();

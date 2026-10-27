@@ -1,6 +1,6 @@
 import { createBackofficeHandler, authAdministration } from './backofficeHandler.js';
 import { createClient } from '@supabase/supabase-js';
-import { ProjectService, PublicationService, BidService, AwardService, DocumentService, ProfileService, AIService, MessageService, ContractReadService, SiteExecutionService, QuotePdfService } from '../services/index.js';
+import { ProjectService, PublicationService, BidService, AwardService, DocumentService, ProfileService, AIService, MessageService, ContractReadService, ContractConfigurationService, PrecontractAgreementService, SiteExecutionService, SiteTechnicalQualityService, QuotePdfService } from '../services/index.js';
 import { createDaoApi } from './nextHandlers.js';
 import { InvitationAuthorization } from '../services/InvitationAuthorization.js';
 import { ProjectInvitationEmailService, invitationSecretColumns } from '../services/ProjectInvitationEmailService.js';
@@ -19,6 +19,19 @@ import { OceOrchestrator } from '../oce/orchestrator.js';
 import { SupabaseOceSyncStore } from '../oce/oceSyncStore.js';
 import { SupportService } from '../services/SupportService.js';
 import { createSupportHandler } from './supportHandler.js';
+import { RfiService } from '../services/RfiService.js';
+import { createRfiHandler } from './rfiHandler.js';
+import { RfiDocumentService } from '../services/RfiDocumentService.js';
+import { createNativeExecutionPlanHandler } from './nativeExecutionPlanHandler.js';
+import { createNativeExecutionScopeHandler } from './nativeExecutionScopeHandler.js';
+import { createNativeWorkSituationHandler, createNativeWorkSituationEventsHandler } from './nativeWorkSituationHandler.js';
+import { SiteWorkSituationService } from '../services/SiteWorkSituationService.js';
+import { createDocumentDossierHandler } from './documentDossierHandler.js';
+import { DocumentDossierService } from '../services/DocumentDossierService.js';
+import { createNativeExecutionActivityHandler } from './nativeExecutionActivityHandler.js';
+import { createNativeExecutionDependencyHandler } from './nativeExecutionDependencyHandler.js';
+import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
+import { createNativeLotDatesHandler } from './nativeLotDatesHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -48,6 +61,12 @@ export function createSupportApi(request: Request) {
   return createSupportHandler(new SupportService(db), resolveActor);
 }
 
+export function createRfiApi(request: Request) {
+  const { url, db, resolveActor } = requestScope(request);
+  const storage=createClient(url,env('DAO_SUPABASE_SECRET_KEY'),{auth:{persistSession:false,autoRefreshToken:false}}).storage;
+  return createRfiHandler(new RfiService(db),new RfiDocumentService(db,storage), resolveActor);
+}
+
 export function createRequestApi(request: Request) {
   const { url, db, resolveActor } = requestScope(request);
   const secret = env('DAO_SUPABASE_SECRET_KEY');
@@ -58,7 +77,8 @@ export function createRequestApi(request: Request) {
     projects: new ProjectService(db), publications: new PublicationService(db), bids: new BidService(db),
     awards: new AwardService(db), documents: new DocumentService(db, storageAdmin),
     profiles: new ProfileService(db), ai: new AIService(db), messages: new MessageService(db),
-    contracts: new ContractReadService(db), siteExecution: new SiteExecutionService(db), quotePdf: new QuotePdfService(db)
+    contracts: new ContractReadService(db), contractConfiguration: new ContractConfigurationService(db), precontractAgreements: new PrecontractAgreementService(db),
+    siteExecution: new SiteExecutionService(db), siteTechnicalQuality: new SiteTechnicalQualityService(db), quotePdf: new QuotePdfService(db)
   };
   return createDaoApi(services, resolveActor);
 }
@@ -113,6 +133,12 @@ function oceSynchronizer() {
   return lotPlanSynchronizer;
 }
 
+/**
+ * Modifier / retirer / ajouter un lien (#325) : actif par défaut, car la passerelle déployée sait retirer (remove-dependency / remove-activity)
+ * et, intégration éteinte, rien n'est à retirer d'OCE. Interrupteur de repli : DAO_OCE_REMOVAL=0 (un lien effectif redevient définitif).
+ */
+const removalEnabled = () => process.env.DAO_OCE_REMOVAL !== '0';
+
 let projectPlanSynchronizer: ProjectPlanSynchronizer | undefined;
 /** Global project plan (#325): one OCE graph for all lots, keyed by the project's planning context. Same service-client discipline as the lot synchroniser. */
 function projectSynchronizer() {
@@ -121,7 +147,7 @@ function projectSynchronizer() {
   const service = createClient(env('NEXT_PUBLIC_SUPABASE_URL'), env('DAO_SUPABASE_SECRET_KEY'), { auth: { persistSession: false, autoRefreshToken: false } });
   projectPlanSynchronizer = new ProjectPlanSynchronizer(
     async projectId => { const { data, error } = await service.rpc('oce_project_plan_for_sync', { p_project_id: projectId }); if (error) throw new Error('oce_project_plan_read'); return data; },
-    new OceOrchestrator(oceGateway, new SupabaseOceSyncStore(service)),
+    new OceOrchestrator(oceGateway, new SupabaseOceSyncStore(service), { removal: removalEnabled() }),
     async (projectId, revision, planning, errorCode) => {
       const { error } = await service.rpc('oce_record_project_plan_result', { p_project_id: projectId, p_revision: revision, p_duration: planning?.duration ?? null, p_critical: planning?.critical ?? [], p_error: errorCode });
       if (error) throw new Error('oce_project_plan_record');
@@ -139,5 +165,58 @@ export function createOceLotPlanApi(request: Request) {
 /** Global project planning screen API (#325). */
 export function createOceProjectPlanApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
-  return createOceProjectPlanHandler(db, resolveActor, projectId => projectSynchronizer().run(projectId));
+  return createOceProjectPlanHandler(db, resolveActor, projectId => projectSynchronizer().run(projectId), undefined, { linkEditing: removalEnabled() });
+}
+
+/** Native tracking table read model (#411). This path is JWT-scoped and never invokes OCE. */
+export function createNativeExecutionPlanApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeExecutionPlanHandler(db, resolveActor);
+}
+
+/** Native post-award activity commands use the caller JWT and database authorization. */
+export function createNativeExecutionActivityApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeExecutionActivityHandler(db, resolveActor);
+}
+
+/** Native dependency commands use DAO planning RPCs and do not enqueue OCE work. */
+export function createNativeExecutionDependencyApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeExecutionDependencyHandler(db, resolveActor);
+}
+
+/** Official Client sub-lot revisions are limited by the database to pre-publication drafts. */
+export function createClientOfficialSubLotApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createClientOfficialSubLotHandler(db, resolveActor);
+}
+
+/** Native planning dates use the existing DAO lot-plan table without invoking OCE. */
+export function createNativeLotDatesApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeLotDatesHandler(db, resolveActor);
+}
+
+/** Bilateral references from an agreement installment to an execution scope. */
+export function createNativeExecutionScopeApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeExecutionScopeHandler(db, resolveActor);
+}
+
+/** Native, quantity-only work situations; no OCE or financial side effects. */
+export function createNativeWorkSituationApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeWorkSituationHandler(new SiteWorkSituationService(db), resolveActor);
+}
+
+export function createNativeWorkSituationEventsApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createNativeWorkSituationEventsHandler(new SiteWorkSituationService(db), resolveActor);
+}
+
+/** Document dossier V2 (#456): families, revisions, lot sharing and non-legal technical reviews. */
+export function createDocumentDossierApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createDocumentDossierHandler(new DocumentDossierService(db), resolveActor);
 }

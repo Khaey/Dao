@@ -13,7 +13,8 @@ export type ProjectPlanSource = {
   links: { id: string; pred_target: string | null; succ_target: string | null; state: string }[];
 };
 
-const hex = (id: string) => id.replace(/-/g, '').slice(0, 12);
+// Identifiant complet (32 hex) : deux identifiants distincts ne peuvent jamais produire le même code (≤ 50 caractères).
+const hex = (id: string) => id.replace(/-/g, '').toLowerCase();
 export const lotWbsCode = (lotId: string) => `L-${hex(lotId)}`;
 export const lotActivityCode = (lotId: string) => `LA-${hex(lotId)}`;
 export const nodeActivityCode = (nodeId: string) => `SL-${hex(nodeId)}`;
@@ -95,7 +96,8 @@ export class ProjectPlanSynchronizer {
       if (report.ok && report.planning) await this.recordResult(projectId, source.revision, { duration: report.planning.project_duration_days, critical: report.planning.critical_activity_codes }, null);
       else if (!report.ok) {
         const failed = report.steps.find(s => s.outcome === 'failed');
-        const raw = (failed?.errorKind ?? failed?.errorCode ?? 'sync_incomplete').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 64);
+        const removalFailure = failed?.operation === 'remove-dependency' || failed?.operation === 'remove-activity';
+        const raw = ((removalFailure ? failed?.errorCode : undefined) ?? failed?.errorKind ?? failed?.errorCode ?? 'sync_incomplete').toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 64);
         await this.recordResult(projectId, source.revision, null, raw || 'sync_incomplete');
       }
       return { state: report.ok ? 'synced' : 'failed', report };

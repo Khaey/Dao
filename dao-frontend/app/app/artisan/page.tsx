@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { supabaseBrowser } from '../../../lib/supabase-browser';
-import { ArrowRight, BadgeCheck, CalendarClock, Hammer, MapPin, Ruler, Search, ShieldAlert, X } from 'lucide-react';
+import { ArrowRight, CalendarClock, Hammer, MapPin, Ruler, Search, ShieldAlert, X } from 'lucide-react';
 import { Badge, Card } from '../../../components/ui';
 import { ErrorPanel } from '../projects/_components/ProjectUi';
 
@@ -60,7 +60,7 @@ function deadlineLabel(deadline: string | null) {
 const select = 'min-h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-teal focus:ring-4 focus:ring-teal/10';
 
 export default function ArtisanDashboard() {
-  const [rows, setRows] = useState<(Publication & { lots: Lot[]; tradeNames: string[]; governorateName?: string; bidStatus?: string; acceptsOffers: boolean })[]>([]);
+  const [rows, setRows] = useState<(Publication & { lots: Lot[]; tradeNames: string[]; governorateName?: string; bidStatus?: string; acceptsOffers: boolean; openLots: number })[]>([]);
   const [trades, setTrades] = useState<{ id: string; name_fr: string }[]>([]);
   const [governorates, setGovernorates] = useState<{ id: string; name_fr: string }[]>([]);
   const [tradeFilter, setTradeFilter] = useState('');
@@ -102,12 +102,12 @@ export default function ArtisanDashboard() {
     const versionsResult = bidIds.length ? await supabase.from('bid_versions').select('bid_id,status,version_no').in('bid_id', bidIds).order('version_no', { ascending: false }) : { data: [], error: null } as any;
     // Same authoritative availability RPC used by the DAO detail, including withdrawn and awarded lots.
     // Bound concurrency avoids flooding PostgREST when many publications are accessible.
-    const availability = new Map<string, boolean>();
+    const availability = new Map<string, boolean>(); const openLots = new Map<string, number>();
     for (let offset=0; offset<publications.length; offset+=10) {
       const batch=publications.slice(offset,offset+10);
       const results=await Promise.all(batch.map(publication=>supabase.rpc('publication_lot_availability',{p_publication_id:publication.id})));
       if(results.some(result=>result.error)){setError('Impossible de vérifier la disponibilité des lots.');setLoading(false);return;}
-      batch.forEach((publication,index)=>availability.set(publication.id,(results[index].data??[]).some((lot:any)=>lot.accepts_offers===true)));
+      batch.forEach((publication,index)=>{const lots=(results[index].data??[]) as any[];availability.set(publication.id,lots.some(lot=>lot.accepts_offers===true));openLots.set(publication.id,lots.filter(lot=>lot.accepts_offers===true).length);});
     }
     const tradeMap = new Map((tradeResult.data ?? []).map((row: any) => [row.id, row.name_fr]));
     const governorateMap = new Map((governorateResult.data ?? []).map((row: any) => [row.id, row.name_fr]));
@@ -119,9 +119,12 @@ export default function ArtisanDashboard() {
     const lotMap = new Map<string, Lot[]>();
     for (const lot of (lotResult.data ?? []) as Lot[]) lotMap.set(lot.publication_id, [...(lotMap.get(lot.publication_id) ?? []), lot]);
     setTrades(tradeResult.data ?? []); setGovernorates(governorateResult.data ?? []);
-    setRows(publications.map((row) => {
+    // #356: « DAO disponibles » lists only publications where an offer is still possible (fail closed on unknown
+    // availability). Sent offers stay in « Mes offres »; publication statuses are never changed here.
+    const stillOpen = (row: Publication) => row.status === 'published' && availability.get(row.id) === true && (!row.submission_deadline || new Date(row.submission_deadline).getTime() > Date.now());
+    setRows(publications.filter(stillOpen).map((row) => {
       const lots = lotMap.get(row.id) ?? [];
-      return { ...row, lots, tradeNames: [...new Set(lots.map((lot) => tradeMap.get(lot.trade_id)).filter(Boolean) as string[])], governorateName: governorateMap.get(row.governorate_id), bidStatus: projectBidMap.get(row.id)||projectBidMap.get(row.project_id), acceptsOffers: availability.get(row.id)===true };
+      return { ...row, lots, tradeNames: [...new Set(lots.map((lot) => tradeMap.get(lot.trade_id)).filter(Boolean) as string[])], governorateName: governorateMap.get(row.governorate_id), bidStatus: projectBidMap.get(row.id)||projectBidMap.get(row.project_id), acceptsOffers: availability.get(row.id)===true, openLots: openLots.get(row.id) ?? 0 };
     }));
     setLoading(false);
   }
@@ -139,9 +142,15 @@ export default function ArtisanDashboard() {
   if (loading) return <section aria-busy="true" className="space-y-6"><span className="sr-only">Chargement de votre espace artisan…</span><div className="h-20 w-2/3 animate-pulse rounded-2xl bg-black/5" /><div className="h-24 animate-pulse rounded-2xl bg-black/5" /><div className="grid gap-4 lg:grid-cols-2">{[0, 1, 2, 3].map(item => <div key={item} className="h-52 animate-pulse rounded-2xl bg-black/5" />)}</div></section>;
   if (allowed === false) return <Card><h1 className="text-xl font-semibold">Espace réservé aux artisans</h1><p className="mt-2 text-sm text-black/60">Votre compte ne dispose pas du rôle Artisan / Entreprise.</p></Card>;
   return <section className="space-y-6">
-    <header className="flex flex-wrap items-end justify-between gap-4"><div className="space-y-2"><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Espace artisan</p><h1 className="text-3xl font-bold tracking-tight text-ink">DAO disponibles</h1><p className="max-w-2xl text-sm text-black/55">Les publications affichées ici sont celles que votre compte est autorisé à consulter. Les DAO ciblés et sur invitation restent filtrés par la sécurité Supabase.</p></div>
+    <header className="flex flex-wrap items-end justify-between gap-6 rounded-3xl border border-teal/10 bg-gradient-to-br from-white via-teal/[0.055] to-sand/60 px-6 py-8 shadow-sm sm:px-9 sm:py-10"><div className="space-y-3"><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Appels d’offres · espace professionnel</p><h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">DAO disponibles</h1><p className="text-lg font-semibold text-teal">Découvrez les chantiers accessibles</p><p className="max-w-2xl text-sm leading-relaxed text-black/60">Consultez les lots ouverts dans vos spécialités, comparez les besoins et proposez votre devis. Les publications ciblées et privées restent accessibles uniquement aux comptes autorisés.</p><p className="text-sm font-semibold text-teal">{rows.length} DAO accessible{rows.length > 1 ? 's' : ''} aux offres</p></div>
       <Link href="/app/artisan/offers" className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal">Mes offres<ArrowRight aria-hidden="true" size={15} /></Link></header>
-    <Card className={`p-4 sm:p-5 ${verified ? '' : 'border-clay/25 bg-clay/[0.04]'}`}><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex min-w-0 items-start gap-3">{verified ? <BadgeCheck aria-hidden="true" size={24} className="shrink-0 text-teal" /> : <ShieldAlert aria-hidden="true" size={24} className="shrink-0 text-clay" />}<div className="min-w-0"><p className="text-xs font-bold uppercase tracking-wide text-black/45">Mon profil professionnel</p><h2 className="mt-0.5 break-words text-lg font-bold text-ink">{professional?.public_trade_name || professional?.business_name || 'Profil professionnel'}</h2><div className="mt-1.5"><Badge tone={verified ? 'teal' : professional?.verification_status === 'suspended' ? 'red' : 'clay'}>{verificationLabel[professional?.verification_status ?? ''] ?? 'Statut indisponible'}</Badge></div><p className="mt-2 text-sm text-black/60">{verified ? 'Vous pouvez répondre aux DAO accessibles.' : 'Vous pouvez consulter les DAO publics, mais la soumission d’offres sera possible après vérification par D.A.O.'}</p></div></div><Link href="/app/profile#professional-profile" className={`inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl px-4 text-sm font-semibold transition ${verified ? 'border border-black/10 bg-white text-ink hover:border-teal hover:text-teal' : 'bg-ink text-white hover:bg-teal'}`}>Voir mon profil</Link></div></Card>
+    {/* #356 owner decision: no profile card on « DAO disponibles ». Only a compact notice when a restriction
+        actually applies (unverified, suspended or incomplete profile), with the way to fix it. */}
+    {!verified && <div role="note" className={`flex flex-col gap-2 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center ${professional?.verification_status === 'suspended' ? 'border-red-200 bg-red-50 text-red-800' : 'border-clay/25 bg-clay/[0.05] text-black/70'}`}>
+      <ShieldAlert aria-hidden="true" size={18} className="shrink-0 text-clay" />
+      <p className="min-w-0 flex-1"><strong className="text-ink">Mon profil professionnel</strong> · <Badge tone={professional?.verification_status === 'suspended' ? 'red' : 'clay'}>{verificationLabel[professional?.verification_status ?? ''] ?? 'Statut indisponible'}</Badge> <span className="block sm:inline">{professional?.verification_status === 'suspended' ? 'Votre profil est suspendu : vous pouvez consulter les DAO, mais pas soumettre d’offre. Contactez D.A.O. depuis l’assistance.' : 'Vous pouvez consulter les DAO publics, mais la soumission d’offres sera possible après vérification par D.A.O.'}</span></p>
+      <Link href="/app/profile#professional-profile" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-teal px-4 text-sm font-semibold text-white transition hover:bg-tealdark">Voir mon profil</Link>
+    </div>}
     {error ? <ErrorPanel title="Les DAO disponibles n’ont pas pu être chargés" message={error} onRetry={() => void load()} /> : <div className="space-y-3">
       <label className="relative block"><span className="sr-only">Rechercher</span><Search size={17} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un DAO (titre ou description)" className={`${select} pl-10`} /></label>
       <div className="grid gap-2 sm:grid-cols-3">
@@ -151,14 +160,14 @@ export default function ArtisanDashboard() {
       </div>
       <div className="flex min-h-6 flex-wrap items-center justify-between gap-2 text-sm text-black/55"><p aria-live="polite">{filtered.length} DAO{filtered.length !== rows.length ? ` sur ${rows.length}` : ''}</p>{filtersActive && <button type="button" onClick={() => { setQuery(''); setTradeFilter(''); setGovernorateFilter(''); setTypeFilter(''); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 font-semibold text-teal transition hover:bg-teal/5"><X aria-hidden="true" size={15} />Effacer les filtres</button>}</div>
     </div>}
-    {!error && (filtered.length === 0 ? <Card className="flex flex-col items-center gap-2 border-dashed py-12 text-center"><Search aria-hidden="true" size={24} className="text-black/25" /><h2 className="font-semibold text-ink">Aucun DAO accessible</h2><p className="max-w-sm text-sm text-black/55">Aucune publication ne correspond à vos accès et aux filtres sélectionnés.</p></Card>
-    : <div className="grid gap-4 lg:grid-cols-2">{filtered.map((row) => { const open = row.status==='published' && row.acceptsOffers && (!row.submission_deadline || new Date(row.submission_deadline).getTime()>Date.now()); const deadline = open ? deadlineLabel(row.submission_deadline) : { label:'Fermé', tone:'bg-red-50 text-red-700' }; const bid = row.bidStatus ? offerStatus[row.bidStatus] ?? { label: row.bidStatus, tone: 'neutral' as const } : null;
+    {!error && (filtered.length === 0 ? <Card className="flex flex-col items-center gap-2 border-dashed py-12 text-center"><Search aria-hidden="true" size={24} className="text-black/25" /><h2 className="font-semibold text-ink">Aucun DAO accessible</h2><p className="max-w-sm text-sm text-black/55">Aucun DAO encore ouvert aux offres ne correspond à vos accès et aux filtres. Les DAO fermés ou attribués n’apparaissent plus ici ; vos offres restent dans « Mes offres ».</p></Card>
+    : <div className="grid gap-4 xl:grid-cols-2">{filtered.map((row) => { const open = row.status==='published' && row.acceptsOffers && (!row.submission_deadline || new Date(row.submission_deadline).getTime()>Date.now()); const deadline = open ? deadlineLabel(row.submission_deadline) : { label:'Fermé', tone:'bg-red-50 text-red-700' }; const bid = row.bidStatus ? offerStatus[row.bidStatus] ?? { label: row.bidStatus, tone: 'neutral' as const } : null;
       return <Link key={row.id} href={`/app/artisan/publications/${row.id}`} className="group block rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-teal/25"><Card className="flex h-full flex-col p-5 transition group-hover:-translate-y-0.5 group-hover:border-teal/25 group-hover:shadow-[0_12px_32px_rgba(23,32,42,0.08)] sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2"><Badge>{visibilityLabel[row.visibility]}</Badge><div className="flex flex-wrap gap-2"><Badge tone={bid?.tone ?? (open ? 'neutral' : 'red')}>{bid?.label ?? (!open ? 'Fermé' : verified ? 'À répondre' : 'Consultation uniquement')}</Badge>{bid && !open && <Badge tone="red">Fermé</Badge>}</div></div>
         <h2 className="mt-3 break-words text-lg font-bold tracking-tight text-ink group-hover:text-teal">{row.safe_title}</h2>
         {row.safe_description && <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-black/60">{row.safe_description}</p>}
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-black/60"><span className="inline-flex items-center gap-1.5"><Hammer aria-hidden="true" size={14} />{projectTypeLabel[row.project_type] ?? 'Projet'}</span>{row.surface_m2 && <span className="inline-flex items-center gap-1.5"><Ruler aria-hidden="true" size={14} />{row.surface_m2} m²</span>}{row.governorateName && <span className="inline-flex items-center gap-1.5"><MapPin aria-hidden="true" size={14} />{row.governorateName}</span>}</div>
-        {row.tradeNames.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{row.tradeNames.map(name => <span key={name} className="rounded-lg bg-sand px-2 py-1 text-xs font-medium text-ink/75">{name}</span>)}</div>}
+        {row.lots.length > 1 && row.openLots > 0 && row.openLots < row.lots.length && <p className="mt-2 text-xs font-semibold text-teal">{row.openLots} lot{row.openLots > 1 ? 's' : ''} sur {row.lots.length} encore ouvert{row.openLots > 1 ? 's' : ''} aux offres</p>}{row.tradeNames.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{row.tradeNames.map(name => <span key={name} className="rounded-lg bg-sand px-2 py-1 text-xs font-medium text-ink/75">{name}</span>)}</div>}
         <div aria-hidden="true" className="min-h-4 flex-1" /><div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${deadline.tone}`}><CalendarClock aria-hidden="true" size={13} />{deadline.label}</span><span className="text-sm font-bold tabular-nums text-ink">{formatTnd(row.indicative_budget_millimes)}</span></div>
       </Card></Link>; })}</div>)}
   </section>;

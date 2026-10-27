@@ -118,11 +118,11 @@ async function provisionGlobal(c) {
   const contractorUser = (users.users || []).find(u => (u.email || '').toLowerCase() === CONTRACTOR) || fail('TEST contractor not found');
   const profile = ((await pg(c, `/rest/v1/contractor_profiles?select=id&user_id=eq.${contractorUser.id}`)).body || [])[0] || fail('TEST contractor profile missing');
   const trade = ((await pg(c, '/rest/v1/trades?select=id&order=code&limit=1')).body || [])[0] || fail('reference data missing: trades');
-  const ins = async (table, row) => { const r = await pg(c, `/rest/v1/${table}`, { method: 'POST', headers: ign, body: JSON.stringify(row) }); if (r.status >= 300) fail(`synthetic insert failed: ${table} (${r.status})`); };
+  const ins = async (table, row, conflict) => { const r = await pg(c, `/rest/v1/${table}${conflict ? `?on_conflict=${conflict}` : ''}`, { method: 'POST', headers: ign, body: JSON.stringify(row) }); if (r.status >= 300) fail(`synthetic insert failed: ${table} (${r.status})`); };
   const lots = [[SYNTHETIC_LOT, 'Gros oeuvre'], [LOT2, 'Electricite'], [LOT3, 'Finitions']];
   for (const [lot, name] of lots) {
     await ins('project_requests', { id: lot, project_id: SYNTHETIC_PROJECT });
-    await ins('project_request_versions', { project_id: SYNTHETIC_PROJECT, request_id: lot, version_no: 1, title: `[SYNTHETIQUE] ${name}`, scope: 'Lot fictif de recette', trade_id: trade.id });
+    await ins('project_request_versions', { project_id: SYNTHETIC_PROJECT, request_id: lot, version_no: 1, title: `[SYNTHETIQUE] ${name}`, scope: 'Lot fictif de recette', trade_id: trade.id }, 'request_id,version_no');
   }
   const versions = {};
   for (const [lot] of lots) versions[lot] = ((await pg(c, `/rest/v1/project_request_versions?select=id&request_id=eq.${lot}&version_no=eq.1`)).body || [])[0]?.id || fail('request version missing');
@@ -158,8 +158,8 @@ async function runGlobal() {
   await rest(c, `/rest/v1/projects?id=eq.${SYNTHETIC_PROJECT}&status=eq.archived`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'draft' }) });
   await provisionGlobal(c);
   // Le contexte du projet prend l'identifiant du lot de recette (seul couple admis par la passerelle).
-  const ctx = await rest(c, `/rest/v1/project_plan_contexts?project_id=eq.${SYNTHETIC_PROJECT}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ context_id: SYNTHETIC_LOT }) });
-  R.context_bound = ctx.status < 300;
+  const ctx = await rest(c, '/rest/v1/rpc/oce_plan_context_bind', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_context_id: SYNTHETIC_LOT }) });
+  R.context_bound = ctx.status < 300 && ctx.body === true;
   const mapping = await rest(c, '/rest/v1/rpc/oce_request_mapping', { method: 'POST', body: JSON.stringify({ p_project_id: SYNTHETIC_PROJECT, p_request_id: SYNTHETIC_LOT }) });
   R.mapping_admitted = mapping.status < 300 && typeof mapping.body === 'string'
     && (await rest(c, '/rest/v1/rpc/oce_set_admission', { method: 'POST', body: JSON.stringify({ p_mapping_id: mapping.body, p_admitted: true }) })).status < 300;
@@ -190,7 +190,7 @@ async function runGlobal() {
   const base = await settle(rev0); const bs = base?.sync || {};
   R.sync_global = bs.state; R.global_duration_days = bs.duration_days ?? null; R.critical_count = bs.critical_codes?.length ?? 0;
   R.effective_links = (base?.links || []).filter(l => l.state === 'effective').length;
-  const nodeTitle = new Map((base?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '').slice(0, 12)}`, n.title]));
+  const nodeTitle = new Map((base?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '')}`, n.title]));
   const critTitles = (bs.critical_codes || []).map(k => nodeTitle.get(k) || (k.startsWith('LA-') ? 'lot' : '?'));
   R.critical_titles = critTitles.sort().join('|');
   R.critical_has_chain = ['Fondations', 'Dalle', 'Tirage de cables'].every(t => critTitles.includes(t));
@@ -200,14 +200,52 @@ async function runGlobal() {
   const longer = await settle((base?.revision ?? 0) + 1);
   R.duration_change_recomputed = longer?.sync?.state === 'synced' && (longer.sync.duration_days ?? 0) > (bs.duration_days ?? 0);
   R.duration_after_change = longer?.sync?.duration_days ?? null;
-  // Changement de predecesseur : on retire Dalle -> Tirage de cables.
-  await decide(id('f2'), 'rejected');
-  const relinked = await settle((longer?.revision ?? 0) + 1);
-  const crit2 = [...(relinked?.sync?.critical_codes || [])].sort().join('|');
-  R.predecessor_change_recomputed = relinked?.sync?.state === 'synced' && ((relinked.sync.duration_days ?? 0) !== (longer?.sync?.duration_days ?? 0) || crit2 !== [...(longer?.sync?.critical_codes || [])].sort().join('|'));
-  R.duration_after_unlink = relinked?.sync?.duration_days ?? null;
-  // Etat final propre pour une relance : liens restaures, lot 3 remis.
-  await decide(id('f2'), 'confirmed'); await putLot3('2027-02-28');
+  // #325 : aucun lien n'est irreversible. Retirer, remplacer le predecesseur, ajouter puis retirer un lien ajoute, reconcilier un lot qui sort du plan.
+  const act = body => app(owner, '/api/oce/project-plan', { method: 'POST', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, ...body }) });
+  const nodeId = (data, title) => (data?.nodes || []).find(n => n.title === title)?.id;
+  const codesOf = data => (data?.sync?.critical_codes || []).slice().sort().join('|');
+  const critTitlesOf = data => { const m = new Map((data?.nodes || []).map(n => [`SL-${n.id.replace(/-/g, '')}`, n.title])); return (data?.sync?.critical_codes || []).map(k => m.get(k) || (k.startsWith('LA-') ? 'lot' : '?')); };
+  const summary = async () => { const r = await app(owner, `/api/oce/planning-summary?${q}`); return r.status === 200 ? (await r.json().catch(() => ({}))).data : null; };
+  R.link_editing_available = longer?.link_editing === true;
+  await putLot3('2027-02-28');
+  let state = await settle((longer?.revision ?? 0) + 1);
+  const beforeRemoval = state;
+  // 1. Retirer le lien Dalle -> Tirage (inter-lots) : la dependance disparait d'OCE et le chemin critique est recalcule.
+  const removed = await act({ action: 'remove', link_id: id('f2') });
+  state = await settle((beforeRemoval?.revision ?? 0) + 1);
+  R.link_removed_ok = removed.status === 200;
+  R.link_removed_recomputed = state?.sync?.state === 'synced' && codesOf(state) !== codesOf(beforeRemoval) && (state?.links || []).find(l => l.id === id('f2'))?.state === 'rejected';
+  R.critical_after_removal = critTitlesOf(state).sort().join('|');
+  // 2. Changement de predecesseur en UNE action : Tirage de cables commence apres Fondations (au lieu de Dalle).
+  const fondations = nodeId(state, 'Fondations'), tirage = nodeId(state, 'Tirage de cables'), cloture = nodeId(state, 'Cloture (parallele)');
+  const replaced = await act({ action: 'replace', link_id: id('f1'), pred_target: `node:${fondations}`, succ_target: `node:${tirage}` });
+  const afterReplace = await settle((state?.revision ?? 0) + 1);
+  const t2 = critTitlesOf(afterReplace);
+  R.predecessor_change_ok = replaced.status === 200;
+  R.predecessor_change_recomputed = afterReplace?.sync?.state === 'synced' && t2.includes('Fondations') && t2.includes('Tirage de cables') && !t2.includes('Dalle');
+  R.critical_after_predecessor_change = t2.sort().join('|');
+  // 3. Ajouter un lien (Cloture -> Tirage), le recalcul le prend en compte, puis le retirer.
+  const added = await act({ action: 'add', pred_target: `node:${cloture}`, succ_target: `node:${tirage}` });
+  const afterAdd = await settle((afterReplace?.revision ?? 0) + 1);
+  const manual = (afterAdd?.links || []).filter(l => l.manual && l.state === 'effective');
+  R.manual_link_added = added.status === 200 && afterAdd?.sync?.state === 'synced' && manual.some(l => l.pred_target === `node:${cloture}`);
+  // Un doublon et une boucle sont refuses sans rien changer.
+  const dup = await act({ action: 'add', pred_target: `node:${cloture}`, succ_target: `node:${tirage}` });
+  const loop = await act({ action: 'add', pred_target: `node:${tirage}`, succ_target: `node:${fondations}` });
+  R.duplicate_and_cycle_refused = dup.status === 422 && loop.status === 422;
+  // 4. Reconciliation : le lot 3 sort du plan (non pret) => son lien et son activite sont retires d'OCE (le nombre d'activites baisse).
+  const actsBefore = (await summary())?.total_activities ?? null;
+  await app(owner, '/api/oce/lot-plan', { method: 'PUT', body: JSON.stringify({ project_id: SYNTHETIC_PROJECT, lot_id: LOT3, planned_start: '2027-01-21', planned_end: '2027-02-28', ready: false }) });
+  const afterObsolete = await settle((afterAdd?.revision ?? 0) + 1);
+  const actsAfter = (await summary())?.total_activities ?? null;
+  R.obsolete_activity_removed = afterObsolete?.sync?.state === 'synced' && Number.isInteger(actsBefore) && Number.isInteger(actsAfter) && actsAfter === actsBefore - 1;
+  R.activities_before_after = `${actsBefore}->${actsAfter}`;
+  // 5. Retablissement du jeu de recette (rejouable) : lien ajoute retire, liens d'origine reconfirmes, lot 3 de nouveau pret.
+  for (const l of manual) await act({ action: 'remove', link_id: l.id });
+  await decide(id('f1'), 'confirmed'); await decide(id('f2'), 'confirmed');
+  await putLot3('2027-02-28');
+  const restored = await settle((afterObsolete?.revision ?? 0) + 1);
+  R.links_restored = restored?.sync?.state === 'synced' && (restored?.links || []).filter(l => l.state === 'effective').length >= 3;
   return R;
 }
 
@@ -225,7 +263,8 @@ finally { if (op === 'run' || op === 'run-global') { try {
 const EXPECT_RUN = ['mapping_admitted', 'unauthenticated_refused', 'unauthorized_plan_read_refused', 'unauthorized_plan_write_refused', 'unauthorized_summary_refused',
   'plan_saved_ready', 'replay_saved', 'replay_revision_unchanged', 'change_saved', 'changed_revision_incremented', 'changed_duration_differs'];
 const EXPECT_GLOBAL = ['context_bound', 'mapping_admitted', 'unauthenticated_refused', 'artisan_read_refused', 'artisan_decision_refused', 'lot3_plan_saved', 'links_confirmed', 'cycle_rejected',
-  'critical_has_chain', 'parallel_task_not_critical', 'duration_change_recomputed', 'predecessor_change_recomputed'];
+  'critical_has_chain', 'parallel_task_not_critical', 'duration_change_recomputed', 'link_editing_available', 'link_removed_ok', 'link_removed_recomputed',
+  'predecessor_change_ok', 'predecessor_change_recomputed', 'manual_link_added', 'duplicate_and_cycle_refused', 'obsolete_activity_removed', 'links_restored'];
 if (op === 'run-global' && ok) {
   const r = report || {};
   ok = EXPECT_GLOBAL.every(k => r[k] === true) && r.lots >= 3 && r.lots_awarded >= 3 && r.effective_links >= 3 && r.sync_global === 'synced'

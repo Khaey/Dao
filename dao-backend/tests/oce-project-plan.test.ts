@@ -116,7 +116,126 @@ test('handler: decisions go through the database; a cycle is a readable 422; rel
   assert.equal(res.status, 200); assert.equal(good.calls[0][0], 'decide_plan_link'); await Promise.all(tasks); assert.deepEqual(synced, [P]);
   const cycle = await mk(db({ decide_plan_link: { error: { code: '23514', message: 'dependency_cycle' } } }))(req('POST', { project_id: P, link_id: N1, decision: 'confirmed' }));
   assert.equal(cycle.status, 422); assert.equal((await cycle.json()).code, 'DEPENDENCY_CYCLE');
+  const final = await mk(db({ decide_plan_link: { error: { code: '22023', message: 'confirmed_link_final' } } }))(req('POST', { project_id: P, link_id: N1, decision: 'rejected' }));
+  assert.equal(final.status, 422); assert.equal((await final.json()).code, 'LINK_CONFIRMED_FINAL');
   const denied = await mk(db({ decide_plan_link: { error: { code: '42501' } } }))(req('POST', { project_id: P, link_id: N1, decision: 'confirmed' })); assert.equal(denied.status, 403);
   const relaunch = await mk(db({ get_project_plan: { data: {} } }))(req('POST', { project_id: P })); assert.equal(relaunch.status, 202);
   const refused = await mk(db({ get_project_plan: { error: { code: '42501' } } }))(req('POST', { project_id: P })); assert.equal(refused.status, 403);
+});
+
+// #325 — réconciliation : retirer d'OCE ce que le plan ne contient plus (dépendances d'abord, puis activités), sans toucher à l'historique D.A.O.
+test('reconciliation: a retired link and an obsolete sub-lot are removed from OCE (dependencies first), then CPM is recalculated', async () => {
+  const gateway = new InMemoryOceGateway(); const store = new InMemoryOceSyncStore(); gateway.authorize({ dao_project_id: P, dao_lot_id: CTX });
+  const results: any[] = [];
+  let current = source();
+  const sync = new ProjectPlanSynchronizer(async () => current, new OceOrchestrator(gateway, store, { removal: true }), async (...args) => { results.push(args); });
+  assert.equal((await sync.run(P)).state, 'synced');
+  gateway.calls.length = 0;
+  // Le lien N2 -> N3 est retiré et le lot 2 perd son attribution (N2 disparaît) : la dépendance N1 -> N2 devient aussi obsolète.
+  current = source({ revision: 5, nodes: source().nodes.filter(n => n.id !== N2), links: [{ id: 'k1', pred_target: `node:${N1}`, succ_target: `node:${N3}`, state: 'effective' }] });
+  const outcome = await sync.run(P);
+  assert.equal(outcome.state, 'synced');
+  const removals = outcome.report!.steps.filter(s => s.operation.startsWith('remove')).map(s => `${s.operation}:${s.code}`);
+  assert.deepEqual(removals, [
+    `remove-dependency:${nodeActivityCode(N1)}>${nodeActivityCode(N2)}`,
+    `remove-dependency:${nodeActivityCode(N2)}>${nodeActivityCode(N3)}`,
+    `remove-activity:${nodeActivityCode(N2)}`,
+  ]);
+  const order = gateway.calls.filter(c => c.startsWith('remove') || c === 'calculatePlanning');
+  assert.deepEqual(order, ['removeDependency', 'removeDependency', 'removeActivity', 'calculatePlanning']);
+  assert.equal(results.at(-1)[1], 5); assert.equal(results.at(-1)[3], null, 'no error recorded');
+  // Rejouer ne retire plus rien et n'appelle plus la passerelle.
+  const calls = gateway.calls.length;
+  assert.equal((await sync.run(P)).state, 'synced');
+  assert.equal(gateway.calls.length, calls);
+  // Remettre le lien rétabli la dépendance (objet oublié => réécrit).
+  current = source({ revision: 6, links: source().links });
+  assert.equal((await sync.run(P)).state, 'synced');
+  assert.ok(gateway.calls.includes('ensureDependency'));
+});
+
+test('reconciliation: off by default (nothing is removed, historical behaviour)', async () => {
+  const gateway = new InMemoryOceGateway(); const store = new InMemoryOceSyncStore(); gateway.authorize({ dao_project_id: P, dao_lot_id: CTX });
+  let current = source();
+  const sync = new ProjectPlanSynchronizer(async () => current, new OceOrchestrator(gateway, store), async () => undefined);
+  await sync.run(P);
+  current = source({ revision: 5, links: [] });
+  await sync.run(P);
+  assert.ok(!gateway.calls.some(c => c.startsWith('remove')));
+});
+
+test('reconciliation: an unsupported or ineffective OCE deletion stops the run with a readable code and keeps the object tracked', async () => {
+  const gateway = new InMemoryOceGateway(); const store = new InMemoryOceSyncStore(); gateway.authorize({ dao_project_id: P, dao_lot_id: CTX });
+  const results: any[] = [];
+  let current = source();
+  const sync = new ProjectPlanSynchronizer(async () => current, new OceOrchestrator(gateway, store, { removal: true }), async (...args) => { results.push(args); });
+  await sync.run(P);
+  current = source({ revision: 5, links: [] });
+  gateway.failNext = null;
+  const original = gateway.removeDependency.bind(gateway);
+  let refuse = true;
+  gateway.removeDependency = async input => { if (refuse) throw new (await import('../src/oce/gatewayContract.js')).OceGatewayError('rejected', 'oce_delete_unsupported', 502); return original(input); };
+  const failed = await sync.run(P);
+  assert.equal(failed.state, 'failed');
+  assert.equal(results.at(-1)[3], 'oce_delete_unsupported');
+  assert.equal((await store.listObjects([...store.mappings.keys()][0])).dependencies.length, 2, 'objects stay tracked until OCE confirms the deletion');
+  refuse = false;
+  assert.equal((await sync.run(P)).state, 'synced');
+  assert.equal((await store.listObjects([...store.mappings.keys()][0])).dependencies.length, 0);
+});
+
+test('in-memory gateway contract: removals are idempotent and an activity with dependencies is refused', async () => {
+  const gateway = new InMemoryOceGateway(); const ref = { dao_project_id: P, dao_lot_id: CTX }; gateway.authorize(ref);
+  await gateway.ensureProject({ ...ref, name: 'p', region: 'r', currency: 'TND' }); await gateway.ensureSchedule({ ...ref, start_date: '2027-01-01', end_date: '2027-01-31' });
+  for (const code of ['A', 'B']) await gateway.upsertActivity({ ...ref, activity_code: code, name: code, start_date: '2027-01-01', end_date: '2027-01-05' });
+  await gateway.ensureDependency({ ...ref, predecessor_activity_code: 'A', successor_activity_code: 'B' });
+  await assert.rejects(gateway.removeActivity({ ...ref, activity_code: 'B' }), (e: any) => e.code === 'activity_has_dependencies');
+  assert.deepEqual(await gateway.removeDependency({ ...ref, predecessor_activity_code: 'A', successor_activity_code: 'B' }), { ok: true, removed: true });
+  assert.deepEqual(await gateway.removeDependency({ ...ref, predecessor_activity_code: 'A', successor_activity_code: 'B' }), { ok: true, removed: false });
+  assert.deepEqual(await gateway.removeActivity({ ...ref, activity_code: 'B' }), { ok: true, removed: true });
+  assert.deepEqual(await gateway.removeActivity({ ...ref, activity_code: 'B' }), { ok: true, removed: false });
+});
+
+// #325 — modifier / retirer / remplacer un lien : une seule action métier ; refusé tant que les retraits OCE ne sont pas déployés.
+test('handler: link editing is one action each (remove, add, replace) and requires the deployed removal capability', async () => {
+  const synced: string[] = []; const tasks: Promise<unknown>[] = [];
+  const mk = (d: ReturnType<typeof db>, linkEditing: boolean) => createOceProjectPlanHandler(d, actor, async id => { synced.push(id); }, t => { tasks.push(t); }, { linkEditing });
+  const T1 = `node:${N1}`, T2 = `lot:${L2}`;
+  // Capability on: each action is exactly one database command, then a synchronisation is requested.
+  const on = db({ remove_plan_link: { data: { links: [] } }, add_plan_link: { data: { links: [] } }, replace_plan_link: { data: { links: [] } } });
+  const handler = mk(on, true);
+  assert.equal((await handler(req('POST', { project_id: P, action: 'remove', link_id: N1 }))).status, 200);
+  assert.equal((await handler(req('POST', { project_id: P, action: 'add', pred_target: T1, succ_target: T2 }))).status, 200);
+  const replaced = await handler(req('POST', { project_id: P, action: 'replace', link_id: N1, pred_target: T1, succ_target: T2 }));
+  assert.equal(replaced.status, 200); assert.equal((await replaced.json()).data.link_editing, true);
+  assert.deepEqual(on.calls.map(c => c[0]), ['remove_plan_link', 'add_plan_link', 'replace_plan_link']);
+  await Promise.all(tasks); assert.equal(synced.length, 3);
+  // Strict bodies: unknown keys, bad ids, bad targets and unknown actions are refused before any command.
+  for (const body of [
+    { project_id: P, action: 'remove', link_id: 'bad' }, { project_id: P, action: 'remove', link_id: N1, extra: 1 },
+    { project_id: P, action: 'add', pred_target: 'node:x', succ_target: T2 }, { project_id: P, action: 'add', pred_target: T1 },
+    { project_id: P, action: 'replace', link_id: N1, pred_target: T1 }, { project_id: P, action: 'purge', link_id: N1 },
+  ]) assert.equal((await handler(req('POST', body))).status, 400, JSON.stringify(body));
+  assert.equal(on.calls.length, 3);
+  // Readable business errors.
+  const dup = await mk(db({ add_plan_link: { error: { code: '22023', message: 'link_duplicate' } } }), true)(req('POST', { project_id: P, action: 'add', pred_target: T1, succ_target: T2 }));
+  assert.equal(dup.status, 422); assert.equal((await dup.json()).code, 'LINK_DUPLICATE');
+  const cycle = await mk(db({ replace_plan_link: { error: { code: '23514', message: 'dependency_cycle' } } }), true)(req('POST', { project_id: P, action: 'replace', link_id: N1, pred_target: T1, succ_target: T2 }));
+  assert.equal(cycle.status, 422); assert.equal((await cycle.json()).code, 'DEPENDENCY_CYCLE');
+  assert.equal((await mk(db({ remove_plan_link: { error: { code: '42501' } } }), true)(req('POST', { project_id: P, action: 'remove', link_id: N1 }))).status, 403);
+
+  // Capability off (removal not deployed): an effective link stays final, add/replace are unavailable, nothing is written.
+  const effective = { get_project_plan: { data: { links: [{ id: N1, state: 'effective' }, { id: N2, state: 'awaiting_confirmation' }] } } };
+  const off = db({ ...effective, decide_plan_link: { data: { links: [] } } });
+  const closed = mk(off, false);
+  const finalRemove = await closed(req('POST', { project_id: P, action: 'remove', link_id: N1 }));
+  assert.equal(finalRemove.status, 422); assert.equal((await finalRemove.json()).code, 'LINK_CONFIRMED_FINAL');
+  assert.equal((await closed(req('POST', { project_id: P, link_id: N1, decision: 'rejected' }))).status, 422);
+  assert.equal((await closed(req('POST', { project_id: P, action: 'add', pred_target: T1, succ_target: T2 }))).status, 422);
+  assert.equal((await closed(req('POST', { project_id: P, action: 'replace', link_id: N1, pred_target: T1, succ_target: T2 }))).status, 422);
+  assert.ok(!off.calls.some(c => ['remove_plan_link', 'add_plan_link', 'replace_plan_link', 'decide_plan_link'].includes(c[0])));
+  // A link that is not effective can still be declined (historical behaviour).
+  const decline = await closed(req('POST', { project_id: P, action: 'remove', link_id: N2 }));
+  assert.equal(decline.status, 200); assert.equal(off.calls.at(-1)[0], 'decide_plan_link'); assert.equal(off.calls.at(-1)[1].p_decision, 'rejected');
+  const get = await closed(req('GET', undefined, `?project_id=${P}`)); assert.equal((await get.json()).data.link_editing, false);
 });

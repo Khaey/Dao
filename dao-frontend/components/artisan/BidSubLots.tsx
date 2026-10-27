@@ -8,6 +8,7 @@ const label = 'block text-xs font-semibold text-ink';
 const area = 'mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-black/35 focus:border-teal focus:ring-4 focus:ring-teal/10 disabled:bg-sand/50';
 
 type OfficialOption = { id: string; title: string };
+const tnd = (millimes: number) => new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(millimes / 1000);
 
 /** Décomposition technique d'un lot, proposée par l'Artisan dans son offre (brouillon uniquement). */
 export function SubLotsEditor({ lotTitle, items, onChange, editable, officialOptions, priceMillimes }: {
@@ -78,7 +79,7 @@ export function SubLotsEditor({ lotTitle, items, onChange, editable, officialOpt
         </ol>
       )}
       {items.length > 0 && priceMillimes !== null && (
-        <p className="mt-2 text-xs text-black/55">Budgets déclarés : {new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(allocated / 1000)} sur {new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(priceMillimes / 1000)} · le reste n’est pas réparti.</p>
+        <p className="mt-2 text-xs text-black/55">Budgets déclarés : {tnd(allocated)} sur {tnd(priceMillimes)} · {allocated > priceMillimes ? 'le total dépasse le prix proposé, réduisez un budget.' : allocated === priceMillimes ? 'tout le prix est réparti.' : `${tnd(priceMillimes - allocated)} restent non répartis (facultatif).`}</p>
       )}
     </div>
   );
