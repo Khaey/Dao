@@ -4,13 +4,14 @@ import { Lock, Search } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../ui';
 import { useTargets } from './useTargets';
 import AdminDelegations from './AdminDelegations';
+import AdminIntegrations from './AdminIntegrations';
 import {
   SETTINGS_CATALOG, adminReviewTradeProposal, adminSaveTrade, adminSetTradeActive, adminSettingCommand, fetchTradeProposals, fetchAdminHistory, fetchAdminOverview, fetchAdminPreview, formatSettingValue,
   modeLabels, scopeLabels, settingLabel, sourceLabels, unitLabels, workspaceLabels, type AdminOverview, type EffectiveSettings, type SettingEvent, type SettingOverride, type TradeProposal,
 } from '../../lib/settings';
 
-type Tab = 'features' | 'values' | 'exceptions' | 'delegations' | 'catalog' | 'preview' | 'history' | 'fixed';
-const tabs: Array<[Tab, string]> = [['features', 'Fonctions'], ['values', 'Règles & délais'], ['exceptions', 'Exceptions'], ['delegations', 'Délégations'], ['catalog', 'Référentiels'],
+type Tab = 'features' | 'values' | 'exceptions' | 'delegations' | 'catalog' | 'integrations' | 'preview' | 'history' | 'fixed';
+const tabs: Array<[Tab, string]> = [['features', 'Fonctions'], ['values', 'Règles & délais'], ['exceptions', 'Exceptions'], ['delegations', 'Délégations'], ['catalog', 'Référentiels'], ['integrations', 'Intégrations & API'],
   ['preview', 'Simulation'], ['history', 'Historique'], ['fixed', 'Règles fixes']];
 const fixedRules = ['Attribution commerciale par lot uniquement, jamais par sous-lot.', 'Accès aux données : JWT et RLS font foi ; un paramètre ne donne jamais un accès.',
   'Suspension de compte : gérée dans Utilisateurs & rôles, pas ici.', 'Signature électronique, effets juridiques de la réception et garanties : décision séparée.',
@@ -21,6 +22,7 @@ type Def = (typeof SETTINGS_CATALOG)[number];
 const sections: Array<{ title: string; items: Tab[] }> = [
   { title: 'Réglages', items: ['features', 'values', 'catalog'] },
   { title: 'Cas particuliers', items: ['exceptions', 'delegations'] },
+  { title: 'Prestataires', items: ['integrations'] },
   { title: 'Contrôle', items: ['preview', 'history', 'fixed'] },
 ];
 const tabLabel = Object.fromEntries(tabs) as Record<Tab, string>;
@@ -86,6 +88,7 @@ export default function AdminSettings() {
               onSave={value => ask('set', { key: def.key, scope: 'global', value }, `${def.label} : ${value} ${unitLabels[(def.type as any).unit]}`)} onReset={() => ask('clear', { key: def.key, scope: 'global' }, `${def.label} : revenir à ${def.default}`)} />)}</ul></Card>)}
           {tab === 'exceptions' && <Exceptions overview={data} ask={ask} />}
           {tab === 'delegations' && <AdminDelegations onStatus={setStatus} />}
+          {tab === 'integrations' && <AdminIntegrations onStatus={setStatus} />}
           {tab === 'catalog' && <Card className="space-y-2"><h2 className="font-bold">Métiers</h2><p className="text-sm text-black/60">Un métier inactif n’est plus proposé pour les nouveaux lots ; les lots existants restent intacts. Renommer conserve le métier et tous ses liens.</p>
             <TradeEditor trades={data.trades} onChanged={async (msg) => { setStatus(msg); await load(); }} onError={setError} />
             <TradeList trades={data.trades} onChanged={async (msg) => { setStatus(msg); await load(); }} onError={setError} /></Card>}
