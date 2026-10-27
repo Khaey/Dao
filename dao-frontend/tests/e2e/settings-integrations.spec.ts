@@ -100,6 +100,6 @@ test('Intégrations Admin : service non déployé affiché honnêtement', async 
 test('Intégrations Admin : version de contrat inconnue jamais interprétée', async ({ page, e2eAdmin }) => {
   await login(page, e2eAdmin!);
   await openIntegrations(page, route => route.fulfill({ json: { ...overview, contract_version: 'provider-integrations.v2' } }));
-  await expect(page.getByRole('main').getByText(/Version de contrat inattendue/)).toBeVisible();
+  await expect(page.getByRole('main').getByRole('alert').filter({ hasText: /Version de contrat inattendue/ })).toBeVisible();
   await expect(page.getByRole('main').getByText('Dropbox Sign test')).toHaveCount(0);
 });
