@@ -4,6 +4,7 @@ import { BidService } from '../src/services/BidService.js';
 import { DocumentService } from '../src/services/DocumentService.js';
 import { requireActor } from '../src/server/auth.js';
 import { ProfileService } from '../src/services/ProfileService.js';
+import { PublicationService, PUBLICATION_DEADLINE_MESSAGE } from '../src/services/PublicationService.js';
 const fake=(table,rows={})=>({rpc:(name,input)=>({data:name==='submit_bid_version'?{...input,status:'submitted'}:{...input,award_item_id:'1'},error:null}),from(t){assert.equal(t,table);return {insert:(x)=>({select:()=>({single:async()=>({data:{...x,id:'1'},error:null})})}),update:()=>({eq:()=>({eq:()=>({select:()=>({single:async()=>({data:{id:'v',status:'submitted'},error:null})})})})}),select:()=>({eq:()=>({single:async()=>({data:rows,error:null})})})}}});
 test('BidService submits a draft idempotently',async()=>{const s=new BidService(fake('bid_versions'));const x=await s.submit('v');assert.equal(x.status,'submitted')});
 test('BidService creates drafts and lines through secured RPC commands',async()=>{const calls:any[]=[];const s=new BidService({rpc:async(name:string,input:any)=>{calls.push({name,input});return {data:{id:'v'},error:null}}});await s.createDraft({publication_id:'pub'});await s.addItem({publication_id:'pub',version_id:'v',publication_request_id:'lot',price_millimes:1200000,duration_days:10,inclusions:'Pose'});assert.deepEqual(calls,[{name:'create_bid_draft',input:{p_publication_id:'pub'}},{name:'upsert_bid_item',input:{p_publication_id:'pub',p_version_id:'v',p_publication_request_id:'lot',p_price_millimes:1200000,p_duration_days:10,p_inclusions:'Pose',p_exclusions:null}}])});
@@ -50,4 +51,33 @@ test('P2.1 group/cancel services derive identities in SQL and ignore forged owne
   await service.award({group_id:'group',bid_item_id:'ignored',idempotency_key:'key',project_id:'forged',contractor_id:'forged',agreed_millimes:1});
   await service.cancel({award_item_id:'award-item',reason:'financing',idempotency_key:'key2',actor_id:'forged'});
   assert.deepEqual(calls,[{name:'award_bid_group_atomic',args:{p_group_id:'group',p_idempotency_key:'key'}},{name:'cancel_award_item_atomic',args:{p_award_item_id:'award-item',p_reason:'financing',p_comment:null,p_idempotency_key:'key2'}}]);
+});
+
+test('PublicationService blocks invalid, past and equal deadlines before RPC (#520)',async()=>{
+  const calls:any[]=[];
+  const service=new PublicationService({rpc:async(name:string,input:any)=>{calls.push({name,input});return {data:{id:'publication'},error:null};}});
+  const invalid=[new Date(Date.now()-60_000).toISOString(),new Date(Date.now()).toISOString(),'not-a-date','2026-10-26T08:00','2026-10-20T08:00:00Z'];
+  for(const submission_deadline of invalid){
+    await assert.rejects(()=>service.publish({project_id:'p',visibility:'public',submission_deadline}),
+      (error:any)=>error.code==='BAD_REQUEST'&&error.message===PUBLICATION_DEADLINE_MESSAGE);
+  }
+  assert.equal(calls.length,0,'No invalid deadline must reach the publication RPC');
+  const future=new Date(Date.now()+3_600_000).toISOString();
+  await service.publish({project_id:'p',visibility:'public',submission_deadline:future});
+  await service.publish({project_id:'p',visibility:'public',submission_deadline:null});
+  await service.publish({project_id:'p',visibility:'public',submission_deadline:''});
+  assert.equal(calls.length,3);
+  assert.equal(calls[0].input.p_submission_deadline,future);
+  assert.equal(calls[1].input.p_submission_deadline,null);
+  assert.equal(calls[2].input.p_submission_deadline,null);
+});
+
+test('PublicationService maps only publications_check to a friendly error (#520)',async()=>{
+  let error:any={code:'23514',message:'new row for relation "publications" violates check constraint "publications_check"'};
+  const service=new PublicationService({rpc:async()=>({data:null,error})});
+  await assert.rejects(()=>service.publish({submission_deadline:new Date(Date.now()+3_600_000).toISOString()}),
+    (err:any)=>err.code==='BAD_REQUEST'&&err.message===PUBLICATION_DEADLINE_MESSAGE);
+  error={code:'23514',message:'other_business_constraint'};
+  await assert.rejects(()=>service.publish({submission_deadline:new Date(Date.now()+3_600_000).toISOString()}),
+    (err:any)=>err===error);
 });
