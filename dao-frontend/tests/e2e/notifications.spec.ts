@@ -65,7 +65,7 @@ test('Notifications #522 : Consulter acquitte avant navigation, sauf si le serve
   await page.goto('/app/notifications');
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
   await page.getByRole('link',{name:'Consulter : Invitation reçue'}).click();
-  await expect(page).toHaveURL(/\//app\//invitations$/);
+  await expect.poll(()=>page.url()).toContain('/app/invitations');
   await page.goto('/app/notifications');
   await expect(page.getByLabel('0 notifications non lues',{exact:true})).toBeVisible();
   await expect(page.getByRole('list',{name:'Notifications personnelles'})).toContainText('Lue');
@@ -76,7 +76,7 @@ test('Notifications #522 : Consulter acquitte avant navigation, sauf si le serve
   await page.reload();
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
   await page.getByRole('link',{name:'Consulter : Invitation reçue'}).click();
-  await expect(page).toHaveURL(/\//app\//invitations$/);
+  await expect.poll(()=>page.url()).toContain('/app/invitations');
   await page.goto('/app/notifications');
   await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
   expect(patches).toBe(2);
