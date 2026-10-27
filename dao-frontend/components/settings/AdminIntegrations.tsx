@@ -96,7 +96,7 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
       })}</ul></Card>}
 
     <Card className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">Connexions ({connections.length})</h3>
-      <button type="button" className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-teal hover:underline" onClick={() => void openHistory(null)}><HistoryIcon size={15} aria-hidden="true" />Historique</button></div>
+      <button type="button" className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-teal hover:underline" aria-label="Historique des intégrations" onClick={() => void openHistory(null)}><HistoryIcon size={15} aria-hidden="true" />Historique</button></div>
       {!connections.length ? <p className="text-sm text-black/55">Aucune connexion pour ce marché, cette entité et cet environnement.</p>
         : <ul className="divide-y divide-black/5">{connections.map(c => {
           const m = data.connectors.find(x => x.provider_id === c.provider_id);
