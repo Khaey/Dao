@@ -42,6 +42,46 @@ test('Notifications : invitation réelle, acceptation, lecture et nouveau messag
 const at='2026-10-18T00:00:00.123456Z';
 function item(id=randomUUID(),read=false){return {id,kind:'review_rejected',title:'Dossier à corriger',created_at:at,read_at:read?at:null,href:'/app/projects/'+id+'/review',action_required:false,expires_at:null};}
 
+test('Notifications #522 : Consulter acquitte avant navigation, sauf si le serveur refuse',async({page},info)=>{
+  const {user}=await notificationActor(info);
+  await login(page,user);
+  const row={...item(),kind:'invitation_received',title:'Invitation reçue',href:'/app/invitations'};
+  let marked=false, fail=false, patches=0;
+  await page.route('**/api/notifications*',async route=>{
+    const request=route.request();
+    if(request.method()==='PATCH'){
+      patches++;
+      if(fail){await route.abort('failed');return;}
+      expect(JSON.parse(request.postData()||'{}')).toEqual({id:row.id});
+      marked=true;
+      await route.fulfill({json:{data:{acknowledged:true}}});
+      return;
+    }
+    const q=new URL(request.url()).searchParams;
+    const unreadCount=marked?0:1;
+    await route.fulfill({json:{data:{workspace:'client',rows:q.get('limit')==='1'?[]:[{...row,read_at:marked?at:null}],
+      unread_count:unreadCount,next_cursor:null}}});
+  });
+  await page.goto('/app/notifications');
+  await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'Consulter : Invitation reçue'}).click();
+  await expect(page).toHaveURL(/\\/app\\/invitations$/);
+  await page.goto('/app/notifications');
+  await expect(page.getByLabel('0 notifications non lues',{exact:true})).toBeVisible();
+  await expect(page.getByRole('list',{name:'Notifications personnelles'})).toContainText('Lue');
+  expect(patches).toBe(1);
+
+  // Failure must not fake a read, but consultation must remain possible.
+  fail=true;marked=false;
+  await page.reload();
+  await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'Consulter : Invitation reçue'}).click();
+  await expect(page).toHaveURL(/\\/app\\/invitations$/);
+  await page.goto('/app/notifications');
+  await expect(page.getByLabel('1 notifications non lues',{exact:true})).toBeVisible();
+  expect(patches).toBe(2);
+});
+
 test('Notifications : erreur réseau, retry et échec de marquage sans faux succès',async({page},info)=>{
   const {user}=await notificationActor(info);await login(page,user);
   const row=item();let failGet=true,failMark=true,read=false;
