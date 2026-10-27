@@ -147,6 +147,9 @@ jobs:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: Fresh schema, real Supabase integration, and FULL E2E
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     env:
       DAO_PUBLIC_URL: http://127.0.0.1:3000
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
@@ -203,12 +206,22 @@ jobs:
         if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-frontend
         run: bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Frontend npm install for E2E" npm ci --no-audit --no-fund
+      - name: Authenticate Docker pulls from ghcr.io (avoid anonymous rate limit)
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin; then
+            echo "ghcr.io pulls authenticated with the job GITHUB_TOKEN."
+          else
+            echo "::warning::ghcr.io login failed; continuing with anonymous pulls and registry fallback."
+          fi
       - name: Stop any previous local stack and start from a fresh database
         if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
         run: |
           supabase stop --no-backup || true
-          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" supabase start --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,postgres-meta
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Fresh Supabase start + migrations + seed" bash "$GITHUB_WORKSPACE/.github/scripts/supabase-start-with-retry.sh" --exclude studio,edge-runtime,logflare,vector,supavisor,realtime,imgproxy,postgres-meta
       - name: Verify fresh migration ledger and schema contract
         if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
         working-directory: dao-backend
