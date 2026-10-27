@@ -362,6 +362,23 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   });
   assert.ifError(repeatedReserve.error); assert.equal(repeatedReserve.data.reserveId, createdReserve.data.reserveId);
   const reserveId = createdReserve.data.reserveId;
+  // #516: marketplace awards create no contractor membership. The active
+  // awardee must still read its lot's inspections and reserves without one.
+  assert.ifError((await admin.from('project_members').delete().eq('id', membership.data!.id)).error);
+  const awardeeInspections = await contractor.db.rpc('native_technical_inspections_v1', {
+    p_project_id: project.data!.id, p_award_item_id: awardItem.data!.id, p_before_created_at: null, p_before_id: null, p_limit: 30,
+  });
+  assert.ifError(awardeeInspections.error);
+  assert.ok(awardeeInspections.data.items.some((row: any) => row.id === inspectionId));
+  const awardeeReserves = await contractor.db.rpc('native_technical_reserves_v1', {
+    p_project_id: project.data!.id, p_award_item_id: awardItem.data!.id, p_inspection_id: null,
+    p_before_created_at: null, p_before_id: null, p_limit: 30,
+  });
+  assert.ifError(awardeeReserves.error);
+  assert.ok(awardeeReserves.data.items.some((row: any) => row.id === reserveId));
+  assert.ifError((await admin.from('project_members').insert({
+    project_id: project.data!.id, user_id: contractor.id, participation_role: 'contractor', status: 'accepted',
+  })).error);
   await denied(contractor.db, 'create_native_technical_reserve_v1', {
     p_award_item_id: awardItem.data!.id, p_inspection_id: inspectionId, p_title: 'Autre réserve',
     p_description: 'Création réservée au Client.', p_category: 'other', p_severity: 'minor', p_location: null,

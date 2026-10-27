@@ -26,6 +26,7 @@ export default function RoleNav() {
   useEffect(() => {
     const supabase = supabaseBrowser();
     let active = true;
+    let authReloadTimer: ReturnType<typeof setTimeout> | null = null;
     const load = async (knownSession?: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
       const data = knownSession === undefined ? (await supabase.auth.getSession()).data : { session: knownSession };
       if (!active) return;
@@ -51,8 +52,20 @@ export default function RoleNav() {
       setReady(true);
     };
     void load();
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => { void load(session); });
-    return () => { active = false; subscription.subscription.unsubscribe(); };
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Supabase API calls made synchronously from this callback can deadlock
+      // the auth client and swallow the next cross-tab identity event.
+      if (authReloadTimer) clearTimeout(authReloadTimer);
+      authReloadTimer = setTimeout(() => {
+        authReloadTimer = null;
+        void load(session);
+      }, 0);
+    });
+    return () => {
+      active = false;
+      if (authReloadTimer) clearTimeout(authReloadTimer);
+      subscription.subscription.unsubscribe();
+    };
   }, [router]);
 
   useEffect(() => { setOpen(false); }, [pathname]);
