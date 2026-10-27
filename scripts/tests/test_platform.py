@@ -332,12 +332,17 @@ os.execv('/usr/bin/''' + name + "', ['" + name + "', *a])\n"
 class VpsOwnerPlanWorkflowTests(unittest.TestCase):
     def test_read_only_plan_requires_exact_owner_and_issue_comment(self):
         workflow = (ROOT / '.github/workflows/vps-oce-plan.yml').read_text()
-        self.assertIn('issue_comment:', workflow)
-        self.assertIn('types: [created]', workflow)
-        self.assertIn('github.event.issue.number == 58', workflow)
-        self.assertIn('github.event.issue.pull_request == null', workflow)
-        self.assertIn("github.actor == 'Khaey'", workflow)
-        self.assertIn("github.event.comment.body == '/dao-ops oce-gateway-plan'", workflow)
+        dispatcher = (ROOT / '.github/workflows/dao-comment-dispatcher.yml').read_text()
+        # The dispatcher owns the comment trigger; the privileged workflow remains restricted.
+        self.assertIn('issue_comment:', dispatcher)
+        self.assertIn('types: [created]', dispatcher)
+        self.assertIn('workflow_call:', workflow)
+        self.assertNotIn('issue_comment:', workflow)
+        self.assertIn('uses: ./.github/workflows/vps-oce-plan.yml', dispatcher)
+        self.assertIn('github.event.issue.number == 58', dispatcher)
+        self.assertIn('github.event.issue.pull_request == null', dispatcher)
+        self.assertIn("github.actor == 'Khaey'", dispatcher)
+        self.assertIn("github.event.comment.body == '/dao-ops oce-gateway-plan'", dispatcher)
         self.assertIn('environment: dev', workflow)
         self.assertIn('group: dao-dev-operations', workflow)
         self.assertIn('secrets.DEV_SSH_KEY', workflow)

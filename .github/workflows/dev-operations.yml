@@ -1,8 +1,7 @@
 name: DAO DEV operations
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_call:
   workflow_dispatch:
     inputs:
       operation:

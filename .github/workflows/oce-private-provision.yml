@@ -1,8 +1,7 @@
 name: OCE private root provision
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_call:
 
 permissions:
   contents: read
