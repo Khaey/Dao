@@ -96,11 +96,12 @@ Inventaire exhaustif des tables : [dao-backend/TABLES.md](../dao-backend/TABLES.
 - Le job FULL E2E démarre une pile Supabase locale **jetable**, applique toutes les migrations + seed,
   vérifie ledger et schéma, fait un reset/replay, puis intégration Auth/JWT/RLS/Storage réelle et
   Playwright desktop/mobile.
-- Images Supabase : les pulls `ghcr.io` sont **authentifiés** par le `GITHUB_TOKEN` du job
-  (`packages: read`) pour échapper à la limite anonyme partagée par IP des runners
-  (`toomanyrequests`). `supabase start` passe par `.github/scripts/supabase-start-with-retry.sh` :
-  nouvelle tentative **uniquement** sur limite de registre (45 s puis 90 s), dernier essai sur le
-  miroir `public.ecr.aws` ; toute autre erreur (migration, seed) échoue immédiatement.
+- Images Supabase : `ghcr.io` et `public.ecr.aws` limitent les pulls depuis les IP partagées des
+  runners (`toomanyrequests`, `Data limit exceeded`), même authentifiés. `supabase start` passe par
+  `.github/scripts/supabase-start-with-retry.sh` : registre **Docker Hub** d'abord (non limité sur
+  les runners GitHub), puis `ghcr.io` (authentifié par le `GITHUB_TOKEN`, `packages: read`), puis
+  `public.ecr.aws`. Nouvelle tentative **uniquement** sur limite de registre ; toute autre erreur
+  (migration, seed) échoue immédiatement.
   Ne pas relancer en boucle un run rouge `toomanyrequests` : une seule relance suffit.
 - Fast lane PR (`scripts/ci-fast-path.py`) : Markdown sous `docs/`, README/CHANGELOG, ou changement
   strictement cosmétique ; tout le reste (y compris `CLAUDE.md`/`AGENTS.md` racine) passe en `full`.
