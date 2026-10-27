@@ -43,17 +43,30 @@ contrats / documents /                    (catalogue de connecteurs connus,
 
 Une configuration `live` ne suffit pas à donner un effet juridique ou un droit financier. Les fonctionnalités du moteur Settings doivent rester `false`/indisponibles tant que leur mise en œuvre serveur et les validations requises ne sont pas livrées. Refus serveur systématique des opérations non admissibles.
 
-## 3. Modèle de configuration proposé (NON créé en DB)
+## 3. Registre de configuration canonique
 
-**Catalogue statique dans le code :**
-`provider_catalog` (module statique, non saisissable dans l'UI) : `provider_id`, `domain`, `adapter_version`, `countries_supported`, `capabilities_supported`, `signature_levels` si pertinent, `status=implemented|candidate`.
+> **#515, tranche 1 :** le catalogue versionné et la lecture Admin
+> `admin_integrations_overview()` sont implémentés. Les connexions, politiques,
+> contrôles et événements persistants restent à livrer par migration additive ;
+> le DTO renvoie donc honnêtement des listes vides pour ces objets.
 
-**Tables proposées (à analyser avant migration additive séparée) :**
+**Catalogue versionné dans le code et les migrations :**
+`dao_private.provider_manifests` (non saisissable dans l'UI) : `provider_id`,
+`manifest_version`, domaine, `adapter_version`, pays, environnements, capacités,
+modes d'authentification et schéma de champs borné. Les lignes sont immuables :
+une évolution ajoute une version. `installed` signifie « adaptateur présent »,
+jamais « connexion vérifiée ».
+
+**Noms physiques canoniques :** les noms fonctionnels `integration_*` de #515
+sont mappés vers `provider_*`. Aucune seconde famille de tables
+`integration_*` ne doit être créée.
 
 | Entité | Champs / règle | Exposition |
 | --- | --- | --- |
+| `provider_manifests` | catalogue immuable versionné, champs typés allowlistés, aucun endpoint arbitraire | DTO Admin expurgé via `admin_integrations_overview()` |
 | `provider_connections` | id UUID, provider_id allowlist, domain, legal_entity, market_country ISO, environment sandbox/live, status, secret_ref opaque, created_at | interne Admin ; jamais `secret_ref` exposé au navigateur |
 | `provider_policies` | id, connexion, domaine/capacité, marché, `activation`, `is_default`, effective_from/to, version, expected_version, reason | DTO Admin expurgé, lecture serveur interne |
+| `provider_checks` | contrôles réels bornés, résultat honnête `unknown/unconfigured/verified/error`, date et raison neutre | DTO Admin expurgé |
 | `provider_events` | append-only, actor Admin, action, version avant/après non secrète, date, motif | audit Admin privé |
 | `provider_operations` | id, domaine, contrat/award ou opération métier, provider_id + adapter_version + connection_id + environment **figés**, remote_ref chiffrée/privée, status, idempotency_key, correlation_id, created_at | serveur et preuves RLS par parties ; jamais d'identifiant fournisseur privé en listing |
 | `provider_inbox_events` | id événement distant (unique scope provider), digest payload, état vérification, date, résultat de traitement, corrélation | interne append-only expurgé |
