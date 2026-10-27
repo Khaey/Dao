@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { History as HistoryIcon, KeyRound, Plug, Search } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../ui';
 import {
-  INTEGRATIONS_CONTRACT, STATE_LABEL, STATE_TONE, connectorMatches, eligibleForDefault, integrationErrorMessage, integrationsApi, IntegrationsError,
+  INTEGRATIONS_CONTRACT, STATE_LABEL, describeEvent, STATE_TONE, connectorMatches, eligibleForDefault, integrationErrorMessage, integrationsApi, IntegrationsError,
   type CatalogFilter, type IntegrationCommand, type IntegrationConnection, type IntegrationEnvironment, type IntegrationEvent,
   type IntegrationManifest, type IntegrationsApi, type IntegrationsOverview,
 } from '../../lib/integrations';
@@ -136,7 +136,7 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
     {history && <Card className="space-y-2"><div className="flex items-center justify-between"><h3 className="font-bold">Historique{history.id ? ` — ${data.connections.find(c => c.id === history.id)?.alias ?? ''}` : ''}</h3>
       <button type="button" className="text-sm font-semibold text-black/60 hover:underline" onClick={() => setHistory(null)}>Fermer</button></div>
       {!history.events.length ? <p className="text-sm text-black/55">Aucun événement.</p> : <ul className="space-y-2 text-sm">{history.events.map(ev => <li key={ev.id}>
-        <p className="font-semibold">{ev.summary}</p><p className="text-xs text-black/50">{when(ev.at)} · {ev.actor ?? 'système'} · {ev.reason}</p></li>)}</ul>}</Card>}
+        <p className="font-semibold">{describeEvent(ev)}</p><p className="text-xs text-black/50">{when(ev.at)} · {ev.actor ?? 'système'} · {ev.reason}</p></li>)}</ul>}</Card>}
 
     {pending && <div className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/40 p-4 sm:items-center">
       <Card role="dialog" aria-modal="true" aria-labelledby="integration-pending" className="w-full max-w-lg space-y-3"><h2 id="integration-pending" className="font-bold">Confirmer : {pending.summary}</h2>

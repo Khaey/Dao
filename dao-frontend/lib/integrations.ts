@@ -36,11 +36,28 @@ export type IntegrationPolicy = {
   environment: IntegrationEnvironment; connection_id: string | null; version: number;
 };
 export type IntegrationsOverview = {
-  contract_version: string; registry_version: number; markets: string[]; legal_entities: Array<{ id: string; label: string }>;
+  contract_version: string; registry_version: number; markets: string[];
+  legal_entities: Array<{ id: string; label: string; country?: string; sandbox_only?: boolean }>;
   categories: IntegrationCategory[]; connectors: IntegrationManifest[];
   connections: IntegrationConnection[]; policies: IntegrationPolicy[];
 };
-export type IntegrationEvent = { id: string; at: string; actor: string | null; action: string; connection_id: string | null; reason: string; summary: string };
+// `summary` est un objet non secret (alias, environnement, état, version…) : jamais affiché brut.
+export type IntegrationEvent = { id: string; at: string; actor: string | null; action: string; connection_id: string | null; reason: string;
+  summary: Record<string, unknown> | null; version?: number };
+
+const ACTION_LABEL: Record<string, string> = {
+  create_connection: 'Connexion ajoutée', update_connection: 'Paramètres modifiés', test_connection: 'Test de connexion',
+  suspend: 'Connexion suspendue', resume: 'Connexion reprise', set_default: 'Défaut modifié',
+};
+export function describeEvent(ev: IntegrationEvent) {
+  const s = ev.summary ?? {}, parts: string[] = [];
+  if (typeof s.alias === 'string') parts.push(`« ${s.alias} »`);
+  if (typeof s.capability === 'string') parts.push(s.capability);
+  if (typeof s.environment === 'string') parts.push(s.environment === 'live' ? 'réel' : 'test');
+  if (typeof s.state === 'string' && s.state in STATE_LABEL) parts.push(STATE_LABEL[s.state as ConnectionState]);
+  if (typeof s.check_status === 'string') parts.push(`résultat : ${s.check_status}`);
+  return [ACTION_LABEL[ev.action] ?? ev.action, ...parts].join(' · ');
+}
 
 export type IntegrationCommand =
   | { action: 'create_connection'; provider_id: string; alias: string; country: string; legal_entity_id: string; environment: IntegrationEnvironment; params: Record<string, unknown> }

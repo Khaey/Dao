@@ -57,6 +57,14 @@ test('Intégrations Admin : statuts honnêtes, défaut et secret jamais relu', a
   expect(commands[0]).toMatchObject({ p_action: 'set_default', p_input: { capability: 'signature.simple', connection_id: 'c-sign-1', environment: 'sandbox', expected_version: null } });
   expect(commands[0].p_idempotency_key).toMatch(/^[0-9a-f-]{36}$/);
 
+  // Historique : le résumé serveur (objet) est traduit, jamais affiché brut.
+  await page.route('**/rest/v1/rpc/admin_integration_events', route => route.fulfill({ json: [
+    { id: 'e1', at: '2026-10-27T10:00:00Z', actor: 'Admin', action: 'create_connection', connection_id: 'c-sign-1', reason: 'Recette E2E',
+      summary: { alias: 'Dropbox Sign test', environment: 'sandbox' }, version: 2 }] }));
+  await main.getByRole('button', { name: 'Historique' }).first().click();
+  await expect(main.getByText('Connexion ajoutée · « Dropbox Sign test » · test')).toBeVisible();
+  await expect(main.getByText('[object Object]')).toHaveCount(0);
+
   // Réel : catégorie sensible verrouillée, aucun défaut sélectionnable.
   await main.getByLabel('Environnement').selectOption('live');
   await expect(main.getByText(/Mode réel verrouillé/)).toBeVisible();
