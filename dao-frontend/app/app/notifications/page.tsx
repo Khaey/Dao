@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, Check, CheckCheck, ClipboardCheck, Mail, MessageCircle, RefreshCw, ArrowUpRight } from 'lucide-react';
 import { Button, Card } from '../../../components/ui';
@@ -29,6 +29,7 @@ export default function NotificationsPage() {
   const readRequest=useRef<AbortController|null>(null);
   const markRequest=useRef<AbortController|null>(null);
   const lastWorkspace=useRef<string|null>(null);
+  const openingNotification=useRef<string|null>(null);
 
   useEffect(()=>{
     const {data}=supabaseBrowser().auth.onAuthStateChange((_event,session)=>{
@@ -86,6 +87,31 @@ export default function NotificationsPage() {
     const stopUnread=onUnreadChanged(()=>void refresh());
     return()=>{active=false;stopUnread();window.removeEventListener('focus',onFocus);document.removeEventListener('visibilitychange',onFocus);};
   },[identity]);
+
+  // Ordinary navigation acknowledges the selected item before unmounting this page.
+  // Modified clicks and middle clicks retain native link behaviour (no interception).
+  async function consultNotification(event: MouseEvent<HTMLAnchorElement>, item: NotificationItem) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || item.read_at) return;
+    event.preventDefault();
+    if (openingNotification.current) return;
+    openingNotification.current = item.id;
+    setMarking(item.id);
+    try {
+      // This controller is local, not aborted by route unmount or the list reload.
+      await markNotificationRead(item.id, new AbortController().signal);
+    } catch (error) {
+      // An unsuccessful acknowledgement must remain unread, but must not block
+      // the user from consulting the destination. 401 requires login first.
+      if (error instanceof NotificationApiError && error.status === 401) {
+        router.replace('/auth/login');
+        return;
+      }
+    } finally {
+      openingNotification.current = null;
+      setMarking(null);
+    }
+    router.push(item.href);
+  }
 
   async function markRead(item:NotificationItem) {
     const current=generation.current;
@@ -157,7 +183,7 @@ export default function NotificationsPage() {
               {item.expires_at&&<p className="mt-1 text-sm font-semibold text-amber-900">Expire le <time dateTime={item.expires_at}>{dates.format(new Date(item.expires_at))}</time></p>}
               <time dateTime={item.created_at} className="mt-1 block text-xs text-black/55">{dates.format(new Date(item.created_at))}</time>
               <div className="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
-                <Link href={item.href} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-teal hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">Consulter<span className="sr-only"> : {item.title}</span><ArrowUpRight size={15} aria-hidden="true"/></Link>
+                <Link href={item.href} onClick={event=>void consultNotification(event,item)} aria-disabled={openingNotification.current===item.id} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold text-teal hover:bg-teal/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">Consulter<span className="sr-only"> : {item.title}</span><ArrowUpRight size={15} aria-hidden="true"/></Link>
                 {isUnread&&<button type="button" onClick={()=>void markRead(item)} disabled={Boolean(marking)||loading} aria-label={`Marquer comme lue : ${item.title}`}
                   className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-black/60 hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal disabled:opacity-50"><Check size={16} aria-hidden="true"/>{marking===item.id?'Enregistrement…':'Marquer comme lue'}</button>}
               </div>
