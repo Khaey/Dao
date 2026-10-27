@@ -31,6 +31,13 @@ class CommentDispatchTests(unittest.TestCase):
         for filename in ("dev-operations.yml", "oce-cloudflare-check.yml"):
             self.assertIn("\n  workflow_dispatch:\n", (ROOT / filename).read_text(encoding="utf-8"))
 
+    def test_monitor_reusable_permissions_ceiling(self):
+        body = (ROOT / "dao-comment-dispatcher.yml").read_text(encoding="utf-8")
+        monitor = body.split("\n  monitor:\n", 1)[1]
+        self.assertIn("\n    permissions:\n      contents: read\n      pull-requests: read\n      issues: write\n", monitor)
+        # The elevated ceiling must never be a dispatcher-wide permission.
+        self.assertNotIn("\n  issues: write\n", body.split("\njobs:\n", 1)[0])
+
     def test_exact_sensitive_routes_and_monitor_are_preserved(self):
         body = (ROOT / "dao-comment-dispatcher.yml").read_text(encoding="utf-8")
         for fragment in (

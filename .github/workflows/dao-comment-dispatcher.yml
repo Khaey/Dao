@@ -60,6 +60,13 @@ jobs:
     secrets: inherit
 
   monitor:
+    # The called workflow's scheduled watchdog declares issues: write.
+    # Grant that ceiling only to this reusable-call job; its actual
+    # issue-comment notify job narrows the token back to read-only.
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
     # Only explicit checkpoint markers reach the existing Telegram classifier.
     # Other comments leave all jobs skipped: no runner, SSH, Cloudflare or alert.
     if: >-
