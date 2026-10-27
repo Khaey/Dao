@@ -45,10 +45,11 @@ Une configuration `live` ne suffit pas à donner un effet juridique ou un droit 
 
 ## 3. Registre de configuration canonique
 
-> **#515, tranche 1 :** le catalogue versionné et la lecture Admin
-> `admin_integrations_overview()` sont implémentés. Les connexions, politiques,
-> contrôles et événements persistants restent à livrer par migration additive ;
-> le DTO renvoie donc honnêtement des listes vides pour ces objets.
+> **#515, tranches 1–2 :** le catalogue versionné, la lecture Admin,
+> les connexions multiples, politiques uniques, contrôles et événements sont
+> persistés derrière les RPC Admin. Sans coffre ni contrôle fournisseur réel,
+> les credentials restent absents et un contrôle retourne honnêtement
+> `unconfigured`/`unknown` : aucune connexion ne devient `verified` ou active.
 
 **Catalogue versionné dans le code et les migrations :**
 `dao_private.provider_manifests` (non saisissable dans l'UI) : `provider_id`,
@@ -71,6 +72,20 @@ sont mappés vers `provider_*`. Aucune seconde famille de tables
 | `provider_operations` | id, domaine, contrat/award ou opération métier, provider_id + adapter_version + connection_id + environment **figés**, remote_ref chiffrée/privée, status, idempotency_key, correlation_id, created_at | serveur et preuves RLS par parties ; jamais d'identifiant fournisseur privé en listing |
 | `provider_inbox_events` | id événement distant (unique scope provider), digest payload, état vérification, date, résultat de traitement, corrélation | interne append-only expurgé |
 | `provider_artifacts` | operation, kind, Storage privé, hash SHA-256, provenance, validation, conservation | accès RLS aux parties selon preuve et document |
+
+### RPC Admin versionnées
+
+- `admin_integrations_overview()` : DTO expurgé `provider-integrations.v1`.
+- `admin_integration_command(action,input,idempotency_key)` : création et mise
+  à jour non secrète, contrôle de version optimiste, suspension/reprise et
+  sélection du défaut. Un défaut exige le dernier contrôle réel `verified`.
+- `admin_integration_events(connection_id,limit)` : historique append-only sans
+  secret. Client, Artisan et Gestionnaire sont refusés par le serveur.
+
+Le périmètre `dao_tn_sandbox` est un identifiant **technique de recette**, pas
+une affirmation d'identité juridique ; il interdit LIVE. Le flux de secrets
+reste indisponible tant qu'un coffre réel et son endpoint serveur dédié ne sont
+pas livrés.
 
 **Contraintes majeures :**
 - Unique **choix effectif par** domaine × capacité × pays × entité juridique × environnement × intervalle de validité (contrainte transactionnelle/exclusion temporelle adaptée). Plusieurs prestataires possibles dans le registre, pas deux defaults simultanés.
