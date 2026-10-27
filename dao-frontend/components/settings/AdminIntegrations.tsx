@@ -3,14 +3,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { History as HistoryIcon, KeyRound, Plug, Search } from 'lucide-react';
 import { Badge, Button, Card, Input } from '../ui';
 import {
-  STATE_LABEL, STATE_TONE, connectorMatches, eligibleForDefault, integrationErrorMessage, integrationsApi, IntegrationsError,
+  INTEGRATIONS_CONTRACT, STATE_LABEL, STATE_TONE, connectorMatches, eligibleForDefault, integrationErrorMessage, integrationsApi, IntegrationsError,
   type CatalogFilter, type IntegrationCommand, type IntegrationConnection, type IntegrationEnvironment, type IntegrationEvent,
   type IntegrationManifest, type IntegrationsApi, type IntegrationsOverview,
 } from '../../lib/integrations';
 
 // #515 — centre « Intégrations & API » (Admin uniquement). Tous les états viennent du serveur ;
 // un candidat n'est jamais présenté comme connecté et aucun secret n'est relu.
-type Pending = { cmd: IntegrationCommand; summary: string; secrets?: Record<string, string> } | null;
+type Pending = { cmd: IntegrationCommand; summary: string; key: string; secrets?: Record<string, string> } | null;
 type Form = { manifest: IntegrationManifest; connection: IntegrationConnection | null } | null;
 const filters: Array<[CatalogFilter, string]> = [['all', 'Tous'], ['active', 'Actifs'], ['sandbox', 'Test'], ['error', 'En erreur'], ['not_installed', 'Non installés']];
 const envLabel: Record<IntegrationEnvironment, string> = { sandbox: 'Test (sandbox)', live: 'Réel (live)' };
@@ -26,7 +26,9 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
   const load = useCallback(async () => {
     setError('');
     try {
-      const o = await api.overview(); setData(o); setUnavailable(false);
+      const o = await api.overview();
+      if (o.contract_version !== INTEGRATIONS_CONTRACT) { setError(`Version de contrat inattendue (${o.contract_version}) : affichage suspendu.`); return; }
+      setData(o); setUnavailable(false);
       setCategory(c => c || o.categories[0]?.key || ''); setMarket(m => m || o.markets[0] || ''); setEntity(e => e || o.legal_entities[0]?.id || '');
     } catch (e) { if (e instanceof IntegrationsError && e.unavailable) setUnavailable(true); else setError(integrationErrorMessage(e)); }
   }, [api]);
@@ -35,13 +37,14 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
   async function confirm() {
     if (!pending) return; setSaving(true); setError('');
     try {
-      const res = await api.command(pending.cmd, reason.trim());
+      const res = await api.command(pending.cmd, reason.trim(), pending.key);
       const id = 'connection_id' in pending.cmd ? pending.cmd.connection_id : res.connection_id;
       for (const [key, value] of Object.entries(pending.secrets ?? {})) if (value && id) await api.setSecret(id, key, value, reason.trim());
       onStatus?.('Modification enregistrée et historisée.'); setPending(null); setForm(null); await load();
     } catch (e) { setError(integrationErrorMessage(e)); } finally { setSaving(false); }
   }
-  const ask = (cmd: IntegrationCommand, summary: string, secrets?: Record<string, string>) => { setPending({ cmd, summary, secrets }); setReason(''); };
+  // Une clé d'idempotence par action confirmée : un nouvel essai après erreur réseau ne rejoue pas la commande.
+  const ask = (cmd: IntegrationCommand, summary: string, secrets?: Record<string, string>) => { setPending({ cmd, summary, secrets, key: crypto.randomUUID() }); setReason(''); };
   async function openHistory(id: string | null) {
     try { setHistory({ id, events: await api.events(id) }); } catch (e) { setError(integrationErrorMessage(e)); }
   }
@@ -63,7 +66,7 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
         <label className="text-sm font-semibold">Marché<select value={market} onChange={e => setMarket(e.target.value)} className="mt-1 min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm">
           {data.markets.map(m => <option key={m} value={m}>{m}</option>)}</select></label>
         <label className="text-sm font-semibold">Entité<select value={entity} onChange={e => setEntity(e.target.value)} className="mt-1 min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm">
-          {data.legal_entities.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}</select></label>
+          {data.legal_entities.length ? data.legal_entities.map(l => <option key={l.id} value={l.id}>{l.label}</option>) : <option value="">Aucune entité enregistrée</option>}</select></label>
         <label className="text-sm font-semibold">Environnement<select value={env} onChange={e => setEnv(e.target.value as IntegrationEnvironment)} className="mt-1 min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm">
           {(['sandbox', 'live'] as const).map(v => <option key={v} value={v}>{envLabel[v]}</option>)}</select></label>
       </div>
@@ -80,7 +83,7 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
       <ul className="divide-y divide-black/5">{cat.capabilities.map(cap => {
         const policy = data.policies.find(p => p.category === cat.key && p.capability === cap.key && p.country === market && p.legal_entity_id === entity && p.environment === env);
         const options = eligibleForDefault({ category: cat.key, capability: cap.key, country: market, legal_entity_id: entity, environment: env }, data);
-        const locked = env === 'live' && cat.sensitive;
+        const locked = (env === 'live' && cat.sensitive) || !entity;
         return <li key={cap.key} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm font-semibold">{cap.label}</span>
           <select aria-label={`Défaut pour ${cap.label}`} disabled={locked || (!options.length && !policy?.connection_id)} value={policy?.connection_id ?? ''}
@@ -100,10 +103,11 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
           return <li key={c.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0"><p className="font-semibold">{c.alias} <span className="font-normal text-black/50">· {m?.label ?? c.provider_id}</span></p>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs"><span className={`rounded-full px-2 py-0.5 font-semibold ${STATE_TONE[c.state]}`}>{STATE_LABEL[c.state]}</span>
-                <span className="text-black/50">Dernier test : {c.last_check?.at ? `${when(c.last_check.at)}${c.last_check.reason ? ` · ${c.last_check.reason}` : ''}` : 'jamais'}</span>
+                <span className="text-black/50">Dernier test : {c.last_check?.at ? `${when(c.last_check.at)}${c.last_check.status === 'simulated' ? ' · simulé, non vérifié' : ''}${c.last_check.reason ? ` · ${c.last_check.reason}` : ''}` : 'jamais'}</span>
                 {c.secrets.map(s => <span key={s.key} className="inline-flex items-center gap-1 text-black/50"><KeyRound size={12} aria-hidden="true" />{s.key} : {s.present ? `enregistré (${when(s.rotated_at)})` : 'manquant'}</span>)}</div></div>
             <div className="flex shrink-0 flex-wrap gap-1">
-              <button type="button" className="min-h-9 rounded-lg px-2 text-sm font-semibold text-teal ring-1 ring-teal/30 hover:bg-teal/5" disabled={c.state === 'suspended'} onClick={() => ask({ action: 'test_connection', connection_id: c.id }, `${c.alias} : tester la connexion`)}>Tester</button>
+              {m?.connection_check_supported ? <button type="button" className="min-h-9 rounded-lg px-2 text-sm font-semibold text-teal ring-1 ring-teal/30 hover:bg-teal/5" disabled={c.state === 'suspended'} onClick={() => ask({ action: 'test_connection', connection_id: c.id }, `${c.alias} : tester la connexion`)}>Tester</button>
+                : <span className="self-center px-2 text-xs text-black/45">Test réel non disponible</span>}
               {m && m.status === 'installed' && <button type="button" className="min-h-9 rounded-lg px-2 text-sm font-semibold ring-1 ring-black/10 hover:bg-sand" onClick={() => setForm({ manifest: m, connection: c })}>Paramétrer</button>}
               <button type="button" className="min-h-9 rounded-lg px-2 text-sm font-semibold ring-1 ring-black/10 hover:bg-sand"
                 onClick={() => ask({ action: c.state === 'suspended' ? 'resume' : 'suspend', connection_id: c.id, expected_version: c.version }, `${c.alias} : ${c.state === 'suspended' ? 'reprendre' : 'suspendre les nouvelles opérations'}`)}>{c.state === 'suspended' ? 'Reprendre' : 'Suspendre'}</button>
@@ -122,9 +126,9 @@ export default function AdminIntegrations({ api = integrationsApi, onStatus }: {
           <div className="flex items-start justify-between gap-2"><p className="font-semibold"><Plug size={14} className="mr-1 inline text-teal" aria-hidden="true" />{m.label}</p>
             {m.status === 'candidate' ? <Badge>Candidat · non installé</Badge> : <Badge tone="teal">Installé{m.adapter_version ? ` · v${m.adapter_version}` : ''}</Badge>}</div>
           <p className="mt-1 text-xs text-black/55">{m.capabilities.map(k => cat?.capabilities.find(x => x.key === k)?.label ?? k).join(' · ') || 'Capacités non vérifiées'} · {m.environments.map(e => envLabel[e]).join(', ') || 'aucun environnement'}{m.live_locked ? ' · réel verrouillé' : ''}</p>
-          {m.status === 'installed' && m.environments.includes(env) && !(env === 'live' && m.live_locked)
+          {m.status === 'installed' && m.environments.includes(env) && !(env === 'live' && (m.live_locked || cat?.sensitive)) && entity
             ? <button type="button" className="mt-2 min-h-9 text-sm font-semibold text-teal hover:underline" onClick={() => setForm({ manifest: m, connection: null })}>Ajouter une connexion</button>
-            : <p className="mt-2 text-xs text-black/45">{m.status === 'candidate' ? 'Adaptateur à développer et publier avant toute connexion.' : `Non disponible en ${envLabel[env].toLowerCase()}.`}</p>}
+            : <p className="mt-2 text-xs text-black/45">{m.status === 'candidate' ? 'Adaptateur à développer et publier avant toute connexion.' : !entity ? 'Aucune entité juridique enregistrée : connexion impossible pour l’instant.' : `Non disponible en ${envLabel[env].toLowerCase()}.`}</p>}
         </li>)}</ul>}
     </Card>
 

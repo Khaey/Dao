@@ -1,7 +1,7 @@
 'use client';
 import { supabaseBrowser } from './supabase-browser';
 
-// #515 — contrat DTO de l'interface Admin « Intégrations & API ».
+// #515 — contrat DTO `provider-integrations.v1` (figé par DEV 4) de l'interface Admin « Intégrations & API ».
 // Le serveur (DEV 4, #505) calcule tous les états ; l'UI n'en déduit aucun à partir d'un nom.
 // Aucun secret n'est jamais renvoyé : seulement sa présence et sa date de rotation.
 
@@ -17,11 +17,14 @@ export type ManifestField = {
 };
 export type IntegrationManifest = {
   provider_id: string; label: string; category: string; status: ConnectorStatus;
-  adapter_version: string | null; countries: string[]; capabilities: string[];
-  environments: IntegrationEnvironment[]; live_locked: boolean; fields: ManifestField[];
+  manifest_version: string; adapter_version: string | null; countries: string[]; capabilities: string[];
+  environments: IntegrationEnvironment[]; auth_modes: string[]; live_locked: boolean;
+  connection_check_supported: boolean; // false : aucun test réel possible, donc jamais « vérifié ».
+  fields: ManifestField[];
 };
 export type IntegrationCategory = { key: string; label: string; sensitive: boolean; capabilities: Array<{ key: string; label: string }> };
-export type IntegrationCheck = { status: 'unknown' | 'unconfigured' | 'verified' | 'error'; at: string | null; reason: string | null };
+// `simulated` vient d'un contrôle sans appel fournisseur réel : il ne vaut jamais « vérifié ».
+export type IntegrationCheck = { status: 'unknown' | 'unconfigured' | 'simulated' | 'verified' | 'error'; at: string | null; reason: string | null };
 export type IntegrationConnection = {
   id: string; provider_id: string; alias: string; category: string; country: string; legal_entity_id: string;
   environment: IntegrationEnvironment; state: ConnectionState; params: Record<string, string | number | boolean>;
@@ -33,7 +36,7 @@ export type IntegrationPolicy = {
   environment: IntegrationEnvironment; connection_id: string | null; version: number;
 };
 export type IntegrationsOverview = {
-  version: number; markets: string[]; legal_entities: Array<{ id: string; label: string }>;
+  contract_version: string; registry_version: number; markets: string[]; legal_entities: Array<{ id: string; label: string }>;
   categories: IntegrationCategory[]; connectors: IntegrationManifest[];
   connections: IntegrationConnection[]; policies: IntegrationPolicy[];
 };
@@ -45,6 +48,8 @@ export type IntegrationCommand =
   | { action: 'test_connection'; connection_id: string }
   | { action: 'suspend' | 'resume'; connection_id: string; expected_version: number }
   | { action: 'set_default'; category: string; capability: string; country: string; legal_entity_id: string; environment: IntegrationEnvironment; connection_id: string | null; expected_version: number | null };
+
+export const INTEGRATIONS_CONTRACT = 'provider-integrations.v1';
 
 export class IntegrationsError extends Error {
   constructor(message: string, public code = '') { super(message); }
@@ -69,18 +74,20 @@ async function call<T>(name: string, args: Record<string, unknown> = {}): Promis
 export type IntegrationsApi = {
   overview(): Promise<IntegrationsOverview>;
   events(connectionId: string | null): Promise<IntegrationEvent[]>;
-  command(cmd: IntegrationCommand, reason: string): Promise<{ version: number; connection_id?: string }>;
+  command(cmd: IntegrationCommand, reason: string, idempotencyKey: string): Promise<{ version: number; connection_id?: string }>;
   setSecret(connectionId: string, key: string, value: string, reason: string): Promise<{ present: boolean; rotated_at: string }>;
 };
 
 export const integrationsApi: IntegrationsApi = {
   overview: () => call<IntegrationsOverview>('admin_integrations_overview'),
   events: connectionId => call<IntegrationEvent[]>('admin_integration_events', { p_connection_id: connectionId, p_limit: 50 }),
-  command: ({ action, ...input }, reason) => call<{ version: number; connection_id?: string }>('admin_integration_command', { p_action: action, p_input: { ...input, reason } }),
+  command: ({ action, ...input }, reason, idempotencyKey) => call<{ version: number; connection_id?: string }>('admin_integration_command',
+    { p_action: action, p_input: { ...input, reason }, p_idempotency_key: idempotencyKey }),
   // Le secret part directement vers une fonction serveur (coffre) et n'est jamais stocké côté navigateur.
   setSecret: async (connectionId, key, value, reason) => {
     const { data, error } = await supabaseBrowser().functions.invoke('integration-secret', { body: { connection_id: connectionId, key, value, reason } });
-    if (error) throw new IntegrationsError('Le secret n’a pas pu être enregistré.', 'secret');
+    if (error) throw new IntegrationsError((error as { context?: { status?: number } }).context?.status === 404
+      ? 'Configuration des secrets indisponible sur cet environnement.' : 'Le secret n’a pas pu être enregistré.', 'secret');
     return data as { present: boolean; rotated_at: string };
   },
 };

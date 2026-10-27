@@ -5,17 +5,18 @@ import { login } from './support/flow';
 // #515 — interface Admin « Intégrations & API ». Le backend (#505, DEV 4) n'est pas encore livré :
 // ces tests isolent l'UI avec des réponses RPC simulées au niveau réseau, sans rien afficher de fictif sur DEV.
 const overview = {
-  version: 3, markets: ['TN'], legal_entities: [{ id: 'dao-tn', label: 'D.A.O. Tunisie' }],
+  contract_version: 'provider-integrations.v1', registry_version: 3, markets: ['TN'], legal_entities: [{ id: 'dao-tn', label: 'D.A.O. Tunisie' }],
   categories: [
     { key: 'signature', label: 'Signature électronique', sensitive: true, capabilities: [{ key: 'signature.simple', label: 'Signature simple' }] },
     { key: 'maps', label: 'Cartes', sensitive: false, capabilities: [{ key: 'maps.display', label: 'Carte' }, { key: 'maps.geocode', label: 'Géocodage' }] },
   ],
   connectors: [
-    { provider_id: 'dropbox_sign', label: 'Dropbox Sign', category: 'signature', status: 'installed', adapter_version: '1.0.0', countries: ['TN'], capabilities: ['signature.simple'],
-      environments: ['sandbox'], live_locked: true, fields: [{ key: 'api_key', label: 'Clé API', required: true, type: 'text', secret: true }] },
-    { provider_id: 'ngsign', label: 'NGSIGN', category: 'signature', status: 'candidate', adapter_version: null, countries: ['TN'], capabilities: [], environments: [], live_locked: true, fields: [] },
-    { provider_id: 'mapbox', label: 'Mapbox', category: 'maps', status: 'installed', adapter_version: '0.1.0', countries: ['TN'], capabilities: ['maps.display', 'maps.geocode'],
-      environments: ['sandbox', 'live'], live_locked: false, fields: [{ key: 'style', label: 'Style', required: true, type: 'enum', options: [{ value: 'streets', label: 'Rues' }], secret: false },
+    { provider_id: 'dropbox_sign', manifest_version: '1', label: 'Dropbox Sign', category: 'signature', status: 'installed', adapter_version: '1.0.0', countries: ['TN'], capabilities: ['signature.simple'],
+      environments: ['sandbox'], auth_modes: ['api_key'], live_locked: true, connection_check_supported: false, fields: [{ key: 'api_key', label: 'Clé API', required: true, type: 'text', secret: true }] },
+    { provider_id: 'ngsign', manifest_version: '1', label: 'NGSIGN', category: 'signature', status: 'candidate', adapter_version: null, countries: ['TN'], capabilities: [], environments: [],
+      auth_modes: [], live_locked: true, connection_check_supported: false, fields: [] },
+    { provider_id: 'mapbox', manifest_version: '1', label: 'Mapbox', category: 'maps', status: 'installed', adapter_version: '0.1.0', countries: ['TN'], capabilities: ['maps.display', 'maps.geocode'],
+      environments: ['sandbox', 'live'], auth_modes: ['api_key'], live_locked: false, connection_check_supported: true, fields: [{ key: 'style', label: 'Style', required: true, type: 'enum', options: [{ value: 'streets', label: 'Rues' }], secret: false },
         { key: 'token', label: 'Jeton', required: true, type: 'text', secret: true }] },
   ],
   connections: [
@@ -33,7 +34,7 @@ async function openIntegrations(page: Page, handler: (route: Route) => Promise<v
 
 test('Intégrations Admin : statuts honnêtes, défaut et secret jamais relu', async ({ page, e2eAdmin }) => {
   await login(page, e2eAdmin!);
-  const commands: Array<Record<string, unknown>> = [];
+  const commands: Array<Record<string, any>> = [];
   await page.route('**/rest/v1/rpc/admin_integration_command', async route => {
     commands.push(route.request().postDataJSON()); await route.fulfill({ json: { version: 4 } });
   });
@@ -43,6 +44,9 @@ test('Intégrations Admin : statuts honnêtes, défaut et secret jamais relu', a
   await expect(main.getByText('Vérifié', { exact: true })).toBeVisible();
   await expect(main.getByText(/api_key : enregistré/)).toBeVisible();
   await expect(main.getByText('Adaptateur à développer et publier avant toute connexion.')).toBeVisible();
+  // Pas de contrôle fournisseur réel : aucun bouton « Tester », donc aucun PASS simulé.
+  await expect(main.getByText('Test réel non disponible')).toBeVisible();
+  await expect(main.getByRole('button', { name: 'Tester' })).toHaveCount(0);
 
   await main.getByLabel('Défaut pour Signature simple').selectOption('c-sign-1');
   const dialog = page.getByRole('dialog');
@@ -51,6 +55,7 @@ test('Intégrations Admin : statuts honnêtes, défaut et secret jamais relu', a
   await dialog.getByRole('button', { name: 'Confirmer' }).click();
   await expect.poll(() => commands.length).toBe(1);
   expect(commands[0]).toMatchObject({ p_action: 'set_default', p_input: { capability: 'signature.simple', connection_id: 'c-sign-1', environment: 'sandbox', expected_version: null } });
+  expect(commands[0].p_idempotency_key).toMatch(/^[0-9a-f-]{36}$/);
 
   // Réel : catégorie sensible verrouillée, aucun défaut sélectionnable.
   await main.getByLabel('Environnement').selectOption('live');
@@ -90,4 +95,11 @@ test('Intégrations Admin : service non déployé affiché honnêtement', async 
   await openIntegrations(page, route => route.fulfill({ status: 404, json: { code: 'PGRST202', message: 'Could not find the function' } }));
   await expect(page.getByRole('main').getByText(/pas encore disponible sur cet environnement/)).toBeVisible();
   await expect(page.getByRole('main').getByText('Candidat · non installé')).toHaveCount(0);
+});
+
+test('Intégrations Admin : version de contrat inconnue jamais interprétée', async ({ page, e2eAdmin }) => {
+  await login(page, e2eAdmin!);
+  await openIntegrations(page, route => route.fulfill({ json: { ...overview, contract_version: 'provider-integrations.v2' } }));
+  await expect(page.getByRole('main').getByText(/Version de contrat inattendue/)).toBeVisible();
+  await expect(page.getByRole('main').getByText('Dropbox Sign test')).toHaveCount(0);
 });
