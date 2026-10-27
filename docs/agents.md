@@ -1,14 +1,15 @@
 # D.A.O. — Agents, responsabilités et périmètres
 
 État au **25 octobre 2026** (organisation fixée par le propriétaire, passation
-[#436](https://github.com/Khaey/Dao/issues/436)). En cas d'écart, le dernier commentaire du
-propriétaire ou de PILOT 12 sur #436 prime sur ce fichier ; mettre ce fichier à jour dans la PR suivante.
+[#436](https://github.com/Khaey/Dao/issues/436)), coordination reprise par **PILOT 13** le 27/10
+([#511](https://github.com/Khaey/Dao/issues/511)). En cas d'écart, le dernier commentaire du
+propriétaire ou de PILOT 13 sur #511 prime sur ce fichier ; mettre ce fichier à jour dans la PR suivante.
 
 ## Agents actifs
 
 | Agent | Mission | Issues canoniques | Périmètre | Hors périmètre |
 | --- | --- | --- | --- | --- |
-| **PILOT 12** | Pilotage général, coordination, priorités, intégration | [#436](https://github.com/Khaey/Dao/issues/436) | Triage, vérification PR/CI/déploiements DEV, conflits entre agents, ordre de fusion, checkpoints dans les issues des owners, registre de recette [#175](https://github.com/Khaey/Dao/issues/175) | Coder dans une mission qui a déjà un owner sans ordre du propriétaire |
+| **PILOT 13** | Pilotage général, coordination, priorités, intégration (depuis le 27/10, après PILOT 12 #436) | [#511](https://github.com/Khaey/Dao/issues/511) | Triage, vérification PR/CI/déploiements DEV, conflits entre agents, ordre de fusion, checkpoints dans les issues des owners, registre de recette [#175](https://github.com/Khaey/Dao/issues/175) | Coder dans une mission qui a déjà un owner sans ordre du propriétaire |
 | **Coordinateur — Mission 1** (Claude Code) | Frontend et UX du suivi natif P10 | [#419](https://github.com/Khaey/Dao/issues/419), parent [#408](https://github.com/Khaey/Dao/issues/408) | Écrans Client/Artisan/Gestionnaire du suivi natif, sous-lots officiels, formulaires « Ajouter… », dates, dépendances/jalons, Gantt, intégration des API P10/P11 dans l'interface (ex. PR #438 contrôles et réserves) | Backend/SQL du suivi (sauf coordination), Settings |
 | **Coordinateur — Mission 2** (Claude Code) | Settings, droits et délégations | [#423](https://github.com/Khaey/Dao/issues/423), [#426](https://github.com/Khaey/Dao/issues/426), cadrage historique [#126](https://github.com/Khaey/Dao/issues/126) | Moteur de paramètres S1→S4 : catalogue typé, résolveur, écrans Admin, gating Client/Artisan, mandats Gestionnaire | S5 (non autorisé), activer OCE/BIM/HSE/Achats par toggle, rendre configurables RLS/signature/devise |
 | **Coordinateur UX transverse** (Claude Code) | Simplification globale UX/UI (directive PILOT 12 du 26/10) : statuts et libellés vrais, entrée unique « Suivi du chantier », devis allégé, harmonisation « Chantier net » | [#387](https://github.com/Khaey/Dao/issues/387) | Libellés, compteurs, navigation et formulaires frontend des parcours Client/Artisan/Gestionnaire/Admin ; coordination avec Mission 1, UX Admin, DEV 4 et DOW | Backend, RPC, droits et persistance (DEV 4 : #485/#488/#489) ; e-mails HTML (DOW #482) |
@@ -31,7 +32,7 @@ reprendre leurs branches :
 | DEV 1, DEV 2, OPT | Fondations P1/P2, contrats, précontrat #345, OCE #58/#301 | Historiques |
 | CH2 | Multi-lots/contrats [#381](https://github.com/Khaey/Dao/issues/381) | Clos, ne pas reconstituer |
 | COP #195, DOW #193, TOW #194 (Claude) | Audit, frontend/perf, E2E/CI | En pause quota |
-| PILOT 1 → 11 | Coordination ([#89](https://github.com/Khaey/Dao/issues/89), [#154](https://github.com/Khaey/Dao/issues/154), [#180](https://github.com/Khaey/Dao/issues/180), [#204](https://github.com/Khaey/Dao/issues/204)) | Remplacés par PILOT 12 |
+| PILOT 1 → 12 | Coordination ([#89](https://github.com/Khaey/Dao/issues/89), [#154](https://github.com/Khaey/Dao/issues/154), [#180](https://github.com/Khaey/Dao/issues/180), [#204](https://github.com/Khaey/Dao/issues/204), [#436](https://github.com/Khaey/Dao/issues/436)) | Remplacés par PILOT 13 |
 
 Les handoffs `docs/ai-context/PILOT*_HANDOFF_*.md` et l'en-tête historique de `AGENTS.md` décrivent
 ces organisations passées ; ils ne sont pas l'état courant.
@@ -39,7 +40,7 @@ ces organisations passées ; ils ne sont pas l'état courant.
 ## Règles de coexistence
 
 - **Une mission = un owner.** Personne n'édite la branche ou la PR d'un autre owner. Un besoin dans
-  le périmètre d'un autre agent passe par son issue et, en cas de conflit, par PILOT 12 (#436).
+  le périmètre d'un autre agent passe par son issue et, en cas de conflit, par PILOT 13 (#511).
 - Chaque PR déclare `Owner issue: #N` sur sa propre ligne (attribution DAO Monitor, voir
   [dao-monitor.md](dao-monitor.md)). Un nouvel agent s'enregistre une fois dans
   `.github/dao-monitor-agents.json` avant sa première PR fonctionnelle.

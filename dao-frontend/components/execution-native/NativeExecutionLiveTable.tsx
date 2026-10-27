@@ -11,7 +11,7 @@ import NativeActivityPanel from './NativeActivityPanel';
 import NativeGantt from './NativeGantt';
 import NativeLotDatesForm from './NativeLotDatesForm';
 import NativeInstallmentScopes from './NativeInstallmentScopes';
-import NativeDependencies from './NativeDependencies';
+import NativeDependencies, { lotDependencyLinks } from './NativeDependencies';
 import NativeMilestones from './NativeMilestones';
 import NativeTechnicalQuality from './NativeTechnicalQuality';
 import NativeWorkSituations from './NativeWorkSituations';
@@ -79,7 +79,7 @@ function Row({ node, lot, expanded, onToggle, onOptions, subLot = false }: {
 
 /** Vraie lecture N1 du backend DEV 3, sans modifier les pages #346/#356. */
 export default function NativeExecutionLiveTable({ projectId, onOpenJournal }: { projectId: string; onOpenJournal?: () => void }) {
-  const [state, setState] = useState<{ phase: 'loading' | 'ready' | 'error'; dto: NativeExecutionPlanDTO | null; message: string }>({
+  const [state, setState] = useState<{ phase: 'loading' | 'ready' | 'error' | 'denied'; dto: NativeExecutionPlanDTO | null; message: string }>({
     phase: 'loading', dto: null, message: '',
   });
   const [revision, setRevision] = useState(0);
@@ -114,7 +114,9 @@ export default function NativeExecutionLiveTable({ projectId, onOpenJournal }: {
       .catch(error => {
         if (ctrl.signal.aborted) return;
         const message = error instanceof NativePlanReadError ? error.message : 'Lecture temporairement impossible.';
-        setState({ phase: 'error', dto: null, message });
+        // Un refus de droits (403) n'est pas une panne : pas de « Réessayer » ni d'alerte « À corriger ».
+        const denied = error instanceof NativePlanReadError && error.status === 403;
+        setState({ phase: denied ? 'denied' : 'error', dto: null, message });
       });
     return () => ctrl.abort();
   }, [projectId, revision]);
@@ -142,6 +144,10 @@ export default function NativeExecutionLiveTable({ projectId, onOpenJournal }: {
       {state.phase === 'error' && <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
         <p>{state.message}</p><button className={outline} onClick={reload} type="button">Réessayer</button>
       </div>}
+      {state.phase === 'denied' && <div role="status" data-testid="native-access-denied" className="space-y-1 rounded-xl bg-sand p-5 text-sm text-ink">
+        <p className="font-semibold">Accès réservé</p>
+        <p className="text-black/60">Ce suivi est réservé au Client du chantier, aux Artisans attributaires et au staff D.A.O. affecté à ce dossier.</p>
+      </div>}
       {state.phase === 'ready' && lots.length === 0 && <p role="status" className="rounded-xl bg-sand p-5 text-sm">Aucun lot accessible dans ce chantier. Aucun avancement n’a été inventé.</p>}
       {state.phase === 'ready' && view === 'gantt' && dto && lots.length > 0 && <NativeGantt plan={dto} />}
       {state.phase === 'ready' && view === 'table' && lots.length > 0 && <>
@@ -159,7 +165,7 @@ export default function NativeExecutionLiveTable({ projectId, onOpenJournal }: {
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <div><dt className="text-black/50">Sous-lots du devis retenu</dt><dd>{selected.subLotCount}</dd></div>
         <div><dt className="text-black/50">Jalons déclarés</dt><dd>{selected.milestoneCount}</dd></div>
-        <div><dt className="text-black/50">Dépendances visibles</dt><dd>{selected.dependencyCount}</dd></div>
+        <div><dt className="text-black/50">Dépendances visibles</dt><dd>{lotDependencyLinks(dto, selected.requestId).length}</dd></div>
         <div><dt className="text-black/50">Échéances informatives</dt><dd>{selected.installmentInformational ? selected.installmentCount : 'Non disponibles'}</dd></div>
       </dl>
       <div className="flex flex-wrap gap-2">
