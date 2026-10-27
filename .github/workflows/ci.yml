@@ -183,7 +183,10 @@ jobs:
           cache-dependency-path: dao-frontend/package-lock.json
       - name: Install pinned Supabase CLI
         if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
-        uses: supabase/setup-cli@v1.6.1
+        # Since v1.7.2 the action lets CLI >= 2.108 use its ECR/GHCR/Docker Hub
+        # registry fallback instead of forcing ghcr.io (rate-limited on hosted runners).
+        # Keep the pinned CLI and the full fresh Supabase + E2E gates unchanged.
+        uses: supabase/setup-cli@v1.7.3
         with:
           version: 2.118.0
       - name: Initialize complete validation timing summary

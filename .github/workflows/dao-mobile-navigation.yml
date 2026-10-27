@@ -36,7 +36,7 @@ jobs:
           cache: npm
           cache-dependency-path: dao-frontend/package-lock.json
       - name: Install pinned Supabase CLI
-        uses: supabase/setup-cli@v1.6.1
+        uses: supabase/setup-cli@v1.7.3
         with:
           version: 2.118.0
       - name: Initialize complete validation timing summary
