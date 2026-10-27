@@ -29,6 +29,7 @@ DECLARE
   missing_name text;
   state record;
 BEGIN
+  expected_versions := expected_versions || ARRAY['20261027013511'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
     FROM supabase_migrations.schema_migrations;
