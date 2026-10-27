@@ -11,6 +11,9 @@ async function openSettings(page: Page) {
   await page.getByRole('link', { name: 'Paramètres', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/app\/settings$/);
   await expect(page.locator('#mobile-workspace-menu')).toHaveCount(0);
+  // Right after a workspace switch the session refresh can hold getUser() for a few seconds: wait for the
+  // page's own loading state to end (same heading assertion afterwards), instead of the default 5 s.
+  await expect(page.getByRole('status').filter({ hasText: 'Chargement des paramètres' })).toHaveCount(0, { timeout: 20_000 });
   await expect(page.getByRole('heading', { name: 'Paramètres', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
 }
