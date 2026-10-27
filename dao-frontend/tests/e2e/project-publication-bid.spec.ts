@@ -53,6 +53,13 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await expect(publishButton).toBeDisabled();
   await lotCheckbox.check();
   await expect(publishButton).toBeEnabled();
+  // #520: reject an expired deadline without sending an SQL-invalid publication.
+  const deadline=reviewer.locator('input[type="datetime-local"]');
+  await deadline.fill('2026-10-16T04:06');
+  await expect(reviewer.getByText(/La date limite des offres doit être postérieure/)).toBeVisible();
+  await expect(publishButton).toBeDisabled();
+  await deadline.fill('');
+  await expect(publishButton).toBeEnabled();
   await publishButton.click();
   await expect(reviewer).toHaveURL(/\/app\/publications\/[^/]+/);
   const publicationUrl = reviewer.url();
