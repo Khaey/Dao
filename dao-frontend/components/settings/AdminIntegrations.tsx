@@ -168,7 +168,7 @@ function ConnectionForm({ form, market, entity, env, onCancel, onSubmit }: { for
           placeholder={c?.secrets.find(s => s.key === f.key)?.present ? 'Enregistré · laisser vide pour conserver' : 'Non enregistré'} />
         <span className="mt-1 block text-xs font-normal text-black/50">Envoyé directement au coffre serveur, jamais réaffiché.</span></>
         : f.type === 'enum' ? <select value={String(params[f.key] ?? '')} onChange={e => setParams(p => ({ ...p, [f.key]: e.target.value }))} className="mt-1 min-h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm">
-          <option value="">Choisir…</option>{(f.options ?? []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+          <option value="">Choisir…</option>{(f.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}</select>
         : f.type === 'boolean' ? <input type="checkbox" className="ml-2 h-4 w-4 accent-teal" checked={params[f.key] === true} onChange={e => setParams(p => ({ ...p, [f.key]: e.target.checked }))} />
         : <Input type={f.type === 'number' ? 'number' : 'text'} value={String(params[f.key] ?? '')} onChange={e => setParams(p => ({ ...p, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value }))} className="mt-1" />}
       {f.help && <span className="mt-1 block text-xs font-normal text-black/50">{f.help}</span>}</label>)}

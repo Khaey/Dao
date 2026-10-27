@@ -12,7 +12,7 @@ export type ConnectionState = 'unconfigured' | 'configured' | 'verified' | 'acti
 export type ManifestField = {
   key: string; label: string; help?: string | null; required: boolean;
   type: 'text' | 'enum' | 'boolean' | 'number';
-  options?: Array<{ value: string; label: string }> | null;
+  options?: string[] | null; // Valeurs autorisées d'un champ enum (manifeste validé côté serveur).
   secret: boolean; // Saisi uniquement via le flux serveur ; jamais relu.
 };
 export type IntegrationManifest = {

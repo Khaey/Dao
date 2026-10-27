@@ -16,7 +16,7 @@ const overview = {
     { provider_id: 'ngsign', manifest_version: '1', label: 'NGSIGN', category: 'signature', status: 'candidate', adapter_version: null, countries: ['TN'], capabilities: [], environments: [],
       auth_modes: [], live_locked: true, connection_check_supported: false, fields: [] },
     { provider_id: 'mapbox', manifest_version: '1', label: 'Mapbox', category: 'maps', status: 'installed', adapter_version: '0.1.0', countries: ['TN'], capabilities: ['maps.display', 'maps.geocode'],
-      environments: ['sandbox', 'live'], auth_modes: ['api_key'], live_locked: false, connection_check_supported: true, fields: [{ key: 'style', label: 'Style', required: true, type: 'enum', options: [{ value: 'streets', label: 'Rues' }], secret: false },
+      environments: ['sandbox', 'live'], auth_modes: ['api_key'], live_locked: false, connection_check_supported: true, fields: [{ key: 'style', label: 'Style', required: true, type: 'enum', options: ['streets'], secret: false },
         { key: 'token', label: 'Jeton', required: true, type: 'text', secret: true }] },
   ],
   connections: [
