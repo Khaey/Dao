@@ -6,6 +6,14 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabaseBrowser } from '../../../../../lib/supabase-browser';
 import { Button, Card, Input } from '../../../../../components/ui';
 
+const DEADLINE_MESSAGE = 'La date limite des offres doit être postérieure à la date de publication. Choisissez une date future ou laissez ce champ vide.';
+
+function deadlineIsInvalid(value: string): boolean {
+  if (!value) return false;
+  const timestamp = new Date(value).getTime();
+  return !Number.isFinite(timestamp) || timestamp <= Date.now();
+}
+
 function NewPublication() {
   const params = useSearchParams();
   const router = useRouter();
@@ -18,6 +26,8 @@ function NewPublication() {
   const [deadline, setDeadline] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deadlineTouched, setDeadlineTouched] = useState(false);
+  const invalidDeadline = deadlineIsInvalid(deadline);
 
   useEffect(() => {
     if (!projectId) return;
@@ -59,6 +69,13 @@ function NewPublication() {
   }, [projectId]);
 
   async function submit() {
+    // Re-check at click time: an initially valid deadline can expire while this page is open.
+    if (deadlineIsInvalid(deadline)) {
+      setDeadlineTouched(true);
+      setError(DEADLINE_MESSAGE);
+      return;
+    }
+    if (saving) return;
     setSaving(true); setError('');
     const { data } = await supabaseBrowser().auth.getSession();
     if (!data.session) { setError('Session expirée.'); setSaving(false); return; }
@@ -75,7 +92,7 @@ function NewPublication() {
 
   return <section className="mx-auto max-w-3xl space-y-6">
     <div><p className="text-sm font-semibold text-teal">Publication DAO</p><h1 className="mt-1 text-3xl font-bold">Revoir et publier</h1><p className="mt-2 text-black/60">Choisissez les lots et les professionnels qui pourront répondre.</p></div>
-    <Card><label className="block text-sm font-semibold">Visibilité<select aria-label="Visibilité" className="mt-2 w-full rounded-xl border border-black/10 bg-white p-3" value={visibility} onChange={event => setVisibility(event.target.value)}><option value="public">Public — tous les artisans compatibles</option><option value="targeted">Ciblée — professionnels sélectionnés</option><option value="invite_only">DAO sur invitation — accès privé</option></select></label><label className="mt-4 block text-sm font-semibold">Date limite des offres (optionnelle)<Input type="datetime-local" value={deadline} onChange={event => setDeadline(event.target.value)} /></label><div className="mt-6 space-y-2"><p className="text-sm font-semibold">Lots publiés</p>{rows.length === 0 && <p className="text-sm text-black/50">Aucun lot ouvert lié à la version approuvée.</p>}{rows.map((row, index) => <label key={row.id} className="flex items-start gap-3 rounded-xl bg-sand/70 p-3 text-sm"><input className="mt-1" type="checkbox" checked={selected.includes(row.id)} onChange={event => setSelected(value => event.target.checked ? [...value, row.id] : value.filter(item => item !== row.id))} /><span><span className="block font-semibold">{row.title || 'Lot ' + (index + 1)}</span><span className="mt-1 block text-xs text-black/55">{row.scope || 'Périmètre à consulter'}</span></span></label>)}</div>{rows.length > 0 && selected.length === 0 && <p className="mt-3 text-sm text-amber-800">Sélectionnez au moins un lot pour publier.</p>}{visibility !== 'public' && <div className="mt-6 space-y-2"><p className="text-sm font-semibold">Destinataires autorisés</p>{contractors.length === 0 && <p className="text-sm text-black/50">Aucun professionnel vérifié disponible.</p>}{contractors.map(contractor => <label key={contractor.id} className="flex items-center gap-3 rounded-xl bg-sand/70 p-3 text-sm"><input type="checkbox" checked={recipients.includes(contractor.id)} onChange={event => setRecipients(value => event.target.checked ? [...value, contractor.id] : value.filter(item => item !== contractor.id))} /><span><span className="block font-semibold">{contractor.public_trade_name || contractor.business_name}</span><span className="text-xs text-black/55">{contractor.contractor_type === 'company' || contractor.contractor_type === 'general_contractor' ? 'Entreprise' : 'Artisan vérifié'}</span></span></label>)}</div>}{error && <p role="alert" className="mt-5 text-sm text-red-600">{error}</p>}<Button className="mt-6" disabled={saving || selected.length === 0 || (visibility !== 'public' && recipients.length === 0)} onClick={() => void submit()}>{saving ? 'Publication…' : 'Publier le DAO'}</Button></Card>
+    <Card><label className="block text-sm font-semibold">Visibilité<select aria-label="Visibilité" className="mt-2 w-full rounded-xl border border-black/10 bg-white p-3" value={visibility} onChange={event => setVisibility(event.target.value)}><option value="public">Public — tous les artisans compatibles</option><option value="targeted">Ciblée — professionnels sélectionnés</option><option value="invite_only">DAO sur invitation — accès privé</option></select></label><label className="mt-4 block text-sm font-semibold">Date limite des offres (optionnelle)<Input type="datetime-local" value={deadline} aria-invalid={deadlineTouched && invalidDeadline} aria-describedby="publication-deadline-help" onChange={event => { setDeadline(event.target.value); setDeadlineTouched(true); setError(''); }} /></label><p id="publication-deadline-help" className={deadlineTouched && invalidDeadline ? 'mt-2 text-sm text-red-700' : 'mt-2 text-xs text-black/55'}>{deadlineTouched && invalidDeadline ? DEADLINE_MESSAGE : 'Facultative. La date limite doit être dans le futur.'}</p><div className="mt-6 space-y-2"><p className="text-sm font-semibold">Lots publiés</p>{rows.length === 0 && <p className="text-sm text-black/50">Aucun lot ouvert lié à la version approuvée.</p>}{rows.map((row, index) => <label key={row.id} className="flex items-start gap-3 rounded-xl bg-sand/70 p-3 text-sm"><input className="mt-1" type="checkbox" checked={selected.includes(row.id)} onChange={event => setSelected(value => event.target.checked ? [...value, row.id] : value.filter(item => item !== row.id))} /><span><span className="block font-semibold">{row.title || 'Lot ' + (index + 1)}</span><span className="mt-1 block text-xs text-black/55">{row.scope || 'Périmètre à consulter'}</span></span></label>)}</div>{rows.length > 0 && selected.length === 0 && <p className="mt-3 text-sm text-amber-800">Sélectionnez au moins un lot pour publier.</p>}{visibility !== 'public' && <div className="mt-6 space-y-2"><p className="text-sm font-semibold">Destinataires autorisés</p>{contractors.length === 0 && <p className="text-sm text-black/50">Aucun professionnel vérifié disponible.</p>}{contractors.map(contractor => <label key={contractor.id} className="flex items-center gap-3 rounded-xl bg-sand/70 p-3 text-sm"><input type="checkbox" checked={recipients.includes(contractor.id)} onChange={event => setRecipients(value => event.target.checked ? [...value, contractor.id] : value.filter(item => item !== contractor.id))} /><span><span className="block font-semibold">{contractor.public_trade_name || contractor.business_name}</span><span className="text-xs text-black/55">{contractor.contractor_type === 'company' || contractor.contractor_type === 'general_contractor' ? 'Entreprise' : 'Artisan vérifié'}</span></span></label>)}</div>}{error && <p role="alert" className="mt-5 text-sm text-red-600">{error}</p>}<Button className="mt-6" disabled={saving || invalidDeadline || selected.length === 0 || (visibility !== 'public' && recipients.length === 0)} onClick={() => void submit()}>{saving ? 'Publication…' : 'Publier le DAO'}</Button></Card>
   </section>;
 }
 
