@@ -44,26 +44,25 @@ export function planningTargets(plan: Plan) {
   return targets;
 }
 
+/** Liens visibles d'un lot, tels que listés sous « Dépendances » (aussi utilisé pour le compteur du lot). */
+export function lotDependencyLinks(plan: Plan, requestId: string, targets = planningTargets(plan)): Link[] {
+  const aliases = new Map<string, string>();
+  for (const key of targets.keys()) { aliases.set(key, key); aliases.set(key.slice(key.indexOf(':') + 1), key); }
+  for (const lot of plan.lots) for (const sub of lot.executionSubLots) aliases.set(sub.nodeKey, `node:${sub.id}`);
+  // Les liens projet (activités) priment : la vue par lot ne voit pas les extrémités « activité ».
+  const all = new Map<string, Link>();
+  for (const link of plan.dependencies ?? []) all.set(link.id, link);
+  for (const lot of plan.lots) for (const link of lot.dependencies) if (!all.has(link.id)) all.set(link.id, link);
+  const resolve = (value: string | null) => value ? aliases.get(value) ?? null : null;
+  return [...all.values()].filter(link => link.state !== 'rejected').map(link => ({ ...link, from: resolve(link.from), to: resolve(link.to) }))
+    .filter(link => [link.from, link.to].some(key => key && targets.get(key)?.requestId === requestId));
+}
+
 export default function NativeDependencies({ plan, requestId, canEdit, onUpdated }: {
   plan: Plan; requestId: string; canEdit: boolean; onUpdated: () => void;
 }) {
   const targets = useMemo(() => planningTargets(plan), [plan]);
-  const aliases = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const key of targets.keys()) { map.set(key, key); map.set(key.slice(key.indexOf(':') + 1), key); }
-    for (const lot of plan.lots) for (const sub of lot.executionSubLots) map.set(sub.nodeKey, `node:${sub.id}`);
-    return map;
-  }, [plan, targets]);
-  const allLinks = useMemo(() => {
-    // Les liens projet (activités) priment : la vue par lot ne voit pas les extrémités « activité ».
-    const all = new Map<string, Link>();
-    for (const link of plan.dependencies ?? []) all.set(link.id, link);
-    for (const lot of plan.lots) for (const link of lot.dependencies) if (!all.has(link.id)) all.set(link.id, link);
-    const resolve = (value: string | null) => value ? aliases.get(value) ?? null : null;
-    return [...all.values()].filter(link => link.state !== 'rejected').map(link => ({ ...link, from: resolve(link.from), to: resolve(link.to) }));
-  }, [plan, aliases]);
-  const links = useMemo(() => allLinks.filter(link => [link.from, link.to].some(key => key && targets.get(key)?.requestId === requestId)),
-    [allLinks, targets, requestId]);
+  const links = useMemo(() => lotDependencyLinks(plan, requestId, targets), [plan, requestId, targets]);
 
   const own = [...targets.entries()].filter(([, value]) => value.requestId === requestId);
   const [pred, setPred] = useState(own[0]?.[0] ?? '');
@@ -81,15 +80,15 @@ export default function NativeDependencies({ plan, requestId, canEdit, onUpdated
     if (!verify || plan === verify.since) return;
     if (verify.add) {
       const { pred: from, succ: to } = verify.add;
-      const found = allLinks.some(link => link.from === from && link.to === to);
+      const found = links.some(link => link.from === from && link.to === to);
       if (found) setNotice('Dépendance ajoutée et confirmée à la relecture du planning.' + ([from, to].some(key => targets.get(key)?.requestId === requestId) ? '' : ' Elle apparaît dans les lots concernés.'));
       else setWarning('Le serveur a accepté la dépendance, mais elle n’apparaît pas à la relecture du planning. Actualisez ; si elle reste absente, ne la considérez pas comme enregistrée.');
     } else if (verify.removed) {
-      if (allLinks.some(link => link.id === verify.removed)) setWarning('Le retrait a été accepté, mais la dépendance apparaît encore à la relecture. Actualisez avant de recommencer.');
+      if (links.some(link => link.id === verify.removed)) setWarning('Le retrait a été accepté, mais la dépendance apparaît encore à la relecture. Actualisez avant de recommencer.');
       else setNotice('Dépendance retirée et confirmée à la relecture du planning.');
     }
     setVerify(null);
-  }, [plan, verify, allLinks, targets, requestId]);
+  }, [plan, verify, links, targets, requestId]);
 
   if (!own.length) return null;
   const label = (key: string | null) => key ? targets.get(key)?.label ?? 'Élément non visible' : 'Élément non planifié';

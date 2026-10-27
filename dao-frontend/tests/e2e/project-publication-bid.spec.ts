@@ -131,6 +131,16 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await artisan.getByLabel('Sous-lot 2',{exact:true}).fill('Câblage E2E');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Début',{exact:true}).fill('2027-01-15');
   await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Fin',{exact:true}).fill('2027-01-20');
+  // #486: the budget summary states the real allocation (26 000 TND total from the detail lines).
+  const budgetLine=artisan.getByText(/Budgets déclarés/);
+  await artisan.getByTestId('bid-sub-lot').nth(0).getByLabel('Budget (TND)').fill('10000');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Budget (TND)').fill('2000');
+  await expect(budgetLine).toContainText('restent non répartis');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Budget (TND)').fill('20000');
+  await expect(budgetLine).toContainText('le total dépasse le prix proposé');
+  await artisan.getByTestId('bid-sub-lot').nth(1).getByLabel('Budget (TND)').fill('16000');
+  await expect(budgetLine).toContainText('tout le prix est réparti');
+  await expect(budgetLine).not.toContainText('non répartis');
   await artisan.locator('summary').filter({hasText:'Compléments facultatifs'}).click();
   await artisan.getByRole('button',{name:'Ajouter un lien'}).click();
   const predecessorValue=await artisan.locator('option',{hasText:'Rainures E2E'}).first().getAttribute('value');

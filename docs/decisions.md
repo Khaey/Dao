@@ -124,6 +124,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Décision | État | Source |
 | --- | --- | --- |
 | Inspections et **réserves techniques par lot attribué actif** (`site_technical_inspections`, `site_technical_reserves`, événements et preuves privées) ; indépendantes du contrat ON/OFF ; historique append-only, concurrence optimiste, pagination. | Livré (backend #434, UI en cours #438) | [#425](https://github.com/Khaey/Dao/issues/425) |
+| Lecture des contrôles et réserves par l'**Artisan attributaire actif** sans participation `project_members` (les attributions de la place de marché n'en créent pas) : même règle que le suivi natif (`site_contractor_award_item`), participation révoquée toujours refusée. | Livré | [#516](https://github.com/Khaey/Dao/issues/516) |
 | États de réserve : `open`, `correction_declared`, `recheck_requested`, `resolved_confirmed`, `reopened`, `withdrawn`. Client signale → Artisan corrige avec preuve → Client confirme ou rouvre. Aucun silence ne vaut accord. | Livré | #425 |
 | **Réception technique ≠ réception juridique** : pas de PV juridique, transfert de risques, retenue ou départ de garantie, paiement à réception. Garantie V0 = liens informatifs seulement. | Hors GO | #425 |
 

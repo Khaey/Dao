@@ -10,7 +10,7 @@ Dépôt source de vérité : <https://github.com/Khaey/Dao>. DEV : <https://dao-
 
 1. Ce fichier, puis [`docs/agents.md`](docs/agents.md) : qui possède quoi aujourd'hui.
 2. Ton **issue propriétaire** et son dernier checkpoint utile ; la coordination générale est
-   l'issue de **PILOT 12** [#436](https://github.com/Khaey/Dao/issues/436).
+   l'issue de **PILOT 13** [#511](https://github.com/Khaey/Dao/issues/511) (historique : PILOT 12 #436).
 3. [`docs/decisions.md`](docs/decisions.md) pour le domaine touché (décisions métier et techniques validées).
 4. [`docs/architecture.md`](docs/architecture.md) pour la structure, les conventions et la CI.
 5. [`docs/product/`](docs/product/README.md) : spécifications fonctionnelles existantes.
@@ -27,7 +27,7 @@ les PR ouvertes, la CI au SHA exact et le dernier commentaire du propriétaire p
   la migration et le code existants (`docs/decisions.md` liste les livraisons par domaine).
 - **Vérifier les migrations** : `dao-backend/supabase/migrations/` sur `main` et, si le travail en
   dépend, leur présence réelle sur Supabase DEV. Une migration mergée n'est pas une migration appliquée.
-- Ne pas modifier le périmètre, la branche ou la PR d'un autre agent sans coordination via #436.
+- Ne pas modifier le périmètre, la branche ou la PR d'un autre agent sans coordination via #511.
 
 ## 3. Règles permanentes du propriétaire
 
@@ -53,7 +53,7 @@ les PR ouvertes, la CI au SHA exact et le dernier commentaire du propriétaire p
 P0 de sécurité non résolu ; check CI ou revue obligatoire manquant ; changement des garanties
 Auth/JWT/RLS ; secrets ; production, VPS/root/OPS/OCE non préautorisés ; dépenses ; données réelles
 ou suppression destructrice ; nouvelle règle métier engageante (juridique, financière). Continuer le
-travail indépendant, poser **une** question ciblée au bon décideur (PILOT 12 pour le technique et
+travail indépendant, poser **une** question ciblée au bon décideur (PILOT 13 pour le technique et
 l'arbitrage entre owners, le propriétaire pour un nouvel engagement).
 
 ## 5. Invariants techniques non négociables
