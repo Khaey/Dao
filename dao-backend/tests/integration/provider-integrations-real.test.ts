@@ -49,7 +49,7 @@ test('provider integrations v1: Admin-only real RPC and redacted manifest DTO', 
   assert.equal(dto.connectors.length,6);
   const dropbox=dto.connectors.find((item:any)=>item.provider_id==='dropbox_sign_test');
   assert.equal(dropbox.status,'installed');
-  assert.equal(dropbox.connection_check_supported,false);
+  assert.equal(dropbox.connection_check_supported,true);
   assert.equal(dropbox.live_locked,true);
   assert.deepEqual(dropbox.environments,['sandbox']);
   const serialized=JSON.stringify(dto);

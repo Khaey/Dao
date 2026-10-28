@@ -1,62 +1,24 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SECRET_KEY = /^[a-z][a-z0-9_]{1,63}$/;
-const MAX_SECRET_LENGTH = 16_384;
-const allowedOrigin = Deno.env.get('DAO_FRONTEND_ORIGIN') ?? 'https://dao-dev.logiclab.fr';
-const cors = { 'access-control-allow-origin': allowedOrigin, 'access-control-allow-headers': 'authorization, content-type, apikey', 'access-control-allow-methods': 'POST, OPTIONS', 'vary': 'Origin' };
-const json = (body: Record<string, unknown>, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...cors } });
-
-function vaultName(connectionId: string, key: string): string {
-  return `dao-provider/${connectionId}/${key}`;
-}
-
-/** Admin-only credential boundary. Values are written to Supabase Vault only. */
-Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-  if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
-  const authorization = request.headers.get('authorization');
-  const url = Deno.env.get('SUPABASE_URL');
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!authorization?.startsWith('Bearer ') || !url || !anonKey || !serviceKey) return json({ error: 'unauthorized' }, 401);
-
-  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authorization } } });
-  const { data: { user }, error: userError } = await userClient.auth.getUser();
-  if (userError || !user) return json({ error: 'unauthorized' }, 401);
-
-  const adminClient = createClient(url, serviceKey);
-  const { data: roleRows, error: roleError } = await adminClient.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'dao_admin').limit(1);
-  if (roleError || !roleRows?.length) return json({ error: 'forbidden' }, 403);
-
-  let input: { action?: unknown; connection_id?: unknown; key?: unknown; value?: unknown; reason?: unknown };
-  try { input = await request.json(); } catch { return json({ error: 'invalid_request' }, 400); }
-  const connectionId = typeof input.connection_id === 'string' ? input.connection_id : '';
-  const key = typeof input.key === 'string' ? input.key : '';
-  const action = input.action ?? (input.value === undefined ? 'revoke' : 'put');
-  if (!UUID.test(connectionId) || !SECRET_KEY.test(key) || !['put', 'revoke'].includes(String(action))) return json({ error: 'invalid_request' }, 400);
-  if (typeof input.reason !== 'string' || input.reason.trim().length < 5 || input.reason.length > 500) return json({ error: 'invalid_reason' }, 400);
-  if (action === 'put' && (typeof input.value !== 'string' || input.value.length < 1 || input.value.length > MAX_SECRET_LENGTH || /[\u0000\r\n]/.test(input.value))) return json({ error: 'invalid_secret' }, 400);
-
-  const { data: allowed, error: allowError } = await adminClient.rpc('provider_secret_connection_allowed', { p_connection_id: connectionId, p_key: key });
-  if (allowError || allowed !== true) return json({ error: 'invalid_request' }, 400);
-
-  const name = vaultName(connectionId, key);
-  try {
-    if (action === 'put') {
-      const { error } = await adminClient.rpc('provider_secret_put', { p_name: name, p_value: input.value });
-      if (error) return json({ error: 'vault_unavailable' }, 503);
-      const { error: auditError } = await adminClient.rpc('provider_secret_audit', { p_actor: user.id, p_connection_id: connectionId, p_action: 'put_secret', p_reason: input.reason });
-      if (auditError) return json({ error: 'vault_unavailable' }, 503);
-      return json({ present: true, rotated_at: new Date().toISOString() });
-    }
-    const { error: revokeError } = await adminClient.rpc('provider_secret_revoke', { p_name: name });
-    if (revokeError) return json({ error: 'vault_unavailable' }, 503);
-    const { error: auditError } = await adminClient.rpc('provider_secret_audit', { p_actor: user.id, p_connection_id: connectionId, p_action: 'revoke_secret', p_reason: input.reason });
-    if (auditError) return json({ error: 'vault_unavailable' }, 503);
-    return json({ present: false, rotated_at: null });
-  } catch {
-    return json({ error: 'vault_unavailable' }, 503);
-  }
-});
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SECRET_KEY=/^[a-z][a-z0-9_]{1,63}$/; const MAX_SECRET_LENGTH=16384;
+const allowedOrigin=Deno.env.get('DAO_FRONTEND_ORIGIN')??'https://dao-dev.logiclab.fr';
+const cors={'access-control-allow-origin':allowedOrigin,'access-control-allow-headers':'authorization, content-type, apikey, x-client-info, x-supabase-client-info','access-control-allow-methods':'POST, OPTIONS','vary':'Origin'};
+const json=(body:Record<string,unknown>,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json',...cors}});
+const vaultName=(id:string,key:string)=>`dao-provider/${id}/${key}`;
+async function adminUser(request:Request,url:string,anonKey:string,serviceKey:string){const authorization=request.headers.get('authorization');if(!authorization?.startsWith('Bearer '))return null;const userClient=createClient(url,anonKey,{global:{headers:{Authorization:authorization}}});const {data:{user},error}=await userClient.auth.getUser();if(error||!user)return null;const adminClient=createClient(url,serviceKey);const {data:roles,error:roleError}=await adminClient.from('user_roles').select('role').eq('user_id',user.id).eq('role','dao_admin').limit(1);if(roleError||!roles?.length)return null;return {user,adminClient};}
+Deno.serve(async(request)=>{if(request.method==='OPTIONS')return new Response(null,{status:204,headers:cors});if(request.method!=='POST')return json({error:'method_not_allowed'},405);const url=Deno.env.get('SUPABASE_URL'),anonKey=Deno.env.get('SUPABASE_ANON_KEY'),serviceKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');if(!url||!anonKey||!serviceKey)return json({error:'unauthorized'},401);const session=await adminUser(request,url,anonKey,serviceKey);if(!session)return json({error:'forbidden'},403);let input:any;try{input=await request.json();}catch{return json({error:'invalid_request'},400)}
+ const action=input.action??(input.value===undefined?'revoke':'put');const id=typeof input.connection_id==='string'?input.connection_id:'';const key=typeof input.key==='string'?input.key:'';const reason=typeof input.reason==='string'?input.reason.trim():'';
+ if(!UUID.test(id)||!SECRET_KEY.test(key)||reason.length<5||reason.length>500)return json({error:'invalid_request'},400);
+ const {data:allowed,error:allowError}=await session.adminClient.rpc('provider_secret_connection_allowed',{p_connection_id:id,p_key:key});if(allowError||allowed!==true)return json({error:'invalid_request'},400);
+ if(action==='test_connection'){
+   if(key!=='api_key')return json({error:'invalid_request'},400);
+   const {data:secret,error:readError}=await session.adminClient.rpc('provider_secret_read',{p_name:vaultName(id,key)});
+   if(readError||typeof secret!=='string'||!secret)return json({status:'unconfigured',reason:'credentials_missing'},200);
+   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),8000);let status='error',reasonCode='provider_unavailable';
+   try{const response=await fetch('https://api.hellosign.com/v3/account',{method:'GET',headers:{Authorization:'Basic '+btoa(secret+':')},signal:controller.signal});if(response.ok){status='verified';reasonCode='provider_reachable';}else if(response.status===401||response.status===403){status='error';reasonCode='credentials_rejected';}else reasonCode='provider_http_error';}catch{reasonCode='provider_unavailable';}finally{clearTimeout(timer);}
+   const {error:recordError}=await session.adminClient.rpc('provider_secret_record_check',{p_connection_id:id,p_status:status,p_reason_code:reasonCode,p_actor:session.user.id,p_reason:reason});if(recordError)return json({error:'check_unavailable'},503);return json({status,reason:reasonCode},200);
+ }
+ if(!['put','revoke'].includes(String(action)))return json({error:'invalid_request'},400);
+ if(action==='put'&&(typeof input.value!=='string'||input.value.length<1||input.value.length>MAX_SECRET_LENGTH||/[\u0000\r\n]/.test(input.value)))return json({error:'invalid_secret'},400);
+ try{if(action==='put'){const {error}=await session.adminClient.rpc('provider_secret_put',{p_name:vaultName(id,key),p_value:input.value});if(error)return json({error:'vault_unavailable'},503);const {error:auditError}=await session.adminClient.rpc('provider_secret_audit',{p_actor:session.user.id,p_connection_id:id,p_action:'put_secret',p_reason:reason});if(auditError)return json({error:'vault_unavailable'},503);return json({present:true,rotated_at:new Date().toISOString()});}
+ const {error:revokeError}=await session.adminClient.rpc('provider_secret_revoke',{p_name:vaultName(id,key)});if(revokeError)return json({error:'vault_unavailable'},503);const {error:auditError}=await session.adminClient.rpc('provider_secret_audit',{p_actor:session.user.id,p_connection_id:id,p_action:'revoke_secret',p_reason:reason});if(auditError)return json({error:'vault_unavailable'},503);return json({present:false,rotated_at:null});}catch{return json({error:'vault_unavailable'},503)}});
