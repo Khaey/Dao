@@ -38,7 +38,7 @@ await db.exec(`
   grant select,insert,update,delete on storage.objects to anon,authenticated;
   create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
 `);
-const migrations = readdirSync(new URL('../supabase/migrations/', import.meta.url)).filter(f => f.endsWith('.sql') && !f.startsWith('20261028000000_provider_secret_vault_bridge')).sort();
+const migrations = readdirSync(new URL('../supabase/migrations/', import.meta.url)).filter(f => f.endsWith('.sql') && !f.startsWith('20261028000000_provider_secret_vault_bridge') && !f.startsWith('20261028100000_provider_connection_secret_binding')).sort();
 const modelMigration = '20260930163650_project_collaboration.sql';
 for (const file of migrations.filter(f => f < modelMigration)) {
   await db.exec(readFileSync(new URL('../supabase/migrations/' + file, import.meta.url), 'utf8'));

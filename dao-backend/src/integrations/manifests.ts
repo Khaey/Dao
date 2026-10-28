@@ -34,10 +34,10 @@ export type ProviderManifest = Readonly<{
  */
 export const PROVIDER_MANIFESTS: readonly ProviderManifest[] = Object.freeze([
   Object.freeze({
-    providerId: 'dropbox_sign_test', manifestVersion: '1', label: 'Dropbox Sign TEST',
+    providerId: 'dropbox_sign_test', manifestVersion: '2', label: 'Dropbox Sign TEST',
     category: 'signature', status: 'installed', adapterVersion: '1.0.0-test', countries: ['TN'],
     capabilities: ['signature.sequential', 'signature.evidence'], environments: ['sandbox'],
-    authModes: ['api_key'], liveLocked: true, connectionCheckSupported: false, fields: [],
+    authModes: ['api_key'], liveLocked: true, connectionCheckSupported: false, fields: [{ key: 'api_key', label: 'Clé API Dropbox Sign TEST', help: 'Clé sandbox Dropbox Sign, conservée uniquement dans le coffre serveur.', required: true, type: 'text', secret: true }],
   } satisfies ProviderManifest),
   Object.freeze({
     providerId: 'ngsign', manifestVersion: '1', label: 'NGSign', category: 'signature',

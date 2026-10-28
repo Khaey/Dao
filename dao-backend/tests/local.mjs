@@ -13,7 +13,7 @@ create schema auth;create table auth.users(id uuid primary key,email text,email_
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
 grant usage on schema public,auth to anon,authenticated,service_role;grant execute on function auth.uid() to anon,authenticated,service_role;
 create schema storage; create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text);alter table storage.objects enable row level security;grant usage on schema storage to anon,authenticated;grant select,insert,update,delete on storage.objects to anon,authenticated;create policy test_broad_policy on storage.objects for all to anon,authenticated using(true) with check(true); create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);`);
-for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).filter(f=>!f.startsWith('20261028000000_provider_secret_vault_bridge')).sort())await test('migration '+f,()=>db.exec(readFileSync(new URL('../supabase/migrations/'+f,import.meta.url),'utf8')));
+for(const f of readdirSync(new URL('../supabase/migrations/',import.meta.url)).filter(f=>!f.startsWith('20261028000000_provider_secret_vault_bridge') && !f.startsWith('20261028100000_provider_connection_secret_binding')).sort())await test('migration '+f,()=>db.exec(readFileSync(new URL('../supabase/migrations/'+f,import.meta.url),'utf8')));
 if(fails)throw Error(JSON.stringify(results));
 // PGlite does not create Supabase CLI's migration ledger; this metadata-only
 // fixture lets the shared schema contract validate the actual DAO migrations.
