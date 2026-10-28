@@ -42,6 +42,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Invitations : jeton aléatoire stocké haché, expirant, révocable, usage unique ; l'email transporte la même invitation (aucun détail privé). | Livré | BUSINESS_RULES §21–22 |
 | Isolation : un Artisan ne voit jamais les offres, prix, groupes ou documents d'un concurrent ; connaître un ID ne contourne pas l'autorisation. | Permanent | BUSINESS_RULES §17–18 |
 | Gestionnaire (`dao_reviewer`) : back-office sur le périmètre staff/chantiers affectés ; peut **préparer ou proposer** (avec auteur, motif, version), jamais accepter à la place du Client ou de l'Artisan ni modifier un accord accepté. | Livré / P10 | D-038, D-042, #408 §5 |
+| Espaces staff distincts : **Admin** = pilotage plateforme (gouvernance, paramètres, délégations, audit) ; **Gestionnaire** = suivi opérationnel. « Suivi terrain » ne liste que les chantiers où l'utilisateur staff est **affecté** (`review_assignments`) ; l'Admin non affecté n'a pas de suivi natif, il garde le back-office global. | Livré | #441 (#442, #444, #447, #452), #501 |
 | Messagerie privée liée aux memberships actifs, append-only, sans accès staff automatique. | Livré | D-044, #116 |
 
 ## 2. Projet, lots et sous-lots officiels
