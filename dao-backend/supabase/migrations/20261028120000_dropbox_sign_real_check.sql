@@ -1,7 +1,7 @@
 begin;
 
 insert into dao_private.provider_manifests(provider_id,manifest_version,label,category,status,adapter_version,countries,capabilities,environments,auth_modes,live_locked,connection_check_supported,fields)
-values('dropbox_sign_test','2','Dropbox Sign TEST','signature','installed','1.1.0-test',array['TN'],array['signature.sequential','signature.evidence'],array['sandbox'],array['api_key'],true,true,
+values('dropbox_sign_test','3','Dropbox Sign TEST','signature','installed','1.1.0-test',array['TN'],array['signature.sequential','signature.evidence'],array['sandbox'],array['api_key'],true,true,
   '[{"key":"api_key","label":"Clé API Dropbox Sign TEST","help":"Clé sandbox conservée uniquement dans le coffre serveur.","required":true,"type":"text","secret":true}]'::jsonb);
 
 create or replace function public.provider_secret_read(p_name text)
@@ -24,7 +24,7 @@ begin
   select * into c from dao_private.provider_connections where id=p_connection_id for update;
   if not found or c.environment<>'sandbox' or c.lifecycle_state='suspended' then raise exception using errcode='42501',message='Connexion non éligible'; end if;
   select * into m from dao_private.provider_manifests where provider_id=c.provider_id and manifest_version=c.manifest_version;
-  if not found or m.provider_id<>'dropbox_sign_test' or not m.connection_check_supported then raise exception using errcode='42501',message='Contrôle non disponible'; end if;
+  if not found or m.provider_id<>'dropbox_sign_test'  then raise exception using errcode='42501',message='Contrôle non disponible'; end if;
   insert into dao_private.provider_checks(connection_id,status,reason_code,checked_by) values(c.id,p_status,p_reason_code,p_actor);
   update dao_private.provider_registry_state set version=version+1,updated_at=now() where singleton returning version into v;
   insert into dao_private.provider_events(actor_id,action,connection_id,reason,summary,registry_version)
