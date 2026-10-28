@@ -1,4 +1,5 @@
 begin;
+update dao_private.provider_manifests set fields='[{"key":"api_key","label":"Clé API Dropbox Sign TEST","help":"Clé sandbox Dropbox Sign, conservée uniquement dans le coffre serveur.","required":true,"type":"text","secret":true}]'::jsonb where provider_id='dropbox_sign_test' and manifest_version='1';
 alter table dao_private.provider_events drop constraint if exists provider_events_action_check;
 alter table dao_private.provider_events add constraint provider_events_action_check check(action in ('create_connection','update_connection','test_connection','suspend','resume','set_default','put_secret','revoke_secret'));
 
