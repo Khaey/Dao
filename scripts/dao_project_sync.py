@@ -37,7 +37,12 @@ def owner_issue(body):
     return int(match.group(1)) if match else None
 
 
-def priority(item):
+def priority(item, current=None):
+    """Use explicit issue priority; preserve P0-P3 set manually in GitHub Projects.
+
+    Only title, label and the first 50 description lines are authoritative;
+    incidental prose mentioning an old P1 must not overwrite manual selections.
+    """
     found = re.search(r"(?<!\w)P([0-3])(?![\w.])", item.get("title") or "", re.I)
     if found:
         return "P" + found.group(1)
@@ -46,6 +51,14 @@ def priority(item):
         tagged = re.search(r"(?<!\w)P([0-3])(?!\w)", name, re.I)
         if tagged:
             return "P" + tagged.group(1)
+    header = re.search(
+        r"(?im)^\s*(?:#{1,4}\s*)?(?:\*\*)?(?:priorit[ée]|priority)"
+        r"(?:\*\*)?\s*[:—-]\s*(?:\*\*)?\s*P([0-3])\b",
+        "\n".join((item.get("body") or "").splitlines()[:50]))
+    if header:
+        return "P" + header.group(1)
+    if current in ("P0", "P1", "P2", "P3"):
+        return current
     return "Non définie"
 
 
@@ -345,7 +358,7 @@ def synchronize(g, owner, number, registry, dry_run):
         values = (
             ("Status", status(item, kind == "issue" and n in linked, now), "status"),
             ("Agent", owners.get(ref, "Non attribué"), "agent"),
-            ("Priorité", priority(item), "priority"),
+            ("Priorité", priority(item, (row.get("p") or {}).get("name")), "priority"),
             ("Domaine", domain(item), "domain"),
             ("État GitHub", evidence(item, kind == "issue" and n in linked,
                                      min(linked[n]) if kind == "issue" and n in linked else None, now), "evidence"),
