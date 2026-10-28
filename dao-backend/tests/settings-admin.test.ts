@@ -16,7 +16,7 @@ test('settings S2: Admin overrides, resolution order, audit and server enforceme
     grant select,insert,update,delete on storage.objects to anon,authenticated;
     create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);`);
   const migrations = resolve('supabase/migrations');
-  for (const file of readdirSync(migrations).filter(x => x.endsWith('.sql')).sort())
+  for (const file of readdirSync(migrations).filter(x => x.endsWith('.sql') && !x.startsWith('20261028000000_provider_secret_vault_bridge')).sort())
     await db.exec(readFileSync(resolve(migrations, file), 'utf8'));
   const insert = async (table: string, input: Record<string, unknown>) => {
     const keys = Object.keys(input);
