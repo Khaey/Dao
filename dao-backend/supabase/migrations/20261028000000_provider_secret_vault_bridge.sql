@@ -50,10 +50,10 @@ as $$
          (select updated_at from vault.secrets where name=p_name);
 $$;
 
-revoke all on function public.provider_secret_put(text) from public, anon, authenticated;
+revoke all on function public.provider_secret_put(text, text) from public, anon, authenticated;
 revoke all on function public.provider_secret_revoke(text) from public, anon, authenticated;
 revoke all on function public.provider_secret_presence(text) from public, anon, authenticated;
-grant execute on function public.provider_secret_put(text) to service_role;
+grant execute on function public.provider_secret_put(text, text) to service_role;
 grant execute on function public.provider_secret_revoke(text) to service_role;
 grant execute on function public.provider_secret_presence(text) to service_role;
 
