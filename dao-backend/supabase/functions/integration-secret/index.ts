@@ -39,15 +39,22 @@ Deno.serve(async (request) => {
   if (typeof input.reason !== 'string' || input.reason.trim().length < 5 || input.reason.length > 500) return json({ error: 'invalid_reason' }, 400);
   if (action === 'put' && (typeof input.value !== 'string' || input.value.length < 1 || input.value.length > MAX_SECRET_LENGTH || /[\u0000\r\n]/.test(input.value))) return json({ error: 'invalid_secret' }, 400);
 
+  const { data: allowed, error: allowError } = await adminClient.rpc('provider_secret_connection_allowed', { p_connection_id: connectionId, p_key: key });
+  if (allowError || allowed !== true) return json({ error: 'invalid_request' }, 400);
+
   const name = vaultName(connectionId, key);
   try {
     if (action === 'put') {
       const { error } = await adminClient.rpc('provider_secret_put', { p_name: name, p_value: input.value });
       if (error) return json({ error: 'vault_unavailable' }, 503);
+      const { error: auditError } = await adminClient.rpc('provider_secret_audit', { p_actor: user.id, p_connection_id: connectionId, p_action: 'put_secret', p_reason: input.reason });
+      if (auditError) return json({ error: 'vault_unavailable' }, 503);
       return json({ present: true, rotated_at: new Date().toISOString() });
     }
     const { error: revokeError } = await adminClient.rpc('provider_secret_revoke', { p_name: name });
     if (revokeError) return json({ error: 'vault_unavailable' }, 503);
+    const { error: auditError } = await adminClient.rpc('provider_secret_audit', { p_actor: user.id, p_connection_id: connectionId, p_action: 'revoke_secret', p_reason: input.reason });
+    if (auditError) return json({ error: 'vault_unavailable' }, 503);
     return json({ present: false, rotated_at: null });
   } catch {
     return json({ error: 'vault_unavailable' }, 503);
