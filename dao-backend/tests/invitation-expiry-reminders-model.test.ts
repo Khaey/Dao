@@ -16,7 +16,7 @@ test('notifications S2: private invitation expiry reminder engine (PGlite, not r
     grant select,insert,update,delete on storage.objects to anon,authenticated;
     create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);`);
   const directory=resolve('supabase/migrations');
-  for(const file of readdirSync(directory).filter(x=>x.endsWith('.sql')&&!x.startsWith('20261028000000_provider_secret_vault_bridge')).sort())
+  for(const file of readdirSync(directory).filter(x=>x.endsWith('.sql')&&!x.startsWith('20261028000000_provider_secret_vault_bridge') && !x.startsWith('20261028100000_provider_connection_secret_binding')).sort())
     await db.exec(readFileSync(resolve(directory,file),'utf8'));
   async function insert(table:string,input:Record<string,unknown>){
     const keys=Object.keys(input);return (await db.query<any>(`insert into public.${table}(${keys.join(',')}) values(${keys.map((_,i)=>'$'+(i+1)).join(',')}) returning *`,Object.values(input))).rows[0];
