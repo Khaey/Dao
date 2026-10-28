@@ -733,3 +733,5 @@ BEGIN
   RAISE NOTICE 'schema contract passed: migrations, RLS, event trigger, RPCs, immutability, Storage, trades, and E2E seed';
 END
 $schema_contract$;
+
+-- #515 real sandbox check contract.
