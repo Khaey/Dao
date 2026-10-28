@@ -48,6 +48,7 @@ export type IntegrationEvent = { id: string; at: string; actor: string | null; a
 const ACTION_LABEL: Record<string, string> = {
   create_connection: 'Connexion ajoutée', update_connection: 'Paramètres modifiés', test_connection: 'Test de connexion',
   suspend: 'Connexion suspendue', resume: 'Connexion reprise', set_default: 'Défaut modifié',
+  put_secret: 'Secret enregistré', revoke_secret: 'Secret révoqué',
 };
 export function describeEvent(ev: IntegrationEvent) {
   const s = ev.summary ?? {}, parts: string[] = [];
