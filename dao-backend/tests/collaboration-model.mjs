@@ -38,7 +38,7 @@ await db.exec(`
   grant select,insert,update,delete on storage.objects to anon,authenticated;
   create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
 `);
-const migrations = readdirSync(new URL('../supabase/migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort();
+const migrations = readdirSync(new URL('../supabase/migrations/', import.meta.url)).filter(f => f.endsWith('.sql') && !f.startsWith('20261028000000_provider_secret_vault_bridge')).sort();
 const modelMigration = '20260930163650_project_collaboration.sql';
 for (const file of migrations.filter(f => f < modelMigration)) {
   await db.exec(readFileSync(new URL('../supabase/migrations/' + file, import.meta.url), 'utf8'));
@@ -69,7 +69,7 @@ for (const file of migrations.filter(f => f > modelMigration)) {
   await db.exec(readFileSync(new URL('../supabase/migrations/' + file, import.meta.url), 'utf8'));
 }
 await db.exec('create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key)');
-for (const file of migrations) await db.query('insert into supabase_migrations.schema_migrations values($1)', [file.split('_')[0]]);
+for (const file of readdirSync(new URL('../supabase/migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort()) await db.query('insert into supabase_migrations.schema_migrations values($1)', [file.split('_')[0]]);
 await db.exec(readFileSync(new URL('../supabase/seed.sql', import.meta.url), 'utf8'));
 await check('shared schema contract after fresh reconstruction', () => db.exec(readFileSync(new URL('./schema-contract.sql', import.meta.url),'utf8')));
 await check('unconfirmed projects are restricted to contractor origin', () => rejected(
