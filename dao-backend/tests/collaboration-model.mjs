@@ -69,7 +69,7 @@ for (const file of migrations.filter(f => f > modelMigration)) {
   await db.exec(readFileSync(new URL('../supabase/migrations/' + file, import.meta.url), 'utf8'));
 }
 await db.exec('create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key)');
-for (const file of migrations) await db.query('insert into supabase_migrations.schema_migrations values($1)', [file.split('_')[0]]);
+for (const file of readdirSync(new URL('../supabase/migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort()) await db.query('insert into supabase_migrations.schema_migrations values($1)', [file.split('_')[0]]);
 await db.exec(readFileSync(new URL('../supabase/seed.sql', import.meta.url), 'utf8'));
 await check('shared schema contract after fresh reconstruction', () => db.exec(readFileSync(new URL('./schema-contract.sql', import.meta.url),'utf8')));
 await check('unconfirmed projects are restricted to contractor origin', () => rejected(
