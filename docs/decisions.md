@@ -187,6 +187,17 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Droits : **Admin D.A.O. seul** (`settings_require_admin`) ; `catalog.trades.active` reste `delegable=false`, donc aucun Gestionnaire, Client ou Artisan n'administre le référentiel. Une délégation Gestionnaire exigerait une nouvelle décision. | Livré | #547 |
 | Contrat de l'assistant préservé : `btp_catalog_snapshot` garde la même forme, filtre explicitement la version publiée et les éléments actifs ; un élément désactivé disparaît du catalogue publié (ids d'un brouillon assistant devenus inconnus refusés comme avant). | Livré | #547, #543 |
 
+## 12 ter. Base de prix et estimation budgétaire (#551)
+
+| Décision | État | Source |
+| --- | --- | --- |
+| Modèle de **tarifs sourcés** propre à #551 (`btp_price_*`) relié aux ids canoniques du référentiel ; les tables vides `btp_price_books`/`btp_work_prices` de #541 ne sont pas utilisées. Aucun prix livré : sans source réelle vérifiée, l'estimation est « indisponible ». | Livré | [#551](https://github.com/Khaey/Dao/issues/551), [btp-estimates.md](product/btp-estimates.md) |
+| Prix observé (barème vérifié), hypothèse privée du chantier et prix d'offre **jamais mélangés** : les offres ne sont pas lues ; les hypothèses privées exigent un choix explicite et ne sont jamais « vérifiées ». | Livré | #551 |
+| Un tarif observé n'est utilisable qu'après **vérification par un Admin différent de son auteur** ; révisions et événements append-only ; données de test `fictitious_test` utilisables seulement en mode simulation. | Livré | #551 |
+| Moteur déterministe en base (`estimate-rules-v1`), revérifié en TypeScript : unité identique, période valide, TND sans conversion, gouvernorat > national, TVA seulement explicite, arrondi au millime ; état `complete / partial / unavailable`, jamais de total complet trompeur. | Livré | #551 |
+| Estimation **non contractuelle** ; « retenir comme référence » fige une révision sans effet juridique ou financier ; un recalcul ne la modifie jamais. Accès Client propriétaire, Gestionnaire affecté, Admin ; jamais un Artisan. | Livré | #551 |
+| Quantités : métré validé #548 (lu par contrat) ou quantité déclarée signalée non validée ; aucun second moteur de métrés. | Livré (raccordement réel après #550) | #548, #551 |
+
 ## Questions ouvertes (ne pas trancher sans le propriétaire)
 
 - Signature électronique : fournisseur, niveau de signature, preuves, revue juridique tunisienne (#383).

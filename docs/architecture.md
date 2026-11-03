@@ -113,3 +113,13 @@ dans Supabase et reste indépendant de tout assistant conversationnel. Sa lectur
 par un RPC `SECURITY INVOKER` et la route serveur `GET /api/btp/catalog`; les écritures restent
 réservées aux migrations revues. Voir [product/btp-reference.md](product/btp-reference.md) pour le
 contrat, les limites et la préparation des métrés et estimations.
+
+### Base de prix et estimation (#551)
+
+Tarifs sourcés (`btp_price_sources`, `btp_price_items` + révisions/événements append-only) et
+estimations (`btp_estimates` + révisions immuables) en lecture RLS, écrits seulement par
+`btp_price_command_v1` / `btp_estimate_command_v1`. Le calcul autoritaire est en base
+(`dao_private.btp_estimate_compute`), revérifié en BigInt par `dao-backend/src/btp-estimate/engine.ts`.
+Routes `GET|POST /api/btp/prices` et `/api/btp/estimates`. Les métrés #548 sont lus par contrat
+(`to_regclass('public.btp_takeoffs')`), sans dépendance de migration. Voir
+[product/btp-estimates.md](product/btp-estimates.md).

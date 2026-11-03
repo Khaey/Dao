@@ -37,6 +37,8 @@ import { ProjectAssistantService } from '../assistant/service.js';
 import { DaoReferentialProvider } from '../assistant/referential/daoReferential.js';
 import { BtpReferenceService } from '../services/BtpReferenceService.js';
 import { createBtpReferenceHandler } from './btpReferenceHandler.js';
+import { BtpEstimateService } from '../services/BtpEstimateService.js';
+import { createBtpEstimateHandler, createBtpPriceHandler } from './btpEstimateHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -70,6 +72,18 @@ export function createSupportApi(request: Request) {
 export function createBtpReferenceApi(request:Request) {
   const {db,resolveActor}=requestScope(request);
   return createBtpReferenceHandler(new BtpReferenceService(db),resolveActor);
+}
+
+/** Sourced BTP prices (#551). Every rule is enforced in the database under the caller's JWT. */
+export function createBtpPriceApi(request:Request) {
+  const {db,resolveActor}=requestScope(request);
+  return createBtpPriceHandler(new BtpEstimateService(db),resolveActor);
+}
+
+/** Deterministic, non-contractual project estimates (#551). Never writes quotes, offers, contracts or payments. */
+export function createBtpEstimateApi(request:Request) {
+  const {db,resolveActor}=requestScope(request);
+  return createBtpEstimateHandler(new BtpEstimateService(db),resolveActor);
 }
 
 export function createRfiApi(request: Request) {

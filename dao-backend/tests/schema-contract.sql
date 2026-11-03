@@ -37,6 +37,8 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261103152820'];
   expected_versions := expected_versions || ARRAY['20261103170000'];
   expected_versions := expected_versions || ARRAY['20261103210000'];
+  expected_versions := expected_versions || ARRAY['20261103230000'];
+  expected_tables := expected_tables || ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events'];
   expected_tables := expected_tables || ARRAY['project_assistant_drafts','project_assistant_draft_revisions','project_assistant_scope_links'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
@@ -311,6 +313,26 @@ BEGIN
      OR has_table_privilege('anon','public.native_installment_scope_proposals','SELECT') THEN
     RAISE EXCEPTION 'schema contract: installment scope history must stay behind JWT-scoped RPCs';
   END IF;
+  -- #551 : tarifs et estimations écrits uniquement par RPC, jamais lisibles par anon.
+  FOR missing_name IN SELECT unnest(ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events']) LOOP
+    IF has_table_privilege('authenticated','public.'||missing_name,'INSERT')
+       OR has_table_privilege('authenticated','public.'||missing_name,'UPDATE')
+       OR has_table_privilege('authenticated','public.'||missing_name,'DELETE')
+       OR has_table_privilege('anon','public.'||missing_name,'SELECT') THEN
+      RAISE EXCEPTION 'schema contract: % must stay RPC-only and closed to anon',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.btp_price_command_v1(text,jsonb,text)',
+    'public.btp_price_list_v1(uuid)',
+    'public.btp_estimate_command_v1(text,jsonb,text)',
+    'public.btp_estimate_snapshot_v1(uuid)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+       OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: price/estimate RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
   FOR missing_name IN SELECT unnest(ARRAY[
     'public.native_execution_plan_v1(uuid,uuid,integer)',
     'public.native_execution_dependencies_v1(uuid)',

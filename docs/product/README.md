@@ -34,6 +34,7 @@ et réserves
 | Dossier documentaire V2 (plans versionnés, lots, revue technique) | [document-dossier-v2.md](document-dossier-v2.md) | #456 |
 | Réception technique et réserves | Spécification dans [#425](https://github.com/Khaey/Dao/issues/425) ; résumé [decisions.md §9](../decisions.md#9-réception-technique-et-réserves-p11) | #425, #438 |
 | Assistant BTP (description libre → chantier) et contrat du référentiel | [assistant-btp.md](assistant-btp.md) | #543, #541 |
+| Base de prix BTP sourcés et estimation budgétaire justifiée (non contractuelle) | [btp-estimates.md](btp-estimates.md) | #551 |
 | Paramètres (moteur Settings) | [settings-engine.md](settings-engine.md), spécification S0 [#423](https://github.com/Khaey/Dao/issues/423#issuecomment-6392554996) | #423, #426, #126 |
 | Messagerie et assistance | [messages-assistance.md](../messages-assistance.md) | #116, #271, #273 |
 | Notifications | [notifications-s1.md](../notifications-s1.md), [notifications-s2.md](../notifications-s2.md) | #231 |
