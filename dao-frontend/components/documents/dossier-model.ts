@@ -54,7 +54,7 @@ export async function uploadSignedProjectFile(path: string, token: string, file:
 }
 
 export const idempotencyKey = () => `doc-${crypto.randomUUID()}`;
-export const formatDateTime = (value?: string | null) => value ? new Intl.DateTimeFormat('fr-TN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '';
+export const formatDateTime = (value?: string | null) => value ? new Intl.DateTimeFormat('fr-TN', { dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' }).format(new Date(value)) : '';
 
 export function loadDossier(projectId: string, requestId?: string | null) {
   const query = new URLSearchParams({ project_id: projectId });

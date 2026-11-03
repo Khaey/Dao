@@ -112,4 +112,4 @@ export function openAssistant() {
   window.dispatchEvent(new CustomEvent('dao:open-assistant'));
 }
 
-export const formatSupportDate = (value: string) => new Date(value).toLocaleString('fr-TN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+export const formatSupportDate = (value: string) => new Date(value).toLocaleString('fr-TN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });

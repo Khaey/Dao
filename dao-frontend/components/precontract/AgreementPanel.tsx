@@ -16,7 +16,7 @@ const field = 'mt-1.5 w-full rounded-xl border border-black/10 bg-white px-3.5 p
 const secondary = 'bg-white text-ink ring-1 ring-black/10 hover:bg-sand';
 const other = (role: PartyRole): PartyRole => role === 'client' ? 'contractor' : 'client';
 const fmtDate = (value?: string | null) => value ? new Intl.DateTimeFormat('fr-TN', { dateStyle: 'long' }).format(new Date(`${value}T00:00:00`)) : 'Non précisée';
-const fmtStamp = (value: string) => new Intl.DateTimeFormat('fr-TN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+const fmtStamp = (value: string) => new Intl.DateTimeFormat('fr-TN', { dateStyle: 'medium', timeStyle: 'short', hourCycle: 'h23' }).format(new Date(value));
 const shortHash = (hash: string) => hash.slice(0, 12);
 
 type Phase = 'loading' | 'ready' | 'unavailable' | 'error';
