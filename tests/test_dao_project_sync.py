@@ -73,6 +73,46 @@ class ProjectSyncTests(unittest.TestCase):
         self.assertEqual(sync.domain({"title":"Back-office Gestionnaire"}), "Gestionnaire")
         self.assertEqual(sync.domain({"title":"Divers"}), "Autre")
 
+    def test_priority_from_explicit_body_header(self):
+        self.assertEqual(sync.priority({"title": "OCE Engine",
+                                        "body": "## Priorité : P1\n\nDétails"}), "P1")
+        self.assertEqual(sync.priority({"title": "Planning",
+                                        "body": "**Priority: P2**\nSuite"}), "P2")
+        self.assertEqual(sync.priority({"title": "Planning",
+                                        "body": "Contexte : voir le lot P1 historique."}), "Non définie")
+
+    def test_priority_preserves_project_manual_assignment(self):
+        self.assertEqual(sync.priority({"title": "Étude", "body": "Voir P1 autre part"},
+                                       current="P2"), "P2")
+        self.assertEqual(sync.priority({"title": "P1 — incident"}, current="P2"), "P1")
+        self.assertEqual(sync.priority({"title": "Étude"}, current="Non définie"), "Non définie")
+
+    def test_sync_does_not_erase_manual_priority(self):
+        class FakeGithub:
+            def __init__(self):
+                self.updates = []
+            def paged(self, path):
+                if "/pulls?" in path:
+                    return iter([])
+                return iter([{"number": 58, "state": "open", "title": "OCE Engine",
+                              "node_id": "node58"}])
+            def graphql(self, query, **kwargs):
+                self.updates.append(kwargs["input"])
+                return {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "row"}}}
+        g = FakeGithub()
+        fields = {"Priorité": {"id": "priorityfield", "options": [
+            {"id": "p1", "name": "P1"}, {"id": "p2", "name": "P2"},
+            {"id": "none", "name": "Non définie"}]}}
+        rows = {("issue", 58): {"id": "row", "p": {"name": "P1"}}}
+        with tempfile.TemporaryDirectory() as folder:
+            reg = Path(folder) / "registry.json"
+            reg.write_text(json.dumps({"missions": []}), encoding="utf-8")
+            with (patch.object(sync, "get_project", return_value=("project", fields)),
+                  patch.object(sync, "create_fields"),
+                  patch.object(sync, "read_items", return_value=rows)):
+                sync.synchronize(g, "Khaey", 3, reg, False)
+        self.assertEqual(g.updates, [])
+
     def test_priority_from_issue_label(self):
         self.assertEqual(sync.priority({"title": "Work", "labels": [{"name": "P1"}]}), "P1")
 
