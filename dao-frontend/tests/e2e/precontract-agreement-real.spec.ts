@@ -100,5 +100,19 @@ test('Accord avant contrat #346 réel : Client propose, Artisan attributaire acc
   const wonLot = artisan.getByRole('region', { name: 'Mes chantiers attribués' }).getByRole('listitem').filter({ hasText: lotTitle });
   await expect(wonLot.getByText('Lot retenu · Conditions convenues', { exact: true })).toBeVisible();
   await expect(artisan.getByRole('link', { name: `Conditions — ${lotTitle}` })).toHaveAttribute('href', `/app/awards/${award.award_id}/conditions`);
+  // #175 (décision 03/11): once work is logged, the plan keeps the AGREED dates as reference
+  // and shows the observed ones underneath with the start variance, never in their place.
+  await artisan.goto(`/app/native-execution/${project.projectId}?section=journal`);
+  const intervention = artisan.locator('details').filter({ hasText: 'Consigner une intervention' });
+  await intervention.locator('summary').click();
+  await intervention.getByLabel('Rapport court').fill('Démarrage constaté sur site.');
+  await intervention.getByRole('button', { name: 'Ajouter l’intervention' }).click();
+  await expect(artisan.getByRole('status').filter({ hasText: 'Intervention ajoutée' })).toBeVisible();
   await ac.close();
+  await page.goto(`/app/native-execution/${project.projectId}`);
+  await expect(page.getByText('16 nov. 2026 – 27 nov. 2026', { exact: true })).toBeVisible();
+  await expect(page.getByText('Convenues', { exact: true })).toBeVisible();
+  const observedDates = page.getByTestId('observed-dates');
+  await expect(observedDates).toContainText('Constatées :');
+  await expect(observedDates).toContainText(/démarrage \d+ jours? (avant|après) la date prévue|démarrage à la date prévue/);
 });
