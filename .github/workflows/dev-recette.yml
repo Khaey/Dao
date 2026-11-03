@@ -35,6 +35,8 @@ jobs:
   recette:
     name: Recette navigateur DEV
     runs-on: ubuntu-latest
+    # Les secrets DAO_RECETTE_* sont des secrets de l'environnement GitHub « dev ».
+    environment: dev
     timeout-minutes: 30
     # Une seule recette à la fois sur les comptes de test partagés.
     concurrency:

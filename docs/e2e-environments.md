@@ -54,7 +54,8 @@ recette ne remplace pas le FULL E2E jetable ci-dessus : elle vérifie l'applicat
 
 **Comptes de test (secrets du dépôt)**
 
-Réglages : <https://github.com/Khaey/Dao/settings/secrets/actions>. Un rôle sans secret est signalé
+Ce sont des secrets de l'**environnement GitHub `dev`** (le job déclare `environment: dev`).
+Réglages : <https://github.com/Khaey/Dao/settings/environments>, environnement `dev`. Un rôle sans secret est signalé
 « non configuré » et ses scénarios échouent avec un message clair ; les autres rôles tournent.
 
 | Rôle | Email | Mot de passe |
