@@ -42,6 +42,8 @@ export const test = base.extend<RecetteFixtures>({
       const dir = path.join(outputRoot(), "rapport", "captures");
       fs.mkdirSync(dir, { recursive: true });
       const file = path.join(dir, `${testInfo.project.name}-${safe}.png`);
+      // Pas de capture d'un écran encore en chargement (squelettes aria-busy).
+      await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
       await page.screenshot({ path: file, fullPage: true });
       await testInfo.attach(name, { path: file, contentType: "image/png" });
     });
@@ -49,6 +51,12 @@ export const test = base.extend<RecetteFixtures>({
 });
 
 export { expect };
+
+/** Attend que l'écran soit chargé : titre visible et plus de zone aria-busy. */
+export async function waitForContent(page: Page) {
+  await expect(page.locator("main h1").first()).toBeVisible();
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+}
 
 /** Vérifie qu'aucun débordement horizontal n'apparaît (contrôle mobile). */
 export async function expectNoHorizontalOverflow(page: Page) {

@@ -1,4 +1,4 @@
-import { expect, expectNoHorizontalOverflow, test } from "./support";
+import { expect, expectNoHorizontalOverflow, test, waitForContent } from "./support";
 import { ROLES, type Role } from "./roles";
 
 // Recette de base, en lecture seule : aucune écriture sur le DEV partagé.
@@ -9,8 +9,7 @@ for (const role of Object.keys(ROLES) as Role[]) {
     const page = await as(role);
     await page.goto("/app");
     await expect(page).toHaveURL(/\/app(?:[/?#]|$)/);
-    await expect(page.getByText("Chargement du DAO…")).toHaveCount(0);
-    await expect(page.locator("main")).toBeVisible();
+    await waitForContent(page);
     await snap(page, `${role}-tableau-de-bord`);
     await expectNoHorizontalOverflow(page);
   });

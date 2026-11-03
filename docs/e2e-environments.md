@@ -85,7 +85,9 @@ et ne sont pas utilisés ici.
 **Méthode pour un fil**
 
 1. Ajouter un scénario `dao-frontend/tests/dev-recette/<sujet>.spec.ts` dans sa PR, en important
-   `test`, `expect`, `as`, `snap` depuis `./support` (exemple : `smoke.spec.ts`). Les sélecteurs des
+   `test`, `expect`, `as`, `snap`, `waitForContent` depuis `./support` (exemple : `smoke.spec.ts`).
+   Toujours attendre le contenu réel (`waitForContent` ou une assertion sur un texte) avant de
+   conclure : `snap` refuse un écran encore en chargement (`aria-busy`). Les sélecteurs des
    specs `tests/e2e/` sont réutilisables.
 2. Vérifier localement sans réseau : `cd dao-frontend && DAO_DEV_RECETTE=1 npx playwright test
    --config=playwright.recette.config.ts --list`.
