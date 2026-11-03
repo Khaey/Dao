@@ -32,6 +32,9 @@ import { createNativeExecutionActivityHandler } from './nativeExecutionActivityH
 import { createNativeExecutionDependencyHandler } from './nativeExecutionDependencyHandler.js';
 import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
 import { createNativeLotDatesHandler } from './nativeLotDatesHandler.js';
+import { createProjectAssistantHandler } from './projectAssistantHandler.js';
+import { ProjectAssistantService } from '../assistant/service.js';
+import { FixtureReferentialProvider } from '../assistant/referential/fixture.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -190,6 +193,15 @@ export function createNativeExecutionDependencyApi(request: Request) {
 export function createClientOfficialSubLotApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createClientOfficialSubLotHandler(db, resolveActor);
+}
+
+/**
+ * Assistant BTP : JWT-scoped (RLS + RPC SECURITY DEFINER contrôlant le propriétaire).
+ * Référentiel : données fictives conformes au contrat v1 jusqu'à la livraison DEV 5 (#541).
+ */
+export function createProjectAssistantApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createProjectAssistantHandler(new ProjectAssistantService(db as any, new FixtureReferentialProvider()), resolveActor);
 }
 
 /** Native planning dates use the existing DAO lot-plan table without invoking OCE. */
