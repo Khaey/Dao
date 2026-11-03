@@ -34,7 +34,9 @@ import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler
 import { createNativeLotDatesHandler } from './nativeLotDatesHandler.js';
 import { createProjectAssistantHandler } from './projectAssistantHandler.js';
 import { ProjectAssistantService } from '../assistant/service.js';
-import { FixtureReferentialProvider } from '../assistant/referential/fixture.js';
+import { DaoReferentialProvider } from '../assistant/referential/daoReferential.js';
+import { BtpReferenceService } from '../services/BtpReferenceService.js';
+import { createBtpReferenceHandler } from './btpReferenceHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -62,6 +64,12 @@ export function createNotificationApi(request: Request) {
 export function createSupportApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createSupportHandler(new SupportService(db), resolveActor);
+}
+
+/** Published, read-only BTP catalogue. JWT remains required even though every row is non-user data. */
+export function createBtpReferenceApi(request:Request) {
+  const {db,resolveActor}=requestScope(request);
+  return createBtpReferenceHandler(new BtpReferenceService(db),resolveActor);
 }
 
 export function createRfiApi(request: Request) {
@@ -197,11 +205,11 @@ export function createClientOfficialSubLotApi(request: Request) {
 
 /**
  * Assistant BTP : JWT-scoped (RLS + RPC SECURITY DEFINER contrôlant le propriétaire).
- * Référentiel : données fictives conformes au contrat v1 jusqu'à la livraison DEV 5 (#541).
+ * Référentiel : catalogue publié par DEV 5 (#541) via l'adaptateur du contrat v1.
  */
 export function createProjectAssistantApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
-  return createProjectAssistantHandler(new ProjectAssistantService(db as any, new FixtureReferentialProvider()), resolveActor);
+  return createProjectAssistantHandler(new ProjectAssistantService(db as any, new DaoReferentialProvider(db as any)), resolveActor);
 }
 
 /** Native planning dates use the existing DAO lot-plan table without invoking OCE. */

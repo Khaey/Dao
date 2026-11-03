@@ -71,9 +71,12 @@ durée**. `validateReferentialSnapshot()` est le test de conformité : l'assista
 instantané non conforme. Pertinence : `usual` et `verify` sont proposés d'office (`verify` signalé
 « À vérifier »), `conditional` et `optional` sont suggérés seulement.
 
-**Aujourd'hui** : `FixtureReferentialProvider` (données fictives conformes, `completeness: 'fixture'`).
-**À la livraison #541** : un adaptateur lisant l'API publiée par DEV 5 remplace la fixture dans
-`createProjectAssistantApi` (`dao-backend/src/server/runtime.ts`), sans autre changement.
+**Branché** : `DaoReferentialProvider` (`referential/daoReferential.ts`) lit le catalogue publié par
+DEV 5 (#541, RPC `btp_catalog_snapshot`, version `TN-2026.1`) avec le JWT du Client, convertit
+`tradeId` en `tradeCode`, reprend `aliases` comme mots-clés et la provenance de la version ; le
+référentiel est affiché « en cours de constitution » (`completeness: 'partial'`). Les libellés et leurs
+segments servent aussi de mots-clés. `FixtureReferentialProvider` reste l'exemple conforme utilisé
+par les tests unitaires. Un catalogue absent ou non conforme donne une erreur 503 explicite.
 
 ## Données conservées (préparation métrés / estimation)
 

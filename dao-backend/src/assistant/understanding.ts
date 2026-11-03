@@ -12,7 +12,9 @@ export function buildKeywordIndex(items: ReferentialItem[]): KeywordIndex {
   const map = new Map<string, { tokens: string[]; ids: Set<string>; phrase: string }>();
   for (const item of items) {
     if (item.status !== 'published') continue;
-    for (const phrase of [item.label, ...item.keywords]) {
+    // Le libellé et ses segments (« Plomberie et sanitaires » → « plomberie », « sanitaires ») servent de mots-clés.
+    const segments = item.label.split(/,|\s+et\s+|\s+[—–-]\s+|\(|\)/).map(part => part.trim()).filter(part => part.length > 2);
+    for (const phrase of [item.label, ...segments, ...item.keywords]) {
       const parts = tokens(phrase);
       if (!parts.length) continue;
       const key = parts.join(' ');

@@ -15,8 +15,8 @@ test('Assistant BTP : description libre → proposition immédiate → correctio
   await page.getByLabel('Description libre').fill(VILLA);
   await page.getByRole('button', { name: 'Voir la proposition' }).click();
   await expect(page.getByRole('heading', { name: /Construction d’une villa/, level: 1 })).toBeVisible();
-  await expect(page.getByText('Référentiel provisoire (données de démonstration)', { exact: false })).toBeVisible();
-  await expect(page.getByRole('checkbox', { name: /Fondations selon l’étude de sol/ })).toBeChecked();
+  await expect(page.getByText(/Référentiel en cours de constitution · version TN-/)).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: /Fondations selon études/ })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: /Garage/ }).first()).toBeChecked();
   await expect(page.getByText('206 m²')).toBeVisible();
   await expect(page.getByText(/Aucun prix ni budget n’est calculé/)).toBeVisible();
@@ -24,10 +24,10 @@ test('Assistant BTP : description libre → proposition immédiate → correctio
   await expect(page.getByRole('heading', { name: /S’agit-il|Quelles pièces/ })).toHaveCount(0);
 
   // Correction en langage naturel, choix précédents conservés.
-  await page.getByLabel('Modifier avec vos mots').fill('retire le garage et ajoute une clôture');
+  await page.getByLabel('Modifier avec vos mots').fill('retire le garage et ajoute des fenêtres');
   await page.getByRole('button', { name: 'Appliquer' }).click();
   await expect(page.getByText(/sans perdre vos choix précédents/)).toBeVisible();
-  await expect(page.getByRole('checkbox', { name: /Clôture et mur de clôture/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /Menuiseries extérieures/ })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: /^Garage/ })).toHaveCount(0);
   await page.getByLabel('Modifier avec vos mots').fill('ajoute un héliport');
   await page.getByRole('button', { name: 'Appliquer' }).click();
@@ -37,7 +37,7 @@ test('Assistant BTP : description libre → proposition immédiate → correctio
   await page.reload();
   await expect(page.getByText(/Brouillon en cours/)).toBeVisible();
   await page.getByRole('button', { name: 'Reprendre' }).click();
-  await expect(page.getByRole('checkbox', { name: /Clôture et mur de clôture/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /Menuiseries extérieures/ })).toBeChecked();
 
   // Création : gouvernorat requis, puis chantier brouillon persistant.
   await page.getByLabel('Gouvernorat').selectOption({ label: 'Gouvernorat E2E' });

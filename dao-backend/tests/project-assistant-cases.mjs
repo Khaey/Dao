@@ -76,3 +76,28 @@ export async function projectAssistantCases(db, test, { U, gov, as }) {
     } finally { await db.exec('reset role'); }
   });
 }
+
+// Référentiel réel DEV 5 (#541) lu par un Client, adapté au contrat v1 puis exploité par le moteur.
+export async function projectAssistantRealReferentialCases(db, test, { as }) {
+  const eq = (a, b) => { if (a !== b) throw Error(`Expected ${b}, received ${a}`); };
+  const { mapDaoCatalog } = await import('../dist/src/assistant/referential/daoReferential.js');
+  const { validateReferentialSnapshot } = await import('../dist/src/assistant/referential/contract.js');
+  const { buildProposal, initialState, interpretCommand } = await import('../dist/src/assistant/engine.js');
+  await test('assistant: published DEV 5 referential satisfies contract v1 and drives proposals', () => as('clientA', async () => {
+    const catalog = (await db.query("select public.btp_catalog_snapshot(null,'TN') as c")).rows[0].c;
+    const trades = new Map((await db.query('select id,code from public.trades')).rows.map(r => [r.id, r.code]));
+    const snapshot = mapDaoCatalog(catalog, trades);
+    eq(JSON.stringify(validateReferentialSnapshot(snapshot)), '[]');
+    eq(snapshot.items.filter(i => i.kind === 'lot').every(i => i.tradeCode), true);
+    const selected = state => new Set(buildProposal(snapshot, state).items.filter(i => i.selected).map(i => i.code));
+    const villa = initialState('Villa R+1 à Sousse, garage, cuisine séparée, 2 salles de bain, jardin et terrasse si possible, sans piscine, plans absents.', null);
+    const a = selected(villa);
+    for (const code of ['btp_work_foundations', 'btp_work_garage', 'btp_work_kitchen', 'btp_work_terrace', 'btp_work_architectural_plans']) if (!a.has(code)) throw Error('villa missing ' + code);
+    if (a.has('btp_work_pool')) throw Error('pool must stay excluded');
+    const reno = selected(initialState('Rénovation de mon appartement : salle de bain et peinture.', null));
+    for (const code of ['btp_work_foundations', 'btp_work_earthworks', 'btp_lot_earth_structure']) if (reno.has(code)) throw Error('renovation proposes ' + code);
+    const edited = interpretCommand(snapshot, villa, 'retire le garage et ajoute des fenêtres');
+    const e = selected(edited.state);
+    eq(e.has('btp_work_garage'), false); eq(e.has('btp_work_external_joinery'), true);
+  }));
+}
