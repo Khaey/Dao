@@ -46,8 +46,10 @@ test('Assistant BTP : description libre → proposition immédiate → correctio
   await expect(page).toHaveURL(/\/app\/projects\/[0-9a-f-]{36}$/);
   const projectId = page.url().split('/').pop()!;
   recordE2EValue(testInfo, 'projects', projectId);
-  await expect(page.getByText('Plomberie et sanitaires').first()).toBeVisible();
-  await expect(page.getByText('Aménagements extérieurs').first()).toBeVisible();
+  // L'onglet par défaut est la vue d'ensemble : ouvrir l'onglet Lots, comme les autres E2E.
+  await page.getByRole('button', { name: /^Lots/ }).click();
+  await expect(page.locator('tr').filter({ hasText: 'Plomberie et sanitaires' }).first()).toBeVisible();
+  await expect(page.locator('tr').filter({ hasText: 'Aménagements extérieurs' }).first()).toBeVisible();
 
   // Le brouillon transformé n'est plus proposé à la reprise (pas de doublon).
   await page.goto('/app/projects/new/assistant');
