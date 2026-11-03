@@ -8,6 +8,7 @@ import CollaborativeProjectForm from '../../../../components/CollaborativeProjec
 import { cn } from '../../../../lib/utils';
 import { ErrorPanel } from '../_components/ProjectUi';
 import ClientTeamProjectForm from './_components/ClientTeamProjectForm';
+import BtpAssistantProjectForm from './_components/BtpAssistantProjectForm';
 import { controlClass, CreationHeader, describe, Field, FormAlert, formatDay, formatTnd, Panel, StepActions, Stepper, SummaryBlock } from './_components/CreationUi';
 
 type Territory = { id: string; name_fr: string; governorate_id?: string; delegation_id?: string };
@@ -33,10 +34,10 @@ export default function NewProject() {
   if (!ready) return <div aria-busy="true" className="mx-auto max-w-3xl space-y-6"><span className="sr-only">Chargement…</span><div className="h-5 w-28 animate-pulse rounded bg-ink/[0.07]" /><div className="h-9 w-2/3 animate-pulse rounded bg-ink/[0.08]" /><div className="grid gap-4 sm:grid-cols-2">{[0, 1].map(item => <div key={item} className="h-56 animate-pulse rounded-2xl border border-black/[0.04] bg-white" />)}</div></div>;
   if (contractor) return <CollaborativeProjectForm contractor />;
   if (!client) return <div className="mx-auto max-w-3xl"><ErrorPanel title="Création indisponible" message="Un compte client ou artisan est nécessaire pour créer un chantier." backHref="/app/projects" /></div>;
-  if (mode === 'marketplace') return <MarketplaceProjectForm onCancel={() => setMode('')} />;
+  if (mode === 'marketplace') return <BtpAssistantProjectForm onCancel={() => setMode('')} />;
   if (mode === 'existing') return <ClientTeamProjectForm onCancel={() => setMode('')} />;
   const choices = [
-    { id: 'marketplace' as const, icon: Search, title: 'Je cherche des professionnels', text: 'Préparer un DAO pour recevoir des offres.', steps: ['Décrivez le chantier et sa localisation', 'Structurez-le en lots de travaux', 'D.A.O. relit le dossier avant publication'] },
+    { id: 'marketplace' as const, icon: Search, title: 'Je cherche des professionnels', text: 'Décrire librement mon besoin avec l’assistant BTP.', steps: ['Décrivez le chantier avec vos mots', 'Corrigez la proposition immédiate', 'Créez le chantier sans prix ni délais inventés'] },
     { id: 'existing' as const, icon: Users, title: 'J’ai déjà mes artisans / entreprises', text: 'Inviter mon équipe et suivre mes travaux.', steps: ['Décrivez le chantier et son avancement', 'Un lot principal par artisan', 'Chaque artisan reçoit son lien d’invitation'] },
   ];
   return <section className="mx-auto max-w-4xl space-y-8">

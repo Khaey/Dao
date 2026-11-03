@@ -20,6 +20,7 @@ DECLARE
     'document_grants','documents','document_families','document_revisions','document_family_lots','document_dossier_events','governorates','localities','messages',
     'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts','technical_questions','technical_clarifications','technical_rfi_reads','technical_rfi_receipts','technical_rfi_documents',
     'profiles','project_contract_settings','project_members','project_invitations','project_private_details','project_request_versions',
+    'btp_catalog_items','btp_assistant_drafts','project_btp_scope_items',
     'project_requests','project_reviews','project_version_requests','trade_proposals',
     'project_versions','projects','publication_recipients',
     'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','site_technical_inspections','site_technical_inspection_events','site_technical_reserves','site_technical_reserve_events','site_technical_evidence','site_work_situations','site_work_situation_events','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
@@ -33,6 +34,7 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261027031408'];
   expected_versions := expected_versions || ARRAY['20261028000000'];
   expected_versions := expected_versions || ARRAY['20261028100000','20261028120000'];
+  expected_versions := expected_versions || ARRAY['20261103151826'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
     FROM supabase_migrations.schema_migrations;

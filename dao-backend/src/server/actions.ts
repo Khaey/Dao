@@ -6,6 +6,7 @@ import { AwardService } from '../services/AwardService.js';
 import { DocumentService } from '../services/DocumentService.js';
 import { ProfileService } from '../services/ProfileService.js';
 import { AIService } from '../services/AIService.js';
+import { BtpAssistantService } from '../services/BtpAssistantService.js';
 import { MessageService } from '../services/MessageService.js';
 import { ContractReadService } from '../services/ContractReadService.js';
 import { ContractConfigurationService } from '../services/ContractConfigurationService.js';
@@ -23,6 +24,7 @@ export type BackendServices = {
   documents: DocumentService;
   profiles: ProfileService;
   ai: AIService;
+  btpAssistant: BtpAssistantService;
   messages: MessageService;
   contracts: ContractReadService;
   contractConfiguration: ContractConfigurationService;
@@ -210,6 +212,18 @@ export async function acceptAiProposal(s: BackendServices, actor: AuthenticatedA
 export async function rejectAiProposal(s: BackendServices, actor: AuthenticatedActor, proposalId: string) {
   requireActor(actor);
   return s.ai.reject(proposalId);
+}
+export async function analyzeBtpProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.btpAssistant.analyze(actor.id,input);
+}
+export async function resumeBtpProject(s: BackendServices, actor: AuthenticatedActor) {
+  requireActor(actor);
+  return s.btpAssistant.resume();
+}
+export async function createBtpProject(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {
+  requireActor(actor);
+  return s.btpAssistant.create(String(input.draft_id ?? ''),String(input.creation_key ?? ''));
 }
 
 export async function cancelAward(s: BackendServices, actor: AuthenticatedActor, input: Record<string, unknown>) {

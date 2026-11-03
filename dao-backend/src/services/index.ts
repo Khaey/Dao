@@ -5,6 +5,7 @@ export { AwardService } from './AwardService.js';
 export { DocumentService } from './DocumentService.js';
 export { NotificationService } from './NotificationService.js';
 export { AIService } from './AIService.js';
+export { BtpAssistantService } from './BtpAssistantService.js';
 export { ProfileService } from './ProfileService.js';
 export { MessageService } from './MessageService.js';
 export { ContractReadService } from './ContractReadService.js';

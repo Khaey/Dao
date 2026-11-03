@@ -278,6 +278,15 @@ export function createDaoApi(
     async rejectAiProposal(request: Request) {
       return run(() => actor(request).then(a => json(request).then(i => actions.rejectAiProposal(services, a, String(i.proposal_id ?? i.proposalId)))));
     },
+    async analyzeBtpProject(request: Request) {
+      return privateRun(() => actor(request).then(a => json(request).then(i => actions.analyzeBtpProject(services,a,i))));
+    },
+    async resumeBtpProject(request: Request) {
+      return privateRun(() => actor(request).then(a => actions.resumeBtpProject(services,a)));
+    },
+    async createBtpProject(request: Request) {
+      return privateRun(() => actor(request).then(a => json(request).then(i => actions.createBtpProject(services,a,i))));
+    },
   };
 }
 
