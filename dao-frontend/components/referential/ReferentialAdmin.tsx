@@ -49,7 +49,7 @@ export default function ReferentialAdmin() {
     goto: (next, item) => navigate({ tab: next, item: item ?? null }), select: id => navigate({ item: id }) };
 
   if (denied) return <section className="space-y-6"><StaffHeader group="Gouvernance" title="Référentiel BTP" crumb="Référentiel" />
-    <Card role="alert" className="text-sm text-black/70">Réservé à l’Admin D.A.O. Le référentiel n’est pas délégable : les autres rôles le consultent seulement à travers les parcours (assistant, création de chantier).</Card></section>;
+    <Card className="text-sm text-black/70">Réservé à l’Admin D.A.O. Le référentiel n’est pas délégable : les autres rôles le consultent seulement à travers les parcours (assistant, création de chantier).</Card></section>;
 
   return <section className="space-y-5" aria-labelledby="referential-title">
     <StaffHeader group="Gouvernance" title="Référentiel BTP" crumb="Référentiel"

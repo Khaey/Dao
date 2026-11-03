@@ -7,8 +7,9 @@ import { login } from './support/flow';
 // Lecture seule : la publication d'une version est couverte par les tests SQL (tests/btp-admin-cases.mjs)
 // pour ne pas modifier le catalogue partagé par les autres scénarios.
 async function navLinks(page: Page, name: string) {
-  const menu = page.getByRole('button', { name: 'Ouvrir le menu', exact: true });
-  if (await menu.isVisible()) await menu.click();
+  if (test.info().project.name === 'mobile') await page.getByRole('button', { name: 'Ouvrir le menu', exact: true }).click();
+  // The navigation renders once roles are loaded: wait for a link every role has.
+  await expect(page.getByRole('link', { name: 'Tableau de bord', exact: true }).filter({ visible: true }).first()).toBeVisible();
   return page.getByRole('link', { name, exact: true }).filter({ visible: true });
 }
 
