@@ -24,13 +24,25 @@ function prettyDate(raw: string) {
     ? value.toLocaleDateString('fr-TN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
     : 'Non renseignée';
 }
-function displayDates(node: ExecutionTableNode) {
-  const { dates, dateSource } = node;
-  if (!dates || (!dates.start && !dates.end)) return <span>Non renseignées</span>;
-  const text = dates.start && dates.end ? prettyDate(dates.start) + ' – ' + prettyDate(dates.end)
+function rangeText(dates: { start: string | null; end: string | null }) {
+  return dates.start && dates.end ? prettyDate(dates.start) + ' – ' + prettyDate(dates.end)
     : dates.start ? 'À partir du ' + prettyDate(dates.start)
       : 'Jusqu’au ' + prettyDate(dates.end!);
-  return <span>{text}<span className="block text-xs text-black/45">{dateSource}</span></span>;
+}
+function varianceText(days: number) {
+  if (days === 0) return 'démarrage à la date prévue';
+  const n = Math.abs(days);
+  return `démarrage ${n} jour${n > 1 ? 's' : ''} ${days > 0 ? 'après' : 'avant'} la date prévue`;
+}
+function displayDates(node: ExecutionTableNode) {
+  const { dates, dateSource, observed, startVarianceDays } = node;
+  const hasReference = Boolean(dates && (dates.start || dates.end));
+  const observedLine = observed && (observed.start || observed.end)
+    ? <span className="mt-1 block text-xs text-black/60" data-testid="observed-dates">Constatées : {rangeText(observed)}
+      {startVarianceDays !== null && hasReference && <span className="block">{varianceText(startVarianceDays)}</span>}</span>
+    : null;
+  if (!hasReference) return observedLine ? <span>Non renseignées{observedLine}</span> : <span>Non renseignées</span>;
+  return <span>{rangeText(dates!)}<span className="block text-xs text-black/45">{dateSource}</span>{observedLine}</span>;
 }
 function Progress({ node }: { node: ExecutionTableNode }) {
   return <span>{node.progress === null ? 'Non renseignée' : node.progress + ' % déclaré'}

@@ -19,6 +19,10 @@ export interface ExecutionTableNode {
   progressStatus: string | null;
   dates: NativeDate | null;
   dateSource: string | null;
+  /** Dates constatées au carnet, affichées SOUS la référence, jamais à sa place. */
+  observed: NativeDate | null;
+  /** Écart de début constaté − référence, en jours calendaires (positif = retard). */
+  startVarianceDays: number | null;
 }
 
 export interface ExecutionTableLot extends ExecutionTableNode {
@@ -50,13 +54,31 @@ function exists(date: { start?: string | null; end?: string | null } | null | un
   return Boolean(date && (date.start != null || date.end != null));
 }
 
-/** Priorité d'affichage pour la maquette seulement : source explicitée, jamais baseline implicite. */
+const DAY_MS = 86_400_000;
+const dayOf = (value: string) => Math.floor(Date.parse(value.slice(0, 10) + 'T00:00:00Z') / DAY_MS);
+/** Fin déduite d'une durée enregistrée (jours calendaires inclusifs), comme le Gantt et le moteur natif. */
+function endFromDuration(start: string | null, days: number | null | undefined): string | null {
+  if (!start || days == null || !Number.isInteger(days) || days < 1 || !Number.isFinite(dayOf(start))) return null;
+  return new Date((dayOf(start) + days - 1) * DAY_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * Référence d'affichage (décision propriétaire 03/11, #175) : l'engagement convenu prime,
+ * puis le plan enregistré, puis le devis. Les dates constatées ne remplacent jamais la
+ * référence : elles sont rendues à part avec l'écart, sans effet juridique ni financier.
+ */
 function lotDates(lot: NativeExecutionLotDTO): { dates: NativeDate | null; source: string | null } {
-  if (exists(lot.dates.observed)) return { dates: lot.dates.observed, source: 'Observées' };
+  const agreed = lot.dates.agreed;
+  if (exists(agreed)) return { dates: { start: agreed!.start, end: endFromDuration(agreed!.start, agreed!.durationDays) }, source: 'Convenues' };
   if (exists(lot.dates.plan)) return { dates: lot.dates.plan, source: 'Plan actuel (non contractuel)' };
-  if (exists(lot.dates.agreed)) return { dates: lot.dates.agreed ? { start: lot.dates.agreed.start, end: null } : null, source: 'Convenues' };
   if (exists(lot.dates.proposed)) return { dates: lot.dates.proposed, source: 'Proposées au devis' };
   return { dates: null, source: null };
+}
+
+function startVariance(reference: NativeDate | null, observed: NativeDate | null): number | null {
+  if (!reference?.start || !observed?.start) return null;
+  const diff = dayOf(observed.start) - dayOf(reference.start);
+  return Number.isFinite(diff) ? diff : null;
 }
 
 function subLotDates(sub: NativeSubLot): { dates: NativeDate | null; source: string | null } {
@@ -79,6 +101,7 @@ export function adaptNativeExecutionPlan(plan: NativeExecutionPlanDTO): Executio
     const shared = n2.agreementsByAward?.find(row => row.awardId === lot.award?.awardId);
     const modalities = shared ?? inline;
     const selected = lotDates(lot);
+    const observed = exists(lot.dates.observed) ? { start: lot.dates.observed!.start, end: lot.dates.observed!.end } : null;
     return {
       id: lot.requestId,
       requestId: lot.requestId,
@@ -92,6 +115,8 @@ export function adaptNativeExecutionPlan(plan: NativeExecutionPlanDTO): Executio
       progressStatus: lot.progress?.status ?? null,
       dates: selected.dates,
       dateSource: selected.source,
+      observed,
+      startVarianceDays: startVariance(selected.dates, observed),
       subLots: lot.executionSubLots.map(sub => {
         const subDate = subLotDates(sub);
         return {
@@ -102,6 +127,8 @@ export function adaptNativeExecutionPlan(plan: NativeExecutionPlanDTO): Executio
           progressStatus: sub.progress?.status ?? null,
           dates: subDate.dates,
           dateSource: subDate.source,
+          observed: null,
+          startVarianceDays: null,
         };
       }),
       subLotCount: lot.executionSubLots.length,
