@@ -110,8 +110,8 @@ test('Accord avant contrat #346 réel : Client propose, Artisan attributaire acc
   await expect(artisan.getByRole('status').filter({ hasText: 'Intervention ajoutée' })).toBeVisible();
   await ac.close();
   await page.goto(`/app/native-execution/${project.projectId}`);
-  await expect(page.getByText('16 nov. 2026 – 27 nov. 2026', { exact: true })).toBeVisible();
-  await expect(page.getByText('Convenues', { exact: true })).toBeVisible();
+  await expect(page.getByText('16 nov. 2026 – 27 nov. 2026').first()).toBeVisible();
+  await expect(page.getByText('Convenues', { exact: true }).first()).toBeVisible();
   const observedDates = page.getByTestId('observed-dates');
   await expect(observedDates).toContainText('Constatées :');
   await expect(observedDates).toContainText(/démarrage \d+ jours? (avant|après) la date prévue|démarrage à la date prévue/);
