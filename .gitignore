@@ -8,3 +8,4 @@ dao-frontend/playwright-report/
 !.env.example
 __pycache__/
 *.pyc
+dao-dev-recette/

@@ -1,0 +1,115 @@
+name: DAO DEV recette navigateur
+
+# Recette Playwright sur le DEV partagé (https://dao-dev.logiclab.fr), sans
+# PROD. Lancement manuel (onglet Actions ou API) ou appel depuis un autre
+# workflow avec `secrets: inherit`. Méthode : docs/e2e-environments.md, section « Recette DEV dans GitHub Actions ».
+on:
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: "Fichiers .spec.ts sous dao-frontend/tests/dev-recette/ séparés par des espaces (vide = tous)"
+        type: string
+        required: false
+        default: ""
+      grep:
+        description: "Filtre facultatif sur le titre des scénarios (--grep)"
+        type: string
+        required: false
+        default: ""
+      appareils:
+        description: "Appareils à tester"
+        type: choice
+        required: true
+        default: tous
+        options: [tous, desktop, mobile]
+  workflow_call:
+    inputs:
+      specs: { type: string, required: false, default: "" }
+      grep: { type: string, required: false, default: "" }
+      appareils: { type: string, required: false, default: tous }
+
+permissions:
+  contents: read
+
+jobs:
+  recette:
+    name: Recette navigateur DEV
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Une seule recette à la fois sur les comptes de test partagés.
+    concurrency:
+      group: dao-dev-recette
+      cancel-in-progress: false
+    env:
+      PLAYWRIGHT_BASE_URL: https://dao-dev.logiclab.fr
+      DAO_DEV_RECETTE: "1"
+      DAO_RECETTE_OUTPUT_DIR: ${{ github.workspace }}/../dao-dev-recette
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dao-frontend/package-lock.json
+      - name: Installer les dépendances frontend
+        working-directory: dao-frontend
+        run: npm ci --no-audit --no-fund
+      - name: Installer Chromium Playwright
+        working-directory: dao-frontend
+        run: npx playwright install --with-deps chromium
+      - name: Vérifier que DEV répond
+        run: |
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$PLAYWRIGHT_BASE_URL/auth/login")"
+          echo "DEV /auth/login -> HTTP $code"
+          test "$code" = 200
+      - name: Lancer la recette
+        working-directory: dao-frontend
+        env:
+          INPUT_SPECS: ${{ inputs.specs }}
+          INPUT_GREP: ${{ inputs.grep }}
+          INPUT_APPAREILS: ${{ inputs.appareils }}
+          DAO_RECETTE_PASSWORD: ${{ secrets.DAO_RECETTE_PASSWORD }}
+          DAO_RECETTE_ADMIN_EMAIL: ${{ secrets.DAO_RECETTE_ADMIN_EMAIL }}
+          DAO_RECETTE_ADMIN_PASSWORD: ${{ secrets.DAO_RECETTE_ADMIN_PASSWORD }}
+          DAO_RECETTE_CLIENT_A_EMAIL: ${{ secrets.DAO_RECETTE_CLIENT_A_EMAIL }}
+          DAO_RECETTE_CLIENT_A_PASSWORD: ${{ secrets.DAO_RECETTE_CLIENT_A_PASSWORD }}
+          DAO_RECETTE_CLIENT_B_EMAIL: ${{ secrets.DAO_RECETTE_CLIENT_B_EMAIL }}
+          DAO_RECETTE_CLIENT_B_PASSWORD: ${{ secrets.DAO_RECETTE_CLIENT_B_PASSWORD }}
+          DAO_RECETTE_ARTISAN_A_EMAIL: ${{ secrets.DAO_RECETTE_ARTISAN_A_EMAIL }}
+          DAO_RECETTE_ARTISAN_A_PASSWORD: ${{ secrets.DAO_RECETTE_ARTISAN_A_PASSWORD }}
+          DAO_RECETTE_ARTISAN_B_EMAIL: ${{ secrets.DAO_RECETTE_ARTISAN_B_EMAIL }}
+          DAO_RECETTE_ARTISAN_B_PASSWORD: ${{ secrets.DAO_RECETTE_ARTISAN_B_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          args=(--config=playwright.recette.config.ts)
+          for spec in $INPUT_SPECS; do
+            if [[ ! "$spec" =~ ^(dao-frontend/)?tests/dev-recette/[A-Za-z0-9._/-]+\.spec\.ts$ || "$spec" == *..* ]]; then
+              echo "Spec refusée (doit être sous tests/dev-recette/ et finir par .spec.ts) : $spec" >&2
+              exit 2
+            fi
+            args+=("${spec#dao-frontend/}")
+          done
+          case "$INPUT_APPAREILS" in
+            desktop|mobile) args+=(--project="$INPUT_APPAREILS") ;;
+            tous|"") ;;
+            *) echo "Valeur appareils inconnue : $INPUT_APPAREILS" >&2; exit 2 ;;
+          esac
+          if [ -n "$INPUT_GREP" ]; then args+=(--grep="$INPUT_GREP"); fi
+          npx playwright test "${args[@]}"
+      - name: Résumé PASS / FAIL / UNTESTED
+        if: always()
+        run: node scripts/dev-recette-summary.mjs "$DAO_RECETTE_OUTPUT_DIR/rapport/resultats.json" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Publier le rapport et les captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recette-dev-${{ github.run_id }}-${{ github.run_attempt }}
+          # Seul rapport/ est publié ; les sessions restent hors artefact.
+          path: ${{ env.DAO_RECETTE_OUTPUT_DIR }}/rapport
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Effacer les sessions de test
+        if: always()
+        run: rm -rf "$DAO_RECETTE_OUTPUT_DIR/sessions-non-publiees"
