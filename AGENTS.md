@@ -12,16 +12,19 @@
 
 Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
 
-## Organisation courante — DAO PILOT 12 (25 octobre 2026)
+## Organisation courante — DAO PILOT 13 (29 octobre 2026)
 
-**Point d'entrée à jour : [`CLAUDE.md`](CLAUDE.md), [`docs/agents.md`](docs/agents.md),
+**Sources de vérité : [`CLAUDE.md`](CLAUDE.md), [`docs/agents.md`](docs/agents.md),
 [`docs/decisions.md`](docs/decisions.md) et [`docs/architecture.md`](docs/architecture.md).**
-PILOT 12 coordonne via [issue #436](https://github.com/Khaey/Dao/issues/436) ; Coordinateur
-Mission 1 = suivi natif P10 frontend/UX (#419) ; Coordinateur Mission 2 = Settings, droits et
-délégations (#423, #426) ; DEV 3 = backend P11 réception technique et réserves (#425). Les autres
-agents (dont COPILOT 4) sont historiques ou inactifs sauf nouvelle affectation. Les sections
-ci-dessous (PILOT 5 à 7) sont **historiques** : leurs règles de quota, d'autonomie, de gates et
-d'OPS restent valables, leurs affectations d'agents ne le sont plus.
+La coordination active est [PILOT 13 — issue #511](https://github.com/Khaey/Dao/issues/511).
+Le précédent PILOT 12 (#436) est archivé. Les missions #419 (suivi), #423 (Settings S1–S4),
+#441 (UX Admin/Gestionnaire), #387 (UX transversal) et #515 (intégrations V1) sont clôturées
+au périmètre vérifié. Les contrôles manuels non attestés restent distincts dans #175 ; #523
+(annulations) est explicitement **reportée par le propriétaire**.
+**Un chantier = un seul responsable de bout en bout.** Les affectations actives et les limites
+figurent dans `docs/agents.md` ; aucun commentaire GitHub ne démarre une session d'agent.
+Les sections ci-dessous (PILOT 5 à 7) sont **historiques** : leurs invariants de sécurité,
+de quota et de CI sont conservés, pas leurs affectations passées.
 
 ## DECISION OWNER / PILOT 6 — AUTONOMIE PAR DEFAUT POUR TOUS (16 octobre 2026)
 
@@ -77,12 +80,12 @@ Report actual evidence and blockers; do not claim a live check from old logs.
 
 **One-time onboarding for NEW agents only:** before an agent's FIRST owned
 feature PR, confirm its official name, canonical issue and coordinator; merge
-its initial registration in `.github/dao-monitor-agents.json`, then verify
-the automatic DAO Monitor onboarding event. **For an agent ALREADY listed in
+its initial registration in `.github/dao-monitor-agents.json`, then consult the current **PAUSED** state of DAO Monitor / Telegram in `docs/dao-monitor.md`; no notification or watchdog check is a PR, CI or deployment gate. **For an agent ALREADY listed in
 the registry, a new authorized issue is immediately actionable:** its owner
 may open feature PRs and start CI with `Owner issue: #N` while a Pilot-owned
 registry update for that new issue is pending. Registry bookkeeping happens
-in parallel and must not become a cross-owner delivery gate. Reconcile the
+in parallel and must not become a cross-owner delivery gate. The three required
+backend/frontend/FULL E2E checks remain mandatory and independent from Telegram. Reconcile the
 new issue mapping into the registry before claiming final Monitor attribution.
 Never confuse a GitHub mission enrollment with starting a ChatGPT/Work session
 or adding a human Telegram group member. See `docs/dao-monitor.md`.

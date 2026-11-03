@@ -1,5 +1,8 @@
 # DAO Monitor — GitHub vers Telegram (#93)
 
+> **PAUSED sur décision propriétaire depuis le 25/10/2026** ([#449](https://github.com/Khaey/Dao/issues/449), [#476](https://github.com/Khaey/Dao/issues/476)). Le workflow d'alertes et le watchdog ne constituent pas une condition de PR, fusion, CI ou déploiement. **Ne pas réactiver Telegram ni ses secrets sans nouvel accord.** L'inscription GitHub dans `.github/dao-monitor-agents.json` reste utile pour l'attribution ; le suivi courant est dans [PILOT 13 #511](https://github.com/Khaey/Dao/issues/511). Toute procédure d'activation ci-dessous est **historique et valable uniquement après une réactivation autorisée**.
+
+
 Bot public : https://t.me/DAOAlertsbot
 
 V1 : notifications **sortantes uniquement**, par GitHub Actions. Aucun processus
@@ -52,14 +55,12 @@ WAITING_HUMAN, PAUSED_QUOTA, HANDOFF, DONE, DECISION.
    distincte des travaux des autres agents. Mettre `watchdog: true` uniquement
    pour une mission réellement suivie : cela ne déclenche une surveillance
    qu'après un checkpoint structuré `ACTIVE`.
-3. Faire valider/fusionner la PR avec les tests du Monitor. Le push sur `main`
-   qui modifie le registre déclenche automatiquement **une notification Telegram**
-   regroupant les nouveaux agents/associations (`DAOAlertsbot`). Le script lit
-   les deux révisions exactes de GitHub : il n'envoie pas de message en cas de
-   modification sans nouvel agent/mission.
-4. Vérifier l'exécution GitHub Actions de `DAO Monitor` et la réception du
-   message sur le canal existant. Sans succès prouvé, l'inscription est
-   **en attente**, même si le fichier est fusionné.
+3. Faire valider/fusionner la PR du registre avec les contrôles GitHub requis.
+   **Pendant la pause Monitor, le registre fusionné suffit à l'attribution** :
+   aucun message Telegram, heartbeat, watchdog ou notification n'est attendu.
+4. **Après une réactivation explicitement autorisée seulement**, vérifier le
+   workflow `DAO Monitor` et un message de test. Cette vérification de supervision
+   ne constitue **jamais** un quatrième gate CI ou un bloqueur de livraison.
 5. Tout renommage ou transfert d'issue doit mettre à jour le registre ; les
    missions terminées sont conservées pour l'attribution historique, mais leur
    `watchdog` doit être désactivé.
