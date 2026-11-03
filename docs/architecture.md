@@ -105,3 +105,11 @@ Inventaire exhaustif des tables : [dao-backend/TABLES.md](../dao-backend/TABLES.
   sont pas appliquées automatiquement par le merge : vérifier leur présence sur DEV.
 - Opérations VPS : [platform-operations.md](platform-operations.md), [ops-control.md](ops-control.md).
   **Pas de PROD** dans le périmètre courant.
+
+## 6. Référentiel BTP avancé
+
+Le catalogue BTP versionné (métiers, lots, sous-lots, ouvrages, unités, règles et dépendances) vit
+dans Supabase et reste indépendant de tout assistant conversationnel. Sa lecture authentifiée passe
+par un RPC `SECURITY INVOKER` et la route serveur `GET /api/btp/catalog`; les écritures restent
+réservées aux migrations revues. Voir [product/btp-reference.md](product/btp-reference.md) pour le
+contrat, les limites et la préparation des métrés et estimations.
