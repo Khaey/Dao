@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Activity, Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, type LucideIcon } from 'lucide-react';
+import { Activity, Menu, X, LayoutDashboard, FolderKanban, HardHat, Megaphone, LogOut, Mail, ReceiptText, MessageCircle, UserRound, FileText, Settings, Star, LifeBuoy, ClipboardCheck, Contact, History, UserCog, BookOpen, type LucideIcon } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../lib/roles';
 import { onUnreadChanged } from '../../lib/unread-events';
@@ -145,6 +145,7 @@ export default function RoleNav() {
     { href: '/app/dao/reviews', label: 'Avis', icon: Star, show: staff, group: 'Relations' },
     { href: '/app/dao/support', label: 'Assistance', icon: LifeBuoy, show: staff, group: 'Relations' },
     { href: '/app/dao/users', label: 'Utilisateurs & rôles', icon: UserCog, show: admin, group: 'Gouvernance' },
+    { href: '/app/dao/referential', label: 'Référentiel', icon: BookOpen, show: admin, group: 'Gouvernance' },
     { href: '/app/dao/history', label: 'Historique', icon: History, show: staff, group: admin ? 'Gouvernance' : 'Traçabilité' },
   ];
 

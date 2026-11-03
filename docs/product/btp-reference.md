@@ -48,6 +48,26 @@ Cette livraison ne fournit ni moteur conversationnel, ni interface d'assistant, 
 planning automatique. Le prototype assistant antérieur à la réorientation de mission est conservé
 séparément sur `wip/541-assistant-handoff` pour transmission à son futur responsable.
 
+## Administration versionnée (#547)
+
+Écran Admin unique : menu **Référentiel** → `/app/dao/referential?tab=metiers|lots|ouvrages|unites|regles|versions`
+(`&version=<id>` pour consulter une autre version, `&item=<id>` pour ouvrir une fiche).
+
+| RPC (Admin seul, motif 5–500 caractères) | Effet |
+| --- | --- |
+| `btp_admin_catalog(p_version_id, p_country_code)` | Lecture complète d'une version (inactifs compris), métiers, unités, validation du brouillon, historique |
+| `btp_admin_create_draft(p_country_code, p_code, p_reason)` | Copie la version publiée en brouillon, **mêmes ids** |
+| `btp_admin_save_item(p_version_id, p_kind, p_item, p_reason)` | Ajout/modification dans le brouillon (`lot`, `sub_lot`, `work`, `rule`, `measurement`, `dependency`), champs en liste blanche |
+| `btp_admin_remove_dependency(...)` | Retire une dépendance du brouillon |
+| `btp_admin_validate_draft(p_version_id)` | Erreurs bloquantes (parent/métier/unité inactifs, cycle, métré orphelin, version vide) et avertissements (règle sans cible, libellé en double, aucune modification…) |
+| `btp_admin_publish_draft(p_version_id, p_reason)` | Refus si erreur ; sinon archive la version en vigueur et publie, en une transaction |
+| `btp_admin_abandon_draft(p_version_id, p_reason)` | Archive le brouillon sans le publier |
+
+Les lignes d'une version publiée ou archivée sont immuables, même pour une session privilégiée ;
+une migration de maintenance revue doit poser `set local dao.btp_catalog_maintenance='on'`.
+Clé des lignes : `(id, catalog_version_id)`, ce qui garde les ids canoniques du contrat v1 de
+l'assistant d'une version à l'autre.
+
 ## Vérification
 
 Les tests couvrent la migration complète, le contrat de schéma, RLS et grants, la hiérarchie et les

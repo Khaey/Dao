@@ -171,10 +171,21 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Décision | État | Source |
 | --- | --- | --- |
 | Parcours unique **description libre → proposition immédiate → corrections → création**, au plus **une** question utile ; entrée « Décrire mon projet à l'assistant » sur Nouveau chantier, parcours existants conservés. | Livré | [#543](https://github.com/Khaey/Dao/issues/543), décision PILOT 14 |
-| Owners séparés : **référentiel = DEV 5 (#541)**, **assistant = Coordinateur Mission 1 (#543)**. Interface = contrat v1 [assistant-btp.md](product/assistant-btp.md) ; l'assistant lit le catalogue publié `TN-2026.1` (#542) via un adaptateur, affiché « en cours de constitution ». | Livré | #541, #543 |
+| Owners séparés : **référentiel = DEV 5 (#541)**, puis **administration du référentiel = Coordinateur Mission 2 (#547)** ; **assistant = Coordinateur Mission 1 (#543)**. Interface = contrat v1 [assistant-btp.md](product/assistant-btp.md) ; l'assistant lit le catalogue publié `TN-2026.1` (#542) via un adaptateur, affiché « en cours de constitution ». | Livré | #541, #543 |
 | L'assistant ne propose **que des éléments du référentiel** (ids canoniques) ; aucun prix, quantité, durée, conformité ou constructibilité inventés ; unités affichées seulement pour préparer les métrés. Choix du client prioritaires et conservés à chaque correction. | Livré | #543 |
 | Moteur **par règles déterministes**, annoncé comme tel (« sans IA générative ») ; brancher un LLM exige une décision du propriétaire (fournisseur, coût, hébergement des clés via #515). | Cadré | #543 |
 | Brouillon Client persistant et repris, révisions **append-only**, création **atomique et idempotente** (chantier brouillon + lots + sous-lots officiels, budgets nuls), liens `project_assistant_scope_links` vers le référentiel pour les phases métrés/estimation. | Livré | #543 |
+
+## 12 bis. Référentiel BTP — administration (#547)
+
+| Décision | État | Source |
+| --- | --- | --- |
+| **Une seule entrée « Référentiel »** dans le menu Admin (groupe Gouvernance), page `/app/dao/referential` à six onglets : Métiers, Lots & sous-lots, Ouvrages, Unités & métrés, Règles & dépendances, Versions. L'ancien onglet « Référentiels » de Paramètres est supprimé ; `/app/dao/settings?tab=catalog` (et `#catalog`, `metiers`, `referentiels`) redirige vers l'onglet Métiers. | Livré | [#547](https://github.com/Khaey/Dao/issues/547), décision PILOT 14 |
+| Gestion des métiers **déplacée sans duplication** (`components/referential/TradesPanel.tsx`, mêmes RPC `admin_save_trade`/`admin_set_trade_active`/propositions, même journal `setting_events`). Les métiers et les unités sont transversaux (non versionnés). | Livré | #547, #465 |
+| Une version publiée n'est **jamais modifiée** : l'Admin prépare un **brouillon** (copie intégrale de la version publiée, **mêmes ids canoniques**), le modifie avec motif, le valide côté serveur puis le **publie atomiquement** (l'ancienne passe `retired`, ses lignes sont conservées). Un seul brouillon et une seule version publiée par pays. Codes canoniques définitifs, jamais réutilisés. Garde-fous par triggers en base (`btp_guard_version_rows`, `btp_guard_versions`) et journal append-only `dao_private.btp_catalog_events`. | Livré | #547 |
+| Périmètre éditable : lots, sous-lots et ouvrages (libellé, description, pertinence, types de chantier, source, activation, ajout ; ouvrage : unité, synonymes, note de métré ; lot : métier) ; règles (sévérité, explication, activation — condition/effet non éditables à l'écran) ; dépendances (ajout sans cycle, modification, retrait) ; modèles de métré (activation seulement). Pas de déplacement d'un élément sous un autre parent. Aucun prix, quantité, durée ni réglementation créés. | Livré | #547 |
+| Droits : **Admin D.A.O. seul** (`settings_require_admin`) ; `catalog.trades.active` reste `delegable=false`, donc aucun Gestionnaire, Client ou Artisan n'administre le référentiel. Une délégation Gestionnaire exigerait une nouvelle décision. | Livré | #547 |
+| Contrat de l'assistant préservé : `btp_catalog_snapshot` garde la même forme, filtre explicitement la version publiée et les éléments actifs ; un élément désactivé disparaît du catalogue publié (ids d'un brouillon assistant devenus inconnus refusés comme avant). | Livré | #547, #543 |
 
 ## Questions ouvertes (ne pas trancher sans le propriétaire)
 
