@@ -113,6 +113,8 @@ test('Publication, comparaison, attribution par lot et confidentialité publique
   await draftCard.click();
   await artisan.getByRole('button', { name: 'Soumettre l’offre' }).click();
   await expect(artisan.getByRole('heading', { name: 'Offre envoyée' })).toBeVisible();
+  // #175 recette 03/11: fr-TN defaults to a 12-hour clock; submission stamps must read 24 h (no AM/PM).
+  await expect(artisan.getByText(/Version 1 soumise le/)).not.toContainText(/\b(AM|PM)\b/);
   await artisan.getByRole('button', { name: 'Préparer une nouvelle version' }).click();
   await artisan.getByLabel('Délai (jours)').fill('22');
   await artisan.getByLabel('Proposition technique / inclusions').fill('Version révisée avec délai actualisé.');

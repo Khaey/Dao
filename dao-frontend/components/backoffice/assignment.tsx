@@ -39,4 +39,4 @@ export function lastList(): { href: string; label: string } {
 
 export const formatTnd = (value?: number | string | null) => value == null || value === '' ? 'Non renseigné'
   : new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 3 }).format(Number(value) / 1000);
-export const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString('fr-TN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+export const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString('fr-TN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : '';

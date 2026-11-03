@@ -13,4 +13,4 @@ export const markRfiRead=(id:string)=>call<{acknowledged:boolean}>(`/${encodeURI
 export const prepareRfiDocument=(input:{question_id:string;clarification_id:string|null;original_name:string;mime_type:string;size_bytes:number})=>call<{document:{id:string};path:string;token:string}>('/documents/upload',{method:'POST',body:JSON.stringify(input)});
 export const completeRfiDocument=(document_id:string)=>call<RfiDocument>('/documents/complete',{method:'POST',body:JSON.stringify({document_id})});
 export const downloadRfiDocument=(document_id:string)=>call<{url:string;filename:string}>('/documents/download',{method:'POST',body:JSON.stringify({document_id})});
-export const rfiDate=(value:string)=>new Date(value).toLocaleString('fr-TN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+export const rfiDate=(value:string)=>new Date(value).toLocaleString('fr-TN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
