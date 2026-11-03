@@ -49,7 +49,7 @@ recette ne remplace pas le FULL E2E jetable ci-dessus : elle vérifie l'applicat
 - Config `dao-frontend/playwright.recette.config.ts`, scénarios dans `dao-frontend/tests/dev-recette/`.
   Projets `desktop` (1440 px) et `mobile` (375 px), un worker, aucune relance automatique.
 - `smoke.spec.ts` : recette de base **en lecture seule** (tableau de bord des 5 rôles, accès Admin à
-  Utilisateurs & rôles, refus d'administration pour Gestionnaire et Artisan, API protégées en 401 pour
+  Utilisateurs & rôles, refus d'administration pour Gestionnaire (« Administration réservée ») et Artisan (« Accès réservé au back-office »), API protégées en 401 pour
   un anonyme, débordement horizontal mobile).
 
 **Comptes de test (secrets du dépôt)**

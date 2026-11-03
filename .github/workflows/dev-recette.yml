@@ -45,8 +45,10 @@ jobs:
     env:
       PLAYWRIGHT_BASE_URL: https://dao-dev.logiclab.fr
       DAO_DEV_RECETTE: "1"
-      DAO_RECETTE_OUTPUT_DIR: ${{ github.workspace }}/../dao-dev-recette
     steps:
+      # Hors du dépôt, chemin absolu sans « .. » (exigé par upload-artifact).
+      - name: Préparer le dossier de sortie
+        run: echo "DAO_RECETTE_OUTPUT_DIR=$RUNNER_TEMP/dao-dev-recette" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           persist-credentials: false

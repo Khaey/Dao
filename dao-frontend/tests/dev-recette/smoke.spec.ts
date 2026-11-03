@@ -24,12 +24,18 @@ test("Admin : Utilisateurs & rôles accessible", async ({ as, snap }) => {
   await snap(page, "admin-utilisateurs-roles");
 });
 
+// Gestionnaire : staff sans droit Admin. Artisan : hors back-office.
+const refusals = {
+  clientB: "Administration réservée",
+  artisanA: "Accès réservé au back-office",
+} as const;
+
 for (const role of ["clientB", "artisanA"] as const) {
   test(`${ROLES[role].label} : administration refusée`, async ({ as, snap }) => {
     const page = await as(role);
     await page.goto("/app/dao/users");
     await expect(
-      page.getByRole("alert").filter({ hasText: "Administration réservée" }),
+      page.getByRole("alert").filter({ hasText: refusals[role] }),
     ).toBeVisible();
     await snap(page, `${role}-administration-refusee`);
   });
