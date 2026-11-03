@@ -7,6 +7,8 @@
 | Responsable | Mission | Statut vérifié |
 | --- | --- | --- |
 | **PILOT 13** | Coordination, vérification, arbitrages et suivi | [#511](https://github.com/Khaey/Dao/issues/511) **ouverte** ; pas d'intervention simultanée sur les fichiers d'un autre owner |
+| **DEV 5** | Référentiel BTP (lots, sous-lots, ouvrages, unités, règles) | [#541](https://github.com/Khaey/Dao/issues/541) ; seul owner du référentiel |
+| **Coordinateur Mission 1** (Claude Code) | Assistant IA BTP : `dao-backend/src/assistant/`, `/app/projects/new/assistant`, tables `project_assistant_*` | [#543](https://github.com/Khaey/Dao/issues/543) ; consomme le référentiel via le contrat v1 ([assistant-btp.md](product/assistant-btp.md)) |
 
 Les sujets produit encore ouverts sont des **backlogs**, pas des agents automatiquement lancés : [#523](https://github.com/Khaey/Dao/issues/523) (annulation des actions), [#505](https://github.com/Khaey/Dao/issues/505) (architecture/évolutions des connecteurs), [#383](https://github.com/Khaey/Dao/issues/383) (signature électronique à qualifier), [#507](https://github.com/Khaey/Dao/issues/507) (séquestre, étude seulement), [#299](https://github.com/Khaey/Dao/issues/299) (idées) et [#175](https://github.com/Khaey/Dao/issues/175) (suivi de régressions). Ne pas lancer une nouvelle exécution à partir de ces tickets sans owner explicite.
 

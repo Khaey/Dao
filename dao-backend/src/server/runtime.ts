@@ -32,6 +32,9 @@ import { createNativeExecutionActivityHandler } from './nativeExecutionActivityH
 import { createNativeExecutionDependencyHandler } from './nativeExecutionDependencyHandler.js';
 import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
 import { createNativeLotDatesHandler } from './nativeLotDatesHandler.js';
+import { createProjectAssistantHandler } from './projectAssistantHandler.js';
+import { ProjectAssistantService } from '../assistant/service.js';
+import { DaoReferentialProvider } from '../assistant/referential/daoReferential.js';
 import { BtpReferenceService } from '../services/BtpReferenceService.js';
 import { createBtpReferenceHandler } from './btpReferenceHandler.js';
 
@@ -198,6 +201,15 @@ export function createNativeExecutionDependencyApi(request: Request) {
 export function createClientOfficialSubLotApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createClientOfficialSubLotHandler(db, resolveActor);
+}
+
+/**
+ * Assistant BTP : JWT-scoped (RLS + RPC SECURITY DEFINER contrôlant le propriétaire).
+ * Référentiel : catalogue publié par DEV 5 (#541) via l'adaptateur du contrat v1.
+ */
+export function createProjectAssistantApi(request: Request) {
+  const { db, resolveActor } = requestScope(request);
+  return createProjectAssistantHandler(new ProjectAssistantService(db as any, new DaoReferentialProvider(db as any)), resolveActor);
 }
 
 /** Native planning dates use the existing DAO lot-plan table without invoking OCE. */

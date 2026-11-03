@@ -1,6 +1,7 @@
 import { backofficeCases } from './backoffice-cases.mjs';
 import { professionalCases } from './professional-cases.mjs';
 import { awardLifecycleCases } from './award-lifecycle-cases.mjs';
+import { projectAssistantCases, projectAssistantRealReferentialCases } from './project-assistant-cases.mjs';
 import {PGlite} from '@electric-sql/pglite';
 import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
@@ -55,7 +56,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,130);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,133);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -397,5 +398,7 @@ await test('approved asset uses public projection; direct Storage metadata priva
 await awardLifecycleCases(db,test);
 await backofficeCases(db,test);
 await professionalCases(db,test);
+await projectAssistantCases(db,test,{U,gov,as});
+await projectAssistantRealReferentialCases(db,test,{as});
 writeFileSync(new URL('./local-results.json',import.meta.url),JSON.stringify({engine:'PGlite PostgreSQL WASM',auth:'Simulated SQL sub claims; NO real JWT, NO Supabase Auth or HTTP gateway',concurrency:'NOT tested with independent sessions',fixtures:'Synthetic local only, not verified geographic seed',results,passed:results.filter(x=>x.result==='PASS').length,failed:fails},null,2));
 console.log(JSON.stringify({passed:results.length-fails,failed:fails,failures:results.filter(x=>x.result==='FAIL')}));await db.close();process.exitCode=fails?1:0;

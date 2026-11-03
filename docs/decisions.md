@@ -165,6 +165,16 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | **Design cible « Chantier net »** (validé le 2026-10-26) : Inter + chiffres tabulaires, encre/sable/teal (argile = marque seulement), trois arrondis `control`/`card`/`panel`, bordures plutôt qu'ombres, statuts via `Badge` de `components/ui.tsx`. Apports B (Admin/Gestionnaire : tableaux denses) et C (Client/Artisan : mobile d'abord). Mise en œuvre écran par écran, un seul parcours. Livré : actions principales en teal (`Button` et boutons codés, `hover:bg-tealdark`; états sélectionnés et avatars restent sombres), menu Admin sombre, barre du haut desktop (`TopBar` : Aide + cloche; pas de recherche globale faute d'API), tableau des publications Admin dense. | En cours (#387 phase 4) | `dao-frontend/tailwind.config.ts`, `components/ui.tsx` |
 | Pas de modification WireGuard pour du travail applicatif ; opérations VPS via workflows contrôlés. | Permanent | D-018, [ops-control.md](ops-control.md) |
 
+## 12. Assistant BTP (création de chantier)
+
+| Décision | État | Source |
+| --- | --- | --- |
+| Parcours unique **description libre → proposition immédiate → corrections → création**, au plus **une** question utile ; entrée « Décrire mon projet à l'assistant » sur Nouveau chantier, parcours existants conservés. | Livré | [#543](https://github.com/Khaey/Dao/issues/543), décision PILOT 14 |
+| Owners séparés : **référentiel = DEV 5 (#541)**, **assistant = Coordinateur Mission 1 (#543)**. Interface = contrat v1 [assistant-btp.md](product/assistant-btp.md) ; l'assistant lit le catalogue publié `TN-2026.1` (#542) via un adaptateur, affiché « en cours de constitution ». | Livré | #541, #543 |
+| L'assistant ne propose **que des éléments du référentiel** (ids canoniques) ; aucun prix, quantité, durée, conformité ou constructibilité inventés ; unités affichées seulement pour préparer les métrés. Choix du client prioritaires et conservés à chaque correction. | Livré | #543 |
+| Moteur **par règles déterministes**, annoncé comme tel (« sans IA générative ») ; brancher un LLM exige une décision du propriétaire (fournisseur, coût, hébergement des clés via #515). | Cadré | #543 |
+| Brouillon Client persistant et repris, révisions **append-only**, création **atomique et idempotente** (chantier brouillon + lots + sous-lots officiels, budgets nuls), liens `project_assistant_scope_links` vers le référentiel pour les phases métrés/estimation. | Livré | #543 |
+
 ## Questions ouvertes (ne pas trancher sans le propriétaire)
 
 - Signature électronique : fournisseur, niveau de signature, preuves, revue juridique tunisienne (#383).

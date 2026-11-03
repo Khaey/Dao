@@ -35,6 +35,8 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261028000000'];
   expected_versions := expected_versions || ARRAY['20261028100000','20261028120000'];
   expected_versions := expected_versions || ARRAY['20261103152820'];
+  expected_versions := expected_versions || ARRAY['20261103170000'];
+  expected_tables := expected_tables || ARRAY['project_assistant_drafts','project_assistant_draft_revisions','project_assistant_scope_links'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
     FROM supabase_migrations.schema_migrations;
