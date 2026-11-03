@@ -103,6 +103,9 @@ Inventaire exhaustif des tables : [dao-backend/TABLES.md](../dao-backend/TABLES.
   l'environnement GitHub protégé `dev`.
 - **DEV** : <https://dao-dev.logiclab.fr>, Supabase DEV `nmbpjdltirotoifwuzat`. Les migrations ne
   sont pas appliquées automatiquement par le merge : vérifier leur présence sur DEV.
+- **Recette navigateur DEV** : workflow manuel `.github/workflows/dev-recette.yml` (Playwright sur
+  <https://dao-dev.logiclab.fr>, comptes de test via secrets `DAO_RECETTE_*`, rapport et captures en
+  artefact). Méthode : [e2e-environments.md](e2e-environments.md#recette-dev-dans-github-actions).
 - Opérations VPS : [platform-operations.md](platform-operations.md), [ops-control.md](ops-control.md).
   **Pas de PROD** dans le périmètre courant.
 

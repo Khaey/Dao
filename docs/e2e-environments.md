@@ -33,3 +33,66 @@ Read-only Supabase checks found migration `20260926092748_enforce_draft_withdraw
 Main run #540 passed backend and frontend verification but the FULL E2E job failed twice with four workers. The first attempt produced unrelated loading/navigation timeouts across five scenarios; the targeted retry failed in two different scenarios, including a page left on `Chargement du DAO…`. The same 58-test revision had passed on PR #143. This changing failure surface identifies runner/application saturation rather than one deterministic product regression.
 
 The CI default is therefore restored to two workers for the expanded 58-test desktop/mobile campaign. Test count, projects, assertions, disposable Supabase target, migration replay and deployment gate are unchanged. Four workers remain opt-in through `PLAYWRIGHT_WORKERS` for measured experiments.
+
+## Recette DEV dans GitHub Actions
+
+Décision d'Ahmed (03/11/2026) : la recette navigateur sur le DEV partagé tourne dans GitHub Actions,
+pas dans la session d'un fil. Cela économise le quota Claude et évite l'invite « Autoriser une fois »
+qui apparaît quand une session lance un script qui se connecte à DEV avec un mot de passe. Cette
+recette ne remplace pas le FULL E2E jetable ci-dessus : elle vérifie l'application **déployée**.
+
+**Ce qui existe**
+
+- Workflow `.github/workflows/dev-recette.yml` (« DAO DEV recette navigateur »), lancement manuel
+  (`workflow_dispatch`) ou appel depuis un autre workflow (`workflow_call` + `secrets: inherit`).
+  Cible figée sur <https://dao-dev.logiclab.fr> ; la config refuse toute autre URL. Pas de PROD.
+- Config `dao-frontend/playwright.recette.config.ts`, scénarios dans `dao-frontend/tests/dev-recette/`.
+  Projets `desktop` (1440 px) et `mobile` (375 px), un worker, aucune relance automatique.
+- `smoke.spec.ts` : recette de base **en lecture seule** (tableau de bord des 5 rôles, accès Admin à
+  Utilisateurs & rôles, refus d'administration pour Gestionnaire et Artisan, API protégées en 401 pour
+  un anonyme, débordement horizontal mobile).
+
+**Comptes de test (secrets du dépôt)**
+
+Réglages : <https://github.com/Khaey/Dao/settings/secrets/actions>. Un rôle sans secret est signalé
+« non configuré » et ses scénarios échouent avec un message clair ; les autres rôles tournent.
+
+| Rôle | Email | Mot de passe |
+| --- | --- | --- |
+| Admin | `DAO_RECETTE_ADMIN_EMAIL` | `DAO_RECETTE_ADMIN_PASSWORD` ou commun |
+| Client A | `DAO_RECETTE_CLIENT_A_EMAIL` | `DAO_RECETTE_CLIENT_A_PASSWORD` ou commun |
+| Client B (aussi Gestionnaire, `client` + `dao_reviewer`) | `DAO_RECETTE_CLIENT_B_EMAIL` | `DAO_RECETTE_CLIENT_B_PASSWORD` ou commun |
+| Artisan A | `DAO_RECETTE_ARTISAN_A_EMAIL` | `DAO_RECETTE_ARTISAN_A_PASSWORD` ou commun |
+| Artisan B | `DAO_RECETTE_ARTISAN_B_EMAIL` | `DAO_RECETTE_ARTISAN_B_PASSWORD` ou commun |
+
+Le mot de passe commun est `DAO_RECETTE_PASSWORD` ; un mot de passe par rôle le remplace. Les secrets
+`DAO_TEST_CLIENT_*` / `DAO_TEST_CONTRACTOR_*` existants servent aux fixtures email (`dev-real-email.yml`)
+et ne sont pas utilisés ici.
+
+**Garde-fous**
+
+- Les connexions se font une fois dans `global-setup.ts` ; les sessions sont gardées hors du dossier
+  publié puis effacées. Les tests utilisent `as(role)` et ne voient jamais de mot de passe.
+- Pas de trace ni de vidéo (une trace contient les cookies). Le dépôt est public : les artefacts sont
+  téléchargeables par tout compte GitHub connecté pendant 14 jours. Ne jamais capturer un écran qui
+  affiche un secret, un jeton ou une donnée réelle.
+- Le DEV est partagé : un scénario qui écrit doit créer sa propre fixture fictive, nommée
+  `RECETTE jj/mm — … (test, ne pas traiter)`, et ne jamais supprimer ni réinitialiser des données. Pas de
+  signature, paiement ou séquestre.
+- Une seule recette à la fois (`concurrency: dao-dev-recette`).
+
+**Méthode pour un fil**
+
+1. Ajouter un scénario `dao-frontend/tests/dev-recette/<sujet>.spec.ts` dans sa PR, en important
+   `test`, `expect`, `as`, `snap` depuis `./support` (exemple : `smoke.spec.ts`). Les sélecteurs des
+   specs `tests/e2e/` sont réutilisables.
+2. Vérifier localement sans réseau : `cd dao-frontend && DAO_DEV_RECETTE=1 npx playwright test
+   --config=playwright.recette.config.ts --list`.
+3. Une fois la PR fusionnée et `deploy-dev` SUCCESS, déclencher le workflow sur `main` (onglet Actions,
+   ou outil GitHub `actions_run_trigger` → `run_workflow`, `workflow_id: dev-recette.yml`, `ref: main`,
+   inputs `specs`, `grep`, `appareils`). Le déclenchement sur une branche fonctionne aussi pour
+   mettre au point un scénario avant fusion, mais il teste toujours le DEV déployé.
+4. Lire le résumé PASS / FAIL / UNTESTED du run (résumé du job ou fin des logs de l'étape
+   « Résumé »), puis télécharger l'artefact `recette-dev-<run>-<tentative>` : `html/` (rapport
+   Playwright), `captures/` (captures nommées `appareil-sujet.png`), `resultats.json`.
+5. Rapporter sur l'issue propriétaire le lien du run et les verdicts, sans identifiant.
