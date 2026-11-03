@@ -24,6 +24,7 @@ et réserves
 | Devis PDF | [quote-pdf.md](quote-pdf.md) | #367 |
 | Après attribution (état post-award) | [post-award-state.md](post-award-state.md) | #44 |
 | Multi-lots par chantier et Artisan | [contractor-multilot-dossier-381.md](contractor-multilot-dossier-381.md) | #381 |
+| Référentiel BTP avancé (lots, sous-lots, ouvrages, unités, règles, dépendances, fondations métrés/estimations) | [btp-reference.md](btp-reference.md) | #541 |
 | Accord précontractuel | [precontract-agreement-v1.md](precontract-agreement-v1.md) | #345, #346 |
 | Échéances informatives | [precontract-installment-tracking-v1.md](precontract-installment-tracking-v1.md) | #345, #397 |
 | Contrat V1 | [contract-v1-design.md](contract-v1-design.md) | #61, #125, #390 |

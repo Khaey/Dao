@@ -55,7 +55,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,120);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,130);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -66,6 +66,82 @@ await test('canonical trade seed is idempotent by code',async()=>{
  eq(rows.find(row=>row.code==='general_contractor')?.name_fr,'Entreprise générale');
  eq(rows.find(row=>row.code==='plumbing')?.name_fr,'Plomberie');
  eq(rows.find(row=>row.code==='electrical')?.name_fr,'Électricité');
+});
+async function asCatalogReader(fn){
+ await db.exec("set role authenticated;select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000541',false);");
+ try{return await fn()}finally{await db.exec("reset role;select set_config('request.jwt.claim.sub','',false);")}
+}
+async function catalogSnapshot(projectType){
+ return asCatalogReader(async()=>{
+  const result=await db.query('select public.btp_catalog_snapshot($1,$2) as value',[projectType,'TN']);
+  return result.rows[0].value;
+ });
+}
+await test('advanced BTP catalogue exposes canonical published hierarchy',async()=>{
+ const snapshot=await catalogSnapshot(null);
+ eq(snapshot.catalogVersion.code,'TN-2026.1');eq(snapshot.catalogVersion.countryCode,'TN');
+ eq(snapshot.units.length,7);eq(snapshot.lots.length,10);eq(snapshot.rules.length,5);
+ eq(snapshot.dependencies.length,5);eq(snapshot.measurementTemplates.length,5);eq(snapshot.priceSources.length,0);
+ const works=snapshot.lots.flatMap(lot=>lot.subLots.flatMap(subLot=>subLot.works));
+ eq(works.length,20);
+ for(const work of works){
+  if(!work.id||!work.code||!work.unitCode||!work.sourceRef)throw Error(`Incomplete canonical work ${work.code??'unknown'}`);
+  if(!snapshot.units.some(unit=>unit.code===work.unitCode))throw Error(`Unknown unit ${work.unitCode}`);
+ }
+});
+await test('project-type filters narrow lots and works without inventing scope',async()=>{
+ const renovation=await catalogSnapshot('renovation');
+ const renovationCodes=renovation.lots.flatMap(lot=>lot.subLots.flatMap(subLot=>subLot.works.map(work=>work.code)));
+ const renovationIds=new Set(renovation.lots.flatMap(lot=>lot.subLots.flatMap(subLot=>subLot.works.map(work=>work.id))));
+ eq(renovation.lots.some(lot=>lot.code==='btp_lot_earth_structure'),false);
+ eq(renovationCodes.includes('btp_work_foundations'),false);
+ eq(renovationCodes.includes('btp_work_selective_demolition'),true);
+ eq(renovationCodes.includes('btp_work_existing_connections'),false);
+ for(const dependency of renovation.dependencies){
+  if(!renovationIds.has(dependency.predecessorWorkId)||!renovationIds.has(dependency.successorWorkId))throw Error('Filtered dependency references a hidden work');
+ }
+ for(const template of renovation.measurementTemplates)if(!renovationIds.has(template.workId))throw Error('Filtered measurement references a hidden work');
+ const extension=await catalogSnapshot('extension');
+ const extensionCodes=extension.lots.flatMap(lot=>lot.subLots.flatMap(subLot=>subLot.works.map(work=>work.code)));
+ eq(extensionCodes.includes('btp_work_existing_connections'),true);
+});
+await test('measurement templates require explicit inputs and never embed defaults',async()=>{
+ const snapshot=await catalogSnapshot(null);
+ for(const template of snapshot.measurementTemplates){
+  if(!Array.isArray(template.inputSchema.required)||template.inputSchema.required.length===0)throw Error('Measurement inputs must be explicit');
+  if(JSON.stringify(template.inputSchema).includes('default'))throw Error('Measurement defaults are forbidden');
+  if(!template.formulaAst?.op)throw Error('Formula AST operation is required');
+  if(template.assumptions.length===0)throw Error('Measurement assumptions must be explicit');
+ }
+});
+await test('advanced BTP dependencies are acyclic and never self-reference',async()=>{
+ const invalid=(await db.query(`with recursive paths(origin,current,path,cycle) as (
+   select predecessor_work_id,successor_work_id,array[predecessor_work_id,successor_work_id],predecessor_work_id=successor_work_id
+   from public.btp_work_dependencies
+   union all
+   select p.origin,d.successor_work_id,p.path||d.successor_work_id,d.successor_work_id=any(p.path)
+   from paths p join public.btp_work_dependencies d on d.predecessor_work_id=p.current where not p.cycle
+ ) select count(*)::int as n from paths where cycle`)).rows[0].n;
+ eq(invalid,0);
+});
+await test('catalogue is authenticated read-only and anonymous execution is denied',async()=>{
+ await db.exec('set role anon');try{await denied("select public.btp_catalog_snapshot('construction','TN')",'42501')}finally{await db.exec('reset role')}
+ await asCatalogReader(()=>denied("update public.btp_works set label_fr='altéré' where code='btp_work_masonry'",'42501'));
+ await asCatalogReader(()=>denied("insert into public.btp_price_books(catalog_version_id,name,source_name,source_uri,country_code,currency,valid_from,verified_at,status) select id,'sans source','invalide','http://invalid','TN','TND',current_date,now(),'published' from public.btp_catalog_versions limit 1",'42501'));
+});
+await test('estimation scaffolding publishes no unverified price',async()=>{
+ const counts=(await db.query('select (select count(*) from public.btp_price_books)::int as books,(select count(*) from public.btp_work_prices)::int as prices')).rows[0];
+ eq(counts.books,0);eq(counts.prices,0);
+});
+await test('future prices must match catalogue version, work and canonical unit',async()=>{
+ const version=(await db.query("select id from public.btp_catalog_versions where code='TN-2026.1'")).rows[0].id;
+ const work=(await db.query("select id from public.btp_works where code='btp_work_masonry'")).rows[0];
+ const book=randomUUID();
+ await db.query("insert into public.btp_price_books(id,catalog_version_id,name,source_name,source_uri,country_code,currency,valid_from,verified_at,status) values($1,$2,'test','source','https://example.invalid/source','TN','TND',current_date,now(),'draft')",[book,version]);
+ let rejected=false;
+ try{await db.query("insert into public.btp_work_prices(catalog_version_id,price_book_id,work_id,unit_code,amount_minor,provenance_note) values($1,$2,$3,'m3',1000,'test')",[version,book,work.id])}
+ catch(error){eq(error.code,'23503');rejected=true}
+ if(!rejected)throw Error('Mismatched work unit was accepted');
 });
 async function insert(t,values){const v={id:randomUUID(),...values};const keys=Object.keys(v);await db.query(`insert into public.${t}(${keys.join(',')}) values(${keys.map((_,i)=>'$'+(i+1)).join(',')})`,Object.values(v));return v.id;}
 const U={};for(const n of ['clientA','clientB','proA','proB','general','admin']){U[n]=randomUUID();await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[U[n],`${n.toLowerCase()}@example.invalid`]);await insert('profiles',{user_id:U[n],display_name:n});await insert('user_roles',{user_id:U[n],role:n==='admin'?'dao_admin':n.startsWith('client')?'client':'contractor'});}

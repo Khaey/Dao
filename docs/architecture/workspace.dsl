@@ -18,6 +18,7 @@ model {
 
       projects = component "Chantiers" "Création, édition, versions, statut, avancement et archivage." "Next.js / API / RPC"
       lots = component "Lots / project_requests" "Lots réels versionnés; métier, périmètre, budget et retrait logique." "Next.js / RPC"
+      btpReference = component "Référentiel BTP avancé" "Catalogue versionné en lecture seule : métiers reliés, lots, sous-lots, ouvrages, unités, règles et dépendances ; aucune quantité ni donnée tarifaire implicite." "Next.js API / PostgreSQL RPC / RLS"
       privateDetails = component "Informations privées" "Adresse exacte, accès, téléphone, email privés." "Next.js / RLS"
       documents = component "Documents" "Upload Storage privé, grants et signed URLs après autorisation." "Next.js / Supabase Storage"
 
@@ -173,6 +174,9 @@ model {
   dao.web.api -> dao.web.rpc "Commande les versions sous JWT"
   dao.web.projects -> dao.web.api "Appelle les routes serveur"
   dao.web.lots -> dao.web.api "Appelle les routes/RPC"
+  dao.web.api -> dao.web.btpReference "Expose la lecture authentifiée et les filtres bornés"
+  dao.web.btpReference -> supabaseDb "Lit le catalogue publié via RPC SECURITY INVOKER"
+  dao.web.btpReference -> supabaseRls "Applique grants et politiques de lecture seule"
   dao.web.documents -> dao.web.api "Upload/download contrôlé"
   dao.web.invitations -> dao.web.api "Issue/revoke/send"
   dao.web.messaging -> dao.web.api "Liste, ouvre, envoie et marque lu"
@@ -245,7 +249,7 @@ views {
     include client contractor reviewer admin
     include dao.web.shell dao.web.auth dao.web.profile
     include dao.web.professionalDossier dao.web.professionalPublic dao.web.professionalMedia
-    include dao.web.projects dao.web.lots dao.web.privateDetails dao.web.documents
+    include dao.web.projects dao.web.lots dao.web.btpReference dao.web.privateDetails dao.web.documents
     include dao.web.teamCreation dao.web.invitations dao.web.collaboration dao.web.messaging dao.web.siteExecution
     include dao.web.review dao.web.publications dao.web.marketplace
     include dao.web.bids dao.web.compare dao.web.awards
@@ -283,7 +287,7 @@ views {
 
   component dao.web "SecurityData" "Frontières sécurité/data: Auth, API, RPC, RLS et Storage privé." {
     include client contractor reviewer admin
-    include dao.web.auth dao.web.api dao.web.services dao.web.rpc dao.web.documents dao.web.email
+    include dao.web.auth dao.web.api dao.web.services dao.web.rpc dao.web.btpReference dao.web.documents dao.web.email
     include dao.web.professionalDossier dao.web.professionalPublic dao.web.professionalMedia
     include supabaseAuth supabaseDb supabaseRls supabaseStorage resend
     autoLayout lr

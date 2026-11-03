@@ -32,6 +32,8 @@ import { createNativeExecutionActivityHandler } from './nativeExecutionActivityH
 import { createNativeExecutionDependencyHandler } from './nativeExecutionDependencyHandler.js';
 import { createClientOfficialSubLotHandler } from './clientOfficialSubLotHandler.js';
 import { createNativeLotDatesHandler } from './nativeLotDatesHandler.js';
+import { BtpReferenceService } from '../services/BtpReferenceService.js';
+import { createBtpReferenceHandler } from './btpReferenceHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -59,6 +61,12 @@ export function createNotificationApi(request: Request) {
 export function createSupportApi(request: Request) {
   const { db, resolveActor } = requestScope(request);
   return createSupportHandler(new SupportService(db), resolveActor);
+}
+
+/** Published, read-only BTP catalogue. JWT remains required even though every row is non-user data. */
+export function createBtpReferenceApi(request:Request) {
+  const {db,resolveActor}=requestScope(request);
+  return createBtpReferenceHandler(new BtpReferenceService(db),resolveActor);
 }
 
 export function createRfiApi(request: Request) {
