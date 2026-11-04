@@ -29,8 +29,11 @@ l'analyse, au code et au diagnostic.** Ne pas multiplier les jobs a l'identique.
   l'environnement GitHub `dev`**. Ne pas transmettre de mots de passe ou de
   session Auth aux agents, au chat, a une PR ou a une capture. Ne jamais executer
   une version non fusionnee de tests avec les secrets partages. Protections des
-  branches de l'environnement `dev` : autoriser **main seulement** (reglage
-  GitHub a confirmer dans Settings > Environments > dev).
+  refs de l'environnement `dev` : auditer les workflows qui utilisent ce meme
+  environnement avant de les restreindre ; `dev-real-email.yml` utilise aussi
+  des evenements release (tag) et ne doit pas etre casse. Autoriser seulement
+  les refs de confiance strictement necessaires ou isoler les secrets de recette
+  dans un environnement dedie. Reglage manuel a verifier dans Settings > Environments > dev.
 - Tester une PR avant fusion par les 3 gates **jetables**, sans secrets DEV.
   Les audits exclusivement SQL/API n'ont pas besoin d'une recette navigateur
   superflue ; ils gardent leurs propres preuves de tests JWT/RLS et de schema.
