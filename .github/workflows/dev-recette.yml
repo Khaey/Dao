@@ -1,7 +1,7 @@
 name: DAO DEV recette navigateur
 
-# Recette Playwright sur le DEV partagé (https://dao-dev.logiclab.fr), sans
-# PROD. Utilisation des comptes de recette reservee a refs/heads/main.
+# Recette Playwright sur le DEV partage (https://dao-dev.logiclab.fr).
+# Utilisation des comptes de recette reservee a refs/heads/main.
 # Les branches PR passent les trois gates CI jetables sans secrets DEV.
 # Lancement manuel sur main ou appel depuis un autre workflow sur main avec `secrets: inherit`. Methode : docs/e2e-environments.md, section « Recette DEV dans GitHub Actions ».
 on:
