@@ -41,7 +41,7 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261103170000','20261103203956'];
   expected_versions := expected_versions || ARRAY['20261103210000'];
   expected_versions := expected_versions || ARRAY['20261103230000'];
-  expected_versions := expected_versions || ARRAY['20261104020000'];
+  expected_versions := expected_versions || ARRAY['20261104020000','20261104130000'];
   expected_tables := expected_tables || ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events'];
   expected_tables := expected_tables || ARRAY['project_assistant_drafts','project_assistant_draft_revisions','project_assistant_scope_links'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
