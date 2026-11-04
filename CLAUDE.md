@@ -48,6 +48,26 @@ les PR ouvertes, la CI au SHA exact et le dernier commentaire du propriétaire p
 - Rapporter les résultats en `PASS / FAIL / UNTESTED` ; jamais de faux PASS, jamais revendiquer
   une recette navigateur ou un déploiement non constatés.
 
+### Exécution des tests — GitHub Actions comme socle commun (04/11/2026)
+
+Tous les agents (Claude, Codex, Work, DEV, Coordinateur, OPT, PILOT) doivent
+**faire tourner dans GitHub Actions les tests automatisables**, plutôt que
+consommer le quota de leur session avec des recettes répétitives. Cela ne change
+ni les 3 gates CI obligatoires sur la pile Supabase jetable, ni la responsabilité
+de correction et de revue de l'agent.
+
+**Recette avec les vrais comptes de test DEV** : utiliser uniquement le workflow
+`.github/workflows/dev-recette.yml` **depuis `main`** après `deploy-dev` réussi
+et vérification des migrations. Consulter la procédure et les options
+`specs`/`grep`/`appareils` dans
+[`docs/e2e-environments.md`](docs/e2e-environments.md). Les secrets sont dans
+l'environnement GitHub `dev` : **ne jamais les lire ou les recopier dans Claude
+Code**. La recette donne des rapports et captures, pas une permission de modifier
+des données réelles. Pas de rejouement inutile sur le même SHA.
+Pour une PR non fusionnée : tests CI isolés **sans** secrets DEV.
+Pour une mission purement SQL/RLS, privilégier les preuves SQL/API réelles ;
+pas de navigateur de complaisance. Pas d'environnement PROD pour l'instant.
+
 ## 4. Vrais gates (arrêtent seulement l'action concernée)
 
 P0 de sécurité non résolu ; check CI ou revue obligatoire manquant ; changement des garanties
