@@ -12,6 +12,10 @@ export async function btpAdminCases(db, test, { as }) {
   const { mapDaoCatalog } = await import('../dist/src/assistant/referential/daoReferential.js');
   const { validateReferentialSnapshot } = await import('../dist/src/assistant/referential/contract.js');
   const before = await snapshot();
+  // #561 seeds a deliberate draft; archive it here so the existing #547
+  // lifecycle assertions can create their isolated TN-2026.2 draft.
+  const seeded = await one("select id from public.btp_catalog_versions where code='TN-2026.3' and status='draft'");
+  if (seeded) await admin('select public.btp_admin_abandon_draft($1,$2) as r', [seeded.id, 'Préparation recette #547']);
   const masonry = works(before).find(w => w.code === 'btp_work_masonry');
   let draft;
 
@@ -87,7 +91,7 @@ export async function btpAdminCases(db, test, { as }) {
     const published = await admin('select public.btp_admin_publish_draft($1,$2) as r', [draft, reason]);
     eq(published.retired, 'TN-2026.1');
     const versions = (await db.query("select code,status from public.btp_catalog_versions where country_code='TN' order by code")).rows;
-    eq(JSON.stringify(versions), JSON.stringify([{ code: 'TN-2026.1', status: 'retired' }, { code: 'TN-2026.2', status: 'published' }]));
+    eq(JSON.stringify(versions), JSON.stringify([{ code: 'TN-2026.1', status: 'retired' }, { code: 'TN-2026.2', status: 'published' }, { code: 'TN-2026.3', status: 'retired' }]));
     const live = await snapshot();
     eq(live.catalogVersion.code, 'TN-2026.2'); eq(works(live).length, 21); eq(live.dependencies.length, 5);
     eq(works(live).find(w => w.id === masonry.id).label, 'Maçonnerie et élévation des murs');
@@ -102,10 +106,10 @@ export async function btpAdminCases(db, test, { as }) {
   });
 
   await test('btp admin: an abandoned draft is archived, never published', async () => {
-    const created = await admin("select public.btp_admin_create_draft('TN','TN-2026.3',$1) as r", [reason]);
+    const created = await admin("select public.btp_admin_create_draft('TN','TN-2026.4',$1) as r", [reason]);
     await admin('select public.btp_admin_abandon_draft($1,$2) as r', [created.versionId, reason]);
     await as('admin', () => rejects(() => db.query('select public.btp_admin_publish_draft($1,$2)', [created.versionId, reason]), '42501'));
     eq((await snapshot()).catalogVersion.code, 'TN-2026.2');
-    eq((await one("select status from public.btp_catalog_versions where code='TN-2026.3'")).status, 'retired');
+    eq((await one("select status from public.btp_catalog_versions where code='TN-2026.4'")).status, 'retired');
   });
 }

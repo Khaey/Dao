@@ -117,6 +117,35 @@ await test('measurement templates require explicit inputs and never embed defaul
   if(template.assumptions.length===0)throw Error('Measurement assumptions must be explicit');
  }
 });
+await test('BTP V2 is additive, versioned as an unpublished draft, and exposes generated-input metadata',async()=>{
+ const draft=(await db.query(`select id,code,status,based_on_version_id
+   from public.btp_catalog_versions where code='TN-2026.3'`)).rows[0];
+ if(!draft)throw Error('TN-2026.3 draft is missing');
+ eq(draft.status,'draft');
+ const base=(await db.query('select code from public.btp_catalog_versions where id=$1',[draft.based_on_version_id])).rows[0];
+ eq(base.code,'TN-2026.1');
+ const counts=(await db.query(`select
+   (select count(*)::int from public.btp_lots where catalog_version_id=$1) lots,
+   (select count(*)::int from public.btp_sub_lots where catalog_version_id=$1) sub_lots,
+   (select count(*)::int from public.btp_works where catalog_version_id=$1) works,
+   (select count(*)::int from public.btp_measurement_templates where catalog_version_id=$1) templates,
+   (select count(*)::int from public.btp_rules where catalog_version_id=$1) rules,
+   (select count(*)::int from public.btp_work_dependencies where catalog_version_id=$1) dependencies`,[draft.id])).rows[0];
+ if(counts.lots<11||counts.sub_lots<14||counts.works<29||counts.templates<14||counts.rules<8||counts.dependencies<7)throw Error('BTP V2 coverage is incomplete');
+ const models=(await db.query(`select w.code,m.output_unit_code,m.input_schema
+   from public.btp_measurement_templates m join public.btp_works w on w.id=m.work_id and w.catalog_version_id=m.catalog_version_id
+   where m.catalog_version_id=$1 and m.active and w.code like 'btp_work_%' and w.id::text like '56110000-%'
+   order by w.code`,[draft.id])).rows;
+ eq(models.length,9);
+ for(const model of models){
+  if(!model.input_schema.required?.length||!model.input_schema['x-dao']?.support)throw Error(`Missing generated-input metadata for ${model.code}`);
+  if(!model.input_schema.properties?.[model.input_schema.required[0]])throw Error(`Missing property contract for ${model.code}`);
+  if(!['m','m2','unit'].includes(model.output_unit_code))throw Error(`Unexpected V2 output unit ${model.output_unit_code}`);
+ }
+ const published=await catalogSnapshot(null);
+ eq(published.catalogVersion.code,'TN-2026.1');
+ eq(published.measurementTemplates.length,5);
+});
 await test('advanced BTP dependencies are acyclic and never self-reference',async()=>{
  const invalid=(await db.query(`with recursive paths(origin,current,path,cycle) as (
    select predecessor_work_id,successor_work_id,array[predecessor_work_id,successor_work_id],predecessor_work_id=successor_work_id

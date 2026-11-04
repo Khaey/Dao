@@ -24,7 +24,8 @@ test('real Supabase enforces deterministic takeoff RLS, idempotence and validate
   const project=(await admin.from('projects').insert({client_id:users.owner.id}).select('id').single());assert.ifError(project.error);
   const foreign=(await admin.from('projects').insert({client_id:users.other.id}).select('id').single());assert.ifError(foreign.error);
   assert.ifError((await admin.from('review_assignments').insert({project_id:project.data.id,reviewer_id:users.manager.id,assigned_at:new Date().toISOString()})).error);
-  const work=await admin.from('btp_works').select('id').eq('code','btp_work_terrace').single();assert.ifError(work.error);
+  const published=(await admin.from('btp_catalog_versions').select('id').eq('code','TN-2026.1').eq('status','published').single());assert.ifError(published.error);
+  const work=await admin.from('btp_works').select('id').eq('catalog_version_id',published.data.id).eq('code','btp_work_terrace').single();assert.ifError(work.error);
   const source={kind:'manual',reference:'Mesure intégration confirmée'};
   const command=(who:string,action:string,input:any,idempotency:string)=>users[who].db.rpc('btp_takeoff_command_v1',{p_action:action,p_input:input,p_idempotency_key:idempotency});
 
