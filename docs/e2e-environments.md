@@ -52,9 +52,16 @@ rejouer un passage deja PASS sans changement ni question de validation.
 `branch-main-check` **sans secret** qui bloque les branches autres que `main`
 avant de demarrer le job utilisant l'environnement `dev`. La protection
 de l'environnement GitHub doit en plus restreindre **Deployment branches and tags**
-a `main` (Settings > Environments > dev) pour empecher une branche qui modifie
-son propre workflow de contourner le garde. Cette restriction d'administration
-**ne peut pas etre attestee par la seule PR** ; un administrateur doit la verifier.
+aux refs de confiance strictement necessaires (Settings > Environments > dev)
+pour empecher une branche qui modifie son propre workflow de contourner le garde.
+**Important : l'environnement `dev` est partage par d'autres workflows** :
+`dev-real-email.yml` fonctionne notamment sur les evenements de publication
+(`release`, refs de tags), tandis que la CI et les operations DEV passent par main.
+Ne pas limiter aveuglement tout l'environnement a `main` si cela rend les tests
+email de release inoperants. Revoir les refs autorisees et les regles de protection
+des tags, ou isoler les secrets `DAO_RECETTE_*` dans un environnement GitHub
+dedie si une protection specifique aux recettes est requise. **Le reglage
+administratif n'est pas attestable par cette PR**.
 La gestion des utilisateurs est limitee aux comptes de test DEV. Il n'existe
 actuellement **aucun environnement PROD**.
 
