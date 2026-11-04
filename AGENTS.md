@@ -10,6 +10,38 @@
 - Aucun polling CI serre : verifier aux changements d'etat pertinents (avant merge, apres deploiement), puis noter `PENDING` et le run si inacheve. Aucun rerun pour gagner du temps sans cause technique.
 - Apres deux echecs identiques sans fait nouveau, arreter la boucle, documenter le blocage prouve et continuer les travaux independants. Si le quota chute, publier immediatement le WIP non sensible sur sa propre branche + checkpoint court ; **jamais de faux PASS ni de bypass des protections**.
 
+## RECETTE ET TESTS AUTOMATISES VIA GITHUB ACTIONS (04 novembre 2026)
+
+**Regle proprietaire applicable a tous les agents : privilegier GitHub Actions pour
+les tests reproductibles et les recettes navigateur ; reserver le quota IA a
+l'analyse, au code et au diagnostic.** Ne pas multiplier les jobs a l'identique.
+
+- Le developpement, les revues et les corrections restent sous la responsabilite
+  de l'agent owner ; les 3 gates obligatoires (backend-verify, frontend-build,
+  FULL E2E Supabase jetable) restent inchanges et se font sur le SHA exact.
+- Pour verifier le **DEV deja deploye** avec les comptes de test, utiliser le
+  workflow partage `.github/workflows/dev-recette.yml` sur **main uniquement**,
+  apres `deploy-dev` SUCCESS et les migrations DEV confirmees. Les specs sont
+  dans `dao-frontend/tests/dev-recette/` ; choisir `specs`, `grep` et
+  `appareils` pour une recette utile et ciblee. Voir
+  `docs/e2e-environments.md` (« Recette DEV dans GitHub Actions »).
+- Les credentials `DAO_RECETTE_*` restent uniquement dans les **secrets de
+  l'environnement GitHub `dev`**. Ne pas transmettre de mots de passe ou de
+  session Auth aux agents, au chat, a une PR ou a une capture. Ne jamais executer
+  une version non fusionnee de tests avec les secrets partages. Protections des
+  branches de l'environnement `dev` : autoriser **main seulement** (reglage
+  GitHub a confirmer dans Settings > Environments > dev).
+- Tester une PR avant fusion par les 3 gates **jetables**, sans secrets DEV.
+  Les audits exclusivement SQL/API n'ont pas besoin d'une recette navigateur
+  superflue ; ils gardent leurs propres preuves de tests JWT/RLS et de schema.
+- Publier lien du run, SHA deploye, PASS/FAIL/UNTESTED et reference de l'artefact
+  dans l'issue owner. Les rapports/captures ne doivent contenir ni secrets, ni
+  cookies, ni donnees personnelles reelles ; pas de trace/video. Le DEV partage
+  n'est ni une base a reinitialiser ni un espace de tests destructifs.
+- GitHub Actions ne remplace ni le raisonnement d'un agent ni les tests manuels
+  exploratoires quand ils sont reellement necessaires. Le depot n'a
+  **pas encore d'environnement PROD** : aucune action de ce chantier ne le suppose.
+
 Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
 
 ## Organisation courante — DAO PILOT 13 (29 octobre 2026)
