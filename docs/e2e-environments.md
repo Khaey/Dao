@@ -41,6 +41,23 @@ pas dans la session d'un fil. Cela économise le quota Claude et évite l'invite
 qui apparaît quand une session lance un script qui se connecte à DEV avec un mot de passe. Cette
 recette ne remplace pas le FULL E2E jetable ci-dessus : elle vérifie l'application **déployée**.
 
+**Doctrine commune du 04/11/2026** : Work, Codex, Claude, DEV, OPT,
+Coordinateurs et PILOT utilisent GitHub Actions comme outil d'execution de tests
+reproductibles. Les agents restent responsables du code, des analyses, corrections et
+des preuves. Les 3 gates obligatoires sur Supabase **jetable** ne sont pas remplaces
+par la recette navigateur du **DEV deploye**. Lancer des recettes utiles, pas
+rejouer un passage deja PASS sans changement ni question de validation.
+
+**Protection des comptes partages** : `dev-recette.yml` contient un job
+`branch-main-check` **sans secret** qui bloque les branches autres que `main`
+avant de demarrer le job utilisant l'environnement `dev`. La protection
+de l'environnement GitHub doit en plus restreindre **Deployment branches and tags**
+a `main` (Settings > Environments > dev) pour empecher une branche qui modifie
+son propre workflow de contourner le garde. Cette restriction d'administration
+**ne peut pas etre attestee par la seule PR** ; un administrateur doit la verifier.
+La gestion des utilisateurs est limitee aux comptes de test DEV. Il n'existe
+actuellement **aucun environnement PROD**.
+
 **Ce qui existe**
 
 - Workflow `.github/workflows/dev-recette.yml` (« DAO DEV recette navigateur »), lancement manuel
@@ -91,10 +108,10 @@ et ne sont pas utilisés ici.
    specs `tests/e2e/` sont réutilisables.
 2. Vérifier localement sans réseau : `cd dao-frontend && DAO_DEV_RECETTE=1 npx playwright test
    --config=playwright.recette.config.ts --list`.
-3. Une fois la PR fusionnée et `deploy-dev` SUCCESS, déclencher le workflow sur `main` (onglet Actions,
-   ou outil GitHub `actions_run_trigger` → `run_workflow`, `workflow_id: dev-recette.yml`, `ref: main`,
-   inputs `specs`, `grep`, `appareils`). Le déclenchement sur une branche fonctionne aussi pour
-   mettre au point un scénario avant fusion, mais il teste toujours le DEV déployé.
+3. Une fois la PR fusionnée et `deploy-dev` SUCCESS, déclencher le workflow **sur `main` uniquement**
+   (onglet Actions, ou outil GitHub `actions_run_trigger` → `run_workflow`,
+   `workflow_id: dev-recette.yml`, `ref: main`, inputs `specs`, `grep`, `appareils`).
+   **Aucune recette authentifiée depuis une branche PR** : tester les specs par la CI isolée avant fusion.
 4. Lire le résumé PASS / FAIL / UNTESTED du run (résumé du job ou fin des logs de l'étape
    « Résumé »), puis télécharger l'artefact `recette-dev-<run>-<tentative>` : `html/` (rapport
    Playwright), `captures/` (captures nommées `appareil-sujet.png`), `resultats.json`.
