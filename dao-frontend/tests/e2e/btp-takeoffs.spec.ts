@@ -23,7 +23,7 @@ test('Métrés #560 : dimensions réelles, calcul justifié, validation sans aut
   await page.getByLabel('Rechercher un ouvrage').fill('terrasse');
   await page.getByRole('button', { name: /Terrasse extérieure/ }).click();
   const editor = page.getByTestId('takeoff-editor');
-  await expect(editor.getByText(/Formule : Longueur × largeur/)).toBeVisible();
+  await expect(editor.getByText(/formule : Longueur × largeur/)).toBeVisible();
   await editor.getByLabel('Nom du métré').fill('Terrasse sud');
   await editor.getByLabel('Longueur — valeur', { exact: true }).fill('1000');
   await editor.getByLabel('Longueur — unité', { exact: true }).selectOption('cm');
