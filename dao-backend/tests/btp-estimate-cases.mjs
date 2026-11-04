@@ -189,6 +189,20 @@ export async function btpEstimateCases(db, test, { U, P, Q, gov, as }) {
       if (!real548) {
         await db.query("insert into public.btp_takeoffs values($1,$2,$3,'main','Carrelage séjour','draft',2,1),($4,$5,$3,'main','Autre chantier','validated',1,1)", [t, P, tiling.id, foreign, Q]);
         await db.query(`insert into public.btp_takeoff_revisions values($1,1,'calculated','{"result":{"value":"20.00","unit":"${tiling.unit_code}"}}'),($2,1,'calculated','{"result":{"value":"5","unit":"${tiling.unit_code}"}}')`, [t, foreign]);
+      } else {
+        // Contrat #548 réel : fixture complète et transactionnelle, sans dépendre de l'ordre des autres suites.
+        const template=(await db.query('select id,catalog_version_id from public.btp_measurement_templates where work_id=$1',[tiling.id])).rows[0];
+        await db.query(`insert into public.btp_takeoffs(id,project_id,catalog_version_id,work_id,template_id,scope_key,label,created_by,status,current_revision,validated_revision)
+          values($1,$2,$3,$4,$5,'estimate-contract','Carrelage séjour',$6,'draft',2,1),
+            ($7,$8,$3,$4,$5,'estimate-contract','Autre chantier',$9,'validated',1,1)`,
+          [t,P,template.catalog_version_id,tiling.id,template.id,U.clientA,foreign,Q,U.clientB]);
+        await db.query(`insert into public.btp_takeoff_revisions(takeoff_id,revision,calculation_status,canonical_inputs,formula_snapshot,justification,input_sha256,result_sha256,created_by)
+          values($1,1,'calculated','{}','{}',$2::jsonb,repeat('a',64),repeat('b',64),$3),
+            ($1,2,'calculated','{}','{}',$4::jsonb,repeat('c',64),repeat('d',64),$3),
+            ($5,1,'calculated','{}','{}',$6::jsonb,repeat('e',64),repeat('f',64),$7)`,
+          [t,JSON.stringify({result:{value:'20.00',unit:tiling.unit_code}}),U.clientA,
+            JSON.stringify({result:{value:'22.00',unit:tiling.unit_code}}),foreign,
+            JSON.stringify({result:{value:'5',unit:tiling.unit_code}}),U.clientB]);
       }
       await as('clientA', async () => {
         const r = (await estimate('preview', { projectId: P, mode: 'simulation' })).result;

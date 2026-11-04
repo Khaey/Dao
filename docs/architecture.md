@@ -117,6 +117,15 @@ par un RPC `SECURITY INVOKER` et la route serveur `GET /api/btp/catalog`; les é
 réservées aux migrations revues. Voir [product/btp-reference.md](product/btp-reference.md) pour le
 contrat, les limites et la préparation des métrés et estimations.
 
+## 7. Moteur de métrés BTP
+
+Le domaine `btp-takeoff` calcule uniquement des métrés prévisionnels depuis les AST publiés du
+référentiel. La route JWT `GET/POST /api/btp/takeoffs` orchestre un évaluateur TypeScript exact et
+une seconde évaluation PostgreSQL avant persistance. Les révisions et événements sont immuables ;
+RLS isole les chantiers et les écritures restent RPC-only. Ce domaine ne dépend pas d’OCE et ne
+modifie ni métrés d’exécution, ni devis, prix, planning ou assistant. Voir
+[product/btp-takeoffs.md](product/btp-takeoffs.md).
+
 ### Base de prix et estimation (#551)
 
 Tarifs sourcés (`btp_price_sources`, `btp_price_items` + révisions/événements append-only) et

@@ -39,6 +39,8 @@ import { BtpReferenceService } from '../services/BtpReferenceService.js';
 import { createBtpReferenceHandler } from './btpReferenceHandler.js';
 import { BtpEstimateService } from '../services/BtpEstimateService.js';
 import { createBtpEstimateHandler, createBtpPriceHandler } from './btpEstimateHandler.js';
+import { BtpTakeoffService } from '../services/BtpTakeoffService.js';
+import { createBtpTakeoffHandler } from './btpTakeoffHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -84,6 +86,12 @@ export function createBtpPriceApi(request:Request) {
 export function createBtpEstimateApi(request:Request) {
   const {db,resolveActor}=requestScope(request);
   return createBtpEstimateHandler(new BtpEstimateService(db),resolveActor);
+}
+
+/** Deterministic forecast takeoffs. This never writes execution quantities, quotes, prices or OCE planning. */
+export function createBtpTakeoffApi(request:Request) {
+  const {db,resolveActor}=requestScope(request);
+  return createBtpTakeoffHandler(new BtpTakeoffService(db),resolveActor);
 }
 
 export function createRfiApi(request: Request) {

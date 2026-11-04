@@ -58,7 +58,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,140);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,143);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -218,6 +218,56 @@ const B={};for(const n of ['proA','proB','general']){
  B[n]={b,v,items,g,doc};
 }
 async function as(n,fn){await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${U[n]}',false);`);try{return await fn()}finally{await db.exec('reset role;')}}
+const takeoffProject=await insert('projects',{client_id:U.clientA});
+const takeoffWork=(await db.query("select id from public.btp_works where code='btp_work_terrace'")).rows[0].id;
+const takeoffCommand=(action,input,key)=>db.query('select public.btp_takeoff_command_v1($1,$2::jsonb,$3) as value',[action,JSON.stringify(input),key]);
+let forecastTakeoff;
+await test('forecast takeoff records insufficient data without inventing a quantity',()=>as('clientA',async()=>{
+ const result=(await takeoffCommand('calculate',{projectId:takeoffProject,workId:takeoffWork,scopeKey:'terrace-main',label:'Terrasse principale',canonicalInputs:{
+  length_m:{value:'10',unit:'m',source:{kind:'manual',reference:'Plan client'},original:{value:'10',unit:'m'}}
+ }},'takeoff-missing-001')).rows[0].value;
+ forecastTakeoff=result.id;eq(result.current.status,'insufficient_data');eq(result.current.justification.missingFields[0],'width_m');
+ eq(result.current.justification.result,undefined);
+}));
+await test('foreign project actor cannot read or revise a forecast takeoff',()=>as('clientB',async()=>{
+ await denied(`select public.btp_takeoff_snapshot_v1('${takeoffProject}','${forecastTakeoff}')`,'42501');
+ await denied(`select public.btp_takeoff_command_v1('calculate','{"projectId":"${takeoffProject}","workId":"${takeoffWork}"}'::jsonb,'takeoff-denied-001')`,'42501');
+}));
+await test('database independently evaluates the published AST and idempotent replay',()=>as('clientA',async()=>{
+ const input={projectId:takeoffProject,workId:takeoffWork,takeoffId:forecastTakeoff,expectedRevision:1,scopeKey:'terrace-main',label:'Terrasse principale',forgedResult:'999999',canonicalInputs:{
+  length_m:{value:'10',unit:'m',source:{kind:'document',reference:'Plan A-12'},original:{value:'1000',unit:'cm'}},
+  width_m:{value:'6',unit:'m',source:{kind:'survey',reference:'Relevé R1'},original:{value:'6000',unit:'mm'}}
+ }};
+ const first=(await takeoffCommand('calculate',input,'takeoff-calc-002')).rows[0].value;
+ const replay=(await takeoffCommand('calculate',input,'takeoff-calc-002')).rows[0].value;
+ eq(first.current.revision,2);eq(Number(first.current.justification.result.value),60);eq(first.current.justification.result.unit,'m2');
+ eq(first.current.justification.conversions[0].from.value,'1000');eq(first.current.justification.conversions[0].to.value,'10');
+ eq(first.current.resultSha256,replay.current.resultSha256);
+ await denied(`select public.btp_takeoff_command_v1('calculate','${JSON.stringify({...input,label:'Altéré'}).replaceAll("'","''")}'::jsonb,'takeoff-calc-002')`,'22023');
+}));
+await test('database rejects forged normalization and duplicate scope creation',()=>as('clientA',async()=>{
+ const forged={projectId:takeoffProject,workId:takeoffWork,takeoffId:forecastTakeoff,expectedRevision:2,scopeKey:'terrace-main',label:'Terrasse forgée',canonicalInputs:{
+  length_m:{value:'999',unit:'m',source:{kind:'document',reference:'Plan A-12'},original:{value:'1000',unit:'cm'}},
+  width_m:{value:'6',unit:'m',source:{kind:'survey',reference:'Relevé R1'},original:{value:'6000',unit:'mm'}}
+ }};
+ await denied(`select public.btp_takeoff_command_v1('calculate','${JSON.stringify(forged).replaceAll("'","''")}'::jsonb,'takeoff-forged-001')`,'22023');
+ const duplicate={projectId:takeoffProject,workId:takeoffWork,scopeKey:'terrace-main',label:'Collision',canonicalInputs:{}};
+ await denied(`select public.btp_takeoff_command_v1('calculate','${JSON.stringify(duplicate).replaceAll("'","''")}'::jsonb,'takeoff-duplicate-001')`,'23505');
+}));
+await test('authenticated users have no direct takeoff write grants',()=>as('clientA',()=>denied(`update public.btp_takeoffs set label='forged' where id='${forecastTakeoff}'`,'42501')));
+await test('client submits and manager validates the exact current revision',async()=>{
+ await as('clientA',async()=>eq((await takeoffCommand('submit',{takeoffId:forecastTakeoff,expectedRevision:2,note:'Prêt pour validation'},'takeoff-submit-001')).rows[0].value.status,'submitted'));
+ await as('admin',async()=>{const result=(await takeoffCommand('validate',{takeoffId:forecastTakeoff,expectedRevision:2,note:'Dimensions vérifiées'},'takeoff-valid-001')).rows[0].value;eq(result.status,'validated');eq(result.validatedRevision,2)});
+});
+await test('recalculation preserves the validated result and immutable history',()=>as('clientA',async()=>{
+ const result=(await takeoffCommand('calculate',{projectId:takeoffProject,workId:takeoffWork,takeoffId:forecastTakeoff,expectedRevision:2,scopeKey:'terrace-main',label:'Terrasse principale révisée',canonicalInputs:{
+  length_m:{value:'11',unit:'m',source:{kind:'document',reference:'Plan A-13'},original:{value:'11',unit:'m'}},
+  width_m:{value:'6',unit:'m',source:{kind:'survey',reference:'Relevé R2'},original:{value:'6',unit:'m'}}
+ }},'takeoff-recalc-001')).rows[0].value;
+ eq(result.currentRevision,3);eq(result.validatedRevision,2);eq(Number(result.validated.justification.result.value),60);eq(Number(result.current.justification.result.value),66);
+ eq(result.history.length,3);eq(result.events.some(event=>event.type==='validation_invalidated'),true);
+ await denied(`delete from public.btp_takeoff_revisions where takeoff_id='${forecastTakeoff}' and revision=1`,'42501');
+}));
 async function rows(t,id){return (await db.query(`select * from public.${t} where id=$1`,[id])).rows.length}
 for(const n of ['proA','proB']){const other=n==='proA'?'proB':'proA';for(const [t,id] of [['bids',B[other].b],['bid_versions',B[other].v],['bid_items',B[other].items[0]],['bid_groups',B[other].g],['bid_documents',B[other].doc]])await test(n+' cannot read competing draft '+t,()=>as(n,async()=>eq(await rows(t,id),0)));}
 await test('client cannot discover draft bid',()=>as('clientA',async()=>eq(await rows('bids',B.proA.b),0)));
