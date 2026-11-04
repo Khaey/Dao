@@ -10,7 +10,7 @@ Dépôt source de vérité : <https://github.com/Khaey/Dao>. DEV : <https://dao-
 
 1. Ce fichier, puis [`docs/agents.md`](docs/agents.md) : qui possède quoi aujourd'hui.
 2. Ton **issue propriétaire** et son dernier checkpoint utile ; la coordination générale est
-   l'issue de **PILOT 13** [#511](https://github.com/Khaey/Dao/issues/511) (historique : PILOT 12 #436).
+   l'issue courante de **PILOT 14 [#556](https://github.com/Khaey/Dao/issues/556)** ; la [passation PILOT 14](docs/pilot/pilot-14-handover.md) et les [deux audits indépendants](docs/pilot/pilot-14-independent-reviews.md) précisent les décisions et risques. Ancien PILOT 13 : #511 (archive).
 3. [`docs/decisions.md`](docs/decisions.md) pour le domaine touché (décisions métier et techniques validées).
 4. [`docs/architecture.md`](docs/architecture.md) pour la structure, les conventions et la CI.
 5. [`docs/product/`](docs/product/README.md) : spécifications fonctionnelles existantes.
@@ -27,7 +27,7 @@ les PR ouvertes, la CI au SHA exact et le dernier commentaire du propriétaire p
   la migration et le code existants (`docs/decisions.md` liste les livraisons par domaine).
 - **Vérifier les migrations** : `dao-backend/supabase/migrations/` sur `main` et, si le travail en
   dépend, leur présence réelle sur Supabase DEV. Une migration mergée n'est pas une migration appliquée.
-- Ne pas modifier le périmètre, la branche ou la PR d'un autre agent sans coordination via #511.
+- Ne pas modifier le périmètre, la branche ou la PR d'un autre agent sans coordination via [PILOT 14 #556](https://github.com/Khaey/Dao/issues/556).
 
 ## 3. Règles permanentes du propriétaire
 
@@ -53,7 +53,7 @@ les PR ouvertes, la CI au SHA exact et le dernier commentaire du propriétaire p
 P0 de sécurité non résolu ; check CI ou revue obligatoire manquant ; changement des garanties
 Auth/JWT/RLS ; secrets ; production, VPS/root/OPS/OCE non préautorisés ; dépenses ; données réelles
 ou suppression destructrice ; nouvelle règle métier engageante (juridique, financière). Continuer le
-travail indépendant, poser **une** question ciblée au bon décideur (PILOT 13 pour le technique et
+travail indépendant, poser **une** question ciblée au bon décideur (PILOT 14 pour le technique et
 l'arbitrage entre owners, le propriétaire pour un nouvel engagement).
 
 ## 5. Invariants techniques non négociables
@@ -81,4 +81,4 @@ Skills du dépôt : `.claude/skills/dao-preflight`, `dao-pr-review`, `dao-perfor
 
 Une PR qui livre une décision ou un changement d'organisation met à jour, dans la même PR,
 `docs/decisions.md`, `docs/agents.md` ou `docs/architecture.md`. Pas de nouveau document
-redondant : compléter le fichier existant du domaine.
+redondant : compléter le fichier existant du domaine. **À chaque changement de PILOT, publier une passation datée et vérifiée dans l'issue de coordination, actualiser `docs/agents.md` et archiver les contre-audits sans réécrire les preuves historiques.**
