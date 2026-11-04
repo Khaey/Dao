@@ -21,6 +21,7 @@ DECLARE
     'notifications','notification_preferences','portfolio_assets','portfolio_projects','profile_contacts','technical_questions','technical_clarifications','technical_rfi_reads','technical_rfi_receipts','technical_rfi_documents',
     'profiles','project_contract_settings','project_members','project_invitations','project_private_details','project_request_versions',
     'btp_catalog_versions','btp_units','btp_lots','btp_sub_lots','btp_works','btp_rules','btp_work_dependencies','btp_measurement_templates','btp_price_books','btp_work_prices',
+    'btp_takeoffs','btp_takeoff_revisions','btp_takeoff_events',
     'project_requests','project_reviews','project_version_requests','trade_proposals',
     'project_versions','projects','publication_recipients',
     'publication_requests','publications','site_client_observations','site_log_events','site_log_evidence','site_technical_inspections','site_technical_inspection_events','site_technical_reserves','site_technical_reserve_events','site_technical_evidence','site_work_situations','site_work_situation_events','support_command_receipts','support_events','support_messages','support_reads','support_tickets','trades','user_roles'
@@ -35,7 +36,7 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261028000000'];
   expected_versions := expected_versions || ARRAY['20261028100000','20261028120000'];
   expected_versions := expected_versions || ARRAY['20261103152820'];
-  expected_versions := expected_versions || ARRAY['20261103170000'];
+  expected_versions := expected_versions || ARRAY['20261103170000','20261103203956'];
   expected_versions := expected_versions || ARRAY['20261103210000'];
   expected_versions := expected_versions || ARRAY['20261103230000'];
   expected_tables := expected_tables || ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events'];
@@ -203,6 +204,9 @@ BEGIN
       'public.record_native_activity_event_v1(uuid,uuid,text,text,integer,date,text,date,text,uuid,bigint,text,uuid[],text)',
       'public.native_execution_prepare_installment_scope(uuid,integer,text,uuid,uuid,uuid,date,date,text)',
       'public.native_execution_accept_installment_scope(uuid,text,text)',
+      'public.btp_takeoff_snapshot_v1(uuid,uuid)',
+      'public.btp_takeoff_template_v1(uuid,uuid)',
+      'public.btp_takeoff_command_v1(text,jsonb,text)',
       'public.my_effective_settings(text,uuid)',
       'public.admin_setting_command(text,jsonb)',
       'public.admin_set_trade_active(uuid,boolean,text)',
@@ -331,6 +335,28 @@ BEGIN
     IF has_function_privilege('anon',missing_name,'EXECUTE')
        OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
       RAISE EXCEPTION 'schema contract: price/estimate RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  IF has_table_privilege('authenticated','public.btp_takeoffs','INSERT')
+     OR has_table_privilege('authenticated','public.btp_takeoffs','UPDATE')
+     OR has_table_privilege('authenticated','public.btp_takeoffs','DELETE')
+     OR has_table_privilege('authenticated','public.btp_takeoff_revisions','INSERT')
+     OR has_table_privilege('authenticated','public.btp_takeoff_revisions','UPDATE')
+     OR has_table_privilege('authenticated','public.btp_takeoff_revisions','DELETE')
+     OR has_table_privilege('authenticated','public.btp_takeoff_events','INSERT')
+     OR has_table_privilege('authenticated','public.btp_takeoff_events','UPDATE')
+     OR has_table_privilege('authenticated','public.btp_takeoff_events','DELETE')
+     OR has_table_privilege('anon','public.btp_takeoffs','SELECT') THEN
+    RAISE EXCEPTION 'schema contract: takeoff writes must stay RPC-only and anonymous reads closed';
+  END IF;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.btp_takeoff_snapshot_v1(uuid,uuid)',
+    'public.btp_takeoff_template_v1(uuid,uuid)',
+    'public.btp_takeoff_command_v1(text,jsonb,text)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+       OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: takeoff RPC grant mismatch: %',missing_name;
     END IF;
   END LOOP;
   FOR missing_name IN SELECT unnest(ARRAY[
