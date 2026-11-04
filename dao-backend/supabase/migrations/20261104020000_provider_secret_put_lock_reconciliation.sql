@@ -25,8 +25,9 @@ begin
 end;
 $$;
 
--- CREATE OR REPLACE preserves existing ACLs; this only ensures the already
--- authorized backend role retains EXECUTE. No broad Vault/table grants or revokes.
+-- Keep this RPC private even if it is created without the earlier Vault bridge.
+-- This is scoped to one function; it does not alter Vault schema/table ACLs.
+revoke all on function public.provider_secret_put(text, text) from public, anon, authenticated;
 grant execute on function public.provider_secret_put(text, text) to service_role;
 
 commit;
