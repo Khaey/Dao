@@ -30,6 +30,8 @@ DECLARE
   actual_tables text[];
   missing_name text;
   state record;
+  provider_secret_definition text;
+  provider_secret_signature constant text := 'public.provider_secret_put(text,text)';
 BEGIN
   expected_versions := expected_versions || ARRAY['20261027013511'];
   expected_versions := expected_versions || ARRAY['20261027031408'];
@@ -39,6 +41,7 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261103170000','20261103203956'];
   expected_versions := expected_versions || ARRAY['20261103210000'];
   expected_versions := expected_versions || ARRAY['20261103230000'];
+  expected_versions := expected_versions || ARRAY['20261104020000'];
   expected_tables := expected_tables || ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events'];
   expected_tables := expected_tables || ARRAY['project_assistant_drafts','project_assistant_draft_revisions','project_assistant_scope_links'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
@@ -782,6 +785,28 @@ BEGIN
       RAISE EXCEPTION 'client official sub-lot internal helper exposed: %',missing_name;
     END IF;
   END LOOP;
+
+  -- #555 Vault contract: the reduced PGlite fixture can skip if the bridge is absent.
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public'
+      AND p.proname='provider_secret_put'
+      AND pg_get_function_identity_arguments(p.oid)='p_name text, p_value text'
+  ) THEN
+    SELECT pg_get_functiondef(provider_secret_signature::regprocedure) INTO provider_secret_definition;
+    IF position('where name=p_name for update' IN lower(provider_secret_definition)) = 0 THEN
+      RAISE EXCEPTION 'provider_secret_put must lock an existing Vault row before rotation';
+    END IF;
+    IF has_function_privilege('anon', provider_secret_signature, 'EXECUTE')
+      OR has_function_privilege('authenticated', provider_secret_signature, 'EXECUTE')
+      OR NOT has_function_privilege('service_role', provider_secret_signature, 'EXECUTE') THEN
+      RAISE EXCEPTION 'provider_secret_put execution grants exceed the service-role contract';
+    END IF;
+  ELSE
+    RAISE NOTICE 'provider_secret_put contract skipped: Vault bridge is excluded from the PGlite fixture';
+  END IF;
 
   RAISE NOTICE 'schema contract passed: migrations, RLS, event trigger, RPCs, immutability, Storage, trades, and E2E seed';
 END
