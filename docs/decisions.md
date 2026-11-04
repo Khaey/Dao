@@ -199,6 +199,16 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Estimation **non contractuelle** ; « retenir comme référence » fige une révision sans effet juridique ou financier ; un recalcul ne la modifie jamais. Accès Client propriétaire, Gestionnaire affecté, Admin ; jamais un Artisan. | Livré | #551 |
 | Quantités : métré validé #548 (lu par contrat) ou quantité déclarée signalée non validée ; aucun second moteur de métrés. | Livré (raccordement réel après #550) | #548, #551 |
 
+## 12 quater. Parcours métrés et estimation (#560)
+
+| Décision | État | Source |
+| --- | --- | --- |
+| Entrée unique **« Quantités & estimation »** sur la fiche chantier : « Saisir les métrés » (`/app/projects/<id>/metres`) puis « Ouvrir le budget prévisionnel » (`/estimate`, inchangé). Pas de nouveau menu global, pas de second assistant ni référentiel. | Livré | [#560](https://github.com/Khaey/Dao/issues/560) |
+| L'écran ne calcule rien : formulaires **générés depuis le modèle de métré publié** (`required`/`properties`, titre si publié), calcul, révisions et droits par l'API #548, budget par l'aperçu #551 (mode référence). Module de présentation pur `dao-backend/src/btp-takeoff-ui/presentation.ts`, testé contre le moteur #548. Aucune migration. | Livré | #560, #548, #551 |
+| Dimension vide = **manquante** (révision « données insuffisantes », question ciblée) ; dimension commencée sans valeur, unité compatible, provenance ou référence = erreur à corriger. Aucune valeur par défaut, aucune perte, aucune quantité générée. Provenances : mesure manuelle, plan/document, relevé, référence BIM (non lue). | Livré | #560 |
+| **Validation sans Gestionnaire affecté** (décision #556 §5.1 encore ouverte) : option la plus prudente, sans nouvelle autorisation. Le Client calcule et soumet ; l'état reste « en attente de validation technique » ; seuls un Gestionnaire affecté (`review_assignments`) ou un Admin D.A.O. valident, selon `manages_project` existant. L'écran est **plus strict que la base** : le Client propriétaire ne valide jamais son propre métré, même s'il est aussi staff. Le budget n'utilise que les métrés validés. | Livré (en attente d'arbitrage) | #560, #556 |
+| Accès à l'écran calé sur les droits réels de l'estimation (Client propriétaire, Gestionnaire affecté, Admin) ; Artisan et staff non affecté voient « Accès réservé ». Écart signalé à DEV 5 : la lecture brute `GET /api/btp/takeoffs` suit `can_view_project` (membres du chantier et tout le staff), plus large que l'estimation. | Livré / signalé | #560, #548 |
+
 ## Questions ouvertes (ne pas trancher sans le propriétaire)
 
 - Signature électronique : fournisseur, niveau de signature, preuves, revue juridique tunisienne (#383).

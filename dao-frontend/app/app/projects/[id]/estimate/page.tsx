@@ -13,7 +13,7 @@ export default function ProjectEstimatePage() {
     <header>
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal">Chantier</p>
       <h1 id="estimate-title" className="mt-1 text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-3xl">Budget prévisionnel</h1>
-      <p className="mt-2 max-w-3xl text-sm text-ink/70">Estimation déterministe et justifiée à partir des quantités fournies et des tarifs sourcés vérifiés. Chaque montant indique sa source, sa date, sa zone et la version du référentiel.</p>
+      <p className="mt-2 max-w-3xl text-sm text-ink/70">Estimation déterministe et justifiée à partir des quantités fournies et des tarifs sourcés vérifiés. Chaque montant indique sa source, sa date, sa zone et la version du référentiel. Les quantités viennent des <Link href={`/app/projects/${id}/metres`} className="font-semibold text-teal underline">métrés validés</Link>.</p>
     </header>
     <ProjectEstimate projectId={id} />
   </section>;
