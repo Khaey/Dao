@@ -1,4 +1,4 @@
-import { expect, expectNoHorizontalOverflow, test } from "./support";
+import { expect, expectNoHorizontalOverflow, test, waitForContent } from "./support";
 import { ROLES, type Role } from "./roles";
 
 // Recette de base, en lecture seule : aucune écriture sur le DEV partagé.
@@ -9,8 +9,7 @@ for (const role of Object.keys(ROLES) as Role[]) {
     const page = await as(role);
     await page.goto("/app");
     await expect(page).toHaveURL(/\/app(?:[/?#]|$)/);
-    await expect(page.getByText("Chargement du DAO…")).toHaveCount(0);
-    await expect(page.locator("main")).toBeVisible();
+    await waitForContent(page);
     await snap(page, `${role}-tableau-de-bord`);
     await expectNoHorizontalOverflow(page);
   });
@@ -24,12 +23,18 @@ test("Admin : Utilisateurs & rôles accessible", async ({ as, snap }) => {
   await snap(page, "admin-utilisateurs-roles");
 });
 
+// Gestionnaire : staff sans droit Admin. Artisan : hors back-office.
+const refusals = {
+  clientB: "Administration réservée",
+  artisanA: "Accès réservé au back-office",
+} as const;
+
 for (const role of ["clientB", "artisanA"] as const) {
   test(`${ROLES[role].label} : administration refusée`, async ({ as, snap }) => {
     const page = await as(role);
     await page.goto("/app/dao/users");
     await expect(
-      page.getByRole("alert").filter({ hasText: "Administration réservée" }),
+      page.getByRole("alert").filter({ hasText: refusals[role] }),
     ).toBeVisible();
     await snap(page, `${role}-administration-refusee`);
   });
