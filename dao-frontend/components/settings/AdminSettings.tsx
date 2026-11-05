@@ -27,8 +27,8 @@ const sections: Array<{ title: string; items: Tab[] }> = [
 ];
 const tabLabel = Object.fromEntries(tabs) as Record<Tab, string>;
 // Capabilities grouped by business area so the Admin scans a short list instead of one long wall of cards.
-const areaOf = (key: string) => key.startsWith('moderation.') ? 'Modération des profils' : key.startsWith('bids.') ? 'Offres et devis' : key.startsWith('contract.') ? 'Conditions et contrats' : key.startsWith('client.offer') ? 'Offres et devis' : 'Publication et invitations';
-const areas = ['Publication et invitations', 'Offres et devis', 'Conditions et contrats', 'Modération des profils'];
+const areaOf = (key: string) => key.startsWith('takeoffs.') ? 'Métrés et estimation' : key.startsWith('moderation.') ? 'Modération des profils' : key.startsWith('bids.') ? 'Offres et devis' : key.startsWith('contract.') ? 'Conditions et contrats' : key.startsWith('client.offer') ? 'Offres et devis' : 'Publication et invitations';
+const areas = ['Publication et invitations', 'Offres et devis', 'Conditions et contrats', 'Métrés et estimation', 'Modération des profils'];
 const normalize = (text: string) => text.toLocaleLowerCase('fr').normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 function Switch({ checked, label, disabled, onChange }: { checked: boolean; label: string; disabled?: boolean; onChange: () => void }) {
@@ -111,6 +111,7 @@ function CapabilityRow({ def, overview, active, ask }: { def: Def; overview: Adm
   return <li className={`flex gap-3 px-5 py-4 sm:flex-row sm:items-start ${def.type.kind === 'enum_set' ? 'flex-col' : 'flex-row items-start'}`}>
     <div className="min-w-0 flex-1">
       <p className="font-semibold text-ink">{def.label}</p>
+      {def.help && <p className="mt-0.5 text-xs text-black/60">{def.help}</p>}
       <p className="mt-0.5 text-xs text-black/50">{def.workspaces.map(w => workspaceLabels[w]).join(' · ')}{def.ownerChoice ? ' · + consentement de l’Artisan' : ''}{def.delegable ? ' · délégable' : ''}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {global && <Badge tone="clay">Modifié pour la plateforme</Badge>}

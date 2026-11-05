@@ -14,12 +14,12 @@ const migrations = resolve('supabase/migrations');
 const catalogMigrations = () => readdirSync(migrations).filter(f => f.endsWith('.sql')).sort()
   .filter(f => CATALOG_BLOCK.test(readFileSync(resolve(migrations, f), 'utf8')));
 
-test('settings catalogue: 24 typed entries, consistent and validated', () => {
+test('settings catalogue: 25 typed entries, consistent and validated', () => {
   assertCatalogConsistent();
-  assert.equal(SETTINGS_CATALOG.length, 24);
+  assert.equal(SETTINGS_CATALOG.length, 25);
   const families = Object.fromEntries(['capability', 'value', 'catalog', 'federated']
     .map(f => [f, SETTINGS_CATALOG.filter(d => d.family === f).length]));
-  assert.deepEqual(families, { capability: 12, value: 6, catalog: 1, federated: 5 });
+  assert.deepEqual(families, { capability: 13, value: 6, catalog: 1, federated: 5 });
   // A1: delegable capabilities are exactly 1,2,3,4,6,7,8,9 of the S0 table.
   assert.deepEqual(SETTINGS_CATALOG.filter(d => d.delegable).map(d => d.key).sort(), [
     'bids.counter_proposals', 'bids.proposed_sub_lots', 'bids.quote_lines', 'bids.quote_pdf', 'bids.rfi',
@@ -183,7 +183,7 @@ test('settings S1 resolver: one JWT-scoped read, federated choices, refusals (PG
     await assert.rejects(db.query("select dao_private.sync_setting_definitions(0,repeat('a',64),'[]'::jsonb)"), { code: '22023' });
     await db.exec('begin');
     try {
-      await db.query(`select dao_private.sync_setting_definitions(2,repeat('b',64),
+      await db.query(`select dao_private.sync_setting_definitions(${SETTINGS_CATALOG_VERSION},repeat('b',64),
         (select jsonb_agg(x) from jsonb_array_elements($1::jsonb) x where x->>'key'<>'bids.multi_lot'))`,
         [JSON.stringify((await import('../src/settings/catalog.js')).catalogProjection())]);
       const retired = (await db.query<any>("select retired,implemented from dao_private.setting_definitions where key='bids.multi_lot'")).rows[0];

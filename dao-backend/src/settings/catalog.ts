@@ -3,7 +3,7 @@
 // (dao_private.setting_definitions) and a CI test fails when they diverge.
 // Defaults reproduce today's hard-coded behaviour: S1 changes nothing.
 
-export const SETTINGS_CATALOG_VERSION = 2;
+export const SETTINGS_CATALOG_VERSION = 3;
 
 export type SettingFamily = 'capability' | 'value' | 'catalog' | 'federated';
 export type SettingWorkspace = 'client' | 'contractor' | 'staff';
@@ -39,11 +39,13 @@ export interface SettingDefinition {
   implemented: boolean;
   enforcedBy: string[];
   label: string;
+  // Optional one-line explanation shown under the label in the Admin screen.
+  help?: string;
 }
 
 const ALL: SettingWorkspace[] = ['client', 'contractor', 'staff'];
 const capability = (d: Omit<SettingDefinition, 'family' | 'type' | 'default' | 'effect' | 'sensitivity' | 'conditions' | 'requires'> &
-  Partial<Pick<SettingDefinition, 'sensitivity' | 'conditions' | 'requires'>>): SettingDefinition => ({
+  Partial<Pick<SettingDefinition, 'default' | 'sensitivity' | 'conditions' | 'requires'>>): SettingDefinition => ({
   family: 'capability', type: { kind: 'boolean' }, default: true, effect: 'prospective', sensitivity: 'normal',
   conditions: [], requires: [], ...d,
 });
@@ -90,6 +92,13 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
   capability({ key: 'contract.precontract_agreement', scopes: ['global', 'role', 'project'], workspaces: ['client', 'contractor'],
     delegable: false, sensitivity: 'sensitive', implemented: true, enforcedBy: ['propose_precontract_agreement'],
     label: 'Accord précontractuel facultatif' }),
+  // #556 §5.1: who may validate a forecast takeoff (métré). Default OFF = today's rule (assigned
+  // manager or Admin only). ON (global or per chantier, Admin) = the project's Client may also
+  // validate the takeoffs of their own chantier; each validation records its basis (append-only).
+  capability({ key: 'takeoffs.client_validation', scopes: ['global', 'project'], workspaces: ['client'], delegable: false,
+    default: false, sensitivity: 'sensitive', implemented: true, enforcedBy: ['btp_takeoff_command_v1'],
+    label: 'Validation des métrés par le Client',
+    help: 'Désactivé : seul le gestionnaire affecté au chantier ou un Admin valide un métré. Activé : le Client peut aussi valider ses propres métrés (validation tracée).' }),
 
   // 4.2 Bounded values (6) + catalogue (1)
   value({ key: 'publication.default_submission_days', type: { kind: 'int', min: 7, max: 90, unit: 'day' }, default: 30,

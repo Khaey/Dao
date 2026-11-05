@@ -135,7 +135,7 @@ test('settings S2: Admin overrides, resolution order, audit and server enforceme
     await assert.rejects(db.query('update dao_private.setting_events set reason=$1', ['rewrite']), { code: '42501' });
     await assert.rejects(db.query('delete from dao_private.setting_events'), { code: '42501' });
     const overview = await as(U.admin, async () => (await db.query<any>('select public.admin_settings_overview() o')).rows[0].o);
-    assert.equal(overview.definitions.length, 24);
+    assert.equal(overview.definitions.length, 25);
     assert.equal(overview.definitions.find((d: any) => d.key === 'invitations.ttl_days').global_value, 7);
     assert.ok(overview.overrides.some((o: any) => o.key === 'publication.visibility_modes' && o.target_label === 'clientB'));
     assert.ok(overview.trades.length > 0);

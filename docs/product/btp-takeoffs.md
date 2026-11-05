@@ -41,7 +41,9 @@ normalisées, provenance, étapes, valeur brute, arrondi, unité, hypothèses, s
 empreintes SHA-256. Un recalcul crée toujours une nouvelle révision.
 
 Cycle : `draft → submitted → validated`. Le Client propriétaire ou le Gestionnaire peut calculer et
-soumettre ; seul un Gestionnaire/Admin habilité au chantier valide. Un recalcul après validation
+soumettre ; seul un Gestionnaire/Admin habilité au chantier valide, sauf si le réglage Admin
+`takeoffs.client_validation` (#556 §5.1, défaut désactivé ; plateforme ou exception chantier) autorise
+aussi le Client propriétaire. Chaque validation est tracée avec sa base (`manager` ou `client_setting`). Un recalcul après validation
 repasse le dossier en brouillon et conserve la révision validée précédente pour comparaison.
 
 ## API
@@ -78,4 +80,4 @@ Fiche chantier → carte « Quantités & estimation » → **Saisir les métrés
 - **Budget** : aperçu #551 en mode référence ; état complet/partiel/indisponible et causes par ligne, sans
   aucun montant sur cet écran ; lien vers le budget prévisionnel.
 - Droits : voir [decisions.md §12 quater](../decisions.md). Sans Gestionnaire affecté, le Client soumet mais ne
-  valide pas ; un Gestionnaire affecté ou un Admin valide.
+  valide pas ; un Gestionnaire affecté ou un Admin valide (sauf réglage `takeoffs.client_validation` activé).

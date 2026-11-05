@@ -142,15 +142,18 @@ export function uniqueScopeKey(base: string, taken: string[]): string {
 }
 
 export type TakeoffStatus = 'draft' | 'submitted' | 'validated';
-export type ViewerRole = { isOwner: boolean; isAdmin: boolean; isAssignedManager: boolean; hasAssignedManager: boolean };
+export type ViewerRole = { isOwner: boolean; isAdmin: boolean; isAssignedManager: boolean; hasAssignedManager: boolean;
+  /** Réglage `takeoffs.client_validation` résolu pour ce chantier (#556 §5.1) ; absent = non autorisé. */
+  clientCanValidate?: boolean };
 
 /**
  * Actions proposées à l'écran. La base reste seule juge (RLS/RPC #548) ; l'écran est **plus
- * prudent** : le Client propriétaire ne valide jamais son propre métré, même s'il est aussi staff.
+ * prudent** : le Client propriétaire ne valide son propre métré que si le réglage
+ * `takeoffs.client_validation` l'autorise pour ce chantier (défaut : jamais).
  */
 export function takeoffActions(role: ViewerRole, takeoff: { status: TakeoffStatus; currentStatus: 'calculated' | 'insufficient_data' | null } | null) {
   const canWrite = role.isOwner || role.isAdmin || role.isAssignedManager;
-  const canValidateRole = (role.isAdmin || role.isAssignedManager) && !role.isOwner;
+  const canValidateRole = role.isOwner ? role.clientCanValidate === true : role.isAdmin || role.isAssignedManager;
   return {
     canWrite,
     canCalculate: canWrite,
@@ -172,6 +175,12 @@ export const EVENT_LABELS: Record<string, string> = {
   submitted: 'Soumis pour validation',
   validated: 'Validé',
   validation_invalidated: 'Nouvelle révision : la validation précédente reste conservée',
+};
+
+/** Base enregistrée de chaque validation (#556 §5.1) ; null = validation antérieure au réglage. */
+export const VALIDATION_BASIS_LABELS: Record<string, string> = {
+  manager: 'par le gestionnaire ou l’administration',
+  client_setting: 'par le Client (autorisé par les paramètres D.A.O.)',
 };
 
 /** Différences d'entrées entre deux révisions (comparaison révision courante / validée). */
