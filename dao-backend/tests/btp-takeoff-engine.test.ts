@@ -62,12 +62,17 @@ test('service normalizes inputs, calls only allowlisted RPCs and handler enforce
   const tpl=template(['length_m','width_m'],{op:'multiply',args:['length_m','width_m']},'m2');
   const db={rpc:async(name:string,args:any)=>{calls.push({name,args});return name==='btp_takeoff_template_v1'?{data:tpl,error:null}:{data:{id:'takeoff',currentRevision:1},error:null};}};
   const service=new BtpTakeoffService(db);
-  const input={action:'calculate',project_id:P,work_id:W,scope_key:'terrasse-principale',label:'Terrasse principale',
+  const I='a4c7e5c2-6a54-4d7f-9b8e-1f2a3b4c5d6e';
+  // #577 : sans occurrence d'ouvrage du chantier, un nouveau métré est refusé avant tout appel.
+  await assert.rejects(()=>service.command({action:'calculate',project_id:P,work_id:W,scope_key:'x1',label:'Sans occurrence',inputs:{},idempotency_key:'takeoff-noitem-001'}),/work_item_id requis/);
+  assert.equal(calls.length,0);
+  const input={action:'calculate',project_id:P,work_id:W,work_item_id:I,scope_key:'terrasse-principale',label:'Terrasse principale',
     inputs:{length_m:{value:'10',unit:'m',source},width_m:{value:'6',unit:'m',source}},idempotency_key:'takeoff-calc-001'};
   const result=await service.command(input);
   assert.equal(result.evaluation.result.value,'60');
   assert.deepEqual(calls.map(call=>call.name),['btp_takeoff_template_v1','btp_takeoff_command_v1']);
   assert.equal(calls[1].args.p_input.canonicalInputs.length_m.value,'10');
+  assert.equal(calls[1].args.p_input.workItemId,I);
   const api=createBtpTakeoffHandler(service,async auth=>auth==='Bearer valid'?{id:'actor'}:null);
   assert.equal((await api(new Request(`https://dao.test/api/btp/takeoffs?project_id=${P}`))).status,401);
   const response=await api(new Request('https://dao.test/api/btp/takeoffs',{method:'POST',headers:{authorization:'Bearer valid'},body:JSON.stringify(input)}));

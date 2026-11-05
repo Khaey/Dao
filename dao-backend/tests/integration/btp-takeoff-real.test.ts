@@ -27,9 +27,12 @@ test('real Supabase enforces deterministic takeoff RLS, idempotence and validate
   const published=(await admin.from('btp_catalog_versions').select('id').eq('country_code','TN').eq('status','published').order('effective_from',{ascending:false}).limit(1).single());assert.ifError(published.error);
   const work=await admin.from('btp_works').select('id').eq('catalog_version_id',published.data.id).eq('code','btp_work_terrace').single();assert.ifError(work.error);
   const source={kind:'manual',reference:'Mesure intégration confirmée'};
+  // #577 : un nouveau métré pointe vers une occurrence d'ouvrage du chantier.
+  const request=(await admin.from('project_requests').insert({project_id:project.data.id}).select('id').single());assert.ifError(request.error);
+  const item=(await admin.from('project_work_items').insert({project_id:project.data.id,request_id:request.data.id,catalog_version_id:published.data.id,work_id:work.data.id,work_code:'btp_work_terrace',label:'Terrasse',unit_code:'m2',origin:'manual',created_by:users.owner.id}).select('id').single());assert.ifError(item.error);
   const command=(who:string,action:string,input:any,idempotency:string)=>users[who].db.rpc('btp_takeoff_command_v1',{p_action:action,p_input:input,p_idempotency_key:idempotency});
 
-  const incomplete=await command('owner','calculate',{projectId:project.data.id,workId:work.data.id,scopeKey:'terrace-real',label:'Terrasse réelle',canonicalInputs:{
+  const incomplete=await command('owner','calculate',{projectId:project.data.id,workId:work.data.id,workItemId:item.data.id,scopeKey:'terrace-real',label:'Terrasse réelle',canonicalInputs:{
     length_m:{value:'10',unit:'m',source,original:{value:'10',unit:'m'}}}},'takeoff-real-missing');
   assert.ifError(incomplete.error);assert.equal(incomplete.data.current.status,'insufficient_data');assert.equal(incomplete.data.current.justification.result,undefined);
   const takeoffId=incomplete.data.id;
@@ -50,7 +53,7 @@ test('real Supabase enforces deterministic takeoff RLS, idempotence and validate
   const forged=await command('owner','calculate',{...input,expectedRevision:2,label:'forged',canonicalInputs:{...input.canonicalInputs,
     length_m:{value:'999',unit:'m',source,original:{value:'1000',unit:'cm'}}}},'takeoff-real-forged');
   assert.equal(forged.error?.code,'22023');
-  const duplicate=await command('owner','calculate',{projectId:project.data.id,workId:work.data.id,scopeKey:'terrace-real',label:'duplicate',canonicalInputs:{}},'takeoff-real-duplicate');
+  const duplicate=await command('owner','calculate',{projectId:project.data.id,workId:work.data.id,workItemId:item.data.id,scopeKey:'terrace-real',label:'duplicate',canonicalInputs:{}},'takeoff-real-duplicate');
   assert.equal(duplicate.error?.code,'23505');
 
   const submitted=await command('owner','submit',{takeoffId,expectedRevision:2,note:'Soumis'},'takeoff-real-submit');assert.ifError(submitted.error);
