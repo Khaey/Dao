@@ -3,7 +3,7 @@ import { expect, expectNoHorizontalOverflow, test, waitForContent } from "./supp
 // #568 — Parcours chantier cohérent multi-rôles, en LECTURE SEULE sur des fixtures DEV existantes :
 // - « RECETTE 03/11 — Rénovation appartement Sousse » : publié, 2 lots sur 2 attribués, Client A
 //   propriétaire, Client B Gestionnaire affecté ;
-// - « renovation maison » (Client A) : publié, 1 lot sur 2 attribué.
+// - « renovation maison » (Client A) : publié, 3 lots actifs dont 1 attribué (2 lots publiés).
 // Aucun clic d'action, aucune écriture : seules des pages sont ouvertes et capturées.
 const AWARDED = { project: "a5aed924-00b0-4a5c-b976-314bea21a514", publication: "bcfe4e45-ae90-491c-b5fd-02504036d280" };
 const PARTIAL = { project: "96888ef1-fa4e-4f66-bfb3-8a8154699eae" };
@@ -47,13 +47,13 @@ test("Client : fiche et « Mes chantiers » donnent le même état réel par lot
   await page.goto(`/app/projects/${PARTIAL.project}`);
   await waitForContent(page);
   await expect(page.getByTestId("journey-next-step")).toContainText(/lots? restants?|lot sans Artisan/);
-  await expect(page.getByText("1 lot sur 2 attribué", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1 lot sur 3 attribué", { exact: true }).first()).toBeVisible();
   await snap(page, "client-fiche-partielle");
 
   await page.goto("/app/projects");
   await waitForContent(page);
   await expect(page.getByTestId(`project-row-${AWARDED.project}`)).toContainText("Tous les lots attribués");
-  await expect(page.getByTestId(`project-row-${PARTIAL.project}`)).toContainText("1 lot sur 2 attribué");
+  await expect(page.getByTestId(`project-row-${PARTIAL.project}`)).toContainText("1 lot sur 3 attribué");
   await snap(page, "client-mes-chantiers");
   await expectNoHorizontalOverflow(page);
 });
