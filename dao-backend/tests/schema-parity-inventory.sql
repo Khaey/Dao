@@ -150,7 +150,10 @@ WITH catalog_objects AS (
       'identity_arguments', pg_get_function_identity_arguments(p.oid),
       'argument_names', to_jsonb(p.proargnames),
       'argument_modes', to_jsonb(p.proargmodes),
-      'argument_types', to_jsonb(COALESCE(p.proallargtypes, p.proargtypes::oid[])),
+      'argument_types', COALESCE((
+        SELECT jsonb_agg(format_type(argument_type, NULL::integer) ORDER BY argument_position)
+        FROM unnest(COALESCE(p.proallargtypes, p.proargtypes::oid[])) WITH ORDINALITY AS argument(argument_type, argument_position)
+      ), '[]'::jsonb),
       'argument_default_count', p.pronargdefaults,
       'argument_defaults', CASE WHEN p.proargdefaults IS NULL THEN NULL ELSE pg_get_expr(p.proargdefaults, 0, true) END,
       'result', pg_get_function_result(p.oid),
