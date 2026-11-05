@@ -12,6 +12,7 @@ import { useClientOffers } from '../../components/projects/offer-signals';
 import { readAgreement } from '../../lib/precontract';
 import ReviewInvitation from './_components/ReviewInvitation';
 import { AwardedProjects, useAwardedWork } from '../../components/artisan/AwardedWork';
+import { awardedLotsLabel } from '../../../dao-backend/src/project-journey/presentation';
 
 type Row = { id: string; status: string; project_type: string; surface_m2?: number | null; indicative_budget_millimes?: number | null; created_at: string; title?: string; lots?: number; client_id: string | null; initiator_id:string; project_origin:string; project_stage: string; projectStatus: string; versionStatus?: string | null; versionNo?: number | null };
 const typeLabels: Record<string, string> = { construction: 'Construction', renovation: 'Rénovation', repair: 'Réparation', extension: 'Extension', other: 'Autre' };
@@ -106,7 +107,7 @@ export default function Dashboard() {
   const rowPill = (row: Row) => {
     const signal = signalOf(row);
     if (!signal) return null;
-    if (signal.awardedLots > 0) return signal.awardedLots >= signal.lots ? { text: worksStarted(row) ? stageLabels[row.project_stage] : 'Artisan choisi', tone: 'teal' } : { text: `${signal.awardedLots}/${signal.lots} lots attribués`, tone: 'clay' };
+    if (signal.awardedLots > 0) return signal.awardedLots >= signal.lots ? { text: worksStarted(row) ? stageLabels[row.project_stage] : 'Artisan choisi', tone: 'teal' } : { text: awardedLotsLabel(signal.awardedLots, signal.lots), tone: 'clay' };
     return { text: signal.state === 'to_compare' ? 'Offres à comparer' : signal.state === 'unknown' ? 'Offres indisponibles' : 'En attente d’offres', tone: signal.state === 'to_compare' ? 'clay' : 'neutral' };
   };
   const steps = (row: Row) => {

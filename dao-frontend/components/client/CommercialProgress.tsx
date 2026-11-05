@@ -7,6 +7,7 @@ import { supabaseBrowser } from '../../lib/supabase-browser';
 import { readAgreement } from '../../lib/precontract';
 import { professionalRead } from '../../lib/professionals';
 import { ContractorLotDossier, groupAwardedLotsByContractor } from '../../lib/contractor-lot-dossiers';
+import { awardedLotsLabel } from '../../../dao-backend/src/project-journey/presentation';
 
 // Client commercial progress of a published chantier (#346, #360): which lots already have a chosen Artisan, where
 // to compare offers, and the next step. Computed from rows the Client may already read (publications, active
@@ -117,7 +118,7 @@ export function commercialLabel(progress: CommercialLoad) {
   if (!isReady(progress) || !progress.publications.length || !progress.lots) return null;
   if (progress.awarded === 0) return progress.lotsWithOffers ? { text: 'Offres à comparer', tone: 'clay' as const } : null;
   if (progress.awarded === progress.lots) return { text: progress.lots === 1 ? 'Artisan choisi' : 'Tous les lots attribués', tone: 'teal' as const };
-  return { text: `${progress.awarded} lots sur ${progress.lots} attribués`, tone: 'clay' as const };
+  return { text: awardedLotsLabel(progress.awarded, progress.lots), tone: 'clay' as const };
 }
 
 type Step = { label: string; detail: string; state: 'done' | 'current' | 'todo' };

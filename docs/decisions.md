@@ -210,6 +210,15 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | **Validation des métrés paramétrable** (décision d'Ahmed, #556 §5.1, 05/11/2026) : réglage Settings `takeoffs.client_validation` (Paramètres D.A.O. → Fonctions → « Métrés et estimation »). **Défaut désactivé = règle actuelle** (Gestionnaire affecté ou Admin). Activé pour la plateforme, ou ouvert par exception sur un chantier (avec échéance), le **Client propriétaire** peut aussi valider les métrés soumis de son chantier. Contrôle **côté base** dans `btp_takeoff_command_v1` (réglage résolu au moment de la validation), motif et historique Settings obligatoires, chaque événement `validated` enregistre sa base (`validation_basis` = `manager` | `client_setting`, null avant #556). Effet prospectif : aucun métré validé n'est réécrit. | Livré | #556, migration `20261105000000_btp_takeoff_client_validation_setting` |
 | Accès à l'écran calé sur les droits réels de l'estimation (Client propriétaire, Gestionnaire affecté, Admin) ; Artisan et staff non affecté voient « Accès réservé ». Écart signalé à DEV 5 : la lecture brute `GET /api/btp/takeoffs` suit `can_view_project` (membres du chantier et tout le staff), plus large que l'estimation. | Livré / signalé | #560, #548 |
 
+## 12 quinquies. Parcours chantier cohérent multi-rôles (#568)
+
+| Décision | État | Source |
+| --- | --- | --- |
+| **Projection partagée** de la situation et de la prochaine action : module pur `dao-backend/src/project-journey/presentation.ts` (testé). Il lit les états existants (projet, dernière version, lots publiés, attributions actives **par lot**, avancement) et ne crée **aucun statut stocké** ni migration. Un chantier publié ne s'affiche plus jamais « Prêt à publier » ; l'attribution n'est affirmée que si elle est lue. | Livré | [#568](https://github.com/Khaey/Dao/issues/568) |
+| **Prochaine action honnête par rôle** : le Client n'est jamais invité à « préparer la publication » (seul le staff publie : `dao_private.publish_project`) ; le staff non affecté voit l'action en lecture seule ; un participant non Client reçoit une explication, jamais une action qu'il ne possède pas. | Livré | #568 |
+| **Back-office Chantiers et dossier staff** : situation réelle des chantiers publiés (« Publié », « 1 lot sur 2 attribué », « Tous les lots attribués », « Travaux en cours ») lue avec les droits RLS staff existants ; filtres « Publié » et « Publication clôturée » ajoutés ; « Préparer une publication » seulement s'il reste des lots approuvés ni publiés ni attribués. Lecture en échec : aucune attribution affichée, CTA masqué. | Livré | #568 |
+| Libellé unique d'attribution partielle (« 1 lot sur 2 attribué ») partagé par « Mes chantiers », tableau de bord Client, fiche chantier et back-office. | Livré | #568 |
+
 ## Questions ouvertes (ne pas trancher sans le propriétaire)
 
 - Signature électronique : fournisseur, niveau de signature, preuves, revue juridique tunisienne (#383).
