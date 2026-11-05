@@ -10,6 +10,7 @@ const outputColumns = [
   'function_definition_raw_fingerprint',
   'function_definition_semantic_fingerprint',
   'function_metadata_fingerprint',
+  'details_json',
 ];
 
 function md5(value) {
@@ -247,7 +248,7 @@ function finalize(path) {
     if (values.length !== headers.length) throw new Error('Raw inventory CSV column count mismatch');
     return Object.fromEntries(headers.map((header, index) => [header, values[index]]));
   });
-  const required = ['kind', 'object_name', 'raw_fingerprint', 'function_definition_raw_fingerprint', 'function_metadata_fingerprint', 'function_definition_hex'];
+  const required = ['kind', 'object_name', 'raw_fingerprint', 'function_definition_raw_fingerprint', 'function_metadata_fingerprint', 'function_definition_hex', 'details_json'];
   for (const column of required) if (!headers.includes(column)) throw new Error('Missing raw inventory column: ' + column);
 
   const finalized = rows.map(row => {
@@ -261,6 +262,7 @@ function finalize(path) {
         function_definition_raw_fingerprint: '',
         function_definition_semantic_fingerprint: '',
         function_metadata_fingerprint: '',
+        details_json: row.details_json,
       };
     }
     if (!/^[0-9a-f]{32}$/.test(row.function_definition_raw_fingerprint) || !/^[0-9a-f]{32}$/.test(row.function_metadata_fingerprint)) {
@@ -279,6 +281,7 @@ function finalize(path) {
       function_definition_raw_fingerprint: row.function_definition_raw_fingerprint,
       function_definition_semantic_fingerprint: definitionSemantic,
       function_metadata_fingerprint: row.function_metadata_fingerprint,
+      details_json: row.details_json,
     };
   });
 

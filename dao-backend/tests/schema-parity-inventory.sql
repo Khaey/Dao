@@ -146,7 +146,17 @@ WITH catalog_objects AS (
     'function'::text,
     format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)),
     jsonb_build_object(
-      'definition', pg_get_functiondef(p.oid),
+      'definition', p.prosrc,
+      'identity_arguments', pg_get_function_identity_arguments(p.oid),
+      'argument_names', to_jsonb(p.proargnames),
+      'argument_modes', to_jsonb(p.proargmodes),
+      'argument_types', COALESCE((
+        SELECT jsonb_agg(format_type(argument_type, NULL::integer) ORDER BY argument_position)
+        FROM unnest(COALESCE(p.proallargtypes, p.proargtypes::oid[])) WITH ORDINALITY AS argument(argument_type, argument_position)
+      ), '[]'::jsonb),
+      'argument_default_count', p.pronargdefaults,
+      'argument_defaults', CASE WHEN p.proargdefaults IS NULL THEN NULL ELSE pg_get_expr(p.proargdefaults, 0, true) END,
+      'result', pg_get_function_result(p.oid),
       'owner', pg_get_userbyid(p.proowner),
       'language', language.lanname,
       'security_definer', p.prosecdef,
@@ -240,6 +250,7 @@ SELECT
   md5(details::text) AS raw_fingerprint,
   CASE WHEN kind = 'function' THEN md5(details->>'definition') END AS function_definition_raw_fingerprint,
   CASE WHEN kind = 'function' THEN md5((details - 'definition')::text) END AS function_metadata_fingerprint,
-  CASE WHEN kind = 'function' THEN encode(convert_to(details->>'definition', 'UTF8'), 'hex') END AS function_definition_hex
+  CASE WHEN kind = 'function' THEN encode(convert_to(details->>'definition', 'UTF8'), 'hex') END AS function_definition_hex,
+  CASE WHEN kind = 'function' THEN (details - 'definition')::text ELSE details::text END AS details_json
 FROM catalog_objects
 ORDER BY kind, object_name;
