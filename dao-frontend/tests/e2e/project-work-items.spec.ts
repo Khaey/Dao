@@ -25,15 +25,16 @@ test('Ouvrages #577 : lot, sous-lot manuel, ouvrages du référentiel et hors r�
   const picker = lot().getByTestId('work-picker');
   await picker.getByLabel('Placer dans').selectOption({ label: 'Salle de bain' });
   await picker.getByLabel('Rechercher un ouvrage').fill('carrelage');
-  await picker.getByRole('checkbox').first().check();
+  await picker.getByRole('group', { name: 'Ouvrages du référentiel' }).getByRole('checkbox').first().check();
   await picker.getByRole('button', { name: /Ajouter 1 ouvrage/ }).click();
   await expect(page.getByText(/1 ouvrage\(s\) ajouté\(s\), sans dimension/)).toBeVisible();
 
   // Ouvrage hors référentiel, directement dans le lot : jamais chiffré.
   await lot().getByRole('button', { name: /Ajouter des ouvrages au lot/ }).click();
-  await lot().getByText('L’ouvrage n’est pas dans la liste').click();
-  await lot().getByLabel('Ouvrage hors référentiel').fill('Pose d’une niche murale sur mesure');
-  await lot().getByTestId('work-picker').getByRole('button', { name: 'Ajouter', exact: true }).click();
+  const customForm = lot().getByTestId('work-picker').locator('details');
+  await customForm.getByText('L’ouvrage n’est pas dans la liste').click();
+  await customForm.getByLabel('Ouvrage hors référentiel').fill('Pose d’une niche murale sur mesure');
+  await customForm.getByRole('button', { name: 'Ajouter', exact: true }).click();
   await expect(lot().getByTestId('work-item').filter({ hasText: 'Pose d’une niche murale sur mesure' })).toContainText('Hors référentiel');
 
   // Rechargement : mêmes ouvrages, même rattachement, lus depuis la base.
