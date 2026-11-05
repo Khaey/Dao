@@ -1,18 +1,19 @@
 # D.A.O. — Registre des agents et responsabilités
 
-**État vérifié au 28 octobre 2026.** Coordination courante : **[PILOT 13 — #511](https://github.com/Khaey/Dao/issues/511)**. Historique de passation : [PILOT 12 — #436](https://github.com/Khaey/Dao/issues/436). Une ancienne issue ouverte ou un agent enregistré ne signifie pas que sa session est en cours d'exécution. Les décisions récentes du propriétaire dans les issues priment sur les anciennes affectations.
+**État GitHub vérifié au 04 novembre 2026.** Coordination courante : **[PILOT 14 — #556](https://github.com/Khaey/Dao/issues/556)**. Passation complète : [PILOT 14](pilot/pilot-14-handover.md), [deux contre-audits indépendants](pilot/pilot-14-independent-reviews.md), [archives originales v1](pilot/audits/2026-11-03-second-avis-v1.md) et [v2](pilot/audits/2026-11-03-second-avis-v2.md). Historique : [PILOT 13 — #511](https://github.com/Khaey/Dao/issues/511) et [PILOT 12 — #436](https://github.com/Khaey/Dao/issues/436), **non actuels**. Les statuts ci-dessous sont un snapshot ; les issues ouvertes et sessions silencieuses **ne prouvent pas** qu'un agent exécute effectivement du travail.
 
-## Coordination et travail encore ouvert
+## Coordination, missions ouvertes et derniers travaux clôturés
 
 | Responsable | Mission | Statut vérifié |
 | --- | --- | --- |
-| **PILOT 13** | Coordination, vérification, arbitrages et suivi | [#511](https://github.com/Khaey/Dao/issues/511) **ouverte** ; pas d'intervention simultanée sur les fichiers d'un autre owner |
-| **DEV 5** | Référentiel BTP initial (lots, sous-lots, ouvrages, unités, règles) | [#541](https://github.com/Khaey/Dao/issues/541) ; catalogue `TN-2026.1` livré (#542) |
-| **Coordinateur Mission 2** (Claude Code) | Administration du Référentiel BTP : menu « Référentiel », brouillons/publication de versions, `dao-frontend/components/referential/`, RPC `btp_admin_*` | [#547](https://github.com/Khaey/Dao/issues/547) ; seul owner de l'administration du référentiel depuis le 03/11 (décision PILOT 14) |
-| **Coordinateur Mission 1** (Claude Code) | Assistant IA BTP : `dao-backend/src/assistant/`, `/app/projects/new/assistant`, tables `project_assistant_*` | [#543](https://github.com/Khaey/Dao/issues/543) ; consomme le référentiel via le contrat v1 ([assistant-btp.md](product/assistant-btp.md)) |
-| **Coordinateur Mission 1** (Claude Code) | Base de prix BTP sourcés et estimation : `dao-backend/src/btp-estimate/`, tables `btp_price_*` / `btp_estimate_*`, `/api/btp/prices`, `/api/btp/estimates`, `/app/projects/[id]/estimate` | [#551](https://github.com/Khaey/Dao/issues/551) ; consomme le référentiel #541 et les métrés #548 par contrat ([btp-estimates.md](product/btp-estimates.md)) |
+| **PILOT 14** | Stratégie produit, coordination des agents, arbitrages, vérification indépendante et passation officielle | [#556](https://github.com/Khaey/Dao/issues/556) **ouverte** ; rôle conservé sur décision propriétaire, ne pas réaffecter sans nouvel arbitrage |
+| **OPT 4** | **P0** — audit et parité du schéma Git ↔ Supabase DEV, notamment privilèges Vault, sans intervention PROD | [#555](https://github.com/Khaey/Dao/issues/555) **OPEN**, affectation inscrite ; **session non confirmée**, audit initial en lecture seule. |
+| **DEV 5** | **P0** — métrés déterministes/révisionnés ; rebase, fusion et livraison DEV de [PR #550](https://github.com/Khaey/Dao/pull/550). Référentiel #541 déjà livré. | [#548](https://github.com/Khaey/Dao/issues/548) **OPEN**, reprise P0 demandée ; état session à confirmer. Trois gates verts sur ancien HEAD ne dispensent pas de revalidation après résolution des conflits. |
+| **Coordinateur Mission 2** (Claude Code) | Administration versionnée du Référentiel BTP (six onglets, brouillons, RPC `btp_admin_*`) | [#547](https://github.com/Khaey/Dao/issues/547) **CLOSED**, DEV documenté ; disponible pour nouveau mandat **uniquement si session relancée**, sans reprendre #548/#555. |
+| **Coordinateur Mission 1** (Claude Code) | Assistant BTP déterministe (règles), création de chantier et correction en langage naturel | [#543](https://github.com/Khaey/Dao/issues/543) **CLOSED**, livré/recetté DEV ; pas de LLM génératif. |
+| **Coordinateur Mission 1** (Claude Code) | Base de prix sourcés et estimation non contractuelle `/app/projects/[id]/estimate` | [#551](https://github.com/Khaey/Dao/issues/551) **CLOSED**, DEV documenté, **0 prix réel vérifié** au snapshot ; disponible sous réserve de reprise de session. |
 
-Les sujets produit encore ouverts sont des **backlogs**, pas des agents automatiquement lancés : [#523](https://github.com/Khaey/Dao/issues/523) (annulation des actions), [#505](https://github.com/Khaey/Dao/issues/505) (architecture/évolutions des connecteurs), [#383](https://github.com/Khaey/Dao/issues/383) (signature électronique à qualifier), [#507](https://github.com/Khaey/Dao/issues/507) (séquestre, étude seulement), [#299](https://github.com/Khaey/Dao/issues/299) (idées) et [#175](https://github.com/Khaey/Dao/issues/175) (suivi de régressions). Ne pas lancer une nouvelle exécution à partir de ces tickets sans owner explicite.
+Les sujets encore ouverts mais **non automatiquement affectés** incluent [#523](https://github.com/Khaey/Dao/issues/523) (annulations **REPORTÉES**), [#505](https://github.com/Khaey/Dao/issues/505) (architecture connecteurs), [#383](https://github.com/Khaey/Dao/issues/383) (signature à qualifier), [#507](https://github.com/Khaey/Dao/issues/507) (escrow/étude), [#395](https://github.com/Khaey/Dao/issues/395) (annuaire réel), [#396](https://github.com/Khaey/Dao/issues/396) (fixtures), [#299](https://github.com/Khaey/Dao/issues/299) (idées). [#175](https://github.com/Khaey/Dao/issues/175) est **CLOSED** (recette transactionnelle 14 étapes documentée). Une issue créée n'autorise aucune session supplémentaire sans décision explicite.
 
 ## Missions livrées ou sorties du périmètre actif
 
@@ -38,7 +39,7 @@ Le fil Claude Code « Coordinateur Mission 1 » et le fil « Coordinateur Missio
 | COPILOT 4/5 | En pause après #410 et travaux Artisan/contrats antérieurs ; pas de COPILOT 6 lancé. |
 | DEV 1/2, DEV 20, OPT 20, CH2, OPT et Chat20/21 | Historiques, terminés ou inactifs ; aucune reprise de branche implicite. |
 | COP/TOW (Claude) et anciennes sessions DOW | Historiques/en pause ; la mission DOW #482 a été clôturée séparément. |
-| PILOT 1 à 12 | Remplacés par PILOT 13 [#511](https://github.com/Khaey/Dao/issues/511) ; les tickets [#204](https://github.com/Khaey/Dao/issues/204) et [#436](https://github.com/Khaey/Dao/issues/436) restent des archives, pas des canaux actifs. |
+| PILOT 1 à 13 | Remplacés par PILOT 14 [#556](https://github.com/Khaey/Dao/issues/556) ; [#511](https://github.com/Khaey/Dao/issues/511), [#436](https://github.com/Khaey/Dao/issues/436) et [#204](https://github.com/Khaey/Dao/issues/204) sont historiques, pas le canal de coordination actuel. |
 
 ## Règles d'exécution
 
@@ -47,10 +48,10 @@ Le fil Claude Code « Coordinateur Mission 1 » et le fil « Coordinateur Missio
 - Chaque PR a une issue propriétaire `Owner issue: #N` pour le Monitor, et l'agent s'enregistre si nécessaire dans `.github/dao-monitor-agents.json`. **Monitor/Télégram PAUSED ne bloque pas les PR ou les déploiements**, conformément au périmètre autorisé.
 - **Trois gates indispensables** : `backend-verify`, `frontend-build`, `Fresh schema, real Supabase integration, and FULL E2E`. Après fusion, vérifier **`deploy-dev` réellement SUCCESS** et la recette utile ; ne pas confondre E2E simulée et véritable test fournisseur.
 - **Droits/secrets/effets réels** : le centre de connexions est réservé à `dao_admin` plateforme ; aucun partage de secrets ni élargissement de JWT/RLS. Signature engageante, paiements et escrow restent verrouillés sans nouvel arbitrage du propriétaire.
-- Les anciennes PR ouvertes [#451](https://github.com/Khaey/Dao/pull/451) (documentation Monitor, owner historique #436) et [#263](https://github.com/Khaey/Dao/pull/263) (priorités Project, owner historique #204) nécessitent une **revue propre** ; ne pas les fusionner automatiquement. Les PR #534/#535, remplacées par #536, ont été fermées sans fusion.
-- Une issue/commentaire GitHub **ne démarre pas** une session d'agent. Le propriétaire doit reprendre une session s'il veut qu'un agent exécute un nouveau travail. Les checkpoints et arbitrages transverses passent par [#511](https://github.com/Khaey/Dao/issues/511).
+- Les PR historiques [#451](https://github.com/Khaey/Dao/pull/451) et [#263](https://github.com/Khaey/Dao/pull/263) sont **signalées fermées par l'audit indépendant du 03/11** ; ne pas les annoncer comme ouvertes sans relecture GitHub. Les PR #534/#535 ont été fermées sans fusion, remplacées par #536.
+- Une issue/commentaire GitHub **ne démarre pas** une session d'agent. Le propriétaire doit reprendre la session de l'agent concerné pour lancer le travail. Les checkpoints et arbitrages transverses passent désormais par **[PILOT 14 #556](https://github.com/Khaey/Dao/issues/556)** et par les issues propriétaires.
 
 ## Sources de travail
 
-- Dépôt : `Khaey/Dao`, branche `main`. Lire [`CLAUDE.md`](../CLAUDE.md), ce registre, [`decisions.md`](decisions.md), [`architecture.md`](architecture.md) et [`WORK_CHECKPOINTS.md`](ai-context/WORK_CHECKPOINTS.md).
+- Dépôt : `Khaey/Dao`, branche `main`. Lire [`CLAUDE.md`](../CLAUDE.md), ce registre, [passation PILOT 14](pilot/pilot-14-handover.md), [contre-audits](pilot/pilot-14-independent-reviews.md), [`decisions.md`](decisions.md), [`architecture.md`](architecture.md) et [`WORK_CHECKPOINTS.md`](ai-context/WORK_CHECKPOINTS.md).
 - Spécification Settings S0 et recoupement des candidats : [#423 — S0](https://github.com/Khaey/Dao/issues/423#issuecomment-6392554996) et [#423 — annexe](https://github.com/Khaey/Dao/issues/423#issuecomment-6392555206), résumé [`settings-engine.md`](product/settings-engine.md).
