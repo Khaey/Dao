@@ -297,6 +297,22 @@ await test('recalculation preserves the validated result and immutable history',
  eq(result.history.length,3);eq(result.events.some(event=>event.type==='validation_invalidated'),true);
  await denied(`delete from public.btp_takeoff_revisions where takeoff_id='${forecastTakeoff}' and revision=1`,'42501');
 }));
+await test('client takeoff validation follows the Admin setting and records its basis (#556)',async()=>{
+ const settingCommand=(action,input)=>db.query('select public.admin_setting_command($1,$2::jsonb) r',[action,JSON.stringify(input)]);
+ await as('clientA',async()=>eq((await takeoffCommand('submit',{takeoffId:forecastTakeoff,expectedRevision:3},'takeoff-submit-556')).rows[0].value.status,'submitted'));
+ await as('clientA',()=>denied(`select public.btp_takeoff_command_v1('validate','{"takeoffId":"${forecastTakeoff}","expectedRevision":3}'::jsonb,'takeoff-client-off-556')`,'42501'));
+ await as('clientA',()=>denied(`select public.admin_setting_command('set','{"key":"takeoffs.client_validation","scope":"global","value":true,"reason":"Client autorisé"}'::jsonb)`,'42501'));
+ await as('admin',()=>settingCommand('set',{key:'takeoffs.client_validation',scope:'project',project_id:takeoffProject,value:true,reason:'Décision #556 : chantier pilote',valid_until:new Date(Date.now()+30*864e5).toISOString(),expected_override_id:null}));
+ await as('clientB',()=>denied(`select public.btp_takeoff_command_v1('validate','{"takeoffId":"${forecastTakeoff}","expectedRevision":3}'::jsonb,'takeoff-foreign-556')`,'42501'));
+ await as('clientA',async()=>{
+  const result=(await takeoffCommand('validate',{takeoffId:forecastTakeoff,expectedRevision:3,note:'Vérifié par le client'},'takeoff-client-on-556')).rows[0].value;
+  eq(result.status,'validated');eq(result.validatedRevision,3);
+  const events=result.events.filter(e=>e.type==='validated');
+  eq(JSON.stringify(events.map(e=>e.validationBasis)),JSON.stringify(['manager','client_setting']));
+ });
+ const live=(await db.query("select id from dao_private.setting_overrides where key='takeoffs.client_validation' and superseded_at is null")).rows[0].id;
+ await as('admin',()=>settingCommand('clear',{key:'takeoffs.client_validation',scope:'project',project_id:takeoffProject,reason:'Fin du test #556',expected_override_id:live}));
+});
 async function rows(t,id){return (await db.query(`select * from public.${t} where id=$1`,[id])).rows.length}
 for(const n of ['proA','proB']){const other=n==='proA'?'proB':'proA';for(const [t,id] of [['bids',B[other].b],['bid_versions',B[other].v],['bid_items',B[other].items[0]],['bid_groups',B[other].g],['bid_documents',B[other].doc]])await test(n+' cannot read competing draft '+t,()=>as(n,async()=>eq(await rows(t,id),0)));}
 await test('client cannot discover draft bid',()=>as('clientA',async()=>eq(await rows('bids',B.proA.b),0)));

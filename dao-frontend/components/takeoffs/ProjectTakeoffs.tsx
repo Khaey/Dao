@@ -8,12 +8,13 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Calculator, Check, ChevronDown, ClipboardCheck, History, Plus, Ruler, Search, Send, ShieldCheck, X } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
+import { fetchMySettings } from '../../lib/settings';
 import { Badge, Card, SectionHeading } from '../ui';
 import { cn } from '../../lib/utils';
 import { fieldClass, primaryAction, secondaryAction } from '../../app/app/projects/_components/ProjectUi';
 import {
   checkDraft, compareInputs, EVENT_LABELS, fieldLabel, formulaText, INPUT_UNITS, dimensionOf, scopeKeyFrom, SOURCE_KINDS,
-  STATUS_LABELS, takeoffActions, templateFields, uniqueScopeKey, UNIT_SYMBOLS,
+  STATUS_LABELS, takeoffActions, templateFields, uniqueScopeKey, UNIT_SYMBOLS, VALIDATION_BASIS_LABELS,
   type TakeoffDraftField, type TakeoffSchema, type TakeoffStatus, type ViewerRole,
 } from '../../../dao-backend/src/btp-takeoff-ui/presentation';
 
@@ -22,7 +23,7 @@ type Template = { id: string; workId: string; outputUnitCode: string; inputSchem
 type Revision = { id: string; revision: number; status: 'calculated' | 'insufficient_data'; inputs: Record<string, any>; formula: Record<string, any>; justification: Record<string, any>; inputSha256: string; resultSha256: string; createdBy: string; createdAt: string };
 type Takeoff = { id: string; workId: string; scopeKey: string; label: string; status: TakeoffStatus; currentRevision: number; validatedRevision: number | null; catalogVersionId: string;
   current: Revision | null; validated: Revision | null; history: Array<{ revision: number; status: string; result: any; createdBy: string; createdAt: string }>;
-  events: Array<{ id: string; revision: number; type: string; actorId: string; note?: string; createdAt: string }> };
+  events: Array<{ id: string; revision: number; type: string; actorId: string; note?: string; validationBasis?: string; createdAt: string }> };
 type Editor = { workId: string; takeoff: Takeoff | null };
 
 const STATUS_TONE: Record<TakeoffStatus, 'neutral' | 'waiting' | 'success'> = { draft: 'neutral', submitted: 'waiting', validated: 'success' };
@@ -109,7 +110,11 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
       const roleNames = (roles.data ?? []).map((r: { role: string }) => r.role);
       const reviewers = (assignments.data ?? []).map((a: { reviewer_id: string }) => a.reviewer_id);
       const clientId = (project.data as { client_id?: string } | null)?.client_id ?? null;
-      setRole({ userId: uid, clientId, isOwner: Boolean(uid) && clientId === uid, isAdmin: roleNames.includes('dao_admin'),
+      const isOwner = Boolean(uid) && clientId === uid;
+      // #556 §5.1 : réglage Admin résolu pour ce chantier ; en cas d'erreur, règle par défaut (la base décide).
+      const clientCanValidate = isOwner && await fetchMySettings('client', projectId)
+        .then(s => s.settings['takeoffs.client_validation']?.value === true).catch(() => false);
+      setRole({ userId: uid, clientId, isOwner, clientCanValidate, isAdmin: roleNames.includes('dao_admin'),
         isAssignedManager: (roleNames.includes('dao_reviewer') || roleNames.includes('dao_admin')) && reviewers.includes(uid), hasAssignedManager: reviewers.length > 0 });
       const workMap = new Map<string, Work>(); let order = 0;
       for (const lot of catalog.lots ?? []) for (const sub of lot.subLots ?? []) for (const w of sub.works ?? []) {
@@ -198,6 +203,7 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
 }
 
 function ValidationPolicy({ role }: { role: ViewerRole }) {
+  if (role.isOwner && role.clientCanValidate) return <p className="rounded-xl bg-sand px-4 py-3 text-sm text-ink/75" data-testid="validation-policy">Les paramètres D.A.O. vous autorisent à valider vous-même les métrés de ce chantier{role.hasAssignedManager ? ' (le gestionnaire affecté peut aussi les valider)' : ''}. Chaque validation est tracée comme « validée par le Client » et ne modifie jamais une révision.</p>;
   if (role.isOwner && !role.hasAssignedManager) return <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note" data-testid="validation-policy">
     <AlertTriangle size={18} aria-hidden="true" className="mt-0.5 shrink-0" />
     <p><strong>Aucun gestionnaire n’est affecté à ce chantier.</strong> Vous pouvez calculer et soumettre vos métrés, mais vous ne pouvez pas les valider vous-même. Ils restent « en attente de validation technique » jusqu’à la validation par un gestionnaire affecté ou l’administration D.A.O. ; d’ici là, le budget prévisionnel ne les utilise pas.</p>
@@ -367,7 +373,7 @@ function TakeoffDetail({ takeoff, work, template, catalogVersion, role, busy, on
       <ul className="mt-2 space-y-1.5" aria-label="Révisions">{takeoff.history.map(h => <li key={h.revision} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-sand px-3 py-2 text-xs">
         <span className="font-semibold text-ink">Révision {h.revision}</span><span className="tabular-nums">{h.status === 'calculated' ? `${fmt(h.result?.value)} ${sym(h.result?.unit)}` : 'Données insuffisantes'}</span>
         {takeoff.validatedRevision === h.revision && <Badge tone="teal">Validée</Badge>}<span className="ml-auto text-ink/55">{when(h.createdAt)} · {actor(h.createdBy)}</span></li>)}</ul>
-      <ol className="mt-3 space-y-1 border-l border-black/10 pl-3 text-xs text-ink/70" aria-label="Événements">{takeoff.events.map(e => <li key={e.id}><span className="font-semibold text-ink">{EVENT_LABELS[e.type] ?? e.type}</span> · révision {e.revision} · {when(e.createdAt)} · {actor(e.actorId)}{e.note ? ` — « ${e.note} »` : ''}</li>)}</ol>
+      <ol className="mt-3 space-y-1 border-l border-black/10 pl-3 text-xs text-ink/70" aria-label="Événements">{takeoff.events.map(e => <li key={e.id}><span className="font-semibold text-ink">{EVENT_LABELS[e.type] ?? e.type}</span> · révision {e.revision} · {when(e.createdAt)} · {actor(e.actorId)}{e.validationBasis && VALIDATION_BASIS_LABELS[e.validationBasis] ? ` (${VALIDATION_BASIS_LABELS[e.validationBasis]})` : ''}{e.note ? ` — « ${e.note} »` : ''}</li>)}</ol>
     </div>
   </Card>;
 }

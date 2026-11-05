@@ -66,12 +66,18 @@ test('screen actions are stricter than the database: no self-validation, no vali
   assert.equal(takeoffActions(owner, submitted).canValidate, false);
   assert.equal(takeoffActions(owner, submitted).awaitingValidation, true);
   assert.equal(takeoffActions({ ...owner, isAdmin: true }, submitted).canValidate, false);
+  // #556 §5.1 : le réglage ouvre la validation au Client propriétaire, et seulement à lui.
+  assert.equal(takeoffActions({ ...owner, clientCanValidate: true }, submitted).canValidate, true);
+  assert.equal(takeoffActions({ ...owner, clientCanValidate: true }, submitted).awaitingValidation, false);
+  assert.equal(takeoffActions({ ...owner, clientCanValidate: true }, draft).canValidate, false);
+  assert.equal(takeoffActions({ ...owner, clientCanValidate: false }, submitted).canValidate, false);
   assert.equal(takeoffActions(owner, { status: 'draft', currentStatus: 'insufficient_data' }).canSubmit, false);
   const manager = { isOwner: false, isAdmin: false, isAssignedManager: true, hasAssignedManager: true };
   assert.equal(takeoffActions(manager, submitted).canValidate, true);
   assert.equal(takeoffActions(manager, draft).canValidate, false);
   const stranger = { isOwner: false, isAdmin: false, isAssignedManager: false, hasAssignedManager: true };
   assert.deepEqual([takeoffActions(stranger, draft).canWrite, takeoffActions(stranger, submitted).canValidate], [false, false]);
+  assert.equal(takeoffActions({ ...stranger, clientCanValidate: true }, submitted).canValidate, false);
 });
 
 test('revision comparison shows original units and flags changed provenance', () => {
