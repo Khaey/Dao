@@ -11,6 +11,7 @@ import { DossierMeter, dossierStepText, dossierSummary, ErrorPanel, fieldClass, 
 import { agreementSummary, conditionsLinkLabel, useAgreementStates, useAwardedWork, type AgreementState, type AwardedProject } from '../../../components/artisan/AwardedWork';
 import RowActions, { type RowAction } from '../../../components/projects/RowActions';
 import { clientOfferLabels, myOfferLabels, useClientOffers, useMyOffers, type ClientOffers, type MyOfferState } from '../../../components/projects/offer-signals';
+import { awardedLotsLabel } from '../../../../dao-backend/src/project-journey/presentation';
 
 type ProjectRow = { id: string; title: string; project_type: string; surface_m2?: number | null; status: string; desired_end_date?: string | null; indicative_budget_millimes?: number | null; location: string; lotCount: number; client_id: string | null; project_stage: string; projectStatus: string; versionStatus?: string | null; versionNo?: number | null; myRole?: string };
 /** One line per chantier (#356): readable project rows merged with the Artisan's active awards, deduplicated by id. */
@@ -34,7 +35,7 @@ const useWideLayout = () => useSyncExternalStore(subscribeWide, () => window.mat
 function commercial(line: Line, agreements: Record<string, AgreementState> = {}): { text: string; tone: 'teal' | 'clay'; sub?: string } | null {
   if (line.award) { const count = line.award.lots.length; return { text: count > 1 ? `${count} lots attribués` : 'Lot attribué', tone: 'teal', sub: agreementSummary(line.award.lots, agreements) }; }
   const offers = line.offers;
-  if (offers && offers.awardedLots > 0) return offers.awardedLots >= offers.lots ? { text: offers.lots > 1 ? 'Tous les lots attribués' : 'Artisan choisi', tone: 'teal' } : { text: `${offers.awardedLots} lots sur ${offers.lots} attribués`, tone: 'clay' };
+  if (offers && offers.awardedLots > 0) return offers.awardedLots >= offers.lots ? { text: offers.lots > 1 ? 'Tous les lots attribués' : 'Artisan choisi', tone: 'teal' } : { text: awardedLotsLabel(offers.awardedLots, offers.lots), tone: 'clay' };
   return null;
 }
 function businessStatus(line: Line) {

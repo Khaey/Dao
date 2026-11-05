@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, FolderSearch, Lock, RefreshCw, Search } from 'lucide-react';
 import { Badge, Card, Input, Button } from '../ui';
-import { effectiveProjectStatus, statusLabel } from '../../lib/utils';
+import { displayProjectStatus, effectiveProjectStatus, statusLabel } from '../../lib/utils';
+import { journeyPhase, isPublishedLike, phaseLabel, phaseTone, type JourneyInput } from '../../../dao-backend/src/project-journey/presentation';
+import { useStaffAttribution } from './attribution';
 import { readAllBackoffice } from '../../lib/backoffice';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { AssignmentBadge, assignmentOf, pendingReview, rememberList } from './assignment';
@@ -11,7 +13,9 @@ import { StaffHeader } from './PageChrome';
 
 type Filters = { q: string; status: string; mine: boolean; ready: boolean };
 const PAGE = 100;
-const statuses = ['draft', 'client_review', 'dao_review', 'approved', 'rejected', 'archived'];
+// « Publié » et « Publication clôturée » existaient comme états affichés sans filtre correspondant (#568).
+const statuses = ['draft', 'client_review', 'dao_review', 'approved', 'rejected', 'published', 'closed', 'archived'];
+const filterLabel: Record<string, string> = { published: 'Publié', closed: 'Publication clôturée' };
 const tone = (status: string) => status === 'rejected' ? 'red' : status === 'approved' ? 'teal' : pendingReview(status) ? 'clay' : 'neutral';
 const selectClass = 'min-h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-teal focus:ring-4 focus:ring-teal/10';
 const check = 'flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-3 text-sm font-medium text-ink has-[:checked]:border-teal has-[:checked]:bg-teal/[0.06]';
@@ -63,7 +67,11 @@ export default function Projects() {
     return () => { active = false; };
   }, [filters.q, filters.mine, initialized, attempt]);
 
-  const filtered = useMemo(() => (rows ?? []).filter((p: any) => (!filters.status || p.version.status === filters.status) && (!filters.ready || (p.version.status === 'approved' && Number(p.publishable_lots) > 0))), [rows, filters.status, filters.ready]);
+  // #568 : situation réelle des chantiers publiés (attribution par lot), lue avec les droits staff existants.
+  const publishedIds = useMemo(() => (rows ?? []).filter((p: any) => isPublishedLike(p.status)).map((p: any) => p.id as string), [rows]);
+  const attribution = useStaffAttribution(publishedIds, Boolean(rows));
+  const journey = (p: any): JourneyInput => { const known = attribution.ready && !attribution.failed ? attribution.byProject[p.id] : undefined; return { projectStatus: p.status, versionStatus: p.version.status, stage: p.project_stage, lots: known?.lots ?? null, awardedLots: known ? known.awardedLots : null }; };
+  const filtered = useMemo(() => (rows ?? []).filter((p: any) => (!filters.status || displayProjectStatus(p.version.status) === filters.status) && (!filters.ready || (p.version.status === 'approved' && Number(p.publishable_lots) > 0))), [rows, filters.status, filters.ready]);
   const visible = filtered.slice(offset, offset + PAGE);
   const active = Boolean(filters.q || filters.status || filters.mine || filters.ready);
   const update = (next: Partial<Filters>) => { setFilters(current => ({ ...current, ...next })); setOffset(0); };
@@ -75,13 +83,14 @@ export default function Projects() {
     <Card className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_14rem_auto_auto]" role="search">
       <label className="relative block sm:col-span-2 lg:col-span-1"><span className="sr-only">Rechercher un chantier</span><Search aria-hidden="true" size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-black/35" />
         <Input className="pl-10" aria-label="Rechercher un chantier" placeholder="Titre ou client" value={query} onChange={e => setQuery(e.target.value)} /></label>
-      <select aria-label="État du chantier" className={selectClass} value={filters.status} onChange={e => update({ status: e.target.value })}><option value="">Tous les états</option>{statuses.map(s => <option key={s} value={s}>{statusLabel[s] || s}</option>)}</select>
+      <select aria-label="État du chantier" className={selectClass} value={filters.status} onChange={e => update({ status: e.target.value })}><option value="">Tous les états</option>{statuses.map(s => <option key={s} value={s}>{filterLabel[s] || statusLabel[s] || s}</option>)}</select>
       <label className={check}><input type="checkbox" className="h-4 w-4 accent-teal" checked={filters.mine} onChange={e => update({ mine: e.target.checked })} />Mes revues</label>
       <label className={check}><input type="checkbox" className="h-4 w-4 accent-teal" checked={filters.ready} onChange={e => update({ ready: e.target.checked })} />Prêts à publier uniquement</label>
     </Card>
 
     <div className="flex min-h-6 flex-wrap items-center justify-between gap-2 text-sm text-black/55" aria-live="polite">
       <span>{loading ? 'Chargement…' : error ? '' : `${filtered.length} chantier${filtered.length > 1 ? 's' : ''}${active ? ' correspondant aux filtres' : ''}`}</span>
+      {attribution.failed && <span role="alert" className="text-xs text-red-700">Attributions indisponibles : seul l’état de publication est affiché.</span>}
       {active && <button type="button" onClick={reset} className="min-h-11 font-semibold text-teal hover:underline">Réinitialiser les filtres</button>}
     </div>
 
@@ -91,7 +100,7 @@ export default function Projects() {
       : <ul className={`grid gap-3 md:grid-cols-2 ${loading ? 'opacity-60' : ''}`}>{visible.map((p: any) => {
         const state = assignmentOf(p.reviewer_id, viewerId), pending = pendingReview(p.version.status);
         return <li key={p.id}><Link href={`/app/dao/projects/${p.id}`} className="group block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal/20"><Card className="flex h-full flex-col gap-3 transition group-hover:border-teal/40">
-          <div className="flex flex-wrap items-start justify-between gap-2"><h2 className="min-w-0 flex-1 break-words text-lg font-bold leading-snug text-ink">{p.version.title}</h2><Badge tone={tone(p.version.status)}>{statusLabel[p.version.status] || p.version.status}</Badge></div>
+          <div className="flex flex-wrap items-start justify-between gap-2"><h2 className="min-w-0 flex-1 break-words text-lg font-bold leading-snug text-ink">{p.version.title}</h2>{isPublishedLike(p.status) ? <Badge tone={phaseTone(journeyPhase(journey(p)))}>{phaseLabel(journey(p))}</Badge> : <Badge tone={tone(p.version.status)}>{statusLabel[p.version.status] || p.version.status}</Badge>}</div>
           <dl className="grid gap-1 text-sm text-black/60"><div className="flex gap-1.5"><dt>Client :</dt><dd className="min-w-0 truncate font-medium text-ink">{p.client_name || 'Non affecté'}</dd></div><div className="flex gap-1.5"><dt>Version</dt><dd className="font-medium text-ink">{p.version.version_no}</dd></div></dl>
           <p className="text-sm text-black/60">Pris en charge par : {p.reviewer_name || 'À prendre en charge'}</p>
           <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-3">
