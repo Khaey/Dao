@@ -1,10 +1,11 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Building2, CalendarDays, Info, MapPin, Search, Users, Wallet, Wand2 } from 'lucide-react';
+import { ArrowRight, Building2, CalendarDays, Info, MapPin, PenLine, Search, Users, Wallet, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
+import { fetchMySettings } from '../../../../lib/settings';
 import CollaborativeProjectForm from '../../../../components/CollaborativeProjectForm';
 import { cn } from '../../../../lib/utils';
 import { ErrorPanel } from '../_components/ProjectUi';
@@ -21,6 +22,9 @@ export default function NewProject() {
   const [contractor, setContractor] = useState(false);
   const [client, setClient] = useState(false);
   const [mode, setMode] = useState<'marketplace' | 'existing' | ''>('');
+  // #577 — entrée « Avec l'assistant » pilotable dans Settings (client.project_assistant, activée par défaut).
+  // La base refuse de toute façon un nouveau brouillon d'assistant si la capacité est coupée.
+  const [assistantEnabled, setAssistantEnabled] = useState(true);
   useEffect(() => { void (async () => {
     const { data } = await supabaseBrowser().auth.getSession();
     if (data.session) {
@@ -28,6 +32,11 @@ export default function NewProject() {
       const isClient = Boolean(roles?.some(row => row.role === 'client'));
       const isContractor = Boolean(roles?.some(row => row.role === 'contractor'));
       setClient(isClient); setContractor(isContractor && !isClient);
+      if (isClient) {
+        const settings = await fetchMySettings('client').catch(() => null);
+        const entry = settings?.settings['client.project_assistant'];
+        setAssistantEnabled(!entry || (entry.value !== false && entry.state !== 'unavailable'));
+      }
     }
     setReady(true);
   })(); }, []);
@@ -42,11 +51,21 @@ export default function NewProject() {
   ];
   return <section className="mx-auto max-w-4xl space-y-8">
     <CreationHeader backHref="/app/projects" eyebrow="Espace de travail" title="Nouveau chantier" description="Comment souhaitez-vous démarrer ? Vous pourrez compléter le chantier à tout moment après sa création." />
-    <Link href="/app/projects/new/assistant" className="group flex flex-col gap-4 rounded-2xl border border-teal/30 bg-teal/5 p-5 transition hover:border-teal/60 hover:bg-teal/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:flex-row sm:items-center sm:p-6">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal text-white"><Wand2 size={20} aria-hidden="true" /></span>
-      <span className="min-w-0 flex-1"><span className="block text-lg font-bold leading-snug text-ink">Décrire mon projet à l’assistant</span><span className="mt-1 block text-sm text-ink/70">Écrivez votre besoin avec vos mots : l’assistant propose aussitôt les lots et ouvrages, vous corrigez, puis vous créez le chantier.</span></span>
-      <span aria-hidden="true" className="inline-flex items-center gap-1.5 text-sm font-semibold text-teal">Essayer<ArrowRight size={15} className="transition group-hover:translate-x-0.5 motion-reduce:transition-none" /></span>
-    </Link>
+    <div className={cn('grid gap-4', assistantEnabled && 'md:grid-cols-2')}>
+      {assistantEnabled && <Link href="/app/projects/new/assistant" data-testid="entry-assistant" className="group flex flex-col gap-3 rounded-2xl border border-teal/30 bg-teal/5 p-5 transition hover:border-teal/60 hover:bg-teal/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:p-6">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal text-white"><Wand2 size={20} aria-hidden="true" /></span>
+        <span className="block text-lg font-bold leading-snug text-ink">Avec l’assistant</span>
+        <span className="block text-sm text-ink/70">Quelques questions simples, une à la fois, ou votre description libre : l’assistant propose les lots et ouvrages, vous corrigez, puis vous créez le chantier.</span>
+        <span aria-hidden="true" className="mt-auto inline-flex items-center gap-1.5 pt-2 text-sm font-semibold text-teal">Commencer avec l’assistant<ArrowRight size={15} className="transition group-hover:translate-x-0.5 motion-reduce:transition-none" /></span>
+      </Link>}
+      <a href="#creer-manuellement" data-testid="entry-manual" className="group flex flex-col gap-3 rounded-2xl border border-black/[0.08] bg-white p-5 transition hover:border-teal/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal sm:p-6">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-teal"><PenLine size={20} aria-hidden="true" /></span>
+        <span className="block text-lg font-bold leading-snug text-ink">Créer manuellement</span>
+        <span className="block text-sm text-ink/70">Vous saisissez vous-même le chantier, ses lots, sous-lots facultatifs et ouvrages. Toujours disponible.</span>
+        <span aria-hidden="true" className="mt-auto inline-flex items-center gap-1.5 pt-2 text-sm font-semibold text-teal">Choisir ci-dessous<ArrowRight size={15} className="rotate-90" /></span>
+      </a>
+    </div>
+    <h2 id="creer-manuellement" className="scroll-mt-24 text-lg font-bold text-ink">Créer manuellement</h2>
     <div className="grid gap-4 md:grid-cols-2">{choices.map(choice => { const Icon = choice.icon; return <button key={choice.id} type="button" onClick={() => setMode(choice.id)} className="group flex h-full flex-col rounded-2xl border border-black/[0.08] bg-white p-5 text-left shadow-[0_1px_2px_rgba(23,32,42,0.04)] transition hover:-translate-y-0.5 hover:border-teal/50 hover:shadow-[0_12px_30px_rgba(23,32,42,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6">
       <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal/10 text-teal"><Icon size={20} aria-hidden="true" /></span>
       <span className="mt-4 block text-lg font-bold leading-snug text-ink">{choice.title}</span>

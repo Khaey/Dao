@@ -1,5 +1,6 @@
 'use client';
 
+import PublishedWorks from '../../../../../components/work-items/PublishedWorks';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -12,7 +13,7 @@ import AgreementLinks from '../../../../../components/precontract/AgreementLinks
 import { RESTRICTED_MESSAGE, settingAvailable, useMySettings } from '../../../../../lib/settings';
 
 type Publication = { id: string; project_id: string; visibility: string; status: string; published_at: string; safe_title: string; safe_description: string; project_type: string; surface_m2: number | null; desired_start_date: string | null; indicative_budget_millimes: number | null; submission_deadline: string | null; };
-type Lot = { id: string; request_version_id: string; trade_id: string; safe_title: string; safe_scope: string; technical_scope?:any[]; tradeName?: string; acceptsOffers?: boolean; result?: string };
+type Lot = { id: string; request_version_id: string; trade_id: string; safe_title: string; safe_scope: string; technical_scope?:any[]; works_scope?: any[] | null; tradeName?: string; acceptsOffers?: boolean; result?: string };
 type OfferLine = { price: string; duration: string; inclusions: string; exclusions: string };
 type QuoteDocument = { id: string; original_name: string; size_bytes: number; status: string };
 type QuoteLine = { id: string; section: 'materials'|'labor'|'other'; designation: string; unit: string; quantity: string; unitPrice: string };
@@ -77,7 +78,7 @@ export default function ArtisanPublicationDetail() {
     if (publicationResult.error || !publicationResult.data) { setError('DAO indisponible ou non accessible.'); setLoading(false); return; }
     const p = publicationResult.data as Publication;
     const [lotResult, tradeResult, bidResult, availabilityResult] = await Promise.all([
-      supabase.from('publication_requests').select('id,request_version_id,trade_id,safe_title,safe_scope,technical_scope').eq('publication_id', id),
+      supabase.from('publication_requests').select('id,request_version_id,trade_id,safe_title,safe_scope,technical_scope,works_scope').eq('publication_id', id),
       supabase.from('trades').select('id,name_fr').eq('active', true),
       supabase.from('bids').select('id,project_id,publication_id').eq('project_id', p.project_id).or(`publication_id.eq.${id},publication_id.is.null`),
       supabase.rpc('publication_lot_availability', { p_publication_id: id }),
@@ -283,6 +284,7 @@ export default function ArtisanPublicationDetail() {
         <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-black/65">{lot.safe_scope}</p>
         {lot.acceptsOffers&&<Link href={`/app/messages?onglet=rfi&lot=${encodeURIComponent(lot.id)}&nouvelle=1`} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-teal/25 bg-white px-3.5 text-sm font-semibold text-teal hover:border-teal"><HelpCircle size={16}/>Poser une question technique</Link>}
         {lot.technical_scope?.map((s:any)=><div key={s.id} className="mt-3 border-l-2 border-teal/25 pl-3"><h4 className="font-semibold text-ink">{s.title}</h4><p className="text-sm text-black/65">{s.scope}</p>{s.budget_millimes!=null&&<p className="text-sm font-medium tabular-nums">{Number(s.budget_millimes)/1000} TND</p>}</div>)}
+        <PublishedWorks works={lot.works_scope} subLots={lot.technical_scope} />
         {(!lot.acceptsOffers || lot.result) && <div className="mt-3 flex flex-wrap items-center gap-2">{!lot.acceptsOffers && <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-black/60"><Lock aria-hidden="true" size={14} />Lot fermé aux nouvelles offres</p>}{lot.result === 'not_selected' && <Badge>Non retenue</Badge>}{lot.result === 'selected' && <Badge tone="teal">Offre retenue</Badge>}</div>}
       </article>; })}</div></Card>
     {error&&<p ref={errorRef} tabIndex={-1} role="alert" className="scroll-mt-24 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 outline-none focus:ring-4 focus:ring-red-100">{error}</p>}{message&&<p role="status" className="rounded-xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal">{message}</p>}

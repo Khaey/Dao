@@ -1,5 +1,5 @@
 import { test, expect } from './support/fixtures';
-import { createDraftProject, login } from './support/flow';
+import { createDraftProject, createMainLot, login } from './support/flow';
 
 // #560 — Parcours métrés complet sur la pile Supabase jetable : chantier → ouvrage du référentiel
 // → dimensions réelles avec provenance → données insuffisantes → calcul justifié → soumission sans
@@ -11,17 +11,28 @@ test('Métrés #560 : dimensions réelles, calcul justifié, validation sans aut
   await login(page, e2eClient!);
   const project = await createDraftProject(page, info, 'metres');
 
-  // Entrée unique depuis la fiche chantier.
+  // Entrée unique depuis la fiche chantier : sans ouvrage, les métrés renvoient vers les lots (#577).
   await page.getByRole('link', { name: 'Saisir les métrés' }).click();
   await expect(page).toHaveURL(`/app/projects/${project.projectId}/metres`);
   await expect(page.getByRole('heading', { name: 'Métrés', level: 1 })).toBeVisible();
   await expect(page.getByTestId('validation-policy')).toContainText('Aucun gestionnaire n’est affecté');
   await expect(page.getByText('Aucun ouvrage pour l’instant')).toBeVisible();
+  await page.getByRole('link', { name: 'Ajouter des ouvrages' }).click();
+  await expect(page).toHaveURL(new RegExp(`/app/projects/${project.projectId}\\?tab=lots$`));
+  await createMainLot(page, project.title, 'Terrasse et abords');
 
-  // Ouvrage du référentiel publié, formulaire généré depuis son modèle de métré.
-  await page.getByRole('button', { name: 'Ajouter un ouvrage' }).click();
-  await page.getByLabel('Rechercher un ouvrage').fill('terrasse');
-  await page.getByRole('button', { name: /Terrasse extérieure/ }).click();
+  // #577 — l'ouvrage est choisi dans le lot (sans dimension), puis « Dimensions » ouvre son métré.
+  const lot = page.locator('tr').filter({ hasText: project.title });
+  await lot.getByRole('button', { name: /Ajouter des ouvrages au lot/ }).click();
+  await lot.getByLabel('Rechercher un ouvrage').fill('terrasse');
+  await lot.getByRole('checkbox', { name: /Terrasse extérieure/ }).check();
+  await lot.getByRole('button', { name: /Ajouter 1 ouvrage/ }).click();
+  await expect(lot.getByTestId('work-item').filter({ hasText: 'Terrasse extérieure' })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: /^Lots/ }).click();
+  await expect(page.locator('tr').filter({ hasText: project.title }).getByTestId('work-item').filter({ hasText: 'Terrasse extérieure' })).toBeVisible();
+  await page.locator('tr').filter({ hasText: project.title }).getByRole('link', { name: /Renseigner les dimensions : Terrasse extérieure/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/app/projects/${project.projectId}/metres\\?item=`));
   const editor = page.getByTestId('takeoff-editor');
   await expect(editor.getByText(/formule : Longueur × largeur/)).toBeVisible();
   await editor.getByLabel('Nom du métré').fill('Terrasse sud');
