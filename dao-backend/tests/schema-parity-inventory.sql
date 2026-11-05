@@ -240,6 +240,7 @@ SELECT
   md5(details::text) AS raw_fingerprint,
   CASE WHEN kind = 'function' THEN md5(details->>'definition') END AS function_definition_raw_fingerprint,
   CASE WHEN kind = 'function' THEN md5((details - 'definition')::text) END AS function_metadata_fingerprint,
-  CASE WHEN kind = 'function' THEN encode(convert_to(details->>'definition', 'UTF8'), 'hex') END AS function_definition_hex
+  CASE WHEN kind = 'function' THEN encode(convert_to(details->>'definition', 'UTF8'), 'hex') END AS function_definition_hex,
+  CASE WHEN kind = 'function' THEN (details - 'definition')::text ELSE details::text END AS details_json
 FROM catalog_objects
 ORDER BY kind, object_name;
