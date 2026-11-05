@@ -1,5 +1,28 @@
 # D.A.O — instructions for every Work/Codex session
 
+## ENVIRONNEMENTS REELS ET REDACTION DES BILANS (05 novembre 2026)
+
+**Decision du proprietaire — applicable a TOUS les agents, nouveaux comme existants.**
+D.A.O. fonctionne sur **DEV** et sur les environnements de test jetables de CI.
+**Aucun environnement de production n'existe actuellement dans le projet.**
+
+- **Interdiction des mentions automatiques de « PROD »** dans les messages,
+  checkpoints, PR, issues, rapports de tests et passations : ne pas ecrire
+  « Aucune modification PROD », « Pas de deploiement PROD » ou une variante.
+  Un environnement inexistant n'est pas un resultat de recette.
+- Parler uniquement des elements reels verifies : **main / PR / CI jetable /
+  Supabase DEV / deploy-dev / ecran DEV / migrations DEV**, avec des preuves.
+  Ne pas ajouter de statut negatif generique sur un environnement inexistant.
+- Distinguer les faits propres au domaine : « catalogue publie sur DEV »,
+  « brouillon cree », « validation non testee » seulement quand ces points
+  sont pertinents et attestes. Ne pas melanger la **publication d'une version
+  de catalogue** avec un deploiement d'application.
+- Une **future** phase de mise en service peut etre documentee dans une
+  specification explicitement prospective, jamais decrite comme un
+  environnement, une verification ou un risque de deploiement deja existant.
+- Conserver sans compromis les restrictions sur secrets, couts, droits,
+  interventions infrastructure et operations externes non autorisees.
+
 ## QUOTA GUARD — economie Work/Codex/Claude (17 octobre 2026)
 
 **Instruction proprietaire pour tous les agents : livrer plus avec moins de quota, sans reduire les preuves.** Dans le selecteur Work/Codex, **privilegier GPT-6 Luna pour le triage repetitif, GPT-6 Sol / effort faible pour le code courant, moyen si difficulte demontree ; reserver Astra / effort faible aux problemes complexes averes**. Pour Claude, prendre le modele/effort le plus leger capable de la phase. C'est une recommandation de reglage utilisateur, **pas un changement automatique de modele ni une garantie de quota** ; ne pas supposer un modele disponible.
@@ -9,6 +32,41 @@
 - Ne jamais relancer tests, builds, E2E ou CI deja PASS sur le **meme SHA et les memes entrees**. Une nouvelle modification invalidante exige de nouveaux checks. Respecter l'integralite des 3 checks GitHub obligatoires et des tests Auth/RLS.
 - Aucun polling CI serre : verifier aux changements d'etat pertinents (avant merge, apres deploiement), puis noter `PENDING` et le run si inacheve. Aucun rerun pour gagner du temps sans cause technique.
 - Apres deux echecs identiques sans fait nouveau, arreter la boucle, documenter le blocage prouve et continuer les travaux independants. Si le quota chute, publier immediatement le WIP non sensible sur sa propre branche + checkpoint court ; **jamais de faux PASS ni de bypass des protections**.
+
+## RECETTE ET TESTS AUTOMATISES VIA GITHUB ACTIONS (04 novembre 2026)
+
+**Regle proprietaire applicable a tous les agents : privilegier GitHub Actions pour
+les tests reproductibles et les recettes navigateur ; reserver le quota IA a
+l'analyse, au code et au diagnostic.** Ne pas multiplier les jobs a l'identique.
+
+- Le developpement, les revues et les corrections restent sous la responsabilite
+  de l'agent owner ; les 3 gates obligatoires (backend-verify, frontend-build,
+  FULL E2E Supabase jetable) restent inchanges et se font sur le SHA exact.
+- Pour verifier le **DEV deja deploye** avec les comptes de test, utiliser le
+  workflow partage `.github/workflows/dev-recette.yml` sur **main uniquement**,
+  apres `deploy-dev` SUCCESS et les migrations DEV confirmees. Les specs sont
+  dans `dao-frontend/tests/dev-recette/` ; choisir `specs`, `grep` et
+  `appareils` pour une recette utile et ciblee. Voir
+  `docs/e2e-environments.md` (« Recette DEV dans GitHub Actions »).
+- Les credentials `DAO_RECETTE_*` restent uniquement dans les **secrets de
+  l'environnement GitHub `dev`**. Ne pas transmettre de mots de passe ou de
+  session Auth aux agents, au chat, a une PR ou a une capture. Ne jamais executer
+  une version non fusionnee de tests avec les secrets partages. Protections des
+  refs de l'environnement `dev` : auditer les workflows qui utilisent ce meme
+  environnement avant de les restreindre ; `dev-real-email.yml` utilise aussi
+  des evenements release (tag) et ne doit pas etre casse. Autoriser seulement
+  les refs de confiance strictement necessaires ou isoler les secrets de recette
+  dans un environnement dedie. Reglage manuel a verifier dans Settings > Environments > dev.
+- Tester une PR avant fusion par les 3 gates **jetables**, sans secrets DEV.
+  Les audits exclusivement SQL/API n'ont pas besoin d'une recette navigateur
+  superflue ; ils gardent leurs propres preuves de tests JWT/RLS et de schema.
+- Publier lien du run, SHA deploye, PASS/FAIL/UNTESTED et reference de l'artefact
+  dans l'issue owner. Les rapports/captures ne doivent contenir ni secrets, ni
+  cookies, ni donnees personnelles reelles ; pas de trace/video. Le DEV partage
+  n'est ni une base a reinitialiser ni un espace de tests destructifs.
+- GitHub Actions ne remplace ni le raisonnement d'un agent ni les tests manuels
+  exploratoires quand ils sont reellement necessaires. Le perimetre des tests ici est DEV et CI jetable, conformement a la regle
+  de reporting en tete de ce fichier.
 
 Voir `docs/ai-context/AUTONOMOUS_EXECUTION.md` pour les details.
 
@@ -30,7 +88,7 @@ de quota et de CI sont conservés, pas leurs affectations passées.
 
 **Applicable a TOUS les agents actuels et futurs, ChatGPT, Claude/COP/DOW/TOW, DEV, OPT, Pilot et auditeurs.** La mission proprietaire attribuee vaut autorisation continue d'executer les etapes ordinaires de A a Z : preflight utile, branche isolee, implementation, tests cibles, corrections, commits, push, PR, resolution des retours de revue, CI, reconciliation avec main, merge de sa propre PR et verification post-merge/deploiement DEV *si deja autorises par le perimetre, les gates et la politique de release*. **Ne pas redemander « go », « confirme » ni une validation de confort.** Un checkpoint GitHub informe, il ne bloque pas.
 
-**Arret limite a l'action concernee** lorsqu'un gate reste reellement manquant : droits/permission du fournisseur, revue ou check obligatoire, P0 de securite non resolu, mutation production/VPS/root/OPS/OCE non preautorisee, secret ou acces, cout, suppression destructrice, changement de garanties Auth/RLS, changement de regles metier engageant ou de visibilite du depot. Ne jamais contourner ces controles ; poursuivre les travaux independants et presenter une seule question ciblee au responsable de decision. Le Pilot tranche d'abord les decisions techniques ou entre owners, le proprietaire tranche les nouveaux risques/engagements.
+**Arret limite a l'action concernee** lorsqu'un gate reste reellement manquant : droits/permission du fournisseur, revue ou check obligatoire, P0 de securite non resolu, intervention VPS/root/OPS/OCE non preautorisee, secret ou acces, cout, suppression destructrice, changement de garanties Auth/RLS, changement de regles metier engageant ou de visibilite du depot. Ne jamais contourner ces controles ; poursuivre les travaux independants et presenter une seule question ciblee au responsable de decision. Le Pilot tranche d'abord les decisions techniques ou entre owners, le proprietaire tranche les nouveaux risques/engagements.
 
 **Autonomie ne signifie pas concurrence** : un agent n'edite ni branche ni PR d'un autre owner et ne reprend pas une mission sans transfert. Eviter les tests/CI identiques et les longues demandes d'approbation. Publier un seul checkpoint utile par jalon avec SHA, resultats, blocage reel ou livraison.
 

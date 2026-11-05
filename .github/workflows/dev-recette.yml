@@ -1,8 +1,9 @@
 name: DAO DEV recette navigateur
 
-# Recette Playwright sur le DEV partagé (https://dao-dev.logiclab.fr), sans
-# PROD. Lancement manuel (onglet Actions ou API) ou appel depuis un autre
-# workflow avec `secrets: inherit`. Méthode : docs/e2e-environments.md, section « Recette DEV dans GitHub Actions ».
+# Recette Playwright sur le DEV partage (https://dao-dev.logiclab.fr).
+# Utilisation des comptes de recette reservee a refs/heads/main.
+# Les branches PR passent les trois gates CI jetables sans secrets DEV.
+# Lancement manuel sur main ou appel depuis un autre workflow sur main avec `secrets: inherit`. Methode : docs/e2e-environments.md, section « Recette DEV dans GitHub Actions ».
 on:
   workflow_dispatch:
     inputs:
@@ -32,7 +33,21 @@ permissions:
   contents: read
 
 jobs:
+  branch-main-check:
+    name: Branche main obligatoire (sans secrets)
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Refuser les branches de travail pour la recette partagee
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          if [ "$WORKFLOW_REF" != "refs/heads/main" ]; then
+            echo "::error::Recette DEV avec comptes partages reservee a main. Les PR doivent utiliser les trois gates CI jetables."
+            exit 1
+          fi
   recette:
+    needs: branch-main-check
     name: Recette navigateur DEV
     runs-on: ubuntu-latest
     # Les secrets DAO_RECETTE_* sont des secrets de l'environnement GitHub « dev ».

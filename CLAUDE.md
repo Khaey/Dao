@@ -6,6 +6,24 @@ puis les parties conviennent de conditions facultatives et **suivent les travaux
 Dépôt source de vérité : <https://github.com/Khaey/Dao>. DEV : <https://dao-dev.logiclab.fr>.
 **Répondre en français.**
 
+## Convention impérative : environnements et comptes rendus (05/11/2026)
+
+**Décision du propriétaire, pour tous les agents : D.A.O. n'a actuellement
+qu'un environnement applicatif DEV et des environnements de test CI jetables.**
+Aucun environnement de production n'existe.
+
+**Ne plus écrire « Aucune modification PROD », « Pas de déploiement PROD »
+ou toute autre mention de production réflexe** dans les bilans, PR, issues,
+commentaires, rapports de tests et passations. Énoncer les résultats réels
+sur `main`, CI, migrations Supabase DEV, déploiement DEV et recette DEV.
+Une publication du **catalogue BTP** est une opération métier de versionnement,
+distincte du déploiement d'une application : en rapporter le statut uniquement
+si pertinent et effectivement vérifié. Ne jamais inventer un contrôle.
+
+L'éventuelle exploitation future d'un autre environnement peut être abordée
+**seulement** lorsqu'une tâche explicite porte sur cette architecture future.
+Les garanties de sécurité, revue, secrets et permissions restent obligatoires.
+
 ## 1. Lire avant tout travail (dans cet ordre, sans tout relire)
 
 1. Ce fichier, puis [`docs/agents.md`](docs/agents.md) : qui possède quoi aujourd'hui.
@@ -48,10 +66,30 @@ les PR ouvertes, la CI au SHA exact et le dernier commentaire du propriétaire p
 - Rapporter les résultats en `PASS / FAIL / UNTESTED` ; jamais de faux PASS, jamais revendiquer
   une recette navigateur ou un déploiement non constatés.
 
+### Exécution des tests — GitHub Actions comme socle commun (04/11/2026)
+
+Tous les agents (Claude, Codex, Work, DEV, Coordinateur, OPT, PILOT) doivent
+**faire tourner dans GitHub Actions les tests automatisables**, plutôt que
+consommer le quota de leur session avec des recettes répétitives. Cela ne change
+ni les 3 gates CI obligatoires sur la pile Supabase jetable, ni la responsabilité
+de correction et de revue de l'agent.
+
+**Recette avec les vrais comptes de test DEV** : utiliser uniquement le workflow
+`.github/workflows/dev-recette.yml` **depuis `main`** après `deploy-dev` réussi
+et vérification des migrations. Consulter la procédure et les options
+`specs`/`grep`/`appareils` dans
+[`docs/e2e-environments.md`](docs/e2e-environments.md). Les secrets sont dans
+l'environnement GitHub `dev` : **ne jamais les lire ou les recopier dans Claude
+Code**. La recette donne des rapports et captures, pas une permission de modifier
+des données réelles. Pas de rejouement inutile sur le même SHA.
+Pour une PR non fusionnée : tests CI isolés **sans** secrets DEV.
+Pour une mission purement SQL/RLS, privilégier les preuves SQL/API réelles ;
+pas de navigateur de complaisance. Ne rapporter que les environnements réels.
+
 ## 4. Vrais gates (arrêtent seulement l'action concernée)
 
 P0 de sécurité non résolu ; check CI ou revue obligatoire manquant ; changement des garanties
-Auth/JWT/RLS ; secrets ; production, VPS/root/OPS/OCE non préautorisés ; dépenses ; données réelles
+Auth/JWT/RLS ; secrets ; VPS/root/OPS/OCE non préautorisés ; dépenses ; données réelles
 ou suppression destructrice ; nouvelle règle métier engageante (juridique, financière). Continuer le
 travail indépendant, poser **une** question ciblée au bon décideur (PILOT 14 pour le technique et
 l'arbitrage entre owners, le propriétaire pour un nouvel engagement).
