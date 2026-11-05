@@ -256,12 +256,31 @@ jobs:
             notification_contract_sql="$(cat tests/notifications-s1-contract.sql)"
             supabase db query --local -o csv "$notification_contract_sql"
           '
+      - name: Compare schema inventory after complete migration replay
+        if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
+        working-directory: dao-backend
+        shell: bash
+        run: |
+          bash "$GITHUB_WORKSPACE/.github/scripts/measure-ci-step.sh" "Compare schema inventory before and after complete migration replay" bash -euo pipefail -c '
+            inventory_sql="$(sed "/^[[:space:]]*--/d" tests/schema-parity-inventory.sql)"
+            raw_inventory="$RUNNER_TEMP/dao-schema-parity-after-reset-raw.csv"
+            final_inventory="$RUNNER_TEMP/dao-schema-parity-after-reset.csv"
+            supabase db query --local -o csv "$inventory_sql" > "$raw_inventory"
+            node tests/schema-parity-inventory.mjs finalize "$raw_inventory" > "$final_inventory"
+            test -s "$final_inventory"
+            node tests/schema-parity-inventory.mjs compare \
+              "$RUNNER_TEMP/dao-schema-parity-fresh-local.csv" \
+              "$final_inventory"
+            echo "Schema inventory matches before and after full migration replay." | tee -a "$GITHUB_STEP_SUMMARY"
+          '
       - name: Upload fresh-local DAO schema fingerprints
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dao-schema-parity-fresh-local-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/dao-schema-parity-fresh-local.csv
+          path: |
+            ${{ runner.temp }}/dao-schema-parity-fresh-local.csv
+            ${{ runner.temp }}/dao-schema-parity-after-reset.csv
           if-no-files-found: ignore
       - name: Export disposable local Supabase credentials for integration and E2E
         if: steps.ci_scope.outputs.mode == 'full' || steps.ci_scope.outputs.mode == 'sql_cleanup'
