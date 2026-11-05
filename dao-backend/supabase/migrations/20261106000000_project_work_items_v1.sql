@@ -751,11 +751,17 @@ begin
         where t.project_id=p_project_id and t.validated_revision is not null
           and (t.project_work_item_id is null or (pi.status='active' and pr.status<>'withdrawn'))
         order by t.work_id,t.scope_key,t.id loop
+      -- Métré rattaché : toujours sa ligne (un métré = une ligne), sauf s'il est déjà cité explicitement par son id.
+      -- Il n'est jamais comparé à la clé ouvrage/périmètre, qui ne distingue pas deux lots.
       if v_tk.project_work_item_id is not null then
-        if not ((v_tk.work_id::text)||'/'||v_tk.scope_key = any(v_keys)) then
+        if not exists(select 1 from jsonb_array_elements(v_raw) x where x->'source'->>'takeoffId'=v_tk.id::text) then
           v_raw:=v_raw||jsonb_build_array(jsonb_build_object('workId',v_tk.work_id,'scopeKey',v_tk.scope_key,'origin','validated_takeoff','workItemId',v_tk.project_work_item_id,'source',jsonb_build_object('kind','takeoff','takeoffId',v_tk.id)));
         end if;
-      elsif not ((v_tk.work_id::text)||'/'||v_tk.scope_key = any(v_keys)) then
+      -- Ancien métré non rattaché : compté seulement si l'ouvrage n'a aucune occurrence active dans le chantier
+      -- (sinon il est « à rattacher » et ne doit ni masquer ni doubler la quantité d'une occurrence).
+      elsif not ((v_tk.work_id::text)||'/'||v_tk.scope_key = any(v_keys))
+        and not exists(select 1 from public.project_work_items i where i.project_id=p_project_id and i.work_id=v_tk.work_id and i.status='active')
+        and not exists(select 1 from jsonb_array_elements(v_raw) x where x->'source'->>'takeoffId'=v_tk.id::text) then
         v_keys:=v_keys||((v_tk.work_id::text)||'/'||v_tk.scope_key);
         v_raw:=v_raw||jsonb_build_array(jsonb_build_object('workId',v_tk.work_id,'scopeKey',v_tk.scope_key,'origin','validated_takeoff','unlinked',true,'source',jsonb_build_object('kind','takeoff','takeoffId',v_tk.id)));
       end if;

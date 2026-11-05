@@ -144,6 +144,28 @@ export async function projectWorkItemsCases(db, test, { U, gov, as }) {
     eq(r.lines.filter(l => l.workItemId === items.aWork.id).length, 1, 'validated takeoff replaces the empty occurrence line: ');
   }));
 
+  await test('estimate: an unlinked legacy takeoff with the same work/scope never hides nor doubles an occurrence', async () => {
+    // Métré validé sur l'occurrence B (même périmètre « default » que celui de A), puis détaché pour simuler un ancien métré.
+    let tkB = (await as('clientA', () => one('select public.btp_takeoff_snapshot_v1($1)', [project]))).items.find(t => t.workItemId === items.bWork.id && t.scopeKey === 'default');
+    tkB = await as('clientA', () => takeoff('calculate', { projectId: project, workId: measurable.id, takeoffId: tkB.id, expectedRevision: tkB.currentRevision, scopeKey: 'default', label: 'Lot B', canonicalInputs: inputs('5') }));
+    tkB = await as('clientA', () => takeoff('submit', { takeoffId: tkB.id, expectedRevision: tkB.currentRevision }));
+    tkB = await as('admin', () => takeoff('validate', { takeoffId: tkB.id, expectedRevision: tkB.currentRevision }));
+    await db.query('update public.btp_takeoffs set project_work_item_id=null where id=$1', [tkB.id]);
+    try {
+      const r = (await as('clientA', () => estimate({ projectId: project, mode: 'reference' }))).result;
+      const same = r.lines.filter(l => l.workId === measurable.id);
+      eq(same.filter(l => l.quantity).length, 1, 'only the linked takeoff of A carries a quantity: ');
+      eq(same.find(l => l.workItemId === items.aWork.id).quantitySource.kind, 'takeoff');
+      eq(same.find(l => l.workItemId === items.bWork.id).quantity, null);
+      eq(same.some(l => l.unlinked), false, 'legacy takeoff waits for assignment: ');
+      // Une ligne explicite ouvrage/périmètre ne masque plus le métré rattaché de A.
+      const withExplicit = (await as('clientA', () => estimate({ projectId: project, mode: 'reference', lines: [{ workId: measurable.id, scopeKey: 'default', source: { kind: 'none' } }] }))).result;
+      eq(withExplicit.lines.filter(l => l.workItemId === items.aWork.id && l.quantity).length, 1);
+    } finally {
+      await db.query('update public.btp_takeoffs set project_work_item_id=$2 where id=$1', [tkB.id, items.bWork.id]);
+    }
+  });
+
   await test('publication: immutable commercial snapshot with works, no private data, then locked', async () => {
     const rv = (await snapshot_as('clientA', project)).lots.find(l => l.requestId === lotB).requestVersionId;
     const pv = await one('select id from public.project_versions where project_id=$1 order by version_no desc limit 1', [project]);
