@@ -348,6 +348,12 @@
       "agent": "DAO Mission 1",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 568,
+      "agent": "DAO Settings",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }
