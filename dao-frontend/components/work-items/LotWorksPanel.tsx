@@ -42,7 +42,7 @@ export default function LotWorksPanel({ projectId, lot, canEdit, onChanged }: { 
     {error && <p role="alert" className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
     {lot.items.length === 0 && !picker && <p className="mt-2 text-xs text-ink/65">{editable ? 'Aucun ouvrage pour l’instant. Choisissez-les dans le référentiel D.A.O. ; les dimensions se renseignent plus tard.' : 'Aucun ouvrage détaillé pour ce lot.'}</p>}
     {groups.map(group => <div key={group.id || 'direct'} className="mt-3">
-      {(lot.subLots.length > 0) && <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink/60">{group.title}</p>}
+      {(lot.subLots.length > 0) && <p data-testid="work-group-title" className="text-xs font-semibold uppercase tracking-[0.08em] text-ink/60">{group.title}</p>}
       <ul className="mt-1 space-y-1.5">{group.items.map(item => <ItemRow key={item.id} projectId={projectId} item={item} lot={lot} editable={editable} busy={busy} run={run} />)}</ul>
     </div>)}
     {picker && <WorkPicker lot={lot} busy={busy} onClose={() => setPicker(false)}

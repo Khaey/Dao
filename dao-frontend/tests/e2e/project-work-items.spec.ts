@@ -42,8 +42,7 @@ test('Ouvrages #577 : lot, sous-lot manuel, ouvrages du référentiel et hors r�
   await page.getByRole('button', { name: /^Lots/ }).click();
   const works = lot().getByTestId('lot-works');
   await expect(works.getByTestId('work-item')).toHaveCount(2);
-  await expect(works.getByText('Salle de bain', { exact: true })).toBeVisible();
-  await expect(works.getByText('Directement dans le lot', { exact: true })).toBeVisible();
+  await expect(works.getByTestId('work-group-title')).toHaveText(['Directement dans le lot', 'Salle de bain']);
 
   // « À confirmer », puis retrait de l'ouvrage hors référentiel (trace conservée côté base).
   const custom = works.getByTestId('work-item').filter({ hasText: 'Pose d’une niche murale sur mesure' });
