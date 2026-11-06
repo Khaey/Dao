@@ -4,6 +4,10 @@
 >
 > **Aucune intervention PROD autorisée dans cette passation.** Un ticket ouvert, un commentaire ou une PR ne déclenchent pas une session d'agent.
 
+## Complément final daté du 06/11/2026
+
+Cette passation du 04/11 est **conservée comme historique**, et ses anciens statuts OPEN/PENDING ne doivent pas être lus comme un état actuel. Pour la clôture de #556, consulter le [checkpoint final du 06/11](pilot-14-final-2026-11-06.md) : #557/#558 fusionnées, #555/#561/#568 clôturées, #577 fusionnée en PR #580 mais restant OPEN avec recettes et corrections métier à finir, #578 encore OPEN en PR #579. Le rôle global de PILOT 14 reste défini par le propriétaire : **clore #556 ne nomme aucun successeur**.
+
 ## À lire en premier par PILOT 15 et suivants
 
 1. [Issue pilote #556](https://github.com/Khaey/Dao/issues/556), ce document et [registre d'agents](../agents.md).
