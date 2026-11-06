@@ -32,13 +32,15 @@ export class BtpTakeoffService {
     const action=input.action;
     if(!['calculate','submit','validate'].includes(String(action))) throw new DomainError('Action de métré invalide','BAD_REQUEST');
     const allowed=action==='calculate'
-      ? ['action','project_id','work_id','takeoff_id','expected_revision','scope_key','label','inputs','idempotency_key']
+      ? ['action','project_id','work_id','work_item_id','takeoff_id','expected_revision','scope_key','label','inputs','idempotency_key']
       : ['action','takeoff_id','expected_revision','note','idempotency_key'];
     if(Object.keys(input).some(key=>!allowed.includes(key))) throw new DomainError('Champ de commande non supporté','BAD_REQUEST');
     const key=idempotency(input.idempotency_key);
     if(action==='calculate') {
       const projectId=uuid(input.project_id,'project_id')!; const workId=uuid(input.work_id,'work_id')!;
       const takeoffId=uuid(input.takeoff_id,'takeoff_id',true);
+      const workItemId=uuid(input.work_item_id,'work_item_id',true);
+      if(!takeoffId&&!workItemId) throw new DomainError('work_item_id requis : un métré est rattaché à un ouvrage du chantier','BAD_REQUEST');
       const expected=revision(input.expected_revision,true);
       if(takeoffId&&!expected) throw new DomainError('expected_revision requis pour un recalcul','BAD_REQUEST');
       if(typeof input.scope_key!=='string'||!SCOPE.test(input.scope_key)) throw new DomainError('Périmètre de métré invalide','BAD_REQUEST');
@@ -46,7 +48,7 @@ export class BtpTakeoffService {
       if(!input.inputs||Array.isArray(input.inputs)||typeof input.inputs!=='object') throw new DomainError('Entrées de métré invalides','BAD_REQUEST');
       const template=await this.rpc('btp_takeoff_template_v1',{p_project_id:projectId,p_work_id:workId}) as TakeoffTemplate;
       const evaluation=evaluateTakeoff(template,input.inputs as Record<string,TakeoffInput>);
-      const data=await this.rpc('btp_takeoff_command_v1',{p_action:'calculate',p_input:{projectId,workId,takeoffId,expectedRevision:expected,
+      const data=await this.rpc('btp_takeoff_command_v1',{p_action:'calculate',p_input:{projectId,workId,...(workItemId?{workItemId}:{}),takeoffId,expectedRevision:expected,
         scopeKey:input.scope_key,label:input.label.trim(),canonicalInputs:evaluation.canonicalInputs},p_idempotency_key:key});
       return {...data,evaluation};
     }

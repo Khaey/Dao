@@ -6,7 +6,7 @@
 // Aucune quantité, valeur par défaut ni prix n'est créé ici.
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Calculator, Check, ChevronDown, ClipboardCheck, History, Plus, Ruler, Search, Send, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, Calculator, Check, ChevronDown, ClipboardCheck, History, Link2, Plus, Ruler, Send, ShieldCheck } from 'lucide-react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 import { fetchMySettings } from '../../lib/settings';
 import { Badge, Card, SectionHeading } from '../ui';
@@ -17,14 +17,15 @@ import {
   STATUS_LABELS, takeoffActions, templateFields, uniqueScopeKey, UNIT_SYMBOLS, VALIDATION_BASIS_LABELS,
   type TakeoffDraftField, type TakeoffSchema, type TakeoffStatus, type ViewerRole,
 } from '../../../dao-backend/src/btp-takeoff-ui/presentation';
+import { workItemCommand, type WorkItem, type WorkItemsSnapshot } from '../work-items/workItemsApi';
 
 type Work = { id: string; label: string; unitCode: string; lot: string; subLot: string; order: number; note: string; aliases: string[] };
 type Template = { id: string; workId: string; outputUnitCode: string; inputSchema: TakeoffSchema; formulaAst: Record<string, unknown>; roundingScale: number; assumptions: string[]; sourceRef: string };
 type Revision = { id: string; revision: number; status: 'calculated' | 'insufficient_data'; inputs: Record<string, any>; formula: Record<string, any>; justification: Record<string, any>; inputSha256: string; resultSha256: string; createdBy: string; createdAt: string };
-type Takeoff = { id: string; workId: string; scopeKey: string; label: string; status: TakeoffStatus; currentRevision: number; validatedRevision: number | null; catalogVersionId: string;
+type Takeoff = { id: string; workId: string; workItemId: string | null; scopeKey: string; label: string; status: TakeoffStatus; currentRevision: number; validatedRevision: number | null; catalogVersionId: string;
   current: Revision | null; validated: Revision | null; history: Array<{ revision: number; status: string; result: any; createdBy: string; createdAt: string }>;
   events: Array<{ id: string; revision: number; type: string; actorId: string; note?: string; validationBasis?: string; createdAt: string }> };
-type Editor = { workId: string; takeoff: Takeoff | null };
+type Editor = { workId: string; itemId: string; takeoff: Takeoff | null };
 
 const STATUS_TONE: Record<TakeoffStatus, 'neutral' | 'waiting' | 'success'> = { draft: 'neutral', submitted: 'waiting', validated: 'success' };
 const SOURCE_LABEL = Object.fromEntries(SOURCE_KINDS.map(s => [s.kind, s.label]));
@@ -67,15 +68,13 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
   const [works, setWorks] = useState<Map<string, Work>>(new Map());
   const [templates, setTemplates] = useState<Map<string, Template>>(new Map());
   const [catalogVersion, setCatalogVersion] = useState<{ id: string; code: string } | null>(null);
-  const [scopeWorkIds, setScopeWorkIds] = useState<string[]>([]);
-  const [addedWorkIds, setAddedWorkIds] = useState<string[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItemsSnapshot | null>(null);
   const [takeoffs, setTakeoffs] = useState<Takeoff[]>([]);
   const [role, setRole] = useState<ViewerRole & { userId: string; clientId: string | null }>({ isOwner: false, isAdmin: false, isAssignedManager: false, hasAssignedManager: false, userId: '', clientId: null });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [estimate, setEstimate] = useState<any>(null);
   const [estimateError, setEstimateError] = useState('');
-  const [picker, setPicker] = useState(false);
 
   const fail = useCallback((e: any) => {
     if (e instanceof ApiError && e.status === 401) setDenied('session');
@@ -92,9 +91,9 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      // Les droits réels viennent de la base : l'estimation #551 n'est ouverte qu'au Client
+      // Les droits réels viennent de la base : la liste des ouvrages (#577) n'est ouverte qu'au Client
       // propriétaire, au Gestionnaire affecté et à l'Admin ; un Artisan reçoit 403.
-      const snapshot = await api(`/api/btp/estimates?project_id=${projectId}`);
+      const snapshot: WorkItemsSnapshot = await api(`/api/projects/work-items?project_id=${projectId}`);
       const supabase = supabaseBrowser();
       const [list, catalog, user] = await Promise.all([
         api(`/api/btp/takeoffs?project_id=${projectId}`),
@@ -123,17 +122,22 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
       setWorks(workMap);
       setTemplates(new Map((catalog.measurementTemplates ?? []).map((t: Template) => [t.workId, t])));
       setCatalogVersion(catalog.catalogVersion ? { id: catalog.catalogVersion.id, code: catalog.catalogVersion.code } : null);
-      setScopeWorkIds((snapshot.scopeWorks ?? []).map((s: any) => String(s.workId).toLowerCase()));
+      setWorkItems(snapshot);
       setTakeoffs(list.items ?? []);
+      // Lien « Dimensions » depuis un lot : ouvre directement le métré de cette occurrence.
+      const wanted = new URLSearchParams(window.location.search).get('item');
+      const target = wanted ? snapshot.lots.flatMap(l => l.items).find(i => i.id === wanted) : undefined;
+      if (target?.workId && target.measurable) {
+        const existing = (list.items ?? []).filter((t: Takeoff) => t.workItemId === target.id);
+        if (existing.length) setSelectedId(existing[0].id); else setEditor({ workId: target.workId, itemId: target.id, takeoff: null });
+      }
       void refreshEstimate();
     } catch (e: any) { fail(e); } finally { setLoading(false); }
   }, [projectId, fail, refreshEstimate]);
   useEffect(() => { void load(); }, [load]);
 
-  const visibleWorkIds = useMemo(() => {
-    const ids = new Set<string>([...scopeWorkIds, ...takeoffs.map(t => t.workId), ...addedWorkIds]);
-    return [...ids].sort((a, b) => (works.get(a)?.order ?? 1e9) - (works.get(b)?.order ?? 1e9));
-  }, [scopeWorkIds, takeoffs, addedWorkIds, works]);
+  const allItems = useMemo(() => (workItems?.lots ?? []).flatMap(l => l.items), [workItems]);
+  const unlinked = takeoffs.filter(t => !t.workItemId || !allItems.some(i => i.id === t.workItemId));
   const selected = takeoffs.find(t => t.id === selectedId) ?? null;
   const counts = { draft: takeoffs.filter(t => t.status === 'draft').length, submitted: takeoffs.filter(t => t.status === 'submitted').length, validated: takeoffs.filter(t => t.validatedRevision).length };
   const actions = takeoffActions(role, null);
@@ -175,25 +179,33 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
         <Card className="p-5 sm:p-6">
           <SectionHeading eyebrow={catalogVersion ? `Référentiel ${catalogVersion.code}` : 'Référentiel'} title="Ouvrages du chantier"
             description={`${counts.draft} brouillon(s) · ${counts.submitted} en attente de validation · ${counts.validated} validé(s)`}
-            action={actions.canWrite ? <button type="button" className={secondaryAction} onClick={() => setPicker(v => !v)} aria-expanded={picker}><Plus size={15} aria-hidden="true" />Ajouter un ouvrage</button> : undefined} />
-          {picker && <WorkPicker works={works} templates={templates} exclude={visibleWorkIds} onPick={id => { setAddedWorkIds(all => [...all, id]); setPicker(false); if (templates.has(id)) { setEditor({ workId: id, takeoff: null }); setSelectedId(null); } }} onClose={() => setPicker(false)} />}
-          {visibleWorkIds.length === 0
-            ? <div className="mt-5 rounded-xl bg-sand p-4 text-sm text-ink/70"><p className="font-semibold text-ink">Aucun ouvrage pour l’instant</p><p className="mt-1">Les ouvrages retenus avec l’assistant apparaissent ici automatiquement. Vous pouvez aussi ajouter un ouvrage du référentiel.</p></div>
-            : <ul className="mt-5 space-y-3" aria-label="Ouvrages du chantier">{visibleWorkIds.map(workId => <WorkRow key={workId} work={works.get(workId)} workId={workId} template={templates.get(workId)}
-                takeoffs={takeoffs.filter(t => t.workId === workId)} selectedId={selectedId} canWrite={actions.canWrite} fromAssistant={scopeWorkIds.includes(workId)}
-                onSelect={id => { setSelectedId(id); setEditor(null); }} onNew={() => { setEditor({ workId, takeoff: null }); setSelectedId(null); }} />)}</ul>}
+            action={role.isOwner ? <Link href={`/app/projects/${projectId}?tab=lots`} className={secondaryAction}><Plus size={15} aria-hidden="true" />Ajouter des ouvrages</Link> : undefined} />
+          {allItems.length === 0
+            ? <div className="mt-5 rounded-xl bg-sand p-4 text-sm text-ink/70"><p className="font-semibold text-ink">Aucun ouvrage pour l’instant</p><p className="mt-1">Les ouvrages se choisissent lot par lot, dans l’onglet Lots du chantier (ou avec l’assistant). Ils apparaissent ici pour que vous renseigniez leurs dimensions.</p></div>
+            : <div className="mt-5 space-y-5">{(workItems?.lots ?? []).filter(l => l.items.length > 0).map(lot => <section key={lot.requestId} aria-label={`Lot ${lot.title}`} data-testid="takeoff-lot">
+                <h3 className="text-sm font-bold text-ink">{lot.title}</h3>
+                {[{ id: '', title: '' }, ...lot.subLots].map(sub => { const items = lot.items.filter(i => (i.subLotCurrent ? i.subLotId ?? '' : '') === sub.id); return items.length ? <div key={sub.id || 'direct'} className="mt-2">
+                  {sub.id && <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink/60">{sub.title}</p>}
+                  <ul className="mt-1.5 space-y-3" aria-label={sub.id ? `Sous-lot ${sub.title}` : `Ouvrages du lot ${lot.title}`}>{items.map(item => <WorkRow key={item.id} item={item} work={item.workId ? works.get(item.workId) : undefined} template={item.workId ? templates.get(item.workId) : undefined}
+                    takeoffs={takeoffs.filter(t => t.workItemId === item.id)} selectedId={selectedId} canWrite={actions.canWrite}
+                    onSelect={id => { setSelectedId(id); setEditor(null); }} onNew={() => { if (item.workId) { setEditor({ workId: item.workId, itemId: item.id, takeoff: null }); setSelectedId(null); } }} />)}</ul>
+                </div> : null; })}
+              </section>)}</div>}
+          {unlinked.length > 0 && <LegacyTakeoffs takeoffs={unlinked} items={allItems} works={works} busy={busy} canLink={role.isOwner || role.isAssignedManager || role.isAdmin}
+            onLink={async (takeoffId, itemId) => { setBusy(true); setError(''); try { await workItemCommand({ action: 'link_takeoff', takeoffId, itemId }); setNotice('Métré rattaché à l’ouvrage.'); await load(); } catch (e: any) { setError(e?.message ?? 'Rattachement refusé.'); } finally { setBusy(false); } }}
+            onSelect={id => { setSelectedId(id); setEditor(null); }} selectedId={selectedId} />}
         </Card>
         <BudgetPanel projectId={projectId} estimate={estimate} error={estimateError} works={works} takeoffs={takeoffs} />
       </div>
 
       <div className="min-w-0 space-y-4">
         {editor && templates.get(editor.workId) && <TakeoffEditor key={`${editor.workId}-${editor.takeoff?.id ?? 'new'}`} work={works.get(editor.workId)} template={templates.get(editor.workId)!}
-          takeoff={editor.takeoff} takenScopes={takeoffs.filter(t => t.workId === editor.workId).map(t => t.scopeKey)} busy={busy}
+          takeoff={editor.takeoff} takenScopes={takeoffs.filter(t => t.workItemId === editor.itemId).map(t => t.scopeKey)} busy={busy}
           onCancel={() => { setEditor(null); if (editor.takeoff) setSelectedId(editor.takeoff.id); }}
-          onSubmit={(payload) => command({ action: 'calculate', project_id: projectId, work_id: editor.workId, idempotency_key: idem('calc'), ...payload,
+          onSubmit={(payload) => command({ action: 'calculate', project_id: projectId, work_id: editor.workId, ...(editor.takeoff ? {} : { work_item_id: editor.itemId }), idempotency_key: idem('calc'), ...payload,
             ...(editor.takeoff ? { takeoff_id: editor.takeoff.id, expected_revision: editor.takeoff.currentRevision } : {}) }, 'Révision calculée et enregistrée.')} />}
         {!editor && selected && <TakeoffDetail takeoff={selected} work={works.get(selected.workId)} template={templates.get(selected.workId)} catalogVersion={catalogVersion} role={role} busy={busy}
-          onRevise={() => setEditor({ workId: selected.workId, takeoff: selected })}
+          onRevise={() => setEditor({ workId: selected.workId, itemId: selected.workItemId ?? '', takeoff: selected })}
           onSubmit={note => command({ action: 'submit', takeoff_id: selected.id, expected_revision: selected.currentRevision, idempotency_key: idem('submit'), ...(note ? { note } : {}) }, 'Métré soumis : en attente de validation technique.')}
           onValidate={note => command({ action: 'validate', takeoff_id: selected.id, expected_revision: selected.currentRevision, idempotency_key: idem('validate'), ...(note ? { note } : {}) }, 'Métré validé : il devient la référence du budget prévisionnel.')} />}
         {!editor && !selected && <Card className="p-5 sm:p-6"><p className="font-semibold text-ink">Choisissez un métré</p><p className="mt-1 text-sm text-ink/65">Sélectionnez un métré pour voir son calcul justifié, ou créez-en un avec « Nouveau métré » sur un ouvrage calculable.</p></Card>}
@@ -213,47 +225,48 @@ function ValidationPolicy({ role }: { role: ViewerRole }) {
   return null;
 }
 
-function WorkPicker({ works, templates, exclude, onPick, onClose }: { works: Map<string, Work>; templates: Map<string, Template>; exclude: string[]; onPick: (id: string) => void; onClose: () => void }) {
-  const [query, setQuery] = useState('');
-  const q = query.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const options = [...works.values()].filter(w => !exclude.includes(w.id))
-    .filter(w => !q || norm(`${w.label} ${w.lot} ${w.subLot} ${w.aliases.join(' ')}`).includes(q)).sort((a, b) => a.order - b.order);
-  return <div className="mt-4 rounded-xl bg-sand p-4">
-    <div className="flex items-center gap-2">
-      <label className="relative flex-1"><span className="sr-only">Rechercher un ouvrage</span><Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/45" />
-        <input className={cn(fieldClass, 'pl-9')} value={query} onChange={e => setQuery(e.target.value)} placeholder="Rechercher : carrelage, mur, terrasse…" aria-label="Rechercher un ouvrage" autoFocus /></label>
-      <button type="button" className={secondaryAction} onClick={onClose} aria-label="Fermer la recherche"><X size={15} aria-hidden="true" /></button>
-    </div>
-    <ul className="mt-3 max-h-72 space-y-1 overflow-y-auto" aria-label="Ouvrages du référentiel">
-      {options.length === 0 && <li className="px-2 py-2 text-sm text-ink/60">Aucun ouvrage correspondant dans le référentiel publié.</li>}
-      {options.map(w => <li key={w.id}><button type="button" onClick={() => onPick(w.id)} className="flex min-h-11 w-full flex-wrap items-center gap-x-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
-        <span className="font-semibold text-ink">{w.label}</span><span className="text-xs text-ink/60">{w.lot} › {w.subLot} · {sym(w.unitCode)}</span>
-        {!templates.has(w.id) && <span className="text-xs text-amber-800">· pas encore calculable</span>}
-      </button></li>)}
-    </ul>
-  </div>;
-}
-
-function WorkRow({ work, workId, template, takeoffs, selectedId, canWrite, fromAssistant, onSelect, onNew }: { work?: Work; workId: string; template?: Template; takeoffs: Takeoff[]; selectedId: string | null; canWrite: boolean; fromAssistant: boolean; onSelect: (id: string) => void; onNew: () => void }) {
+function WorkRow({ item, work, template, takeoffs, selectedId, canWrite, onSelect, onNew }: { item: WorkItem; work?: Work; template?: Template; takeoffs: Takeoff[]; selectedId: string | null; canWrite: boolean; onSelect: (id: string) => void; onNew: () => void }) {
   return <li className="rounded-xl border border-black/[0.06] p-3.5" data-testid="takeoff-work">
     <div className="flex flex-wrap items-start gap-2">
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-ink">{work?.label ?? 'Ouvrage retiré du référentiel publié'}</p>
-        <p className="text-xs text-ink/60">{work ? `${work.lot} › ${work.subLot} · unité ${sym(work.unitCode)}` : workId}{fromAssistant ? ' · retenu avec l’assistant' : ''}</p>
+        <p className="font-semibold text-ink">{item.label}</p>
+        <p className="text-xs text-ink/60">{item.custom ? 'Hors référentiel · non chiffré' : `${work ? `${work.lot} › ${work.subLot}` : item.catalogPath ? `${item.catalogPath.lot} › ${item.catalogPath.subLot}` : 'Référentiel'} · unité ${sym(item.unitCode)}`}{item.origin === 'assistant' ? ' · retenu avec l’assistant' : ''}{item.confirmation === 'to_confirm' ? ' · à confirmer' : ''}</p>
       </div>
-      {template && canWrite && <button type="button" className={cn(secondaryAction, 'min-h-10 px-3')} onClick={onNew} aria-label={`Nouveau métré : ${work?.label ?? ''}`}><Plus size={14} aria-hidden="true" />Nouveau métré</button>}
+      {template && canWrite && <button type="button" className={cn(secondaryAction, 'min-h-11 px-3')} onClick={onNew} aria-label={`Nouveau métré : ${item.label}`}><Plus size={14} aria-hidden="true" />Nouveau métré</button>}
     </div>
-    {!template && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Aucun modèle de métré publié pour cet ouvrage : il n’est pas encore calculable. D.A.O. ne déduit aucune quantité ; le budget le signalera comme manquant.</p>}
+    {!item.custom && !template && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">Aucun modèle de métré publié pour cet ouvrage : il n’est pas encore calculable. D.A.O. ne déduit aucune quantité ; le budget le signalera comme manquant.</p>}
     {template && work?.note && <p className="mt-2 text-xs text-ink/60">{work.note}</p>}
-    {takeoffs.length > 0 && <ul className="mt-3 space-y-1.5">{takeoffs.map(t => <li key={t.id}>
-      <button type="button" onClick={() => onSelect(t.id)} aria-pressed={selectedId === t.id} className={cn('flex min-h-11 w-full flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal', selectedId === t.id ? 'bg-teal/10' : 'bg-sand hover:bg-sand/70')}>
-        <span className="min-w-0 flex-1 font-semibold text-ink">{t.label}<span className="block text-xs font-normal text-ink/60">Périmètre {t.scopeKey} · révision {t.currentRevision}</span></span>
-        <span className="tabular-nums text-ink/80">{t.current?.status === 'calculated' ? `${fmt(t.current.justification?.result?.value)} ${sym(t.current.justification?.result?.unit)}` : 'Données insuffisantes'}</span>
-        <Badge tone={STATUS_TONE[t.status]}>{STATUS_LABELS[t.status]}</Badge>
-      </button>
-    </li>)}</ul>}
+    <TakeoffList takeoffs={takeoffs} selectedId={selectedId} onSelect={onSelect} />
   </li>;
+}
+
+function TakeoffList({ takeoffs, selectedId, onSelect }: { takeoffs: Takeoff[]; selectedId: string | null; onSelect: (id: string) => void }) {
+  if (!takeoffs.length) return null;
+  return <ul className="mt-3 space-y-1.5">{takeoffs.map(t => <li key={t.id}>
+    <button type="button" onClick={() => onSelect(t.id)} aria-pressed={selectedId === t.id} className={cn('flex min-h-11 w-full flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal', selectedId === t.id ? 'bg-teal/10' : 'bg-sand hover:bg-sand/70')}>
+      <span className="min-w-0 flex-1 font-semibold text-ink">{t.label}<span className="block text-xs font-normal text-ink/60">Périmètre {t.scopeKey} · révision {t.currentRevision}</span></span>
+      <span className="tabular-nums text-ink/80">{t.current?.status === 'calculated' ? `${fmt(t.current.justification?.result?.value)} ${sym(t.current.justification?.result?.unit)}` : 'Données insuffisantes'}</span>
+      <Badge tone={STATUS_TONE[t.status]}>{STATUS_LABELS[t.status]}</Badge>
+    </button>
+  </li>)}</ul>;
+}
+
+/** Métrés antérieurs à #577 sans occurrence non ambiguë : on les garde visibles et on propose de les rattacher. */
+function LegacyTakeoffs({ takeoffs, items, works, busy, canLink, onLink, onSelect, selectedId }: { takeoffs: Takeoff[]; items: WorkItem[]; works: Map<string, Work>; busy: boolean; canLink: boolean; onLink: (takeoffId: string, itemId: string) => Promise<void>; onSelect: (id: string) => void; selectedId: string | null }) {
+  const [choice, setChoice] = useState<Record<string, string>>({});
+  return <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/60 p-4" data-testid="takeoffs-unlinked">
+    <p className="flex items-center gap-2 text-sm font-semibold text-amber-900"><AlertTriangle size={15} aria-hidden="true" />Métrés à rattacher à un ouvrage ({takeoffs.length})</p>
+    <p className="mt-1 text-xs text-amber-900/90">Ces métrés datent d’avant la liste des ouvrages par lot, et l’ouvrage concerné n’a pas pu être déterminé sans ambiguïté. Ils restent conservés ; rattachez-les au bon lot.</p>
+    <ul className="mt-3 space-y-3">{takeoffs.map(t => { const candidates = items.filter(i => i.workId === t.workId); return <li key={t.id} className="rounded-lg bg-white p-3">
+      <p className="text-sm font-semibold text-ink">{works.get(t.workId)?.label ?? t.workId}</p>
+      <TakeoffList takeoffs={[t]} selectedId={selectedId} onSelect={onSelect} />
+      {canLink && (candidates.length
+        ? <div className="mt-2 flex flex-col gap-2 sm:flex-row"><label className="min-w-0 flex-1"><span className="sr-only">Ouvrage de rattachement</span>
+            <select className={fieldClass} value={choice[t.id] ?? ''} onChange={e => setChoice(c => ({ ...c, [t.id]: e.target.value }))} aria-label={`Ouvrage de rattachement pour ${t.label}`}><option value="">Choisir le lot…</option>{candidates.map(i => <option key={i.id} value={i.id}>{i.label}</option>)}</select></label>
+            <button type="button" className={secondaryAction} disabled={busy || !choice[t.id]} onClick={() => void onLink(t.id, choice[t.id])}><Link2 size={14} aria-hidden="true" />Rattacher</button></div>
+        : <p className="mt-2 text-xs text-ink/65">Ajoutez d’abord cet ouvrage au lot concerné (onglet Lots), puis rattachez le métré.</p>)}
+    </li>; })}</ul>
+  </div>;
 }
 
 function TakeoffEditor({ work, template, takeoff, takenScopes, busy, onCancel, onSubmit }: { work?: Work; template: Template; takeoff: Takeoff | null; takenScopes: string[]; busy: boolean; onCancel: () => void; onSubmit: (payload: { scope_key: string; label: string; inputs: Record<string, unknown> }) => Promise<boolean> }) {
@@ -389,8 +402,8 @@ function BudgetPanel({ projectId, estimate, error, works, takeoffs }: { projectI
     {error && <p className="mt-3 text-sm text-red-700" role="alert">État du budget indisponible : {error}</p>}
     {result && coverage && <>
       <div className="mt-3 flex flex-wrap items-center gap-2"><Badge tone={coverage.tone}>{coverage.label}</Badge><span className="text-xs text-ink/60">{result.coverage.pricedLines}/{result.coverage.totalLines} ligne(s) chiffrée(s) · tarifs sourcés vérifiés uniquement</span></div>
-      {result.lines?.length > 0 && <ul className="mt-3 space-y-1.5" aria-label="Causes par ligne">{result.lines.map((line: any) => <li key={`${line.workId}/${line.scopeKey}`} className="rounded-lg bg-sand px-3 py-2 text-xs">
-        <span className="font-semibold text-ink">{line.workLabel ?? works.get(line.workId)?.label ?? line.workId}</span>
+      {result.lines?.length > 0 && <ul className="mt-3 space-y-1.5" aria-label="Causes par ligne">{result.lines.map((line: any, index: number) => <li key={`${line.workItemId ?? line.workId}/${line.scopeKey ?? index}`} className="rounded-lg bg-sand px-3 py-2 text-xs">
+        <span className="font-semibold text-ink">{line.itemLabel ?? line.workLabel ?? works.get(line.workId)?.label ?? line.workId}</span>{line.requestTitle && <span className="text-ink/60"> · {line.requestTitle}</span>}
         <span className="text-ink/60"> · {line.quantitySource?.kind === 'takeoff' ? `métré validé (révision ${line.quantitySource.revision ?? '—'})` : line.quantitySource?.kind === 'declared' ? 'quantité déclarée' : 'sans quantité'}</span>
         {line.status === 'missing' ? <ul className="mt-1 list-disc pl-5 text-red-800">{(line.missing ?? []).map((c: string) => <li key={c}>{ESTIMATE_CAUSES[c] ?? c}</li>)}</ul> : <span className="text-emerald-800"> · chiffrée</span>}
       </li>)}</ul>}

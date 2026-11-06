@@ -1,5 +1,6 @@
 'use client';
 
+import PublishedWorks from '../../../../components/work-items/PublishedWorks';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Layers, ShieldCheck } from 'lucide-react';
@@ -11,7 +12,7 @@ import WithdrawLot from '../../../../components/backoffice/WithdrawLot';
 import PublicationOffersPanel from './PublicationOffersPanel';
 
 type Publication = { id: string; project_id: string; safe_title: string; safe_description: string; visibility: string; status: string };
-type PublicationLot = { id: string; request_version_id: string; safe_title: string; safe_scope: string; trade_id: string; technical_scope: any[] };
+type PublicationLot = { id: string; request_version_id: string; safe_title: string; safe_scope: string; trade_id: string; technical_scope: any[]; works_scope?: any[] | null };
 
 export default function PublicationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -64,6 +65,7 @@ export default function PublicationDetail() {
         <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 break-words font-bold text-ink">{lot.safe_title}</h3>{availability[lot.id]&&<Badge tone="red">Retiré de la publication</Badge>}</div>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-black/60">{lot.safe_scope}</p>
         {lot.technical_scope?.length>0&&<div className="mt-4"><h4 className="text-xs font-bold uppercase tracking-wide text-black/45">Sous-lots techniques</h4>{lot.technical_scope.map((sub:any)=><div key={sub.id} className="mt-2 border-l-2 border-teal/25 pl-3"><p className="font-semibold text-ink">{sub.title}</p><p className="text-sm text-black/65">{sub.scope}</p>{sub.budget_millimes!=null&&<p className="text-sm font-medium tabular-nums">{Number(sub.budget_millimes)/1000} TND</p>}</div>)}</div>}
+        <PublishedWorks works={lot.works_scope} subLots={lot.technical_scope} />
         {staffScope.manage&&!availability[lot.id]&&['published','suspended'].includes(publication.status)&&<WithdrawLot lot={lot} onWithdraw={()=>setRevision(r=>r+1)} />}
       </article>)}</div>
     </Card>

@@ -41,6 +41,7 @@ import { BtpEstimateService } from '../services/BtpEstimateService.js';
 import { createBtpEstimateHandler, createBtpPriceHandler } from './btpEstimateHandler.js';
 import { BtpTakeoffService } from '../services/BtpTakeoffService.js';
 import { createBtpTakeoffHandler } from './btpTakeoffHandler.js';
+import { createProjectWorkItemsHandler } from './projectWorkItemsHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -92,6 +93,12 @@ export function createBtpEstimateApi(request:Request) {
 export function createBtpTakeoffApi(request:Request) {
   const {db,resolveActor}=requestScope(request);
   return createBtpTakeoffHandler(new BtpTakeoffService(db),resolveActor);
+}
+
+/** #577: project work items (occurrences Lot → optional sub-lot → work). JWT-scoped RPCs only. */
+export function createProjectWorkItemsApi(request:Request) {
+  const {db,resolveActor}=requestScope(request);
+  return createProjectWorkItemsHandler(db as any,resolveActor);
 }
 
 export function createRfiApi(request: Request) {

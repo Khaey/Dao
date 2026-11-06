@@ -4,6 +4,7 @@ import { awardLifecycleCases } from './award-lifecycle-cases.mjs';
 import { projectAssistantCases, projectAssistantRealReferentialCases } from './project-assistant-cases.mjs';
 import { btpAdminCases } from './btp-admin-cases.mjs';
 import { btpEstimateCases } from './btp-estimate-cases.mjs';
+import { projectWorkItemsCases } from './project-work-items-cases.mjs';
 import {PGlite} from '@electric-sql/pglite';
 import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
@@ -58,7 +59,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,143);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,145);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -249,10 +250,13 @@ const B={};for(const n of ['proA','proB','general']){
 async function as(n,fn){await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${U[n]}',false);`);try{return await fn()}finally{await db.exec('reset role;')}}
 const takeoffProject=await insert('projects',{client_id:U.clientA});
 const takeoffWork=(await db.query("select id from public.btp_works where code='btp_work_terrace'")).rows[0].id;
+// #577 : un nouveau métré pointe vers une occurrence d'ouvrage du chantier (lot réel).
+const takeoffRequest=await insert('project_requests',{project_id:takeoffProject});
+const takeoffItem=(await db.query("insert into public.project_work_items(project_id,request_id,catalog_version_id,work_id,work_code,label,unit_code,origin,created_by) select $1,$2,w.catalog_version_id,w.id,w.code,w.label_fr,w.unit_code,'manual',$3 from public.btp_works w join public.btp_catalog_versions v on v.id=w.catalog_version_id and v.status='published' where w.id=$4 returning id",[takeoffProject,takeoffRequest,U.clientA,takeoffWork])).rows[0].id;
 const takeoffCommand=(action,input,key)=>db.query('select public.btp_takeoff_command_v1($1,$2::jsonb,$3) as value',[action,JSON.stringify(input),key]);
 let forecastTakeoff;
 await test('forecast takeoff records insufficient data without inventing a quantity',()=>as('clientA',async()=>{
- const result=(await takeoffCommand('calculate',{projectId:takeoffProject,workId:takeoffWork,scopeKey:'terrace-main',label:'Terrasse principale',canonicalInputs:{
+ const result=(await takeoffCommand('calculate',{projectId:takeoffProject,workId:takeoffWork,workItemId:takeoffItem,scopeKey:'terrace-main',label:'Terrasse principale',canonicalInputs:{
   length_m:{value:'10',unit:'m',source:{kind:'manual',reference:'Plan client'},original:{value:'10',unit:'m'}}
  }},'takeoff-missing-001')).rows[0].value;
  forecastTakeoff=result.id;eq(result.current.status,'insufficient_data');eq(result.current.justification.missingFields[0],'width_m');
@@ -280,7 +284,7 @@ await test('database rejects forged normalization and duplicate scope creation',
   width_m:{value:'6',unit:'m',source:{kind:'survey',reference:'Relevé R1'},original:{value:'6000',unit:'mm'}}
  }};
  await denied(`select public.btp_takeoff_command_v1('calculate','${JSON.stringify(forged).replaceAll("'","''")}'::jsonb,'takeoff-forged-001')`,'22023');
- const duplicate={projectId:takeoffProject,workId:takeoffWork,scopeKey:'terrace-main',label:'Collision',canonicalInputs:{}};
+ const duplicate={projectId:takeoffProject,workId:takeoffWork,workItemId:takeoffItem,scopeKey:'terrace-main',label:'Collision',canonicalInputs:{}};
  await denied(`select public.btp_takeoff_command_v1('calculate','${JSON.stringify(duplicate).replaceAll("'","''")}'::jsonb,'takeoff-duplicate-001')`,'23505');
 }));
 await test('authenticated users have no direct takeoff write grants',()=>as('clientA',()=>denied(`update public.btp_takeoffs set label='forged' where id='${forecastTakeoff}'`,'42501')));
@@ -499,5 +503,6 @@ await projectAssistantCases(db,test,{U,gov,as});
 await projectAssistantRealReferentialCases(db,test,{as});
 await btpAdminCases(db,test,{as});
 await btpEstimateCases(db,test,{U,P,Q,gov,as});
+await projectWorkItemsCases(db,test,{U,gov,as});
 writeFileSync(new URL('./local-results.json',import.meta.url),JSON.stringify({engine:'PGlite PostgreSQL WASM',auth:'Simulated SQL sub claims; NO real JWT, NO Supabase Auth or HTTP gateway',concurrency:'NOT tested with independent sessions',fixtures:'Synthetic local only, not verified geographic seed',results,passed:results.filter(x=>x.result==='PASS').length,failed:fails},null,2));
 console.log(JSON.stringify({passed:results.length-fails,failed:fails,failures:results.filter(x=>x.result==='FAIL')}));await db.close();process.exitCode=fails?1:0;

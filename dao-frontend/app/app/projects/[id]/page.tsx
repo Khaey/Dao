@@ -22,6 +22,8 @@ import OfficialSubLotsPanel, { type OfficialSubLot } from '../../../../component
 import { CommercialPanel, commercialLabel, isReady, useCommercialProgress } from '../../../../components/client/CommercialProgress';
 import { nextStep } from '../../../../../dao-backend/src/project-journey/presentation';
 import QuantitiesCard from '../../../../components/takeoffs/QuantitiesCard';
+import LotWorksPanel from '../../../../components/work-items/LotWorksPanel';
+import { useProjectWorkItems } from '../../../../components/work-items/workItemsApi';
 
 type Trade = { id: string; name_fr: string };
 type RequestView = { contractor_member_id?: string | null; id: string; status: string; created_at?: string; trade_id?: string; trade_name?: string; title?: string; scope?: string; budget_millimes?: number | null; version_no?: number; version_id?: string; sub_lots: OfficialSubLot[]; history: any[] };
@@ -46,6 +48,7 @@ export default function ProjectDetail() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'documents') setActiveTab('documents');
+    if (params.get('tab') === 'lots') setActiveTab('lots');
     if (params.get('tab') === 'team') {
       setActiveTab('team');
       const lotId = params.get('request_id');
@@ -58,6 +61,11 @@ export default function ProjectDetail() {
   }, []);
   const [project, setProject] = useState<any>(); const [projectVersions, setProjectVersions] = useState<any[]>([]); const [projectVersion, setProjectVersion] = useState<any>(); const [requests, setRequests] = useState<RequestView[]>([]); const [trades, setTrades] = useState<Trade[]>([]); const [reviews, setReviews] = useState<any[]>([]); const [documents, setDocuments] = useState<any[]>([]); const [aiProposals, setAiProposals] = useState<any[]>([]); const [location, setLocation] = useState(''); const [privateForm, setPrivateForm] = useState<any>({}); const [projectForm, setProjectForm] = useState<any>({});
   const [showLotForm, setShowLotForm] = useState(false); const [trade, setTrade] = useState(''); const [title, setTitle] = useState(''); const [scope, setScope] = useState(''); const [budget, setBudget] = useState(''); const [editingRequestId, setEditingRequestId] = useState<string | null>(null); const [historyRequestId, setHistoryRequestId] = useState<string | null>(null); const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null); const [projectEdit, setProjectEdit] = useState(false); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const [success, setSuccess] = useState('');
+  // #577 — liste commune des ouvrages (Client propriétaire, gestionnaire affecté, Admin ; refusée aux autres).
+  const workItems = useProjectWorkItems(id);
+  const workLots = useMemo(() => new Map((workItems.snapshot?.lots ?? []).map(lot => [lot.requestId, lot])), [workItems.snapshot]);
+  const reloadWorkItems = workItems.reload;
+  useEffect(() => { if (requests.length) void reloadWorkItems(); }, [requests, reloadWorkItems]);
   const [mainLotForm, setMainLotForm] = useState({ trade: '', title: '', scope: '', budget: '' });
   const [mainLotTouched, setMainLotTouched] = useState(false);
   const mainLotPrefillVersion = useRef<string | null>(null);
@@ -300,6 +308,7 @@ export default function ProjectDetail() {
             <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink/65">{request.scope || 'Périmètre non renseigné.'}</p>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/65"><span>Budget indicatif : <span className="font-semibold tabular-nums text-ink">{formatTnd(request.budget_millimes)}</span></span><span>Version <span className="font-semibold tabular-nums text-ink/80">v{request.version_no ?? 1}</span></span></p>
             <OfficialSubLotsPanel requestId={request.id} lotTitle={request.title || `Lot ${index + 1}`} items={request.sub_lots} canManage={isClient && canEditLots} onSaved={async () => { setSuccess('Sous-lots enregistrés : une nouvelle version du lot a été créée.'); await load(); }} />
+            {workLots.get(request.id) && <LotWorksPanel projectId={id} lot={workLots.get(request.id)!} canEdit={Boolean(workItems.snapshot?.canEdit) && isClient} onChanged={(snapshot, message) => { workItems.setSnapshot(snapshot); setError(''); setSuccess(message); }} />}
           </td>
           <td role="cell" className="block min-w-0 space-y-3 border-t border-black/[0.06] pt-3 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
             {won ? <div className="rounded-xl border border-teal/20 bg-teal/[0.04] p-3"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-teal">Artisan retenu</p><p className="mt-1 break-words font-semibold text-ink">{won.name ? <Link href={`/app/professionals/${won.contractorId}`} className="hover:underline">{won.name}</Link> : 'Artisan retenu (identité publique non disponible)'}</p><p className="mt-0.5 text-xs text-ink/65">Offre retenue : <span className="font-semibold tabular-nums text-ink">{formatTnd(won.agreedMillimes)}</span> · non signée</p>

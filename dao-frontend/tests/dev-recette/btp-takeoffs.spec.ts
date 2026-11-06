@@ -9,14 +9,23 @@ const ASSISTANT_PROJECT = "0f9fd432-a6c2-4fa4-a54a-3b92af3f4fb6";
 const MANUAL_PROJECT = "a5aed924-00b0-4a5c-b976-314bea21a514";
 const day = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Africa/Tunis" });
 
-async function createTakeoff(page: import("@playwright/test").Page, work: string, name: string, dims: Array<[string, string, string]>) {
-  // Ouvrage déjà présent (assistant ou recette précédente) : « Nouveau métré » ; sinon, ajout depuis le référentiel.
-  const known = page.getByRole("button", { name: `Nouveau métré : ${work}`, exact: true });
+async function createTakeoff(page: import("@playwright/test").Page, projectId: string, work: string, name: string, dims: Array<[string, string, string]>) {
+  // #577 : un métré part d'un ouvrage du lot. Ouvrage déjà présent (assistant, reprise ou recette
+  // précédente) : « Nouveau métré » ; sinon, ajout dans le premier lot modifiable puis « Dimensions ».
+  const known = page.getByRole("button", { name: `Nouveau métré : ${work}`, exact: true }).first();
   if (await known.count()) await known.click();
   else {
-    await page.getByRole("button", { name: "Ajouter un ouvrage" }).click();
-    await page.getByLabel("Rechercher un ouvrage").fill(work);
-    await page.getByRole("list", { name: "Ouvrages du référentiel" }).getByRole("button", { name: new RegExp(work) }).first().click();
+    await page.goto(`/app/projects/${projectId}?tab=lots`);
+    await waitForContent(page);
+    await page.getByRole("button", { name: /Ajouter des ouvrages au lot/ }).first().click();
+    const picker = page.getByTestId("work-picker");
+    await picker.getByLabel("Rechercher un ouvrage").fill(work);
+    await picker.getByRole("checkbox", { name: new RegExp(work) }).first().check();
+    await picker.getByRole("button", { name: /Ajouter 1 ouvrage/ }).click();
+    await page.getByRole("link", { name: `Renseigner les dimensions : ${work}` }).first().click();
+    await waitForContent(page);
+    const existing = page.getByRole("button", { name: `Nouveau métré : ${work}`, exact: true }).first();
+    if (!(await page.getByTestId("takeoff-editor").count())) await existing.click();
   }
   const editor = page.getByTestId("takeoff-editor");
   await editor.getByLabel("Nom du métré").fill(name);
@@ -38,7 +47,7 @@ test("Métrés : chantier assistant sans gestionnaire, soumission sans auto-vali
   await waitForContent(page);
   await expect(page.getByTestId("validation-policy")).toContainText("Aucun gestionnaire n’est affecté");
   await expect(page.getByText("retenu avec l’assistant").first()).toBeVisible();
-  const detail = await createTakeoff(page, "Carrelage et faïence", `RECETTE ${day} — Sol ${info.project.name} (test, ne pas traiter)`, [["Surface", "1250000", "cm2"]]);
+  const detail = await createTakeoff(page, ASSISTANT_PROJECT, "Carrelage et faïence", `RECETTE ${day} — Sol ${info.project.name} (test, ne pas traiter)`, [["Surface", "1250000", "cm2"]]);
   await expect(detail.getByTestId("takeoff-result")).toHaveText(/^125(,0+)? m²$/);
   await detail.getByRole("button", { name: "Soumettre pour validation" }).click();
   await expect(detail.getByRole("status").filter({ hasText: "En attente de validation technique" })).toBeVisible();
@@ -54,7 +63,7 @@ test("Métrés : gestionnaire affecté valide, budget indisponible honnête", as
   await waitForContent(client);
   await expect(client.getByTestId("validation-policy")).toContainText("gestionnaire D.A.O. est affecté");
   const name = `RECETTE ${day} — Terrasse ${info.project.name} (test, ne pas traiter)`;
-  const detail = await createTakeoff(client, "Terrasse extérieure", name, [["Longueur", "1000", "cm"], ["Largeur", "6", "m"]]);
+  const detail = await createTakeoff(client, MANUAL_PROJECT, "Terrasse extérieure", name, [["Longueur", "1000", "cm"], ["Largeur", "6", "m"]]);
   await expect(detail.getByTestId("takeoff-result")).toHaveText(/^60(,0+)? m²$/);
   await detail.getByRole("button", { name: "Soumettre pour validation" }).click();
   await expect(detail.getByText("En attente de validation technique").first()).toBeVisible();

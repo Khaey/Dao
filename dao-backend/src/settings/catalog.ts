@@ -3,7 +3,7 @@
 // (dao_private.setting_definitions) and a CI test fails when they diverge.
 // Defaults reproduce today's hard-coded behaviour: S1 changes nothing.
 
-export const SETTINGS_CATALOG_VERSION = 3;
+export const SETTINGS_CATALOG_VERSION = 4;
 
 export type SettingFamily = 'capability' | 'value' | 'catalog' | 'federated';
 export type SettingWorkspace = 'client' | 'contractor' | 'staff';
@@ -99,6 +99,12 @@ export const SETTINGS_CATALOG: SettingDefinition[] = [
     default: false, sensitivity: 'sensitive', implemented: true, enforcedBy: ['btp_takeoff_command_v1'],
     label: 'Validation des métrés par le Client',
     help: 'Désactivé : seul le gestionnaire affecté au chantier ou un Admin valide un métré. Activé : le Client peut aussi valider ses propres métrés (validation tracée).' }),
+
+  // #577: entry point « Avec l'assistant » on « Créer un chantier ». Default ON. OFF hides the entry and
+  // refuses new assistant drafts; manual creation (lots, optional sub-lots, works) always stays available.
+  capability({ key: 'client.project_assistant', scopes: ['global', 'role', 'account'], workspaces: ['client'], delegable: false,
+    implemented: true, enforcedBy: ['save_project_assistant_draft_v1'], label: 'Assistant de création de chantier',
+    help: 'Activé : « Créer un chantier » propose l’assistant et la création manuelle. Désactivé : seule la création manuelle reste proposée ; les brouillons existants restent consultables.' }),
 
   // 4.2 Bounded values (6) + catalogue (1)
   value({ key: 'publication.default_submission_days', type: { kind: 'int', min: 7, max: 90, unit: 'day' }, default: 30,

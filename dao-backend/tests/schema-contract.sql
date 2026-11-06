@@ -42,8 +42,10 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261103210000'];
   expected_versions := expected_versions || ARRAY['20261103230000'];
   expected_versions := expected_versions || ARRAY['20261104020000','20261104130000','20261105000000','20261105010000'];
+  expected_versions := expected_versions || ARRAY['20261106000000'];
   expected_tables := expected_tables || ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events'];
   expected_tables := expected_tables || ARRAY['project_assistant_drafts','project_assistant_draft_revisions','project_assistant_scope_links'];
+  expected_tables := expected_tables || ARRAY['project_work_items','project_work_item_events'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
     FROM supabase_migrations.schema_migrations;
@@ -351,6 +353,30 @@ BEGIN
      OR has_table_privilege('authenticated','public.btp_takeoff_events','DELETE')
      OR has_table_privilege('anon','public.btp_takeoffs','SELECT') THEN
     RAISE EXCEPTION 'schema contract: takeoff writes must stay RPC-only and anonymous reads closed';
+  END IF;
+  -- #577 : occurrences d'ouvrage du chantier lues et écrites uniquement par RPC JWT.
+  FOR missing_name IN SELECT unnest(ARRAY['project_work_items','project_work_item_events']) LOOP
+    IF has_table_privilege('authenticated','public.'||missing_name,'SELECT')
+       OR has_table_privilege('authenticated','public.'||missing_name,'INSERT')
+       OR has_table_privilege('authenticated','public.'||missing_name,'UPDATE')
+       OR has_table_privilege('authenticated','public.'||missing_name,'DELETE')
+       OR has_table_privilege('anon','public.'||missing_name,'SELECT') THEN
+      RAISE EXCEPTION 'schema contract: % must stay RPC-only',missing_name;
+    END IF;
+  END LOOP;
+  FOR missing_name IN SELECT unnest(ARRAY[
+    'public.project_work_items_snapshot_v1(uuid)',
+    'public.project_work_item_history_v1(uuid)',
+    'public.project_work_item_command_v1(text,jsonb,text)'
+  ]) LOOP
+    IF has_function_privilege('anon',missing_name,'EXECUTE')
+       OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN
+      RAISE EXCEPTION 'schema contract: work item RPC grant mismatch: %',missing_name;
+    END IF;
+  END LOOP;
+  IF has_function_privilege('authenticated','dao_private.import_assistant_work_items_v1(uuid)','EXECUTE')
+     OR has_function_privilege('authenticated','dao_private.link_legacy_takeoffs_v1(uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'schema contract: work item backfill functions must stay internal';
   END IF;
   FOR missing_name IN SELECT unnest(ARRAY[
     'public.btp_takeoff_snapshot_v1(uuid,uuid)',
