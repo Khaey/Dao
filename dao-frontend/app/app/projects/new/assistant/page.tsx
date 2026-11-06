@@ -136,7 +136,7 @@ export default function ProjectAssistantPage() {
   async function restart() {
     const target = draft ?? resumable;
     if (target) { try { await call('POST', { action: 'abandon', draftId: target.draftId }); } catch { /* le brouillon reste repris plus tard */ } }
-    setDraft(null); setResumable(null); setStatus(''); setError(''); setPhase('describe');
+    setDraft(null); setResumable(null); setStatus(''); setError(''); setDescription(''); setKind(''); setGuide({ space: '', nature: '', surface: '' }); setGuideStep(0); setPhase('describe');
   }
 
   async function create() {

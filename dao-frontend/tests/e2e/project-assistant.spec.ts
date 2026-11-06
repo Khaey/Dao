@@ -88,4 +88,7 @@ test('Assistant BTP #577 : questions guidées une à la fois, « Passer » et «
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: 'Recommencer' }).first().click();
+  // « Recommencer » repart de la première question, réponses effacées.
+  await expect(page.getByRole('heading', { name: 'Quel type de lieu ?' })).toBeVisible();
+  await expect(page.getByText('Vos réponses :')).toHaveCount(0);
 });
