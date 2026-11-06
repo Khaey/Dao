@@ -39,19 +39,29 @@ async function createTakeoff(page: import("@playwright/test").Page, projectId: s
   return page.getByTestId("takeoff-detail");
 }
 
+// Réglage Settings takeoffs.client_validation (#564) : selon la valeur active sur DEV, le Client
+// peut valider lui-même. La recette constate la politique affichée au lieu de la supposer.
+const CLIENT_SETTING = "Les paramètres D.A.O. vous autorisent à valider vous-même";
+async function validationPolicy(page: import("@playwright/test").Page, defaultText: string) {
+  const policy = page.getByTestId("validation-policy");
+  await expect(policy).toContainText(new RegExp(`${defaultText}|${CLIENT_SETTING}`));
+  return (await policy.textContent())?.includes(CLIENT_SETTING) ? "client_setting" : "default";
+}
+
 test("Métrés : chantier assistant sans gestionnaire, soumission sans auto-validation", async ({ as, snap }, info) => {
   const page = await as("clientA");
   await page.goto(`/app/projects/${ASSISTANT_PROJECT}`);
   await waitForContent(page);
   await page.getByRole("link", { name: "Saisir les métrés" }).click();
   await waitForContent(page);
-  await expect(page.getByTestId("validation-policy")).toContainText("Aucun gestionnaire n’est affecté");
+  const policy = await validationPolicy(page, "Aucun gestionnaire n’est affecté");
   await expect(page.getByText("retenu avec l’assistant").first()).toBeVisible();
   const detail = await createTakeoff(page, ASSISTANT_PROJECT, "Carrelage et faïence", `RECETTE ${day} — Sol ${info.project.name} (test, ne pas traiter)`, [["Surface", "1250000", "cm2"]]);
   await expect(detail.getByTestId("takeoff-result")).toHaveText(/^125(,0+)? m²$/);
   await detail.getByRole("button", { name: "Soumettre pour validation" }).click();
   await expect(detail.getByRole("status").filter({ hasText: "En attente de validation technique" })).toBeVisible();
-  await expect(detail.getByRole("button", { name: /Valider la révision/ })).toHaveCount(0);
+  // Jamais d'auto-validation : la révision reste en attente ; sans le réglage, aucun bouton de validation.
+  if (policy === "default") await expect(detail.getByRole("button", { name: /Valider la révision/ })).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText(/\bTND\b/);
   await snap(page, "metres-assistant-en-attente");
   await expectNoHorizontalOverflow(page);
@@ -61,7 +71,7 @@ test("Métrés : gestionnaire affecté valide, budget indisponible honnête", as
   const client = await as("clientA");
   await client.goto(`/app/projects/${MANUAL_PROJECT}/metres`);
   await waitForContent(client);
-  await expect(client.getByTestId("validation-policy")).toContainText("gestionnaire D.A.O. est affecté");
+  await validationPolicy(client, "gestionnaire D.A.O. est affecté");
   const name = `RECETTE ${day} — Terrasse ${info.project.name} (test, ne pas traiter)`;
   const detail = await createTakeoff(client, MANUAL_PROJECT, "Terrasse extérieure", name, [["Longueur", "1000", "cm"], ["Largeur", "6", "m"]]);
   await expect(detail.getByTestId("takeoff-result")).toHaveText(/^60(,0+)? m²$/);
