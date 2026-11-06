@@ -2,6 +2,23 @@
 
 **État GitHub vérifié au 04 novembre 2026.** Coordination courante : **[PILOT 14 — #556](https://github.com/Khaey/Dao/issues/556)**. Passation complète : [PILOT 14](pilot/pilot-14-handover.md), [deux contre-audits indépendants](pilot/pilot-14-independent-reviews.md), [archives originales v1](pilot/audits/2026-11-03-second-avis-v1.md) et [v2](pilot/audits/2026-11-03-second-avis-v2.md). Historique : [PILOT 13 — #511](https://github.com/Khaey/Dao/issues/511) et [PILOT 12 — #436](https://github.com/Khaey/Dao/issues/436), **non actuels**. Les statuts ci-dessous sont un snapshot ; les issues ouvertes et sessions silencieuses **ne prouvent pas** qu'un agent exécute effectivement du travail.
 
+## Checkpoint actualisé — 06 novembre 2026
+
+**Le tableau historique plus bas est daté du 04/11.** Dernier bilan vérifié : [checkpoint de clôture PILOT 14](pilot/pilot-14-final-2026-11-06.md) ; les issues et CI doivent être vérifiées à chaque reprise.
+
+| Responsable | Mission et statut au 06/11 |
+| --- | --- |
+| **PILOT 14** | [#556](https://github.com/Khaey/Dao/issues/556) : livrables de passation #557 et d'automatisation #558 fusionnés ; clôture documentaire datée dans le checkpoint. Le rôle global de pilotage n'est pas transféré par cette clôture. |
+| **Coordinateur Mission 2** | [#577](https://github.com/Khaey/Dao/issues/577) **OPEN** ; [PR #580](https://github.com/Khaey/Dao/pull/580) fusionnée, CI et deploy-dev verts ; migration DEV et recette métier réelle non encore prouvées, trois écarts relevés par DEV 5 |
+| **DEV 5** | [#578](https://github.com/Khaey/Dao/issues/578) **OPEN**, [PR #579](https://github.com/Khaey/Dao/pull/579) ouverte ; contrat guidé isolé, gates sur dernier SHA à terminer et intégration #577 à confirmer. #541/#548/#561/#566/#571 CLOSED |
+| **Coordinateur Mission 1** | #543 assistant et #551 estimation CLOSED ; revue contractuelle de #577 sans devenir co-owner |
+| **OPT 4** | #555 réconciliation Supabase DEV et #476 VPS/OCE CLOSED |
+| **DEV 4** | #515 centre Intégrations fermé ; #505 cadrage d'intégrations reste OPEN, aucune réactivation de session démontrée |
+
+**Règle propriétaire** : création manuelle toujours disponible ; assistant BTP facultatif et paramétrable ; design PC et **mobile d'abord** ; sélection d'ouvrages persistante par lot/sous-lot facultatif ; coûts et quantités vérifiables uniquement. **Un chantier = un responsable**.
+
+---
+
 ## Coordination, missions ouvertes et derniers travaux clôturés
 
 | Responsable | Mission | Statut vérifié |
