@@ -21,6 +21,7 @@ export function createBtpTakeoffHandler(service:BtpTakeoffService,resolveActor:(
       if(!input||Array.isArray(input)||typeof input!=='object') return fail(400,'BAD_REQUEST','Commande de métré invalide.');
       return Response.json({data:await service.command(input as Record<string,unknown>)},{headers});
     } catch(error:any) {
+      if(error?.hint==='takeoff_frozen_after_award') return fail(409,'FROZEN','Lot attribué : les métrés prévisionnels sont figés. Les quantités réalisées se suivent dans les situations de travaux du suivi du chantier.');
       if(error?.hint==='work_item_model_unavailable') return fail(409,'MODEL_UNAVAILABLE','Modèle historique indisponible : cet ouvrage garde la version du référentiel choisie à l’origine et ne peut pas être calculé avec un modèle d’une autre version.');
       if(error instanceof DomainError||['22023','22P02','23503','23514'].includes(error?.code)) return fail(400,'BAD_REQUEST',error?.message??'Commande de métré invalide.');
       if(error?.code==='42501') return fail(403,'FORBIDDEN','Action non autorisée.');
