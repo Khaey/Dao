@@ -13,9 +13,11 @@ test("Périmètre : le Client propose, l’Artisan titulaire accepte, l’ouvrag
   await waitForContent(client);
   const section = client.getByTestId("scope-changes");
   await expect(section.getByTestId("scope-no-price")).toContainText("ne change ni le prix attribué, ni le contrat");
-  const lot = section.getByTestId("scope-lot").filter({ has: client.getByRole("button", { name: "Proposer un nouvel ouvrage" }) }).first();
-  await expect(lot).toBeVisible();
-  const lotName = await lot.getAttribute("aria-label");
+  const candidate = section.getByTestId("scope-lot").filter({ has: client.getByRole("button", { name: "Proposer un nouvel ouvrage" }) }).first();
+  await expect(candidate).toBeVisible();
+  const lotName = await candidate.getAttribute("aria-label");
+  // Le bouton disparaît à l'ouverture du formulaire : le lot est ensuite repéré par son nom, pas par le bouton.
+  const lot = section.getByRole("region", { name: lotName!, exact: true });
   await lot.getByRole("button", { name: "Proposer un nouvel ouvrage" }).click();
   const form = lot.getByTestId("scope-propose");
   await form.getByLabel("Rechercher un ouvrage").fill("Carrelage");
@@ -24,7 +26,7 @@ test("Périmètre : le Client propose, l’Artisan titulaire accepte, l’ouvrag
   await form.getByRole("button", { name: "Ajouter", exact: true }).click();
   await form.getByLabel(/Motif de la modification/).fill("Recette #587 : ajout demandé par le Client (test, ne pas traiter)");
   await form.getByRole("button", { name: /Envoyer la proposition/ }).click();
-  const pending = client.getByRole("region", { name: lotName! }).getByTestId("scope-pending");
+  const pending = lot.getByTestId("scope-pending");
   await expect(pending).toContainText("en attente de l’Artisan");
   await expect(pending.getByRole("button", { name: "Accepter" })).toHaveCount(0);
   await expect(client.locator("main")).not.toContainText(/\bTND\b/);
@@ -37,7 +39,7 @@ test("Périmètre : le Client propose, l’Artisan titulaire accepte, l’ouvrag
     const page = await as(role);
     await page.goto(`/app/native-execution/${MANUAL_PROJECT}?section=perimetre`);
     await waitForContent(page);
-    const region = page.getByRole("region", { name: lotName! });
+    const region = page.getByRole("region", { name: lotName!, exact: true });
     await page.getByTestId("scope-changes").waitFor();
     if (!(await region.count())) continue;
     await region.getByTestId("scope-pending").getByRole("button", { name: "Accepter" }).click();
