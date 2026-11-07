@@ -32,9 +32,12 @@ export class BtpTakeoffService {
     const action=input.action;
     if(!['calculate','submit','validate'].includes(String(action))) throw new DomainError('Action de métré invalide','BAD_REQUEST');
     const allowed=action==='calculate'
-      ? ['action','project_id','work_id','work_item_id','takeoff_id','expected_revision','scope_key','label','inputs','idempotency_key']
-      : ['action','takeoff_id','expected_revision','note','idempotency_key'];
+      ? ['action','kind','project_id','work_id','work_item_id','takeoff_id','expected_revision','scope_key','label','inputs','idempotency_key']
+      : ['action','kind','takeoff_id','expected_revision','note','idempotency_key'];
     if(Object.keys(input).some(key=>!allowed.includes(key))) throw new DomainError('Champ de commande non supporté','BAD_REQUEST');
+    if(input.kind!==undefined&&input.kind!=='forecast'&&input.kind!=='execution') throw new DomainError('Type de métré invalide','BAD_REQUEST');
+    // #577 (07/11/2026) : métré d'exécution après attribution, par un point d'entrée distinct ; la base revérifie tout.
+    const rpcName=input.kind==='execution'?'btp_execution_takeoff_command_v1':'btp_takeoff_command_v1';
     const key=idempotency(input.idempotency_key);
     if(action==='calculate') {
       const projectId=uuid(input.project_id,'project_id')!; const workId=uuid(input.work_id,'work_id')!;
@@ -48,12 +51,12 @@ export class BtpTakeoffService {
       if(!input.inputs||Array.isArray(input.inputs)||typeof input.inputs!=='object') throw new DomainError('Entrées de métré invalides','BAD_REQUEST');
       const template=await this.rpc('btp_takeoff_template_v1',{p_project_id:projectId,p_work_id:workId}) as TakeoffTemplate;
       const evaluation=evaluateTakeoff(template,input.inputs as Record<string,TakeoffInput>);
-      const data=await this.rpc('btp_takeoff_command_v1',{p_action:'calculate',p_input:{projectId,workId,...(workItemId?{workItemId}:{}),takeoffId,expectedRevision:expected,
+      const data=await this.rpc(rpcName,{p_action:'calculate',p_input:{projectId,workId,...(workItemId?{workItemId}:{}),takeoffId,expectedRevision:expected,
         scopeKey:input.scope_key,label:input.label.trim(),canonicalInputs:evaluation.canonicalInputs},p_idempotency_key:key});
       return {...data,evaluation};
     }
     const takeoffId=uuid(input.takeoff_id,'takeoff_id')!; const expected=revision(input.expected_revision)!;
     if(typeof input.note!=='undefined'&&(typeof input.note!=='string'||input.note.trim().length>1000)) throw new DomainError('Note invalide','BAD_REQUEST');
-    return this.rpc('btp_takeoff_command_v1',{p_action:action,p_input:{takeoffId,expectedRevision:expected,note:typeof input.note==='string'?input.note.trim()||null:null},p_idempotency_key:key});
+    return this.rpc(rpcName,{p_action:action,p_input:{takeoffId,expectedRevision:expected,note:typeof input.note==='string'?input.note.trim()||null:null},p_idempotency_key:key});
   }
 }

@@ -297,5 +297,35 @@ export async function projectWorkItemsCases(db, test, { U, gov, as }) {
     eq(await one('select project_work_item_id from public.btp_takeoffs where id=$1', [legacy]), item);
   });
 
+  await test('execution takeoffs (owner decision 07/11): after award only, own revisions, never in the forecast estimate', async () => {
+    const exec = (action, input, key = `ex-${randomUUID()}`) => one('select public.btp_execution_takeoff_command_v1($1,$2::jsonb,$3)', [action, JSON.stringify(input), key]);
+    const awarded = (await db.query(`select ai.request_id, ai.project_id, p.client_id from public.award_items ai join public.projects p on p.id=ai.project_id
+      where ai.active order by ai.created_at limit 1`)).rows[0];
+    eq(awarded.client_id, U.clientA, 'fixture: awarded project owned by Client A: ');
+    const item = await one("select i.id from public.project_work_items i where i.request_id=$1 and i.work_id=$2 and i.status='active' limit 1", [awarded.request_id, measurable.id]);
+    ok(item, 'fixture: occurrence on the awarded lot');
+    const created = await as('clientA', () => exec('calculate', { projectId: awarded.project_id, workId: measurable.id, workItemId: item, scopeKey: 'execution-1', label: 'Relevé exécution', canonicalInputs: inputs('4') }));
+    eq(created.kind, 'execution'); eq(created.workItemId, item); eq(created.currentRevision, 1);
+    // Pas de métré d'exécution avant attribution ; pas de prévisionnel après.
+    const before = await as('clientA', () => rejects(() => exec('calculate', { projectId: project, workId: measurable.id, workItemId: items.aWork.id, scopeKey: 'execution-1', label: 'Trop tôt', canonicalInputs: {} }), '23514'));
+    eq(before.hint, 'execution_takeoff_requires_award');
+    await as('clientA', () => rejects(() => takeoff('calculate', { projectId: awarded.project_id, workId: measurable.id, workItemId: item, scopeKey: 'prev-1', label: 'Prévisionnel', canonicalInputs: {} }), '23514'));
+    // Révisions propres : recalcul, soumission, validation tracée.
+    let t = await as('clientA', () => exec('calculate', { projectId: awarded.project_id, workId: measurable.id, workItemId: item, takeoffId: created.id, expectedRevision: 1, scopeKey: 'execution-1', label: 'Relevé exécution', canonicalInputs: inputs('5') }));
+    eq(t.currentRevision, 2); eq(t.kind, 'execution');
+    t = await as('clientA', () => exec('submit', { takeoffId: t.id, expectedRevision: 2 }));
+    t = await as('admin', () => exec('validate', { takeoffId: t.id, expectedRevision: 2 }));
+    eq(t.validatedRevision, 2); eq(t.history.length, 2);
+    // Un métré prévisionnel ne passe pas par le point d'entrée « exécution ».
+    await as('clientA', () => rejects(() => exec('submit', { takeoffId: tk.id, expectedRevision: tk.currentRevision }), '22023'));
+    // L'estimation ne lit jamais un métré d'exécution.
+    const r = (await as('clientA', () => estimate({ projectId: awarded.project_id, mode: 'reference' }))).result;
+    eq(JSON.stringify(r).includes(t.id), false, 'execution takeoff must not reach the forecast estimate: ');
+    await as('clientA', () => rejects(() => estimate({ projectId: awarded.project_id, mode: 'reference', lines: [{ workId: measurable.id, source: { kind: 'takeoff', takeoffId: t.id } }] }), '22023'));
+    eq((await as('clientA', () => one('select public.btp_estimate_snapshot_v1($1)', [awarded.project_id]))).takeoffs.some(x => x.id === t.id), false);
+    await rejects(() => db.query("update public.btp_takeoffs set kind='forecast' where id=$1", [t.id]), '23514');
+    await as('proA', () => rejects(() => exec('calculate', { projectId: awarded.project_id, workId: measurable.id, workItemId: item, scopeKey: 'execution-2', label: 'Artisan', canonicalInputs: {} }), '42501'));
+  });
+
   async function snapshot_as(name, projectId) { return as(name, () => snapshot(projectId)); }
 }

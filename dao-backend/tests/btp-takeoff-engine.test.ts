@@ -73,6 +73,14 @@ test('service normalizes inputs, calls only allowlisted RPCs and handler enforce
   assert.deepEqual(calls.map(call=>call.name),['btp_takeoff_template_v1','btp_takeoff_command_v1']);
   assert.equal(calls[1].args.p_input.canonicalInputs.length_m.value,'10');
   assert.equal(calls[1].args.p_input.workItemId,I);
+  // #577 (07/11/2026) : métré d'exécution par son propre point d'entrée ; type inconnu refusé avant tout appel.
+  await service.command({...input,kind:'execution',idempotency_key:'takeoff-exec-001'});
+  assert.equal(calls.at(-1)!.name,'btp_execution_takeoff_command_v1');
+  await service.command({action:'submit',kind:'execution',takeoff_id:I,expected_revision:1,idempotency_key:'takeoff-exec-002'});
+  assert.equal(calls.at(-1)!.name,'btp_execution_takeoff_command_v1');
+  const before=calls.length;
+  await assert.rejects(()=>service.command({...input,kind:'invoice',idempotency_key:'takeoff-exec-003'}),/Type de métré invalide/);
+  assert.equal(calls.length,before);
   const api=createBtpTakeoffHandler(service,async auth=>auth==='Bearer valid'?{id:'actor'}:null);
   assert.equal((await api(new Request(`https://dao.test/api/btp/takeoffs?project_id=${P}`))).status,401);
   const response=await api(new Request('https://dao.test/api/btp/takeoffs',{method:'POST',headers:{authorization:'Bearer valid'},body:JSON.stringify(input)}));
