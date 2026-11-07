@@ -16,6 +16,8 @@ export type WorkItem = {
 export type WorkItemLot = {
   requestId: string; requestVersionId: string; requestVersion: number; title: string; tradeId: string | null; status: string;
   lockReason: 'project_not_draft' | 'project_in_review' | 'request_closed' | 'awarded' | 'published' | null;
+  /** Attribution active du lot, indépendante du motif de verrou (prioritaire). */
+  awarded?: boolean;
   subLots: Array<{ id: string; title: string; ordinal: number }>; items: WorkItem[];
 };
 export type WorkItemsSnapshot = { projectId: string; canEdit: boolean; catalogVersion: { id: string; code: string } | null; lots: WorkItemLot[]; removedCount: number };

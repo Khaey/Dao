@@ -178,6 +178,7 @@ export async function projectWorkItemsCases(db, test, { U, gov, as }) {
     await as('clientA', async () => {
       const lot = (await snapshot(project)).lots.find(l => l.requestId === lotB);
       eq(lot.lockReason, 'published');
+      eq(lot.awarded, false);
       await rejects(() => command('add', { requestId: lotB, items: [{ workId: other.id }] }), '23514');
       await rejects(() => command('update', { itemId: items.bOther.id, expectedRevision: 2, confirmation: 'selected' }), '23514');
     });
@@ -285,6 +286,10 @@ export async function projectWorkItemsCases(db, test, { U, gov, as }) {
     const e = await rejects(() => db.query("insert into public.btp_takeoffs(project_id,catalog_version_id,work_id,template_id,scope_key,label,created_by,project_work_item_id) values($1,$2,$3,$4,'apres','Après attribution',$5,$6)",
       [awarded.project_id, template.catalog_version_id, measurable.id, template.id, awarded.client_id, item]), '23514');
     eq(e.hint, 'takeoff_frozen_after_award');
+    // Indicateur explicite d'attribution du lot, même quand le motif de verrou prioritaire est un autre (recette DEV 07/11).
+    const owner = Object.keys(U).find(k => U[k] === awarded.client_id);
+    ok(owner, 'fixture: awarded project owner is a test user');
+    eq((await as(owner, () => snapshot(awarded.project_id))).lots.find(l => l.requestId === awarded.request_id)?.awarded, true);
     // Métré antérieur (créé avant l'attribution) : consultable et rattachable, jamais recalculé ni validé.
     await db.exec("alter table public.btp_takeoffs disable trigger btp_takeoffs_frozen_after_award");
     let legacy;

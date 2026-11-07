@@ -70,7 +70,7 @@ test("Métrés : chantier assistant sans gestionnaire, soumission sans auto-vali
 });
 
 // Décision du propriétaire (07/11/2026) : après attribution, les métrés prévisionnels sont figés ; les quantités
-// réalisées passent par les situations de travaux. Le chantier manuel de recette a tous ses lots attribués.
+// mesurées sur le chantier passent par les métrés d'exécution du suivi. Le chantier manuel de recette a tous ses lots attribués.
 // La validation par un gestionnaire affecté reste couverte par la CI (pile jetable) : aucun chantier DEV en
 // préparation n'a de gestionnaire affecté, et la recette ne modifie pas les affectations réelles.
 test("Métrés : chantier attribué, métrés prévisionnels figés et historique conservé", async ({ as, snap }) => {
@@ -79,7 +79,7 @@ test("Métrés : chantier attribué, métrés prévisionnels figés et historiqu
     await page.goto(`/app/projects/${MANUAL_PROJECT}/metres`);
     await waitForContent(page);
     await expect(page.getByTestId("takeoffs-frozen-notice")).toContainText("Lots attribués");
-    await expect(page.getByTestId("takeoffs-frozen-notice").getByRole("link", { name: /situations de travaux/ })).toHaveAttribute("href", `/app/native-execution/${MANUAL_PROJECT}`);
+    await expect(page.getByTestId("takeoffs-frozen-notice").getByRole("link", { name: /métrés d’exécution/ })).toHaveAttribute("href", `/app/native-execution/${MANUAL_PROJECT}?section=metres`);
     await expect(page.getByRole("button", { name: /^Nouveau métré/ })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Ajouter des ouvrages" })).toHaveCount(0);
     const history = page.getByTestId("takeoffs-unlinked");
