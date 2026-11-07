@@ -59,7 +59,9 @@ test("Métrés : chantier assistant sans gestionnaire, soumission sans auto-vali
   const detail = await createTakeoff(page, ASSISTANT_PROJECT, "Carrelage et faïence", `RECETTE ${day} — Sol ${info.project.name} (test, ne pas traiter)`, [["Surface", "1250000", "cm2"]]);
   await expect(detail.getByTestId("takeoff-result")).toHaveText(/^125(,0+)? m²$/);
   await detail.getByRole("button", { name: "Soumettre pour validation" }).click();
-  await expect(detail.getByRole("status").filter({ hasText: "En attente de validation technique" })).toBeVisible();
+  // Statut « soumis » : badge toujours visible ; l'encadré d'attente n'apparaît que si le Client ne peut pas valider (réglage).
+  await expect(detail.getByText("En attente de validation technique").first()).toBeVisible();
+  if (policy === "default") await expect(detail.getByRole("status").filter({ hasText: "En attente de validation technique" })).toBeVisible();
   // Jamais d'auto-validation : la révision reste en attente ; sans le réglage, aucun bouton de validation.
   if (policy === "default") await expect(detail.getByRole("button", { name: /Valider la révision/ })).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText(/\bTND\b/);
