@@ -43,9 +43,11 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261103230000'];
   expected_versions := expected_versions || ARRAY['20261104020000','20261104130000','20261105000000','20261105010000'];
   expected_versions := expected_versions || ARRAY['20261106000000','20261107000000','20261107010000','20261107020000','20261107030000'];
+  expected_versions := expected_versions || ARRAY['20261107040000'];
   expected_tables := expected_tables || ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events'];
   expected_tables := expected_tables || ARRAY['project_assistant_drafts','project_assistant_draft_revisions','project_assistant_scope_links'];
   expected_tables := expected_tables || ARRAY['project_work_items','project_work_item_events'];
+  expected_tables := expected_tables || ARRAY['lot_scope_changes','lot_scope_versions','lot_scope_change_events'];
   SELECT coalesce(array_agg(version ORDER BY version), ARRAY[]::text[])
     INTO actual_versions
     FROM supabase_migrations.schema_migrations;
@@ -355,7 +357,7 @@ BEGIN
     RAISE EXCEPTION 'schema contract: takeoff writes must stay RPC-only and anonymous reads closed';
   END IF;
   -- #577 : occurrences d'ouvrage du chantier lues et écrites uniquement par RPC JWT.
-  FOR missing_name IN SELECT unnest(ARRAY['project_work_items','project_work_item_events']) LOOP
+  FOR missing_name IN SELECT unnest(ARRAY['project_work_items','project_work_item_events','lot_scope_changes','lot_scope_versions','lot_scope_change_events']) LOOP
     IF has_table_privilege('authenticated','public.'||missing_name,'SELECT')
        OR has_table_privilege('authenticated','public.'||missing_name,'INSERT')
        OR has_table_privilege('authenticated','public.'||missing_name,'UPDATE')
@@ -367,7 +369,9 @@ BEGIN
   FOR missing_name IN SELECT unnest(ARRAY[
     'public.project_work_items_snapshot_v1(uuid)',
     'public.project_work_item_history_v1(uuid)',
-    'public.project_work_item_command_v1(text,jsonb,text)'
+    'public.project_work_item_command_v1(text,jsonb,text)',
+    'public.lot_scope_changes_snapshot_v1(uuid)',
+    'public.lot_scope_change_command_v1(text,jsonb,text)'
   ]) LOOP
     IF has_function_privilege('anon',missing_name,'EXECUTE')
        OR NOT has_function_privilege('authenticated',missing_name,'EXECUTE') THEN

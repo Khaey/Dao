@@ -8,14 +8,15 @@ import SiteExecutionJournal from '../../../../components/SiteExecutionJournal';
 import LotDocumentsCard from '../../../../components/documents/LotDocumentsCard';
 import AgreementLinks from '../../../../components/precontract/AgreementLinks';
 import ProjectTakeoffs from '../../../../components/takeoffs/ProjectTakeoffs';
+import LotScopeChanges from '../../../../components/execution-native/LotScopeChanges';
 import { Card, SectionHeading } from '../../../../components/ui';
 import { useLiveJournals } from '../../../../components/artisan/AwardedWork';
 import { supabaseBrowser } from '../../../../lib/supabase-browser';
 import { isDaoStaff, type AppRole } from '../../../../lib/roles';
 
-type Section = 'planning' | 'journal' | 'metres' | 'documents' | 'conditions';
+type Section = 'planning' | 'journal' | 'metres' | 'perimetre' | 'documents' | 'conditions';
 type ProjectDocument = { id: string; owner_id: string; original_name: string; status: string; share_scope: string };
-const sectionLabels: Record<Section, string> = { planning: 'Lots et planning', journal: 'Carnet de chantier', metres: 'Métrés d’exécution', documents: 'Documents', conditions: 'Conditions' };
+const sectionLabels: Record<Section, string> = { planning: 'Lots et planning', journal: 'Carnet de chantier', metres: 'Métrés d’exécution', perimetre: 'Modifications de périmètre', documents: 'Documents', conditions: 'Conditions' };
 
 /**
  * « Suivi du chantier » (#387 phase 2): the single entry for following works. Every existing module stays, grouped in
@@ -59,7 +60,8 @@ export default function ProjectFollowUpPage() {
   }, [projectId]);
 
   // #577 (07/11/2026) : métrés d'exécution du Client propriétaire, du gestionnaire affecté et de l'Admin (la base décide).
-  const available: Section[] = ['planning', ...(journalLive ? ['journal' as const] : []), ...(viewer && (viewer.owner || viewer.staff) ? ['metres' as const] : []), ...(viewer && !viewer.staff ? ['documents' as const, 'conditions' as const] : [])];
+  // #587 : modifications de périmètre des lots attribués (Client, Artisan titulaire ; staff en lecture — la base décide).
+  const available: Section[] = ['planning', ...(journalLive ? ['journal' as const] : []), ...(viewer && (viewer.owner || viewer.staff) ? ['metres' as const] : []), ...(viewer ? ['perimetre' as const] : []), ...(viewer && !viewer.staff ? ['documents' as const, 'conditions' as const] : [])];
   const current = available.includes(section) ? section : 'planning';
   const choose = (next: Section) => {
     setSection(next);
@@ -87,6 +89,7 @@ export default function ProjectFollowUpPage() {
       <p className="rounded-xl bg-sand px-4 py-3 text-sm text-black/65">Métrés d’exécution des ouvrages attribués : dimensions relevées sur le chantier, avec leur provenance, leurs révisions et leur validation. Ils ne modifient ni la version attribuée, ni le budget prévisionnel, ni aucun paiement.</p>
       <ProjectTakeoffs projectId={projectId} mode="execution" />
     </>}
+    {current === 'perimetre' && viewer && <LotScopeChanges projectId={projectId} canSeeTakeoffs={viewer.owner || viewer.staff} />}
     {current === 'documents' && viewer && (viewer.owner
       ? <Card className="p-5 sm:p-6"><SectionHeading title="Plans et documents du chantier" description="Versions, partage par lot et revue technique se gèrent dans l’onglet Documents du chantier." /><Link href={`/app/projects/${projectId}?tab=documents`} className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-teal px-4 text-sm font-semibold text-white hover:bg-tealdark">Ouvrir les documents du chantier</Link></Card>
       : <LotDocumentsCard projectId={projectId} userId={viewer.userId} />)}

@@ -5,6 +5,7 @@ import { projectAssistantCases, projectAssistantRealReferentialCases } from './p
 import { btpAdminCases } from './btp-admin-cases.mjs';
 import { btpEstimateCases } from './btp-estimate-cases.mjs';
 import { projectWorkItemsCases } from './project-work-items-cases.mjs';
+import { lotScopeChangesCases } from './lot-scope-changes-cases.mjs';
 import {PGlite} from '@electric-sql/pglite';
 import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
@@ -59,7 +60,7 @@ await test('repository RLS bootstrap matches the DEV event trigger contract',asy
 });
 await test('DAO public tables keep RLS enabled without FORCE RLS',async()=>{
  const state=(await db.query(`select count(*)::int as total,count(*) filter(where not relrowsecurity)::int as rls_disabled,count(*) filter(where relforcerowsecurity)::int as forced from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('r','p')`)).rows[0];
- eq(state.total,145);eq(state.rls_disabled,0);eq(state.forced,0);
+ eq(state.total,148);eq(state.rls_disabled,0);eq(state.forced,0);
 });
 await test('canonical trade seed is idempotent by code',async()=>{
  // Replay the canonical seed, preserving newer command definitions.
@@ -504,5 +505,6 @@ await projectAssistantRealReferentialCases(db,test,{as});
 await btpAdminCases(db,test,{as});
 await btpEstimateCases(db,test,{U,P,Q,gov,as});
 await projectWorkItemsCases(db,test,{U,gov,as});
+await lotScopeChangesCases(db,test,{U,as});
 writeFileSync(new URL('./local-results.json',import.meta.url),JSON.stringify({engine:'PGlite PostgreSQL WASM',auth:'Simulated SQL sub claims; NO real JWT, NO Supabase Auth or HTTP gateway',concurrency:'NOT tested with independent sessions',fixtures:'Synthetic local only, not verified geographic seed',results,passed:results.filter(x=>x.result==='PASS').length,failed:fails},null,2));
 console.log(JSON.stringify({passed:results.length-fails,failed:fails,failures:results.filter(x=>x.result==='FAIL')}));await db.close();process.exitCode=fails?1:0;

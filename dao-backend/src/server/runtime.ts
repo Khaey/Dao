@@ -42,6 +42,7 @@ import { createBtpEstimateHandler, createBtpPriceHandler } from './btpEstimateHa
 import { BtpTakeoffService } from '../services/BtpTakeoffService.js';
 import { createBtpTakeoffHandler } from './btpTakeoffHandler.js';
 import { createProjectWorkItemsHandler } from './projectWorkItemsHandler.js';
+import { createLotScopeChangesHandler } from './lotScopeChangesHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -99,6 +100,12 @@ export function createBtpTakeoffApi(request:Request) {
 export function createProjectWorkItemsApi(request:Request) {
   const {db,resolveActor}=requestScope(request);
   return createProjectWorkItemsHandler(db as any,resolveActor);
+}
+
+/** #587: validated scope changes of an awarded lot (no price, no contract effect). JWT-scoped RPCs only. */
+export function createLotScopeChangesApi(request:Request) {
+  const {db,resolveActor}=requestScope(request);
+  return createLotScopeChangesHandler(db as any,resolveActor);
 }
 
 export function createRfiApi(request: Request) {
