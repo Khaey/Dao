@@ -22,7 +22,7 @@ import { workItemCommand, type WorkItem, type WorkItemsSnapshot } from '../work-
 type Work = { id: string; label: string; unitCode: string; lot: string; subLot: string; order: number; note: string; aliases: string[] };
 type Template = { id: string; workId: string; outputUnitCode: string; inputSchema: TakeoffSchema; formulaAst: Record<string, unknown>; roundingScale: number; assumptions: string[]; sourceRef: string };
 type Revision = { id: string; revision: number; status: 'calculated' | 'insufficient_data'; inputs: Record<string, any>; formula: Record<string, any>; justification: Record<string, any>; inputSha256: string; resultSha256: string; createdBy: string; createdAt: string };
-type Takeoff = { id: string; workId: string; workItemId: string | null; scopeKey: string; label: string; status: TakeoffStatus; currentRevision: number; validatedRevision: number | null; catalogVersionId: string;
+type Takeoff = { id: string; kind?: 'forecast' | 'execution'; workId: string; workItemId: string | null; scopeKey: string; label: string; status: TakeoffStatus; currentRevision: number; validatedRevision: number | null; catalogVersionId: string;
   current: Revision | null; validated: Revision | null; history: Array<{ revision: number; status: string; result: any; createdBy: string; createdAt: string }>;
   events: Array<{ id: string; revision: number; type: string; actorId: string; note?: string; validationBasis?: string; createdAt: string }> };
 type Editor = { workId: string; itemId: string; takeoff: Takeoff | null };
@@ -59,7 +59,13 @@ async function api(path: string, body?: unknown) {
   return payload.data;
 }
 
-export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
+/**
+ * mode « forecast » (défaut) : métrés prévisionnels, figés après attribution, budget prévisionnel.
+ * mode « execution » (#577, 07/11/2026) : métrés d'exécution des lots attribués, dans le suivi du chantier ;
+ * mêmes dimensions, révisions et validation, jamais lus par le budget prévisionnel.
+ */
+export default function ProjectTakeoffs({ projectId, mode = 'forecast' }: { projectId: string; mode?: 'forecast' | 'execution' }) {
+  const execution = mode === 'execution';
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState<'forbidden' | 'session' | null>(null);
   const [error, setError] = useState('');
@@ -123,7 +129,7 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
       setTemplates(new Map((catalog.measurementTemplates ?? []).map((t: Template) => [t.workId, t])));
       setCatalogVersion(catalog.catalogVersion ? { id: catalog.catalogVersion.id, code: catalog.catalogVersion.code } : null);
       setWorkItems(snapshot);
-      setTakeoffs(list.items ?? []);
+      setTakeoffs(((list.items ?? []) as Takeoff[]).filter(t => (t.kind ?? 'forecast') === mode));
       // Lien « Dimensions » depuis un lot : ouvre directement le métré de cette occurrence.
       const wanted = new URLSearchParams(window.location.search).get('item');
       const target = wanted ? snapshot.lots.flatMap(l => l.items).find(i => i.id === wanted) : undefined;
@@ -131,18 +137,19 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
         const existing = (list.items ?? []).filter((t: Takeoff) => t.workItemId === target.id);
         if (existing.length) setSelectedId(existing[0].id); else setEditor({ workId: target.workId, itemId: target.id, takeoff: null });
       }
-      void refreshEstimate();
+      if (!execution) void refreshEstimate();
     } catch (e: any) { fail(e); } finally { setLoading(false); }
-  }, [projectId, fail, refreshEstimate]);
+  }, [projectId, fail, refreshEstimate, execution, mode]);
   useEffect(() => { void load(); }, [load]);
 
-  const allItems = useMemo(() => (workItems?.lots ?? []).flatMap(l => l.items), [workItems]);
+  const lots = useMemo(() => (workItems?.lots ?? []).filter(l => !execution || l.lockReason === 'awarded'), [workItems, execution]);
+  const allItems = useMemo(() => lots.flatMap(l => l.items), [lots]);
   const unlinked = takeoffs.filter(t => !t.workItemId || !allItems.some(i => i.id === t.workItemId));
   // Décision du propriétaire (07/11/2026) : après attribution, les métrés prévisionnels du lot sont figés (la base le revérifie).
   const awardedLots = new Set((workItems?.lots ?? []).filter(l => l.lockReason === 'awarded').map(l => l.requestId));
   const allAwarded = (workItems?.lots ?? []).length > 0 && (workItems?.lots ?? []).every(l => l.lockReason === 'awarded');
   const allLocked = (workItems?.lots ?? []).length > 0 && (workItems?.lots ?? []).every(l => l.lockReason);
-  const isFrozen = (t: Takeoff) => { const item = allItems.find(i => i.id === t.workItemId); return item ? awardedLots.has(item.requestId) : allAwarded; };
+  const isFrozen = (t: Takeoff) => { if (execution) return false; const item = allItems.find(i => i.id === t.workItemId); return item ? awardedLots.has(item.requestId) : allAwarded; };
   const selected = takeoffs.find(t => t.id === selectedId) ?? null;
   const counts = { draft: takeoffs.filter(t => t.status === 'draft').length, submitted: takeoffs.filter(t => t.status === 'submitted').length, validated: takeoffs.filter(t => t.validatedRevision).length };
   const actions = takeoffActions(role, null);
@@ -155,9 +162,9 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
   async function command(body: Record<string, unknown>, success: string) {
     setBusy(true); setError(''); setNotice('');
     try {
-      const saved = await api('/api/btp/takeoffs', body);
+      const saved = await api('/api/btp/takeoffs', execution ? { ...body, kind: 'execution' } : body);
       upsert(saved); setNotice(success); setEditor(null);
-      void refreshEstimate();
+      if (!execution) void refreshEstimate();
       return true;
     } catch (e: any) {
       if (e instanceof ApiError && e.status === 409) { setError('Ce métré a été modifié entre-temps. La version à jour est rechargée.'); void load(); }
@@ -173,7 +180,7 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
   return <div className="space-y-5">
     <div className="flex items-start gap-3 rounded-2xl border border-teal/20 bg-teal/[0.06] p-4 text-sm text-ink/80" role="note">
       <Ruler size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-teal" />
-      <p><strong>Quantités prévisionnelles, calculées à partir de vos dimensions réelles.</strong> Chaque dimension garde sa provenance ; D.A.O. n’invente aucune valeur, n’applique aucune perte et ne lit pas les plans. Un métré compte dans le budget prévisionnel seulement une fois <strong>validé</strong>.</p>
+      {execution ? <p><strong>Métrés d’exécution, à partir des dimensions relevées sur le chantier.</strong> Chaque dimension garde sa provenance et chaque correction crée une révision immuable. Ils sont distincts des métrés prévisionnels, figés depuis l’attribution, et n’entrent pas dans le budget prévisionnel.</p> : <p><strong>Quantités prévisionnelles, calculées à partir de vos dimensions réelles.</strong> Chaque dimension garde sa provenance ; D.A.O. n’invente aucune valeur, n’applique aucune perte et ne lit pas les plans. Un métré compte dans le budget prévisionnel seulement une fois <strong>validé</strong>.</p>}
     </div>
     <ValidationPolicy role={role} />
     {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</p>}
@@ -184,24 +191,24 @@ export default function ProjectTakeoffs({ projectId }: { projectId: string }) {
         <Card className="p-5 sm:p-6">
           <SectionHeading eyebrow={catalogVersion ? `Référentiel ${catalogVersion.code}` : 'Référentiel'} title="Ouvrages du chantier"
             description={`${counts.draft} brouillon(s) · ${counts.submitted} en attente de validation · ${counts.validated} validé(s)`}
-            action={role.isOwner && !allLocked ? <Link href={`/app/projects/${projectId}?tab=lots`} className={secondaryAction}><Plus size={15} aria-hidden="true" />Ajouter des ouvrages</Link> : undefined} />
-          {awardedLots.size > 0 && <FrozenNotice projectId={projectId} all={allAwarded} />}
+            action={role.isOwner && !allLocked && !execution ? <Link href={`/app/projects/${projectId}?tab=lots`} className={secondaryAction}><Plus size={15} aria-hidden="true" />Ajouter des ouvrages</Link> : undefined} />
+          {!execution && awardedLots.size > 0 && <FrozenNotice projectId={projectId} all={allAwarded} />}
           {allItems.length === 0
-            ? <div className="mt-5 rounded-xl bg-sand p-4 text-sm text-ink/70"><p className="font-semibold text-ink">Aucun ouvrage pour l’instant</p><p className="mt-1">{allLocked ? 'Les lots de ce chantier sont publiés ou attribués : leurs ouvrages sont figés dans la version envoyée aux Artisans.' : 'Les ouvrages se choisissent lot par lot, dans l’onglet Lots du chantier (ou avec l’assistant). Ils apparaissent ici pour que vous renseigniez leurs dimensions.'}</p></div>
-            : <div className="mt-5 space-y-5">{(workItems?.lots ?? []).filter(l => l.items.length > 0).map(lot => <section key={lot.requestId} aria-label={`Lot ${lot.title}`} data-testid="takeoff-lot">
+            ? <div className="mt-5 rounded-xl bg-sand p-4 text-sm text-ink/70"><p className="font-semibold text-ink">Aucun ouvrage pour l’instant</p><p className="mt-1">{execution ? 'Aucun lot attribué avec des ouvrages : les métrés d’exécution se saisissent sur les ouvrages des lots attribués.' : allLocked ? 'Les lots de ce chantier sont publiés ou attribués : leurs ouvrages sont figés dans la version envoyée aux Artisans.' : 'Les ouvrages se choisissent lot par lot, dans l’onglet Lots du chantier (ou avec l’assistant). Ils apparaissent ici pour que vous renseigniez leurs dimensions.'}</p></div>
+            : <div className="mt-5 space-y-5">{lots.filter(l => l.items.length > 0).map(lot => <section key={lot.requestId} aria-label={`Lot ${lot.title}`} data-testid="takeoff-lot">
                 <h3 className="text-sm font-bold text-ink">{lot.title}</h3>
                 {[{ id: '', title: '' }, ...lot.subLots].map(sub => { const items = lot.items.filter(i => (i.subLotCurrent ? i.subLotId ?? '' : '') === sub.id); return items.length ? <div key={sub.id || 'direct'} className="mt-2">
                   {sub.id && <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink/60">{sub.title}</p>}
                   <ul className="mt-1.5 space-y-3" aria-label={sub.id ? `Sous-lot ${sub.title}` : `Ouvrages du lot ${lot.title}`}>{items.map(item => <WorkRow key={item.id} item={item} work={item.workId ? works.get(item.workId) : undefined} template={item.workId ? templates.get(item.workId) : undefined}
-                    takeoffs={takeoffs.filter(t => t.workItemId === item.id)} selectedId={selectedId} canWrite={actions.canWrite && !awardedLots.has(lot.requestId)}
+                    takeoffs={takeoffs.filter(t => t.workItemId === item.id)} selectedId={selectedId} canWrite={actions.canWrite && (execution ? awardedLots.has(lot.requestId) : !awardedLots.has(lot.requestId))}
                     onSelect={id => { setSelectedId(id); setEditor(null); }} onNew={() => { if (item.workId) { setEditor({ workId: item.workId, itemId: item.id, takeoff: null }); setSelectedId(null); } }} />)}</ul>
                 </div> : null; })}
               </section>)}</div>}
-          {unlinked.length > 0 && <LegacyTakeoffs takeoffs={unlinked} items={allItems} works={works} busy={busy} frozen={allAwarded} canLink={role.isOwner || role.isAssignedManager || role.isAdmin}
+          {!execution && unlinked.length > 0 && <LegacyTakeoffs takeoffs={unlinked} items={allItems} works={works} busy={busy} frozen={allAwarded} canLink={role.isOwner || role.isAssignedManager || role.isAdmin}
             onLink={async (takeoffId, itemId) => { setBusy(true); setError(''); try { await workItemCommand({ action: 'link_takeoff', takeoffId, itemId }); setNotice('Métré rattaché à l’ouvrage.'); await load(); } catch (e: any) { setError(e?.message ?? 'Rattachement refusé.'); } finally { setBusy(false); } }}
             onSelect={id => { setSelectedId(id); setEditor(null); }} selectedId={selectedId} />}
         </Card>
-        <BudgetPanel projectId={projectId} estimate={estimate} error={estimateError} works={works} takeoffs={takeoffs} />
+        {!execution && <BudgetPanel projectId={projectId} estimate={estimate} error={estimateError} works={works} takeoffs={takeoffs} />}
       </div>
 
       <div className="min-w-0 space-y-4">

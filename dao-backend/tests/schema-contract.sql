@@ -42,7 +42,7 @@ BEGIN
   expected_versions := expected_versions || ARRAY['20261103210000'];
   expected_versions := expected_versions || ARRAY['20261103230000'];
   expected_versions := expected_versions || ARRAY['20261104020000','20261104130000','20261105000000','20261105010000'];
-  expected_versions := expected_versions || ARRAY['20261106000000','20261107000000','20261107010000'];
+  expected_versions := expected_versions || ARRAY['20261106000000','20261107000000','20261107010000','20261107020000'];
   expected_tables := expected_tables || ARRAY['btp_price_sources','btp_price_items','btp_price_item_revisions','btp_price_events','btp_estimates','btp_estimate_revisions','btp_estimate_events'];
   expected_tables := expected_tables || ARRAY['project_assistant_drafts','project_assistant_draft_revisions','project_assistant_scope_links'];
   expected_tables := expected_tables || ARRAY['project_work_items','project_work_item_events'];
