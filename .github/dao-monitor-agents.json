@@ -360,6 +360,12 @@
       "agent": "DAO Parcours Client",
       "role": "DEV",
       "watchdog": false
+    },
+    {
+      "issue": 587,
+      "agent": "DAO Périmètre attribué",
+      "role": "DEV",
+      "watchdog": false
     }
   ]
 }

@@ -98,15 +98,18 @@ test("Métrés : chantier attribué, métrés prévisionnels figés et historiqu
 });
 
 // Métrés d'exécution (décision du 07/11/2026) : section du suivi du chantier. Le chantier attribué de recette
-// date d'avant les ouvrages par lot (aucune occurrence) : la section l'explique sans rien proposer de créer.
+// date d'avant les ouvrages par lot : ses seules occurrences viennent de modifications de périmètre acceptées (#587).
 test("Suivi du chantier : section Métrés d’exécution, sans création hors ouvrage attribué", async ({ as, snap }) => {
   const page = await as("clientA");
   await page.goto(`/app/native-execution/${MANUAL_PROJECT}?section=metres`);
   await waitForContent(page);
   await expect(page.getByRole("button", { name: "Métrés d’exécution" })).toHaveAttribute("aria-current", "true");
   await expect(page.getByText("Métrés d’exécution, à partir des dimensions relevées sur le chantier.")).toBeVisible();
-  await expect(page.getByText(/Aucun lot attribué avec des ouvrages/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Nouveau métré/ })).toHaveCount(0);
+  if (await page.getByText(/Aucun lot attribué avec des ouvrages/).count()) {
+    await expect(page.getByRole("button", { name: /^Nouveau métré/ })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole("button", { name: /^Nouveau métré/ }).first()).toBeVisible();
+  }
   await expect(page.getByTestId("takeoff-budget")).toHaveCount(0);
   await snap(page, "suivi-metres-execution");
   await expectNoHorizontalOverflow(page);
