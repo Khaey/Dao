@@ -67,7 +67,7 @@ function ItemRow({ projectId, item, lot, editable, busy, run }: { projectId: str
           {item.takeoffs > 0 && <span>{item.takeoffs} métré(s){item.validatedTakeoffs ? ` dont ${item.validatedTakeoffs} validé(s)` : ''}</span>}
         </p>
       </div>
-      {item.measurable && lot.lockReason !== 'awarded' && <Link href={`/app/projects/${projectId}/metres?item=${item.id}`} className={cn(secondaryAction, 'min-h-11 px-3')} aria-label={`Renseigner les dimensions : ${item.label}`}><Ruler size={14} aria-hidden="true" />Dimensions</Link>}
+      {item.measurable && !lot.awarded && lot.lockReason !== 'awarded' && <Link href={`/app/projects/${projectId}/metres?item=${item.id}`} className={cn(secondaryAction, 'min-h-11 px-3')} aria-label={`Renseigner les dimensions : ${item.label}`}><Ruler size={14} aria-hidden="true" />Dimensions</Link>}
     </div>
     {editable && <div className="mt-2 flex flex-wrap items-center gap-2">
       {lot.subLots.length > 0 && <label className="min-w-0 flex-1 text-xs text-ink/65"><span className="sr-only">Sous-lot de {item.label}</span>

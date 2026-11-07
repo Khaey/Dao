@@ -142,12 +142,12 @@ export default function ProjectTakeoffs({ projectId, mode = 'forecast' }: { proj
   }, [projectId, fail, refreshEstimate, execution, mode]);
   useEffect(() => { void load(); }, [load]);
 
-  const lots = useMemo(() => (workItems?.lots ?? []).filter(l => !execution || l.lockReason === 'awarded'), [workItems, execution]);
+  const lots = useMemo(() => (workItems?.lots ?? []).filter(l => !execution || l.awarded), [workItems, execution]);
   const allItems = useMemo(() => lots.flatMap(l => l.items), [lots]);
   const unlinked = takeoffs.filter(t => !t.workItemId || !allItems.some(i => i.id === t.workItemId));
   // Décision du propriétaire (07/11/2026) : après attribution, les métrés prévisionnels du lot sont figés (la base le revérifie).
-  const awardedLots = new Set((workItems?.lots ?? []).filter(l => l.lockReason === 'awarded').map(l => l.requestId));
-  const allAwarded = (workItems?.lots ?? []).length > 0 && (workItems?.lots ?? []).every(l => l.lockReason === 'awarded');
+  const awardedLots = new Set((workItems?.lots ?? []).filter(l => l.awarded).map(l => l.requestId));
+  const allAwarded = (workItems?.lots ?? []).length > 0 && (workItems?.lots ?? []).every(l => l.awarded);
   const allLocked = (workItems?.lots ?? []).length > 0 && (workItems?.lots ?? []).every(l => l.lockReason);
   const isFrozen = (t: Takeoff) => { if (execution) return false; const item = allItems.find(i => i.id === t.workItemId); return item ? awardedLots.has(item.requestId) : allAwarded; };
   const selected = takeoffs.find(t => t.id === selectedId) ?? null;
@@ -230,7 +230,7 @@ export default function ProjectTakeoffs({ projectId, mode = 'forecast' }: { proj
 function FrozenNotice({ projectId, all }: { projectId: string; all: boolean }) {
   return <div className="mt-4 flex items-start gap-3 rounded-xl bg-sand p-4 text-sm text-ink/75" role="note" data-testid="takeoffs-frozen-notice">
     <History size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-    <p><strong>{all ? 'Lots attribués' : 'Certains lots sont attribués'} : leurs ouvrages et métrés prévisionnels sont figés.</strong> Les quantités réalisées se suivent dans les <Link href={`/app/native-execution/${projectId}`} className="font-semibold text-teal underline">situations de travaux du suivi du chantier</Link>, avec leurs propres révisions et justificatifs. Un nouvel ouvrage passe par une modification de périmètre validée.</p>
+    <p><strong>{all ? 'Lots attribués' : 'Certains lots sont attribués'} : leurs ouvrages et métrés prévisionnels sont figés.</strong> Les quantités mesurées sur le chantier se saisissent dans les <Link href={`/app/native-execution/${projectId}?section=metres`} className="font-semibold text-teal underline">métrés d’exécution du suivi du chantier</Link>, avec leurs propres révisions et justificatifs. Un nouvel ouvrage passe par une modification de périmètre validée.</p>
   </div>;
 }
 
@@ -370,7 +370,7 @@ function TakeoffDetail({ takeoff, frozen, projectId, work, template, catalogVers
 
     {takeoff.status === 'submitted' && act.awaitingValidation && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
       En attente de validation technique. {role.hasAssignedManager ? 'Le gestionnaire affecté au chantier doit le valider.' : 'Aucun gestionnaire n’est affecté : seul un gestionnaire affecté ou l’administration D.A.O. peut le valider.'} Tant qu’il n’est pas validé, le budget prévisionnel ne l’utilise pas.</p>}
-    {frozen && <p className="mt-4 rounded-xl bg-sand p-3 text-sm text-ink/75" data-testid="takeoff-frozen">Lot attribué : ce métré prévisionnel est figé et conservé en historique. Les quantités réalisées se suivent dans les <Link href={`/app/native-execution/${projectId}`} className="font-semibold text-teal underline">situations de travaux</Link>.</p>}
+    {frozen && <p className="mt-4 rounded-xl bg-sand p-3 text-sm text-ink/75" data-testid="takeoff-frozen">Lot attribué : ce métré prévisionnel est figé et conservé en historique. Les quantités mesurées sur le chantier se saisissent dans les <Link href={`/app/native-execution/${projectId}?section=metres`} className="font-semibold text-teal underline">métrés d’exécution</Link>.</p>}
     {stale && <p className="mt-4 rounded-xl bg-teal/[0.07] p-3 text-sm text-ink/80">La révision {takeoff.currentRevision} n’est pas validée : la révision {takeoff.validatedRevision} ({fmt(takeoff.validated?.justification?.result?.value)} {sym(takeoff.validated?.justification?.result?.unit)}) reste la référence du budget prévisionnel.</p>}
 
     {(act.canSubmit || act.canValidate || act.canCalculate) && <div className="mt-5 space-y-3">
