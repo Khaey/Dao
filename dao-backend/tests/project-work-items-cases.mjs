@@ -239,5 +239,39 @@ export async function projectWorkItemsCases(db, test, { U, gov, as }) {
     }
   });
 
+  await test('work items (#578 review): the same work twice in one sub-lot gives two distinct occurrences', () => as('clientA', async () => {
+    const p = await one("select (public.create_project_draft('renovation',null,null,null,$1)).id", [gov]);
+    const lot = await one('select (public.add_project_request($1,$2,$3,$4,null::bigint)).id', [p, trade, 'Revêtements', 'Deux pièces']);
+    const before = await one('select public.native_request_sub_lots_v1($1)', [lot]);
+    const sub = (await one('select public.replace_client_request_sub_lots_v1($1,$2,$3::jsonb)', [lot, before.requestVersionId, JSON.stringify([{ title: 'Chambres', scope: 'Deux chambres' }])])).items[0].id;
+    const first = await command('add', { requestId: lot, items: [{ subLotId: sub, workId: measurable.id }] });
+    const second = await command('add', { requestId: lot, items: [{ subLotId: sub, workId: measurable.id }] });
+    ok(first.createdIds[0] !== second.createdIds[0], 'two occurrences expected');
+    const same = (await snapshot(p)).lots[0].items.filter(i => i.workId === measurable.id && i.subLotId === sub);
+    eq(same.length, 2); eq(same.every(i => i.measurable && i.modelState === 'available'), true);
+    const a = await takeoff('calculate', { projectId: p, workId: measurable.id, workItemId: same[0].id, scopeKey: 'default', label: 'Chambre 1', canonicalInputs: {} });
+    const b = await takeoff('calculate', { projectId: p, workId: measurable.id, workItemId: same[1].id, scopeKey: 'default', label: 'Chambre 2', canonicalInputs: {} });
+    eq(a.workItemId, same[0].id); eq(b.workItemId, same[1].id);
+  }));
+
+  await test('work items (#578 review): an occurrence never borrows a measurement model from another catalogue version', async () => {
+    const old = (await db.query(`select w.id,w.code,w.label_fr,w.unit_code,w.catalog_version_id from public.btp_measurement_templates m
+      join public.btp_works w on w.id=m.work_id and w.catalog_version_id=m.catalog_version_id
+      join public.btp_catalog_versions v on v.id=m.catalog_version_id and v.status<>'published'
+      where m.active and exists(select 1 from public.btp_measurement_templates p join public.btp_catalog_versions pv on pv.id=p.catalog_version_id and pv.status='published'
+        where p.work_id=m.work_id and p.active) order by w.code limit 1`)).rows[0];
+    ok(old, 'fixture: a work with a model in a non-published version and in the published one');
+    const p = await one("insert into public.projects(client_id,project_type) values($1,'renovation') returning id", [U.clientA]);
+    const r = await one('insert into public.project_requests(project_id) values($1) returning id', [p]);
+    const item = await one("insert into public.project_work_items(project_id,request_id,catalog_version_id,work_id,work_code,label,unit_code,origin) values($1,$2,$3,$4,$5,$6,$7,'import') returning id",
+      [p, r, old.catalog_version_id, old.id, old.code, old.label_fr, old.unit_code]);
+    const json = await one('select dao_private.project_work_item_json($1)', [item]);
+    eq(json.measurable, false); eq(json.modelState, 'historical_unavailable'); eq(json.catalogVersionId, old.catalog_version_id); eq(json.unitCode, old.unit_code);
+    const e = await as('clientA', () => rejects(() => takeoff('calculate', { projectId: p, workId: old.id, workItemId: item, scopeKey: 'default', label: 'Historique', canonicalInputs: {} }), '22023'));
+    eq(e.hint, 'work_item_model_unavailable');
+    eq(await one('select count(*)::int from public.btp_takeoffs where project_work_item_id=$1', [item]), 0);
+    eq((await one('select dao_private.project_work_item_json($1)', [items.aCustom.id])).modelState, 'custom');
+  });
+
   async function snapshot_as(name, projectId) { return as(name, () => snapshot(projectId)); }
 }

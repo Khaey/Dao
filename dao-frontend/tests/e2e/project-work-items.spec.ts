@@ -29,6 +29,18 @@ test('Ouvrages #577 : lot, sous-lot manuel, ouvrages du référentiel et hors r�
   await picker.getByRole('button', { name: /Ajouter 1 ouvrage/ }).click();
   await expect(page.getByText(/1 ouvrage\(s\) ajouté\(s\), sans dimension/)).toBeVisible();
 
+  // Revue #578 : le même ouvrage une seconde fois dans le même sous-lot (deux pièces) = deux occurrences.
+  await lot().getByRole('button', { name: /Ajouter des ouvrages au lot/ }).click();
+  const again = lot().getByTestId('work-picker');
+  await again.getByLabel('Placer dans').selectOption({ label: 'Salle de bain' });
+  await again.getByLabel('Rechercher un ouvrage').fill('carrelage');
+  const repeat = again.getByRole('group', { name: 'Ouvrages du référentiel' }).getByRole('checkbox', { name: /déjà 1 fois ici/ });
+  await expect(repeat).toHaveCount(1);
+  await expect(repeat).toBeEnabled();
+  await repeat.check();
+  await again.getByRole('button', { name: /Ajouter 1 ouvrage/ }).click();
+  await expect(lot().getByTestId('work-item')).toHaveCount(2);
+
   // Ouvrage hors référentiel, directement dans le lot : jamais chiffré.
   await lot().getByRole('button', { name: /Ajouter des ouvrages au lot/ }).click();
   const customForm = lot().getByTestId('work-picker').locator('details');
@@ -41,7 +53,7 @@ test('Ouvrages #577 : lot, sous-lot manuel, ouvrages du référentiel et hors r�
   await page.reload();
   await page.getByRole('button', { name: /^Lots/ }).click();
   const works = lot().getByTestId('lot-works');
-  await expect(works.getByTestId('work-item')).toHaveCount(2);
+  await expect(works.getByTestId('work-item')).toHaveCount(3);
   await expect(works.getByTestId('work-group-title')).toHaveText(['Directement dans le lot', 'Salle de bain']);
 
   // « À confirmer », puis retrait de l'ouvrage hors référentiel (trace conservée côté base).
@@ -49,7 +61,7 @@ test('Ouvrages #577 : lot, sous-lot manuel, ouvrages du référentiel et hors r�
   await custom.getByRole('button', { name: 'À confirmer' }).click();
   await expect(custom).toContainText('À confirmer');
   await custom.getByRole('button', { name: /Retirer Pose d’une niche/ }).click();
-  await expect(works.getByTestId('work-item')).toHaveCount(1);
+  await expect(works.getByTestId('work-item')).toHaveCount(2);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
