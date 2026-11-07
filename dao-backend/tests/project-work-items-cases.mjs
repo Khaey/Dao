@@ -273,5 +273,29 @@ export async function projectWorkItemsCases(db, test, { U, gov, as }) {
     eq((await one('select dao_private.project_work_item_json($1)', [items.aCustom.id])).modelState, 'custom');
   });
 
+  await test('takeoffs (owner decision 07/11): forecast takeoffs frozen after award; legacy link still allowed', async () => {
+    const awarded = (await db.query(`select ai.request_id, ai.project_id, p.client_id from public.award_items ai join public.projects p on p.id=ai.project_id
+      where ai.active order by ai.created_at limit 1`)).rows[0];
+    ok(awarded, 'fixture: an active award');
+    const template = (await db.query("select m.id,m.catalog_version_id from public.btp_measurement_templates m join public.btp_catalog_versions v on v.id=m.catalog_version_id and v.status='published' where m.work_id=$1 and m.active", [measurable.id])).rows[0];
+    const item = await one("insert into public.project_work_items(project_id,request_id,catalog_version_id,work_id,work_code,label,unit_code,origin) select $1,$2,w.catalog_version_id,w.id,w.code,w.label_fr,w.unit_code,'import' from public.btp_works w where w.id=$3 and w.catalog_version_id=$4 returning id",
+      [awarded.project_id, awarded.request_id, measurable.id, template.catalog_version_id]);
+    eq(await one('select dao_private.btp_takeoff_forecast_frozen($1,$2)', [awarded.project_id, item]), true);
+    eq(await one('select dao_private.btp_takeoff_forecast_frozen($1,$2)', [project, items.aWork.id]), false);
+    const e = await rejects(() => db.query("insert into public.btp_takeoffs(project_id,catalog_version_id,work_id,template_id,scope_key,label,created_by,project_work_item_id) values($1,$2,$3,$4,'apres','Après attribution',$5,$6)",
+      [awarded.project_id, template.catalog_version_id, measurable.id, template.id, awarded.client_id, item]), '23514');
+    eq(e.hint, 'takeoff_frozen_after_award');
+    // Métré antérieur (créé avant l'attribution) : consultable et rattachable, jamais recalculé ni validé.
+    await db.exec("alter table public.btp_takeoffs disable trigger btp_takeoffs_frozen_after_award");
+    let legacy;
+    try { legacy = await one("insert into public.btp_takeoffs(project_id,catalog_version_id,work_id,template_id,scope_key,label,created_by) values($1,$2,$3,$4,'avant','Avant attribution',$5) returning id",
+      [awarded.project_id, template.catalog_version_id, measurable.id, template.id, awarded.client_id]); }
+    finally { await db.exec("alter table public.btp_takeoffs enable trigger btp_takeoffs_frozen_after_award"); }
+    await db.query('update public.btp_takeoffs set project_work_item_id=$2 where id=$1', [legacy, item]);
+    await rejects(() => db.query("update public.btp_takeoffs set status='submitted' where id=$1", [legacy]), '23514');
+    await rejects(() => db.query("update public.btp_takeoffs set label='Renommé' where id=$1", [legacy]), '23514');
+    eq(await one('select project_work_item_id from public.btp_takeoffs where id=$1', [legacy]), item);
+  });
+
   async function snapshot_as(name, projectId) { return as(name, () => snapshot(projectId)); }
 }

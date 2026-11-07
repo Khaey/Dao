@@ -69,36 +69,32 @@ test("Métrés : chantier assistant sans gestionnaire, soumission sans auto-vali
   await expectNoHorizontalOverflow(page);
 });
 
-test("Métrés : gestionnaire affecté valide, budget indisponible honnête", async ({ as, snap }, info) => {
-  const client = await as("clientA");
-  await client.goto(`/app/projects/${MANUAL_PROJECT}/metres`);
-  await waitForContent(client);
-  await validationPolicy(client, "gestionnaire D.A.O. est affecté");
-  const name = `RECETTE ${day} — Terrasse ${info.project.name} (test, ne pas traiter)`;
-  const detail = await createTakeoff(client, MANUAL_PROJECT, "Terrasse extérieure", name, [["Longueur", "1000", "cm"], ["Largeur", "6", "m"]]);
-  await expect(detail.getByTestId("takeoff-result")).toHaveText(/^60(,0+)? m²$/);
-  await detail.getByRole("button", { name: "Soumettre pour validation" }).click();
-  await expect(detail.getByText("En attente de validation technique").first()).toBeVisible();
-
-  const manager = await as("clientB");
-  await manager.goto(`/app/projects/${MANUAL_PROJECT}/metres`);
-  await waitForContent(manager);
-  await expect(manager.getByTestId("validation-policy")).toContainText("gestionnaire affecté");
-  await manager.getByRole("button", { name: new RegExp(name.replace(/[()]/g, "\\$&")) }).click();
-  await manager.getByLabel("Note").fill("Recette : dimensions contrôlées");
-  await manager.getByRole("button", { name: /Valider la révision/ }).click();
-  await expect(manager.getByTestId("takeoff-detail").getByText("Validé", { exact: true }).first()).toBeVisible();
-  await snap(manager, "metres-gestionnaire-valide");
-
-  await client.reload();
-  await waitForContent(client);
-  await client.getByRole("button", { name: new RegExp(name.replace(/[()]/g, "\\$&")) }).click();
-  await expect(client.getByTestId("takeoff-detail").getByText(/Révision validée de référence/)).toBeVisible();
-  const budget = client.getByTestId("takeoff-budget");
-  await expect(budget).toContainText("métré validé");
-  await expect(budget).toContainText("Aucun tarif sourcé et vérifié");
-  await expect(client.locator("main")).not.toContainText(/\bTND\b/);
-  await snap(client, "metres-valide-budget-indisponible");
+// Décision du propriétaire (07/11/2026) : après attribution, les métrés prévisionnels sont figés ; les quantités
+// réalisées passent par les situations de travaux. Le chantier manuel de recette a tous ses lots attribués.
+// La validation par un gestionnaire affecté reste couverte par la CI (pile jetable) : aucun chantier DEV en
+// préparation n'a de gestionnaire affecté, et la recette ne modifie pas les affectations réelles.
+test("Métrés : chantier attribué, métrés prévisionnels figés et historique conservé", async ({ as, snap }) => {
+  for (const role of ["clientA", "clientB"] as const) {
+    const page = await as(role);
+    await page.goto(`/app/projects/${MANUAL_PROJECT}/metres`);
+    await waitForContent(page);
+    await expect(page.getByTestId("takeoffs-frozen-notice")).toContainText("Lots attribués");
+    await expect(page.getByTestId("takeoffs-frozen-notice").getByRole("link", { name: /situations de travaux/ })).toHaveAttribute("href", `/app/native-execution/${MANUAL_PROJECT}`);
+    await expect(page.getByRole("button", { name: /^Nouveau métré/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Ajouter des ouvrages" })).toHaveCount(0);
+    const history = page.getByTestId("takeoffs-unlinked");
+    if (await history.count()) {
+      await expect(history).toContainText("conservé tel quel, en historique");
+      await history.getByRole("button").first().click();
+      await expect(page.getByTestId("takeoff-frozen")).toBeVisible();
+      for (const name of [/Valider la révision/, "Soumettre pour validation", /Corriger les dimensions|Compléter les dimensions/]) {
+        await expect(page.getByTestId("takeoff-detail").getByRole("button", { name })).toHaveCount(0);
+      }
+    }
+    await expect(page.locator("main")).not.toContainText(/\bTND\b/);
+    await snap(page, `metres-attribue-fige-${role}`);
+    await expectNoHorizontalOverflow(page);
+  }
 });
 
 test("Métrés : accès refusé à un Artisan et à un gestionnaire non affecté", async ({ as, snap }) => {
