@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBtpReferenceHandler } from '../src/server/btpReferenceHandler.js';
 import { BtpReferenceService } from '../src/services/BtpReferenceService.js';
+import { guidedFixture } from './fixtures/btp-guided-fixture.js';
 
 const actor={id:'54110000-0000-4000-8000-00000000a001'};
 const snapshot={catalogVersion:{id:'v',code:'TN-2026.1',countryCode:'TN'},units:[],lots:[],rules:[],dependencies:[],measurementTemplates:[],priceSources:[]};
@@ -25,4 +26,23 @@ test('BTP reference service validates filters and sends no actor or free SQL inp
   await assert.rejects(()=>service.snapshot(null,'TUN'),/Code pays/);
   await service.snapshot('renovation','TN');
   assert.deepEqual(calls,[{name:'btp_catalog_snapshot',args:{p_project_type:'renovation',p_country_code:'TN'}}]);
+});
+
+test('#577 guided catalogue: JWT, server-side published_active attestation and full snapshot only',async()=>{
+  const calls:any[]=[];
+  const fixture=guidedFixture();
+  const service={snapshot:async(type:string|null,country:string)=>{calls.push({type,country});return fixture;}} as any;
+  assert.equal((await createBtpReferenceHandler(service,async()=>null).guided(new Request('https://dao.test/api/btp/catalog/guided'))).status,401);
+  const handler=createBtpReferenceHandler(service,async()=>actor);
+  const auth={headers:{authorization:'Bearer test'}};
+  const ok=await handler.guided(new Request('https://dao.test/api/btp/catalog/guided?country=tn',auth));
+  assert.equal(ok.status,200);
+  const body=await ok.json();
+  assert.equal(body.data.contractVersion,1); assert.equal(body.data.state,'available'); assert.equal(body.data.catalogVersion.code,fixture.catalogVersion!.code);
+  assert.ok(body.data.groups.flatMap((g:any)=>g.subLots.flatMap((s:any)=>s.works)).every((w:any)=>w.lifecycle==='active'&&w.catalogVersion.id===fixture.catalogVersion!.id));
+  assert.deepEqual(calls,[{type:null,country:'TN'}]); // jamais de filtre SQL par nature avant le contrat #578
+  for(const forged of ['?kind=published_active','?project_type=renovation','?country=TN&country=FR'])
+    assert.equal((await handler.guided(new Request('https://dao.test/api/btp/catalog/guided'+forged,auth))).status,400);
+  const broken=createBtpReferenceHandler({snapshot:async()=>({...fixture,units:'x'})} as any,async()=>actor);
+  assert.equal((await broken.guided(new Request('https://dao.test/api/btp/catalog/guided',auth))).status,503);
 });

@@ -4,13 +4,14 @@
 // Toutes les règles (droits, verrou après publication, référentiel) sont vérifiées par la base.
 import { useCallback, useEffect, useState } from 'react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
+import type { GuidedCatalog } from '../../../dao-backend/src/btp-reference/guided-selection';
 
 export type WorkItem = {
   id: string; requestId: string; subLotId: string | null; workId: string | null; workCode: string | null;
   catalogVersionId: string | null; catalogVersionCode: string | null; label: string; unitCode: string | null;
   custom: boolean; confirmation: 'selected' | 'to_confirm'; origin: 'assistant' | 'manual' | 'import'; ordinal: number;
   status: 'active' | 'removed'; revision: number; catalogPath: { lot: string; subLot: string } | null;
-  measurable: boolean; takeoffs: number; validatedTakeoffs: number; subLotCurrent: boolean;
+  measurable: boolean; modelState?: 'available' | 'historical_unavailable' | 'no_model' | 'custom'; takeoffs: number; validatedTakeoffs: number; subLotCurrent: boolean;
 };
 export type WorkItemLot = {
   requestId: string; requestVersionId: string; requestVersion: number; title: string; tradeId: string | null; status: string;
@@ -62,18 +63,14 @@ export function useProjectWorkItems(projectId: string, enabled = true) {
   return { snapshot, setSnapshot, state, error, reload };
 }
 
-export type CatalogWork = { id: string; label: string; unitCode: string; aliases: string[]; lotId: string; lotLabel: string; tradeId: string; subLotId: string; subLotLabel: string; order: number };
-let catalogCache: Promise<CatalogWork[]> | null = null;
-/** Ouvrages du référentiel publié, dans l'ordre du catalogue (mis en cache pour la page). */
-export function loadCatalogWorks(): Promise<CatalogWork[]> {
-  catalogCache ??= workItemsApi<any>('/api/btp/catalog?country=TN').then(catalog => {
-    const out: CatalogWork[] = []; let order = 0;
-    for (const lot of catalog.lots ?? []) for (const sub of lot.subLots ?? []) for (const w of sub.works ?? []) {
-      out.push({ id: w.id, label: w.label, unitCode: w.unitCode, aliases: w.aliases ?? [], lotId: lot.id, lotLabel: lot.label, tradeId: lot.tradeId, subLotId: sub.id, subLotLabel: sub.label, order: order++ });
-    }
-    return out;
-  }).catch(e => { catalogCache = null; throw e; });
-  return catalogCache;
+let guidedCache: Promise<GuidedCatalog> | null = null;
+/**
+ * Contrat de consultation guidée #578 (référentiel publié complet, attesté par le serveur) :
+ * version, chemin, unité, modèles, règles et provenance conservés ; aucune copie aplatie du catalogue.
+ */
+export function loadGuidedCatalog(): Promise<GuidedCatalog> {
+  guidedCache ??= workItemsApi<GuidedCatalog>('/api/btp/catalog/guided?country=TN').catch(e => { guidedCache = null; throw e; });
+  return guidedCache;
 }
 
 export const normalizeSearch = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
