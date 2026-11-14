@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
-import { Bell, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Bell, ArrowUpRight } from 'lucide-react';
 import { Card } from '../../../components/ui';
 import { formatSupportDate, listQueue, staffStatusLabels, supportAvailability, type SupportTicket } from '../../../lib/support-client';
+import { onUnreadChanged } from '../../../lib/unread-events';
 
+/** Quiet refresh while the page is visible: no button, no loading flash, no lost scroll or loaded pages. */
+const REFRESH_MS = 30_000;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Staff-only presentation. Authorization and data scoping stay server-side in support_queue. */
@@ -18,30 +21,52 @@ export default function StaffSupportNotifications() {
   const [error, setError] = useState('');
   const [unreadOnly, setUnreadOnly] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const extraPages = useRef(false);
+  const generation = useRef(0);
+
+  // First load shows a loader; later refreshes are silent and keep the older pages already opened.
+  const load = useCallback(async (silent = false) => {
+    const current = ++generation.current;
+    if (!silent) { setLoading(true); setError(''); }
     try {
       const [page, availability] = await Promise.all([
         listQueue({ assignee: 'all' }),
         supportAvailability(),
       ]);
-      setTickets(page.items);
-      setCursor(page.next_cursor);
+      if (current !== generation.current) return;
+      if (extraPages.current) {
+        setTickets(existing => [...page.items, ...existing].filter((ticket, i, all) => all.findIndex(t => t.id === ticket.id) === i));
+      } else {
+        setTickets(page.items);
+        setCursor(page.next_cursor);
+      }
       if (availability.state !== 'available') throw new Error('Le compteur des demandes est indisponible.');
       setUnread(availability.summary.unread);
+      setError('');
+      setUpdatedAt(new Date());
     } catch {
-      setError('Impossible de charger les demandes d’assistance. Réessayez.');
+      // A silent refresh keeps the current list; only a visible load reports the failure.
+      if (current === generation.current && !silent) setError('Impossible de charger les demandes d’assistance. Réessayez.');
     } finally {
-      setLoading(false);
+      if (current === generation.current && !silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void load();
-    const refresh = () => { if (document.visibilityState === 'visible') void load(); };
+    const refresh = () => { if (document.visibilityState === 'visible') void load(true); };
+    const timer = window.setInterval(refresh, REFRESH_MS);
     window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    const stopUnread = onUnreadChanged(refresh);
+    return () => {
+      generation.current += 1;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+      stopUnread();
+    };
   }, [load]);
 
   async function loadMore() {
@@ -52,6 +77,7 @@ export default function StaffSupportNotifications() {
       const result = await listQueue({ assignee: 'all', cursor });
       setTickets(existing => [...existing, ...result.items].filter((ticket, i, all) => all.findIndex(t => t.id === ticket.id) === i));
       setCursor(result.next_cursor);
+      extraPages.current = true;
     } catch {
       setError('Impossible de charger la suite des demandes.');
     } finally {
@@ -67,10 +93,7 @@ export default function StaffSupportNotifications() {
         <h1 id="staff-notifications-title" className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Notifications d’assistance</h1>
         <p className="mt-2 max-w-xl text-sm text-black/60">Nouvelles demandes et réponses des clients ou professionnels à traiter. Aucun message privé de chantier n’apparaît ici.</p>
       </div>
-      <button type="button" aria-label="Actualiser les notifications" disabled={loading} onClick={() => void load()}
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold text-teal disabled:opacity-50">
-        <RefreshCw size={17} aria-hidden="true" />Actualiser
-      </button>
+      {updatedAt && <p className="text-xs text-black/50">Mise à jour automatique · {updatedAt.toLocaleTimeString('fr-TN', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</p>}
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div role="group" aria-label="Filtrer les notifications" className="inline-flex rounded-xl border border-black/5 bg-white p-1">

@@ -43,6 +43,7 @@ import { BtpTakeoffService } from '../services/BtpTakeoffService.js';
 import { createBtpTakeoffHandler } from './btpTakeoffHandler.js';
 import { createProjectWorkItemsHandler } from './projectWorkItemsHandler.js';
 import { createLotScopeChangesHandler } from './lotScopeChangesHandler.js';
+import { createOceStatusHandler } from './oceStatusHandler.js';
 
 function env(name: string) { const value = process.env[name]; if (!value) throw new Error(`Missing environment variable: ${name}`); return value; }
 
@@ -157,6 +158,9 @@ export function createProfessionalApi(request:Request) {
   const {url,db,resolveActor}=requestScope(request);
   return createProfessionalHandler(db,resolveActor,()=>createClient(url,env('DAO_SUPABASE_SECRET_KEY'),{auth:{persistSession:false,autoRefreshToken:false}}));
 }
+
+/** OCE on/off for the interface (no auth needed: a single boolean, no data). */
+export function createOceStatusApi() { return createOceStatusHandler(process.env); }
 
 let oceGateway: ReturnType<typeof createOceGateway> | undefined;
 /** Read-only OCE technical summary. The gateway client is disabled unless DAO_OCE_ENABLED=1 (no credential here). */
