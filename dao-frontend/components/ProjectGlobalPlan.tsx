@@ -51,7 +51,7 @@ const day = (value: string | null) => (value ? new Date(`${value}T00:00:00Z`).to
  * Planning global du projet : tous les lots dans UN graphe (dépendances intra- et inter-lots), chemin critique calculé par OCE.
  * Les liens proposés par les Artisans ne deviennent effectifs qu'après attribution du lot et confirmation ici.
  */
-export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId: string; canDecide: boolean }) {
+export default function ProjectGlobalPlan({ projectId, canDecide, onAccess, oce = true }: { projectId: string; canDecide: boolean; onAccess?: (allowed: boolean) => void; /** OCE switched on: show and follow the critical-path calculation. */ oce?: boolean }) {
   const [plan, setPlan] = useState<GlobalPlan | null>(null);
   const [hidden, setHidden] = useState(false);
   const [message, setMessage] = useState('');
@@ -62,23 +62,23 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
 
   const load = useCallback(async () => {
     const result = await api('GET', undefined, projectId);
-    if (result.status === 401 || result.status === 403) { setHidden(true); return; }
-    if (result.status === 200 && result.data) setPlan(result.data);
-  }, [projectId]);
+    if (result.status === 401 || result.status === 403) { setHidden(true); onAccess?.(false); return; }
+    if (result.status === 200 && result.data) { setPlan(result.data); onAccess?.(true); }
+  }, [projectId, onAccess]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    if (plan?.sync.state !== 'pending') return;
+    if (!oce || plan?.sync.state !== 'pending') return;
     const timer = setInterval(() => { void load(); }, 4000);
     return () => clearInterval(timer);
-  }, [plan?.sync.state, load]);
+  }, [oce, plan?.sync.state, load]);
 
   if (hidden || !plan || plan.lots.length === 0) return null;
 
   const names = new Map<string, string>();
   for (const lot of plan.lots) names.set(`lot:${lot.id}`, lot.title || 'Lot');
   for (const node of plan.nodes) names.set(`node:${node.id}`, node.title);
-  const critical = new Set(plan.sync.critical_codes);
+  const critical = new Set(oce ? plan.sync.critical_codes : []);
   const effective = plan.links.filter(link => link.state === 'effective' && link.pred_target && link.succ_target);
   const before = (target: string) => effective.filter(link => link.succ_target === target).map(link => names.get(link.pred_target!) ?? '').filter(Boolean);
   const after = (target: string) => effective.filter(link => link.pred_target === target).map(link => names.get(link.succ_target!) ?? '').filter(Boolean);
@@ -123,13 +123,13 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
 
   return <Card data-testid="project-global-plan">
     <SectionHeading eyebrow="Planning global" title="Enchaînement de tous les lots"
-      description="Un seul planning pour le chantier : les dépendances entre travaux d’un même lot ou de lots différents sont prises en compte, et le chemin critique est calculé sur l’ensemble."
-      action={<span className="flex items-center gap-2"><GitBranch size={20} aria-hidden="true" className="text-teal" /><Badge tone={syncText[plan.sync.state].tone}>{syncText[plan.sync.state].text}</Badge></span>} />
-    {plan.sync.state === 'synced' && <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3" data-testid="plan-summary">
+      description={`Un seul planning pour le chantier : les dépendances entre travaux d’un même lot ou de lots différents sont prises en compte${oce ? ', et le chemin critique est calculé sur l’ensemble' : ''}.`}
+      action={<span className="flex items-center gap-2"><GitBranch size={20} aria-hidden="true" className="text-teal" />{oce && <Badge tone={syncText[plan.sync.state].tone}>{syncText[plan.sync.state].text}</Badge>}</span>} />
+    {oce && plan.sync.state === 'synced' && <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3" data-testid="plan-summary">
       <div><dt className="text-xs text-ink/60">Durée totale</dt><dd className="font-semibold text-ink" data-testid="plan-duration">{plan.sync.duration_days} j</dd></div>
       <div><dt className="text-xs text-ink/60">Travaux sur le chemin critique</dt><dd className="font-semibold text-ink" data-testid="plan-critical-count">{plan.sync.critical_codes.length}</dd></div>
     </dl>}
-    {plan.sync.state === 'failed' && <p role="status" className="mt-3 text-sm text-ink/70">Le calcul du chemin critique est momentanément indisponible{plan.sync.error_code === 'dependency_cycle' ? ' : les liens confirmés forment une boucle' : ''}.</p>}
+    {oce && plan.sync.state === 'failed' && <p role="status" className="mt-3 text-sm text-ink/70">Le calcul du chemin critique est momentanément indisponible{plan.sync.error_code === 'dependency_cycle' ? ' : les liens confirmés forment une boucle' : ''}.</p>}
     {!hasAwarded && <p className="mt-3 text-sm text-ink/70">Les liens proposés par les Artisans apparaîtront ici dès l’attribution des lots concernés.</p>}
 
     <div className="mt-4 space-y-3">
@@ -203,6 +203,6 @@ export default function ProjectGlobalPlan({ projectId, canDecide }: { projectId:
       </ul>
     </div>}
     {message && <p role="status" className="mt-3 text-sm text-ink/70" data-testid="plan-message">{message}</p>}
-    {plan.sync.state === 'failed' && <button type="button" onClick={relaunch} disabled={busy} className={`${secondaryAction} mt-3`}><RefreshCw size={14} aria-hidden="true" className="mr-1.5" />Relancer le calcul</button>}
+    {oce && plan.sync.state === 'failed' && <button type="button" onClick={relaunch} disabled={busy} className={`${secondaryAction} mt-3`}><RefreshCw size={14} aria-hidden="true" className="mr-1.5" />Relancer le calcul</button>}
   </Card>;
 }

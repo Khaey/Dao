@@ -110,6 +110,7 @@ Légende : **Livré** = fusionné sur `main` ; **Cadré** = décidé, pas (enti�
 | Tableau et Gantt lisent **une seule source** ; Gantt de lecture accessible depuis « Mes chantiers ». | Livré | #414, #420, #427 |
 | Au Tableau, la **référence d'un lot reste les dates convenues** (puis plan enregistré, puis devis) ; les dates **constatées** au carnet s'affichent dessous avec l'écart de démarrage, jamais à la place (décision propriétaire 03/11/2026). Aucun effet juridique ou financier. | Livré | [#175](https://github.com/Khaey/Dao/issues/175) |
 | Planning global OCE (`project_plan_*`) : historique/comparaison, jamais affiché comme calcul natif. | Livré | #325, #408 audit |
+| **Aucun appel OCE quand l'intégration est éteinte** : le bloc « Planning global » replié ne charge rien avant ouverture ; `GET /api/oce/status` (un booléen, sans donnée) décide d'afficher le chemin critique et les dates OCE par lot ; sinon seul le graphe de dépendances D.A.O. reste, sans badge ni relance OCE, et les plannings par lot ne sont demandés qu'après lecture autorisée du planning du projet (plus de 403 répétés en console). Notifications d'assistance Gestionnaire : mise à jour automatique silencieuse (30 s, retour sur l'onglet, lecture d'un fil), plus de bouton « Actualiser ». | Livré | fil « Fluidifier l'expérience Gestionnaire et notifications » (14/11/2026) |
 
 ## 8. Exécution, métrés et avancement
 
