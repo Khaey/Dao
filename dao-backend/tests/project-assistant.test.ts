@@ -37,12 +37,14 @@ test('A — villa Sousse: immediate proposal, facts quoted, no invented surfaces
   assert.ok(p.limitations.some(l => /prix/.test(l)) && p.limitations.some(l => /provisoire/.test(l)));
 });
 
-test('B — apartment renovation never proposes foundations or earthworks', () => {
+test('B — apartment renovation retains only mentioned works, while catalog options stay unselected', () => {
   const p = buildProposal(S, initialState('Rénovation de mon appartement à La Marsa : refaire la salle de bain et la cuisine, changer le carrelage.', null));
   const codes = selected(p);
   assert.equal(p.items.find(i => i.code === 'lot_studies')?.selected ?? false, false);
   for (const code of ['lot_structure', 'work_foundations', 'lot_earthworks', 'work_excavation']) assert.ok(!codes.has(code), code);
-  for (const code of ['work_bathroom', 'work_kitchen_units', 'work_floor_tiling', 'work_strip_finishes']) assert.ok(codes.has(code), code);
+  for (const code of ['work_bathroom', 'work_kitchen_units', 'work_floor_tiling']) assert.ok(codes.has(code), code);
+  for (const code of ['work_strip_finishes', 'work_interior_paint', 'work_roof_waterproofing', 'work_panel_circuits']) assert.ok(!codes.has(code), code);
+  assert.equal(p.items.find(i => i.code === 'work_strip_finishes')?.selected, false, 'possible does not mean selected');
   assert.equal(p.detectedGovernorate, 'Tunis');
   assert.equal(p.governorateStatus, 'proposed');
 });
@@ -57,10 +59,32 @@ test('C — extension proposes interfaces with the existing building as items to
 
 test('D — sparse description yields a partial proposal and exactly one useful question', () => {
   const p = buildProposal(S, initialState('refaire ma maison', null));
-  assert.ok(p.items.some(i => i.selected));
+  assert.ok(!p.items.some(i => i.selected), 'do not silently select all renovation work');
   assert.match(p.question!.text, /pièces ou parties/);
   const unknown = buildProposal(S, initialState('je veux des travaux', null));
   assert.equal(unknown.question?.key, 'project_type');
+});
+
+test('targeted renovation does not turn an applicable catalog into commercial scope', () => {
+  const p = buildProposal(S, initialState('Rénovation de mon appartement : refaire uniquement la salle de bain', null));
+  const codes = selected(p);
+  assert.ok(codes.has('work_bathroom'));
+  for (const code of ['work_roof_waterproofing', 'work_panel_circuits', 'work_interior_paint', 'work_strip_finishes'])
+    assert.ok(!codes.has(code), code);
+  assert.ok(p.items.find(i => i.code === 'work_interior_paint' && !i.selected));
+});
+
+test('repair and ambiguous descriptions ask for scope without assuming a whole renovation', () => {
+  const repair = buildProposal(S, initialState('Réparer une fuite dans la salle de bain de mon appartement', null));
+  assert.equal(repair.projectTypeStatus, 'unknown');
+  assert.match(repair.question?.text ?? '', /élément précis.*réparer/i);
+  assert.equal(selected(repair).size, 0, 'a room mention cannot become an accepted repair work');
+  assert.ok(repair.items.find(i => i.code === 'work_bathroom' && !i.selected), 'show a candidate for manual confirmation');
+  assert.equal(buildProposal(S, { ...initialState('Réparer une fuite dans la salle de bain', null),
+    description: 'Réparer une fuite dans la salle de bain\nLe robinet fuit', questionAnswered: true }).question, null, 'do not repeat a question after an answer');
+  const unknown = buildProposal(S, initialState('Je veux faire des travaux', null));
+  assert.equal(unknown.question?.key, 'project_type');
+  assert.equal(selected(unknown).size, 0);
 });
 
 test('E — natural language edits keep previous choices and only use referential ids', () => {
@@ -136,6 +160,17 @@ test('service persists each revision through the guarded RPC and resolves the go
   await assert.rejects(service.edit('u1', { draftId: draft.draftId, expectedRevision: 2, command: null, toggle: { itemId: 'fx:unknown', selected: true }, projectType: null, governorateId: null, answer: null }), /absent du référentiel/);
   const created = await service.create('u1', draft.draftId, 'creation-key-1');
   assert.equal(created.projectId, 'p1');
+});
+
+test('repair clarification is asked once across persisted draft revisions', async () => {
+  const service = new ProjectAssistantService(fakeDb() as any, new FixtureReferentialProvider());
+  const draft = await service.analyze('u1', { description: 'Réparer une fuite dans la salle de bain à Sousse', projectType: 'other', governorateId: null });
+  assert.match(draft.proposal.question?.text ?? '', /élément précis/);
+  const edited = await service.edit('u1', { draftId: draft.draftId, expectedRevision: draft.revision,
+    command: null, toggle: null, projectType: null, governorateId: null, answer: 'Le robinet fuit' });
+  assert.equal(edited.proposal.question, null);
+  assert.equal(edited.proposal.questionAnswered, true);
+  assert.equal(selected(edited.proposal).size, 0);
 });
 
 test('G — unavailable or non-conforming referential degrades explicitly, without inventing', async () => {

@@ -120,6 +120,8 @@ export function extractFacts(description: string): Fact[] {
 
 /** Une seule question, et seulement si elle débloque la proposition. */
 export function usefulQuestion(projectKind: ProjectKind, kindKnown: boolean, description: string, mentionCount: number): { key: string; text: string } | null {
+  if (projectKind === 'other' && /\b(repar\w*|depann\w*|fuite)\b/.test(fold(description)))
+    return { key: 'scope', text: 'Quel élément précis faut-il réparer ? Vous pourrez choisir les ouvrages concernés ensuite.' };
   if (!kindKnown && projectKind === 'other') return { key: 'project_type', text: 'S’agit-il d’une construction neuve, d’une rénovation ou d’une extension ?' };
   const wordCount = tokens(description).length;
   if (mentionCount === 0 && wordCount < 12) {

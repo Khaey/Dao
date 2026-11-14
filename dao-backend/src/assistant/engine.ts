@@ -17,12 +17,12 @@ export type ProposalItem = {
 export type AssistantState = {
   projectType: ProjectKind; projectTypeStatus: 'known' | 'proposed' | 'unknown';
   description: string; governorateName: string | null; governorateStatus: 'known' | 'proposed' | 'missing';
-  decisions: Decision[];
+  decisions: Decision[]; questionAnswered?: boolean;
 };
 export type LastCommand = { text: string; applied: Array<{ label: string; action: 'add' | 'remove' }>; notFound: string[]; message: string };
 export type Proposal = {
   title: string; summary: string; facts: Fact[]; question: { key: string; text: string } | null;
-  items: ProposalItem[]; decisions: Decision[];
+  items: ProposalItem[]; decisions: Decision[]; questionAnswered?: boolean;
   projectTypeStatus: AssistantState['projectTypeStatus']; governorateStatus: AssistantState['governorateStatus'];
   detectedGovernorate: string | null;
   lastCommand: LastCommand | null; limitations: string[];
@@ -66,13 +66,20 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
   const kind = state.projectType;
   const index = buildKeywordIndex(items);
   const mentions = findMentions(state.description, index);
+  const repairRequest = kind === 'other' && /\b(repar\w*|depann\w*|fuite)\b/.test(fold(state.description));
 
   const origin = new Map<string, ItemOrigin>();
   const tentative = new Set<string>();
   const excluded = new Set<string>();
-  for (const item of items) {
-    const relevance = relevanceFor(item, kind);
-    if (relevance === 'usual' || relevance === 'verify') origin.set(item.id, 'usual');
+  const candidates = new Set<string>();
+  // Une rénovation peut ne concerner qu'une pièce. L'applicabilité au
+  // catalogue sert alors à suggérer, pas à retenir tout le chantier.
+  // La construction neuve et l'extension gardent leur proposition de départ.
+  if ((kind === 'construction' || kind === 'extension') && !/\buniquement\b/i.test(state.description)) {
+    for (const item of items) {
+      const relevance = relevanceFor(item, kind);
+      if (relevance === 'usual' || relevance === 'verify') origin.set(item.id, 'usual');
+    }
   }
   for (const mention of mentions) {
     // « sans plans / pas d'études » décrit un état (études à prévoir), pas un retrait du périmètre.
@@ -82,6 +89,15 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
       continue;
     }
     if (mention.negative) continue;
+    if (repairRequest) {
+      // « fuite dans la salle de bain » désigne un lieu, pas forcément la pose
+      // d'équipements sanitaires. Présenter les correspondances sans les retenir.
+      for (const id of mention.ids) {
+        candidates.add(id);
+        for (const parent of ancestors(id)) candidates.add(parent);
+      }
+      continue;
+    }
     for (const id of mention.ids) {
       origin.set(id, 'mentioned');
       if (mention.tentative) tentative.add(id);
@@ -109,7 +125,7 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
   for (const item of items) {
     const relevance = relevanceFor(item, kind);
     const selected = origin.has(item.id);
-    if (!relevance && !selected) continue;
+    if (!relevance && !selected && !candidates.has(item.id)) continue;
     proposalItems.push({
       id: item.id, code: item.code, kind: item.kind, parentId: item.parentId, label: item.label,
       tradeCode: item.tradeCode, unit: item.unit, relevance: relevance ?? 'unusual', selected,
@@ -125,7 +141,7 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
   if (exclusions.length) facts.push({ key: 'exclusions', label: 'Exclu par vous', value: [...new Set(exclusions)].slice(0, 8).join(', '), status: 'known' });
 
   const positiveMentions = mentions.filter(m => !m.negative).length;
-  const question = usefulQuestion(kind, state.projectTypeStatus !== 'unknown', state.description, positiveMentions);
+  const question = state.questionAnswered ? null : usefulQuestion(kind, state.projectTypeStatus !== 'unknown', state.description, positiveMentions);
   const selectedLots = proposalItems.filter(i => i.selected && i.kind === 'lot').length;
   const selectedWorks = proposalItems.filter(i => i.selected && i.kind === 'work').length;
   const toCheck = proposalItems.filter(i => i.selected && (i.relevance === 'verify' || i.relevance === 'unusual' || i.tentative)).length;
@@ -135,7 +151,7 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
     : `${title} : aucun lot n’a pu être proposé à partir de votre description. Ajoutez des lots ou précisez les travaux.`;
 
   return {
-    title, summary, facts, question, items: proposalItems, decisions: state.decisions,
+    title, summary, facts, question, items: proposalItems, decisions: state.decisions, questionAnswered: state.questionAnswered ?? false,
     projectTypeStatus: state.projectTypeStatus, governorateStatus: state.governorateStatus,
     detectedGovernorate: state.governorateName,
     lastCommand,
@@ -156,7 +172,7 @@ export function initialState(description: string, chosenType: ProjectKind | null
     projectTypeStatus: chosenType ? 'known' : detected ? 'proposed' : 'unknown',
     description, governorateName: governorate?.name ?? null,
     governorateStatus: governorate ? (fold(governorate.via) === fold(governorate.name) ? 'known' : 'proposed') : 'missing',
-    decisions: [],
+    decisions: [], questionAnswered: false,
   };
 }
 
