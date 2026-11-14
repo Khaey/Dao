@@ -104,13 +104,14 @@ export class ProjectAssistantService {
       projectType: row.project_type, projectTypeStatus: previous.projectTypeStatus ?? 'known', description: row.description,
       governorateName: row.governorate_id ? previous.detectedGovernorate : null,
       governorateStatus: row.governorate_id ? previous.governorateStatus : 'missing', decisions: previous.decisions ?? [],
+      questionAnswered: previous.questionAnswered ?? false,
     };
     let governorateId: string | null = row.governorate_id;
     let lastCommand: LastCommand | null = null;
     const audit: string[] = [];
     if (input.projectType) { state = { ...state, projectType: input.projectType, projectTypeStatus: 'known' }; audit.push(`type:${input.projectType}`); }
     if (input.governorateId) { state = { ...state, governorateName: await this.governorateNameById(input.governorateId), governorateStatus: 'known' }; governorateId = input.governorateId; audit.push('gouvernorat'); }
-    if (input.answer) { state = { ...state, description: `${state.description}\n${input.answer}`.slice(0, 4000) }; audit.push(`réponse:${input.answer}`); }
+    if (input.answer) { state = { ...state, description: `${state.description}\n${input.answer}`.slice(0, 4000), questionAnswered: true }; audit.push(`réponse:${input.answer}`); }
     if (input.toggle) {
       if (!snapshot.items.some(item => item.id === input.toggle!.itemId && item.status === 'published')) throw new DomainError('Élément absent du référentiel.', 'BAD_REQUEST');
       state = { ...state, decisions: applyDecision(state.decisions, { id: input.toggle.itemId, action: input.toggle.selected ? 'add' : 'remove' }, snapshot.items) };

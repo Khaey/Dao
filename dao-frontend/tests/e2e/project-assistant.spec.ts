@@ -85,6 +85,9 @@ test('Assistant BTP #577 : questions guidées une à la fois, « Passer » et «
   await page.getByLabel('Description libre').fill('refaire la salle de bain et la cuisine');
   await page.getByRole('button', { name: 'Voir la proposition' }).click();
   await expect(page.getByText('Lots et ouvrages proposés')).toBeVisible();
+  // Une demande ciblée de salle de bain et de cuisine ne retient pas tout le
+  // catalogue de rénovation. Ce total inclut aussi les lots et sous-lots.
+  expect(await page.locator('input[type="checkbox"]:checked').count()).toBeLessThan(10);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: 'Recommencer' }).first().click();

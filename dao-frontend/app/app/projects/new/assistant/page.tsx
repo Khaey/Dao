@@ -31,7 +31,7 @@ const KINDS: Array<[Kind, string]> = [['construction', 'Construction neuve'], ['
 // #577 — questions guidées, une à la fois, toutes facultatives (« Passer » / « Je ne sais pas »).
 const SPACES: Array<[string, string]> = [['house', 'Maison / villa'], ['apartment', 'Appartement'], ['shop', 'Local commercial'], ['office', 'Bureau'], ['unknown', 'Autre / je ne sais pas']];
 const SPACE_TEXT: Record<string, string> = { house: 'Maison', apartment: 'Appartement', shop: 'Local commercial', office: 'Locaux de bureaux' };
-const NATURES: Array<[string, string, Kind | null]> = [['construction', 'Construction', 'construction'], ['renovation', 'Rénovation', 'renovation'], ['extension', 'Extension', 'extension'], ['repair', 'Réparation', 'renovation'], ['other', 'Autre', 'other']];
+const NATURES: Array<[string, string, Kind | null]> = [['construction', 'Construction', 'construction'], ['renovation', 'Rénovation', 'renovation'], ['extension', 'Extension', 'extension'], ['repair', 'Réparation', 'other'], ['other', 'Autre', 'other']];
 const GUIDE_STEPS = ['Lieu', 'Travaux', 'Surface', 'Description'];
 const EXAMPLES = [
   'Villa R+1 à Sousse sur un terrain de 206 m², 2 chambres à l’étage, garage, cuisine séparée, 2 salles de bain, jardin et terrasse si possible, sans piscine.',
