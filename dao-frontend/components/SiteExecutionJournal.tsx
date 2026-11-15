@@ -34,8 +34,29 @@ async function siteApi<T>(path: string, method = 'GET', body?: Record<string, un
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Le carnet de chantier est momentanément indisponible.');
+  if (!response.ok) throw new SiteApiError(response.status, siteErrorMessage(response.status, payload.error));
   return payload.data;
+}
+
+class SiteApiError extends Error { constructor(readonly status: number, message: string) { super(message); } }
+
+// Les messages techniques du serveur (en anglais) ne sont jamais montrés tels quels.
+const knownSiteErrors: [RegExp, string][] = [
+  [/idempotency key reused/i, 'Cet enregistrement a déjà été envoyé avec un autre contenu. Rechargez le carnet puis recommencez.'],
+  [/invalid client observation/i, 'Le motif de la contestation doit contenir entre 3 et 1 000 caractères.'],
+  [/execution cursor/i, 'La suite de l’historique n’a pas pu être chargée. Rechargez le carnet.'],
+  [/active account required/i, 'Votre compte n’est pas actif. Contactez l’équipe D.A.O.'],
+  [/evidence|document/i, 'Un justificatif choisi ne peut pas être joint : il doit être approuvé et partagé avec les membres du chantier.'],
+];
+function siteErrorMessage(status: number, raw?: unknown) {
+  const text = typeof raw === 'string' ? raw : '';
+  const known = knownSiteErrors.find(([pattern]) => pattern.test(text));
+  if (known) return known[1];
+  if (status === 401) return 'Session expirée. Reconnectez-vous.';
+  if (status === 403) return 'Cette action est réservée au Client du chantier ou à l’Artisan titulaire du lot.';
+  if (status === 404) return 'Cet élément du carnet est introuvable. Rechargez le carnet.';
+  if (status === 400 || status === 409 || status === 422) return 'L’enregistrement n’a pas été accepté. Vérifiez les champs puis réessayez.';
+  return 'Le carnet de chantier est momentanément indisponible. Réessayez dans un instant.';
 }
 
 function EvidencePicker({ documents, selected, onChange }: { documents: ProjectDocument[]; selected: string[]; onChange: (ids: string[]) => void }) {
@@ -53,6 +74,8 @@ export default function SiteExecutionJournal({ projectId, userId, documents }: {
   const [milestone, setMilestone] = useState({ lot: '', title: '', targetDate: '', status: 'planned', note: '' });
   const [milestoneEdit, setMilestoneEdit] = useState<Record<string, { status: string; targetDate: string; note: string }>>({});
   const [observation, setObservation] = useState<Record<string, { outcome: string; reason: string }>>({});
+  // Aucun accès au carnet (ex. Gestionnaire non affecté) : le bloc se masque au lieu d'afficher une erreur.
+  const [noAccess, setNoAccess] = useState(false);
 
   const load = useCallback(async (cursor?: string | null, append = false) => {
     append ? setLoadingMore(true) : setLoading(true); setError('');
@@ -61,7 +84,11 @@ export default function SiteExecutionJournal({ projectId, userId, documents }: {
       if (cursor) query.set('before', cursor);
       const next = await siteApi<Snapshot>(`/api/projects/execution?${query}`);
       setSnapshot(previous => append && previous ? { ...next, events: [...previous.events, ...next.events] } : next);
-    } catch (exception: any) { setError(exception.message); }
+      setNoAccess(false);
+    } catch (exception: any) {
+      if (!append && exception instanceof SiteApiError && exception.status === 403) setNoAccess(true);
+      else setError(exception.message);
+    }
     finally { append ? setLoadingMore(false) : setLoading(false); }
   }, [projectId]);
 
@@ -113,6 +140,7 @@ export default function SiteExecutionJournal({ projectId, userId, documents }: {
         </li>;
 
   if (loading) return <Card className="p-5 sm:p-6" aria-busy="true"><span className="sr-only">Chargement du carnet de chantier…</span><div className="h-6 w-52 animate-pulse rounded bg-ink/[0.08]" /><div className="mt-3 h-4 w-4/5 animate-pulse rounded bg-ink/[0.05]" /><div className="mt-6 grid gap-3 md:grid-cols-2">{[0, 1].map(item => <div key={item} className="h-28 animate-pulse rounded-xl bg-sand" />)}</div></Card>;
+  if (!snapshot && noAccess) return null;
   if (!snapshot) return <Card className="p-5 sm:p-6"><div className="rounded-xl border border-red-200 bg-red-50 p-4"><p className="flex items-start gap-2 font-semibold text-red-800"><AlertCircle size={18} className="mt-0.5 shrink-0" />Carnet de chantier indisponible</p><p className="mt-1 text-sm text-red-700">{error || 'Votre accès au carnet n’a pas pu être confirmé.'}</p><button type="button" className={cn(secondaryAction, 'mt-4')} onClick={() => void load()}><RefreshCw size={15} />Réessayer</button></div></Card>;
 
   return <div className="space-y-4">
@@ -120,6 +148,8 @@ export default function SiteExecutionJournal({ projectId, userId, documents }: {
       {snapshot.lots.length === 0 ? <div className="mt-6 rounded-xl border border-dashed border-black/15 px-5 py-9 text-center"><Hammer className="mx-auto text-ink/45" aria-hidden="true" /><p className="mt-3 font-semibold">Aucun lot attribué accessible</p><p className="mx-auto mt-1 max-w-lg text-sm text-ink/65">Le carnet s’ouvre dès qu’un lot est activement attribué : le Client et l’Artisan titulaire y suivent l’exécution.</p></div>
         : <ul className="mt-6 grid gap-3 md:grid-cols-2">{snapshot.lots.map(lot => <li key={lot.award_item_id} className="rounded-xl border border-black/[0.07] p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words font-bold text-ink">{lot.title}</p><p className="mt-1 text-xs text-ink/60">Lot effectivement attribué</p></div>{lot.can_write && <Badge tone="teal">Votre lot</Badge>}</div><div className="mt-4 flex items-center gap-3"><span className="text-2xl font-bold tabular-nums text-teal">{lot.latest_progress?.percent ?? 0}%</span><span className="text-sm text-ink/65">{progressLabels[lot.latest_progress?.status ?? 'not_started']}</span></div>{(lot.sub_lots ?? []).length > 0 && <SubLotList subLots={lot.sub_lots!} />}</li>)}</ul>}
     </Card>
+
+    {writableLots.length === 0 && !snapshot.can_observe && snapshot.lots.length > 0 && <p className="rounded-xl bg-sand px-4 py-3 text-sm text-ink/65">Lecture seule : l’Artisan titulaire déclare l’avancement et le Client donne ses retours. Les justificatifs privés restent réservés aux membres du chantier.</p>}
 
     {writableLots.length > 0 && <Card className="p-5 sm:p-6"><SectionHeading title="Ajouter au carnet" description="Chaque enregistrement est daté par le serveur et reste dans l’historique." />
       <div className="mt-5 space-y-3">
