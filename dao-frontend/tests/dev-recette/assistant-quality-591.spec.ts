@@ -37,9 +37,13 @@ test("Assistant : rénovation ciblée et réparation sans travaux ajoutés par d
       await expect(page.getByRole("checkbox", { name: new RegExp(label) })).toBeVisible();
     await expect(selected).toHaveCount(0);
     await snap(page, "renovation-ciblee");
-    await page.getByRole("checkbox", { name: /Carrelage et faïence/ }).check();
+    // Le choix déplace l’ouvrage de la liste des suggestions vers le lot retenu.
+    // Playwright.check() attend que la case d’origine reste montée, ce qui n’est
+    // pas le cas lors de ce déplacement après la sauvegarde du brouillon.
+    await page.getByRole("checkbox", { name: /Carrelage et faïence/ }).click();
     await expect(page.getByText(/1 lot et 1 ouvrage retenus/)).toBeVisible();
-    expect(await selected.count()).toBeLessThanOrEqual(4);
+    await expect(page.getByRole("checkbox", { name: /Carrelage et faïence/ })).toBeChecked();
+    await expect(selected).toHaveCount(3); // lot, sous-lot et ouvrage
     await abandonOwnDraft();
 
     await start("Réparation", "Réparer une fuite dans la salle de bain de mon appartement à Tunis");
