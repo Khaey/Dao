@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '../../lib/utils';
 import { useState, type FormEvent } from 'react';
 import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tracking/contract';
 import { supabaseBrowser } from '../../lib/supabase-browser';
@@ -9,6 +10,7 @@ type Milestone = Lot['milestones'][number];
 
 const field = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-3 py-2.5 text-sm text-ink';
 const button = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50';
+const primary = cn(button, 'border-teal bg-teal text-white hover:bg-teal/90');
 const statusLabels: Record<string, string> = { planned: 'Planifié', in_progress: 'En cours', completed: 'Terminé', cancelled: 'Annulé' };
 const pretty = (raw: string) => new Date(raw.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('fr-TN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const empty = { title: '', targetDate: '', status: 'planned', note: '' };
@@ -76,7 +78,7 @@ export default function NativeMilestones({ lot, onUpdated }: { lot: Lot; onUpdat
               {Object.entries(statusLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
             <label className="block text-xs font-semibold">Date cible<input className={field} type="date" value={editing.targetDate} disabled={busy} onChange={event => setEditing({ ...editing, targetDate: event.target.value })} /></label>
             <label className="block text-xs font-semibold sm:col-span-2">Note — facultative<textarea className={field + ' min-h-16'} maxLength={1000} value={editing.note} disabled={busy} onChange={event => setEditing({ ...editing, note: event.target.value })} /></label>
-            <div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" className={button + ' bg-teal text-white'} disabled={busy}>{busy ? 'Envoi…' : 'Enregistrer'}</button>
+            <div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" className={primary} disabled={busy}>{busy ? 'Envoi…' : 'Enregistrer'}</button>
               <button type="button" className={button} disabled={busy} onClick={() => setEditing(null)}>Annuler</button></div>
           </form>}
         </li>;
@@ -88,7 +90,7 @@ export default function NativeMilestones({ lot, onUpdated }: { lot: Lot; onUpdat
       <label className="block text-xs font-semibold">État<select className={field} value={form.status} disabled={busy} onChange={event => setForm({ ...form, status: event.target.value })}>
         {Object.entries(statusLabels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
       <label className="block text-xs font-semibold sm:col-span-2">Note — facultative<textarea className={field + ' min-h-16'} maxLength={1000} value={form.note} disabled={busy} onChange={event => setForm({ ...form, note: event.target.value })} /></label>
-      <div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" className={button + ' bg-teal text-white'} disabled={busy || !form.title.trim()}>{busy ? 'Envoi…' : 'Ajouter le jalon'}</button>
+      <div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" className={primary} disabled={busy || !form.title.trim()}>{busy ? 'Envoi…' : 'Ajouter le jalon'}</button>
         <button type="button" className={button} disabled={busy} onClick={() => setForm(null)}>Annuler</button></div>
     </form>}
   </div>;

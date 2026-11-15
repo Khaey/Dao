@@ -1,10 +1,12 @@
 'use client';
 
+import { cn } from '../../lib/utils';
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabaseBrowser } from '../../lib/supabase-browser';
 
 const field = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-3 py-2.5 text-sm text-ink';
 const button = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50';
+const primary = cn(button, 'border-teal bg-teal text-white hover:bg-teal/90');
 type LotPlan = { status: string; planned_start?: string | null; planned_end?: string | null };
 
 /** Dates prévues DAO du lot via l'API JWT DEV 3 (#418) : jamais de synchronisation OCE, jamais d'engagement contractuel. */
@@ -74,7 +76,7 @@ export default function NativeLotDatesForm({ projectId, lotId, onSaved }: { proj
       </div>
       {invalid && <p className="text-xs text-red-700">Renseignez les deux dates, la fin après le début.</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className={button + ' bg-teal text-white'} disabled={busy || invalid || (!start && !end)}>{busy ? 'Enregistrement…' : 'Enregistrer les dates'}</button>
+        <button type="submit" className={primary} disabled={busy || invalid || (!start && !end)}>{busy ? 'Enregistrement…' : 'Enregistrer les dates'}</button>
         {(start || end) && <button type="button" className={button} disabled={busy} onClick={event => void save(event as unknown as FormEvent<HTMLFormElement>, true)}>Effacer les dates</button>}
       </div>
     </form>}

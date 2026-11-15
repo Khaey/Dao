@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '../../lib/utils';
 import { useState, type FormEvent } from 'react';
 import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tracking/contract';
 import { supabaseBrowser } from '../../lib/supabase-browser';
@@ -8,6 +9,7 @@ import type { ExecutionTableLot } from './native-plan-adapter';
 
 const field = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-3 py-2.5 text-sm text-ink';
 const button = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50';
+const primary = cn(button, 'border-teal bg-teal text-white hover:bg-teal/90');
 type ActivityKind = 'sub_lot' | 'activity';
 type Decision = 'accepted' | 'rejected';
 
@@ -124,7 +126,7 @@ export default function NativeActivityPanel({ plan, lot, onUpdated }: {
           </label>
         </div>
         <p className="text-xs text-black/55">Les dates sont facultatives. Elles ne déclenchent ni contrat, ni paiement ni planning obligatoire.</p>
-        <div className="flex flex-wrap gap-2"><button className={button + ' bg-teal text-white'} type="submit" disabled={busy || !title.trim() || Boolean(start && end && end < start)}>{busy ? 'Enregistrement…' : actionLabel}</button>
+        <div className="flex flex-wrap gap-2"><button className={primary} type="submit" disabled={busy || !title.trim() || Boolean(start && end && end < start)}>{busy ? 'Enregistrement…' : actionLabel}</button>
           <button className={button} type="button" disabled={busy} onClick={() => setOpen(false)}>Annuler</button></div>
       </form>}
       {pending.length > 0 && <div className="space-y-3 border-t border-black/10 pt-3">
@@ -143,7 +145,7 @@ export default function NativeActivityPanel({ plan, lot, onUpdated }: {
             {confirm?.id === proposal.proposalId && <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
               <p className="text-sm text-ink">Confirmer votre décision : {confirm.decision === 'accepted' ? 'accepter' : 'refuser'} cette version ?</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <button className={button + ' bg-teal text-white'} disabled={busy} type="button" onClick={() => void respond()}>Confirmer</button>
+                <button className={primary} disabled={busy} type="button" onClick={() => void respond()}>Confirmer</button>
                 <button className={button} disabled={busy} type="button" onClick={() => setConfirm(null)}>Annuler</button>
               </div>
             </div>}
