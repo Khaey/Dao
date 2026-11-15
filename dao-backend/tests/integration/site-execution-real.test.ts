@@ -167,6 +167,14 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
   assert.equal(managerNative.data.lots[0].permissions.canPrepareChange, true);
   assert.equal(managerNative.data.lots[0].permissions.canEditActivities, false);
   assert.equal(managerNative.data.lots[0].permissions.canAcceptEngagingChange, false);
+  // Carnet de chantier (15/11/2026) : le Gestionnaire affecté lit, sans écrire ni observer ;
+  // le staff non affecté reste refusé.
+  const managerJournal = await staff.db.rpc('site_execution_snapshot', snapshotArgs);
+  assert.ifError(managerJournal.error);
+  assert.equal(managerJournal.data.lots.length, 1);
+  assert.equal(managerJournal.data.can_observe, false);
+  assert.equal(managerJournal.data.lots[0].can_write, false);
+  await denied(unassignedStaff.db, 'site_execution_snapshot', snapshotArgs);
 
   const nativeWrite = {
     p_award_item_id: awardItem.data!.id, p_activity_id: null, p_action: 'create', p_parent_activity_id: null,
@@ -304,6 +312,15 @@ test('site execution: real JWT, awarded-lot isolation, evidence and immutable hi
     reference_quantity_milli: 10000, ratio_percent: 25,
   });
   assert.equal(detailed.data.events.find((row: any) => row.id === intervention.data.id).quantity.designation, 'Canalisation posée');
+  const managerDetailed = await staff.db.rpc('site_execution_snapshot_v2', snapshotArgs);
+  assert.ifError(managerDetailed.error);
+  assert.deepEqual(managerDetailed.data.events.map((row: any) => row.id), detailed.data.events.map((row: any) => row.id));
+  assert.equal(managerDetailed.data.events.every((row: any) => row.evidence.length === 0), true, 'private evidence stays with project members');
+  assert.equal(managerDetailed.data.lots[0].sub_lots[0].latest_progress.percent, 40);
+  await denied(staff.db, 'record_site_observation', {
+    p_event_id: progress.data.id, p_outcome: 'acknowledged', p_reason: null, p_idempotency_key: randomUUID(),
+  });
+  await denied(unassignedStaff.db, 'site_execution_snapshot_v2', snapshotArgs);
   await denied(otherClient.db, 'record_site_observation', {
     p_event_id: progress.data.id, p_outcome: 'acknowledged', p_reason: null, p_idempotency_key: randomUUID(),
   });
