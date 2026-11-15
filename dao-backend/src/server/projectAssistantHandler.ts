@@ -7,6 +7,7 @@ const ITEM = /^[A-Za-z0-9:_-]{1,80}$/;
 const KEYS: Record<string, string[]> = {
   analyze: ['action', 'description', 'projectType', 'governorateId'],
   edit: ['action', 'draftId', 'expectedRevision', 'command', 'toggle', 'projectType', 'governorateId', 'answer'],
+  refresh: ['action', 'draftId', 'expectedRevision'],
   abandon: ['action', 'draftId'],
   create: ['action', 'draftId', 'creationKey'],
 };
@@ -14,7 +15,7 @@ const text = (value: unknown, min: number, max: number) => typeof value === 'str
 
 /** API de l'assistant BTP : GET reprend le brouillon ouvert, POST exécute une action typée. */
 export function createProjectAssistantHandler(
-  service: Pick<ProjectAssistantService, 'resume' | 'analyze' | 'edit' | 'abandon' | 'create'>,
+  service: Pick<ProjectAssistantService, 'resume' | 'analyze' | 'edit' | 'refresh' | 'abandon' | 'create'>,
   resolveActor: (authorization: string | null) => Promise<{ id: string } | null>,
 ) {
   const fail = (status: number, code: string, error: string, extra: Record<string, string> = {}) =>
@@ -68,6 +69,10 @@ export function createProjectAssistantHandler(
           draftId, expectedRevision: body.expectedRevision, command: body.command?.trim() ?? null, toggle: body.toggle ?? null,
           projectType: optionalType, governorateId: optionalGovernorate, answer: body.answer?.trim() ?? null,
         }) }, { headers });
+      }
+      if (body.action === 'refresh') {
+        if (!Number.isInteger(body.expectedRevision) || body.expectedRevision < 1) return fail(400, 'BAD_REQUEST', 'Révision invalide.');
+        return Response.json({ data: await service.refresh(actor.id, draftId, body.expectedRevision) }, { headers });
       }
       if (body.action === 'abandon') return Response.json({ data: await service.abandon(actor.id, draftId) }, { headers });
       if (typeof body.creationKey !== 'string' || !/^[A-Za-z0-9_-]{8,120}$/.test(body.creationKey)) return fail(400, 'BAD_REQUEST', 'Clé de création invalide.');

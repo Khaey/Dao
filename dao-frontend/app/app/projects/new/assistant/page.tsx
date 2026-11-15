@@ -16,13 +16,13 @@ import { controlClass, CreationHeader, FormAlert, Panel } from '../_components/C
  */
 
 type Kind = 'construction' | 'renovation' | 'extension' | 'other';
-type Item = { id: string; code: string; kind: 'lot' | 'sub_lot' | 'work'; parentId: string | null; label: string; unit: string | null; relevance: 'usual' | 'verify' | 'conditional' | 'optional' | 'unusual'; selected: boolean; origin: string | null; tentative: boolean };
+type Item = { id: string; code: string; kind: 'lot' | 'sub_lot' | 'work'; parentId: string | null; label: string; unit: string | null; relevance: 'usual' | 'verify' | 'conditional' | 'optional' | 'unusual'; selected: boolean; origin: string | null; tentative: boolean; suggestion?: 'bathroom_renovation' | null };
 type Fact = { key: string; label: string; value: string; status: 'known' | 'proposed' | 'to_confirm' };
 type Proposal = {
   title: string; summary: string; facts: Fact[]; question: { key: string; text: string } | null; items: Item[];
   lastCommand: { message: string; applied: unknown[] } | null; limitations: string[];
   referential: { provider: string; catalogVersion: string; completeness: 'fixture' | 'partial' | 'complete' };
-  engine: { mode: string }; governorateStatus: string;
+  engine: { mode: string; version: string }; governorateStatus: string;
 };
 type Draft = { draftId: string; revision: number; status: string; projectType: Kind; title: string; description: string; governorateId: string | null; updatedAt: string; proposal: Proposal };
 type Territory = { id: string; name_fr: string };
@@ -125,6 +125,7 @@ export default function ProjectAssistantPage() {
     await run({ action: 'analyze', description: full.slice(0, 4000), ...(projectType ? { projectType } : {}) });
   }
   const edit = (patch: Record<string, unknown>, success?: string) => draft && run({ action: 'edit', draftId: draft.draftId, expectedRevision: draft.revision, ...patch }, success);
+  const refresh = () => draft && run({ action: 'refresh', draftId: draft.draftId, expectedRevision: draft.revision }, 'Suggestions actualisées ; vos choix sont conservés.');
 
   async function applyCommand(event: FormEvent) {
     event.preventDefault();
@@ -215,19 +216,20 @@ export default function ProjectAssistantPage() {
 
   return <ProposalView draft={draft} governorates={governorates} busy={busy} error={error} status={status} headingRef={headingRef}
     command={command} setCommand={setCommand} answer={answer} setAnswer={setAnswer}
-    onCommand={applyCommand} onEdit={edit} onRestart={() => void restart()} onCreate={() => void create()} />;
+    onCommand={applyCommand} onEdit={edit} onRefresh={() => void refresh()} onRestart={() => void restart()} onCreate={() => void create()} />;
 }
 
-function ProposalView({ draft, governorates, busy, error, status, headingRef, command, setCommand, answer, setAnswer, onCommand, onEdit, onRestart, onCreate }: {
+function ProposalView({ draft, governorates, busy, error, status, headingRef, command, setCommand, answer, setAnswer, onCommand, onEdit, onRefresh, onRestart, onCreate }: {
   draft: Draft; governorates: Territory[]; busy: boolean; error: string; status: string; headingRef: React.RefObject<HTMLHeadingElement | null>;
   command: string; setCommand: (v: string) => void; answer: string; setAnswer: (v: string) => void;
-  onCommand: (e: FormEvent) => void; onEdit: (patch: Record<string, unknown>, success?: string) => unknown; onRestart: () => void; onCreate: () => void;
+  onCommand: (e: FormEvent) => void; onEdit: (patch: Record<string, unknown>, success?: string) => unknown; onRefresh: () => void; onRestart: () => void; onCreate: () => void;
 }) {
   const { proposal } = draft;
   const children = useMemo(() => { const map = new Map<string | null, Item[]>(); for (const item of proposal.items) map.set(item.parentId, [...(map.get(item.parentId) ?? []), item]); return map; }, [proposal.items]);
   const lots = children.get(null) ?? [];
   const selectedLots = lots.filter(lot => lot.selected);
   const otherLots = lots.filter(lot => !lot.selected);
+  const bathroomSuggestions = proposal.items.filter(item => item.kind === 'work' && item.suggestion === 'bathroom_renovation' && !item.selected);
   const toggle = (item: Item) => onEdit({ toggle: { itemId: item.id, selected: !item.selected } }, `${item.selected ? 'Retiré' : 'Ajouté'} : ${item.label}.`);
   const canCreate = Boolean(draft.governorateId) && selectedLots.length > 0;
 
@@ -241,6 +243,10 @@ function ProposalView({ draft, governorates, busy, error, status, headingRef, co
       </span>
       <span className="rounded-full bg-sand px-2.5 py-1">Brouillon enregistré · révision {draft.revision}</span>
     </p>
+    {proposal.engine.version !== 'assistant-rules-2' && <div className="rounded-xl border border-teal/25 bg-teal/5 p-4 text-sm">
+      <p>Ce brouillon utilise une ancienne version des suggestions.</p>
+      <button type="button" disabled={busy} className={cn(secondaryAction, 'mt-2')} onClick={onRefresh}>Actualiser les suggestions sans perdre mes choix</button>
+    </div>}
     <div aria-live="polite" className="min-h-0">{status && <p className="flex items-start gap-2 rounded-xl bg-teal/5 px-4 py-3 text-sm text-ink"><Check size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-teal" />{status}</p>}</div>
     {error && <FormAlert>{error}</FormAlert>}
 
@@ -258,8 +264,18 @@ function ProposalView({ draft, governorates, busy, error, status, headingRef, co
 
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-6">
+        {bathroomSuggestions.length > 0 && <Panel title="Ouvrages possibles pour la salle de bain" description="La pièce seule ne précise pas les travaux. Cochez seulement les ouvrages concernés ; leur lot et sous-lot seront rattachés automatiquement.">
+          <ul className="divide-y divide-black/[0.06]">{bathroomSuggestions.map(work => {
+            const sub = proposal.items.find(item => item.id === work.parentId);
+            const lot = proposal.items.find(item => item.id === sub?.parentId);
+            return <li key={work.id}>
+              <ItemCheck item={work} busy={busy} onToggle={toggle} />
+              <p className="mb-2 ml-7 text-xs text-ink/60">{[lot?.label, sub?.label].filter(Boolean).join(' · ')} · à confirmer</p>
+            </li>;
+          })}</ul>
+        </Panel>}
         <Panel title="Lots et ouvrages proposés" description="Cochez ou décochez. Chaque élément provient du référentiel ; rien n’est ajouté sans votre accord.">
-          {selectedLots.length === 0 && <p className="rounded-xl bg-sand/80 p-4 text-sm text-ink/75">Aucun lot retenu pour l’instant. Ajoutez-en un ci-dessous ou décrivez-le avec vos mots.</p>}
+          {selectedLots.length === 0 && <p className="rounded-xl bg-sand/80 p-4 text-sm text-ink/75">{bathroomSuggestions.length ? 'Aucun ouvrage retenu pour l’instant. Choisissez les travaux concernés dans les suggestions ci-dessus.' : 'Aucun lot retenu pour l’instant. Ajoutez-en un ci-dessous ou décrivez-le avec vos mots.'}</p>}
           <ul className="space-y-4">{selectedLots.map(lot => <li key={lot.id}><LotCard lot={lot} childrenOf={children} busy={busy} onToggle={toggle} /></li>)}</ul>
           {otherLots.length > 0 && <details className="mt-5 rounded-xl border border-black/[0.06] p-4">
             <summary className="min-h-11 cursor-pointer text-sm font-semibold text-teal">Autres lots possibles ({otherLots.length})</summary>

@@ -2,7 +2,7 @@ import type { ProjectKind, ReferentialItem, ReferentialSnapshot, Relevance } fro
 import { buildKeywordIndex, detectGovernorate, detectProjectKind, extractFacts, findMentions, proposalTitle, usefulQuestion, type Fact } from './understanding.js';
 import { clauses, fold, tokens } from './text.js';
 
-export const ASSISTANT_ENGINE = { mode: 'rules' as const, version: 'assistant-rules-1' };
+export const ASSISTANT_ENGINE = { mode: 'rules' as const, version: 'assistant-rules-2' };
 
 export type Decision = { id: string; action: 'add' | 'remove' };
 export type ItemOrigin = 'usual' | 'mentioned' | 'related' | 'client' | 'structure';
@@ -12,6 +12,8 @@ export type ProposalItem = {
   /** Pertinence pour ce type de projet ; `unusual` si le client l'a voulu hors applicabilité. */
   relevance: Relevance | 'unusual';
   selected: boolean; origin: ItemOrigin | null; tentative: boolean;
+  /** Piste éditoriale de pièce, non retenue tant que le Client ne la choisit pas. */
+  suggestion: 'bathroom_renovation' | null;
   provenance: { source: string; version: string };
 };
 export type AssistantState = {
@@ -58,6 +60,13 @@ export function applyDecision(decisions: Decision[], decision: Decision, items: 
 }
 
 const STUDY_TOKENS = new Set(tokens('plan plans etude etudes'));
+// Codes publiés TN-2026.3 et équivalents de la fixture. Cette liste désigne des
+// possibilités, jamais un périmètre ou des quantités déduits d'une pièce.
+const BATHROOM_RENOVATION_CODES = new Set([
+  'btp_work_selective_demolition', 'btp_work_water_network', 'btp_work_bathroom_equipment', 'btp_work_tiling',
+  'work_strip_finishes', 'work_drainage', 'work_water_supply', 'work_wall_tiling', 'work_bathroom',
+]);
+const BATHROOM_ROOM_WORDS = new Set(['salle de bain', 'salle d eau', 'sdb']);
 
 /** Calcule la proposition complète à partir de l'état ; déterministe et sans invention. */
 export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantState, lastCommand: LastCommand | null = null): Proposal {
@@ -67,11 +76,20 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
   const index = buildKeywordIndex(items);
   const mentions = findMentions(state.description, index);
   const repairRequest = kind === 'other' && /\b(repar\w*|depann\w*|fuite)\b/.test(fold(state.description));
+  const bathroomScope = kind === 'renovation' && mentions.some(mention =>
+    !mention.negative && BATHROOM_ROOM_WORDS.has(fold(mention.phrase)));
 
   const origin = new Map<string, ItemOrigin>();
   const tentative = new Set<string>();
   const excluded = new Set<string>();
   const candidates = new Set<string>();
+  const bathroomSuggestions = new Set<string>();
+  if (bathroomScope) for (const item of items) {
+    if (item.kind !== 'work' || !BATHROOM_RENOVATION_CODES.has(item.code) || !relevanceFor(item, kind)) continue;
+    bathroomSuggestions.add(item.id);
+    candidates.add(item.id);
+    for (const parent of ancestors(item.id)) candidates.add(parent);
+  }
   // Une rénovation peut ne concerner qu'une pièce. L'applicabilité au
   // catalogue sert alors à suggérer, pas à retenir tout le chantier.
   // La construction neuve et l'extension gardent leur proposition de départ.
@@ -89,6 +107,14 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
       continue;
     }
     if (mention.negative) continue;
+    if (bathroomScope && BATHROOM_ROOM_WORDS.has(fold(mention.phrase))) {
+      // Une pièce citée seule n'est pas une commande d'équipements sanitaires.
+      for (const id of mention.ids) {
+        candidates.add(id);
+        for (const parent of ancestors(id)) candidates.add(parent);
+      }
+      continue;
+    }
     if (repairRequest) {
       // « fuite dans la salle de bain » désigne un lieu, pas forcément la pose
       // d'équipements sanitaires. Présenter les correspondances sans les retenir.
@@ -130,6 +156,7 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
       id: item.id, code: item.code, kind: item.kind, parentId: item.parentId, label: item.label,
       tradeCode: item.tradeCode, unit: item.unit, relevance: relevance ?? 'unusual', selected,
       origin: origin.get(item.id) ?? null, tentative: selected && tentative.has(item.id),
+      suggestion: bathroomSuggestions.has(item.id) && !excluded.has(item.id) ? 'bathroom_renovation' : null,
       provenance: { source: item.provenance.source, version: item.provenance.version },
     });
   }
@@ -147,8 +174,10 @@ export function buildProposal(snapshot: ReferentialSnapshot, state: AssistantSta
   const toCheck = proposalItems.filter(i => i.selected && (i.relevance === 'verify' || i.relevance === 'unusual' || i.tentative)).length;
   const title = proposalTitle(state.description, kind, state.governorateName);
   const summary = selectedLots
-    ? `${title} : ${selectedLots} lot${selectedLots > 1 ? 's' : ''} et ${selectedWorks} ouvrage${selectedWorks > 1 ? 's' : ''} proposés à partir du référentiel${toCheck ? `, dont ${toCheck} à vérifier` : ''}.`
-    : `${title} : aucun lot n’a pu être proposé à partir de votre description. Ajoutez des lots ou précisez les travaux.`;
+    ? `${title} : ${selectedLots} lot${selectedLots > 1 ? 's' : ''} et ${selectedWorks} ouvrage${selectedWorks > 1 ? 's' : ''} retenus à partir du référentiel${toCheck ? `, dont ${toCheck} à vérifier` : ''}.`
+    : bathroomSuggestions.size
+      ? `${title} : des ouvrages possibles pour la salle de bain sont à confirmer. Aucun travail n’est retenu sans votre choix.`
+      : `${title} : aucun lot n’a pu être proposé à partir de votre description. Ajoutez des lots ou précisez les travaux.`;
 
   return {
     title, summary, facts, question, items: proposalItems, decisions: state.decisions, questionAnswered: state.questionAnswered ?? false,

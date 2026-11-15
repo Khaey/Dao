@@ -42,7 +42,9 @@ test('B — apartment renovation retains only mentioned works, while catalog opt
   const codes = selected(p);
   assert.equal(p.items.find(i => i.code === 'lot_studies')?.selected ?? false, false);
   for (const code of ['lot_structure', 'work_foundations', 'lot_earthworks', 'work_excavation']) assert.ok(!codes.has(code), code);
-  for (const code of ['work_bathroom', 'work_kitchen_units', 'work_floor_tiling']) assert.ok(codes.has(code), code);
+  for (const code of ['work_kitchen_units', 'work_floor_tiling']) assert.ok(codes.has(code), code);
+  assert.equal(p.items.find(i => i.code === 'work_bathroom')?.suggestion, 'bathroom_renovation');
+  assert.ok(!codes.has('work_bathroom'), 'a room mention does not confirm sanitary equipment');
   for (const code of ['work_strip_finishes', 'work_interior_paint', 'work_roof_waterproofing', 'work_panel_circuits']) assert.ok(!codes.has(code), code);
   assert.equal(p.items.find(i => i.code === 'work_strip_finishes')?.selected, false, 'possible does not mean selected');
   assert.equal(p.detectedGovernorate, 'Tunis');
@@ -65,13 +67,37 @@ test('D — sparse description yields a partial proposal and exactly one useful 
   assert.equal(unknown.question?.key, 'project_type');
 });
 
-test('targeted renovation does not turn an applicable catalog into commercial scope', () => {
+test('bathroom renovation offers visible, unselected room works and excludes unrelated work', () => {
   const p = buildProposal(S, initialState('Rénovation de mon appartement : refaire uniquement la salle de bain', null));
   const codes = selected(p);
-  assert.ok(codes.has('work_bathroom'));
+  assert.equal(codes.size, 0);
+  assert.match(p.summary, /ouvrages possibles.*à confirmer/);
+  const suggestions = p.items.filter(i => i.suggestion === 'bathroom_renovation').map(i => i.code);
+  for (const code of ['work_bathroom', 'work_strip_finishes', 'work_water_supply', 'work_drainage', 'work_wall_tiling'])
+    assert.ok(suggestions.includes(code), code);
   for (const code of ['work_roof_waterproofing', 'work_panel_circuits', 'work_interior_paint', 'work_strip_finishes'])
     assert.ok(!codes.has(code), code);
+  assert.ok(!suggestions.includes('work_roof_waterproofing'));
   assert.ok(p.items.find(i => i.code === 'work_interior_paint' && !i.selected));
+  const chosen = buildProposal(S, { ...initialState('Rénovation de la salle de bain', null), decisions: [{ id: p.items.find(i => i.code === 'work_wall_tiling')!.id, action: 'add' }] });
+  assert.ok(selected(chosen).has('work_wall_tiling'));
+  assert.ok(!selected(chosen).has('work_roof_waterproofing'));
+  const excluded = buildProposal(S, initialState('Repeindre la chambre, sans toucher à la salle de bain', 'renovation'));
+  assert.equal(excluded.items.filter(i => i.suggestion === 'bathroom_renovation').length, 0);
+});
+
+test('published TN catalog codes remain candidates, never assumed as accepted scope', () => {
+  const codes: Record<string, string> = {
+    work_strip_finishes: 'btp_work_selective_demolition',
+    work_water_supply: 'btp_work_water_network',
+    work_bathroom: 'btp_work_bathroom_equipment',
+    work_wall_tiling: 'btp_work_tiling',
+  };
+  const snapshot = { ...S, items: S.items.filter(item => item.code !== 'work_drainage').map(item => ({ ...item, code: codes[item.code] ?? item.code })) };
+  const p = buildProposal(snapshot, initialState('Appartement. Rénovation. salle de bain', 'renovation'));
+  assert.deepEqual(new Set(p.items.filter(i => i.suggestion).map(i => i.code)), new Set(Object.values(codes)));
+  assert.equal(selected(p).size, 0);
+  assert.ok(p.items.filter(i => i.suggestion).every(i => i.kind === 'work' && !i.selected && i.provenance.version));
 });
 
 test('repair and ambiguous descriptions ask for scope without assuming a whole renovation', () => {
@@ -136,6 +162,7 @@ function fakeDb(overrides: Record<string, any> = {}) {
       if (name === 'save_project_assistant_draft_v1') {
         const id = args.p_draft_id ?? '00000000-0000-4000-8000-0000000000d1';
         const previous = rows.get(id);
+        if (previous && args.p_expected_revision !== previous.revision) return { data: null, error: { code: '40001', message: 'stale revision' } };
         const row = { id, revision: (previous?.revision ?? 0) + 1, status: 'draft', project_type: args.p_draft.projectType, title: args.p_draft.title,
           description: args.p_draft.description, governorate_id: args.p_draft.governorateId, created_project_id: null, updated_at: 'now', proposal: args.p_draft.proposal };
         rows.set(id, row); return { data: row, error: null };
@@ -173,6 +200,20 @@ test('repair clarification is asked once across persisted draft revisions', asyn
   assert.equal(selected(edited.proposal).size, 0);
 });
 
+test('refresh creates a guarded revision and preserves an existing draft decision', async () => {
+  const db = fakeDb();
+  const service = new ProjectAssistantService(db as any, new FixtureReferentialProvider());
+  const draft = await service.analyze('u1', { description: 'Rénovation de la salle de bain', projectType: 'renovation', governorateId: null });
+  const work = draft.proposal.items.find(i => i.code === 'work_wall_tiling')!;
+  const edited = await service.edit('u1', { draftId: draft.draftId, expectedRevision: draft.revision,
+    command: null, toggle: { itemId: work.id, selected: true }, projectType: null, governorateId: null, answer: null });
+  const refreshed = await service.refresh('u1', draft.draftId, edited.revision);
+  assert.equal(refreshed.revision, edited.revision + 1);
+  assert.ok(selected(refreshed.proposal).has('work_wall_tiling'));
+  assert.equal(refreshed.proposal.items.find(i => i.code === 'work_bathroom')?.suggestion, 'bathroom_renovation');
+  await assert.rejects(service.refresh('u1', draft.draftId, edited.revision), /./);
+});
+
 test('G — unavailable or non-conforming referential degrades explicitly, without inventing', async () => {
   const down = new ProjectAssistantService(fakeDb() as any, { snapshot: async () => { throw new Error('down'); } });
   await assert.rejects(down.analyze('u1', { description: VILLA, projectType: null, governorateId: null }), (e: any) => e.code === 'UNAVAILABLE');
@@ -186,7 +227,7 @@ test('G — unavailable or non-conforming referential degrades explicitly, witho
 
 test('HTTP handler: authentication, strict payloads and typed errors', async () => {
   const calls: string[] = [];
-  const service: any = { resume: async () => null, analyze: async () => { calls.push('analyze'); return {}; }, edit: async () => ({}), abandon: async () => ({}),
+  const service: any = { resume: async () => null, analyze: async () => { calls.push('analyze'); return {}; }, edit: async () => ({}), refresh: async () => { calls.push('refresh'); return {}; }, abandon: async () => ({}),
     create: async () => { const e: any = new Error('x'); e.code = '42501'; throw e; } };
   const handler = createProjectAssistantHandler(service, async h => h === 'Bearer ok' ? { id: 'u1' } : null);
   const post = (body: unknown, auth = 'Bearer ok') => handler(new Request('https://dao.test/api', { method: 'POST', headers: { authorization: auth }, body: JSON.stringify(body) }));
@@ -196,8 +237,11 @@ test('HTTP handler: authentication, strict payloads and typed errors', async () 
   assert.equal((await post({ action: 'analyze', description: 'Villa', projectType: 'castle' })).status, 400);
   assert.equal((await post({ action: 'edit', draftId: 'bad', expectedRevision: 1, command: 'ajoute' })).status, 400);
   assert.equal((await post({ action: 'edit', draftId: '00000000-0000-4000-8000-000000000001', expectedRevision: 1, toggle: { itemId: "x'; drop", selected: true } })).status, 400);
+  assert.equal((await post({ action: 'refresh', draftId: '00000000-0000-4000-8000-000000000001', expectedRevision: 0 })).status, 400);
+  assert.equal((await post({ action: 'refresh', draftId: '00000000-0000-4000-8000-000000000001', expectedRevision: 1, projectType: 'construction' })).status, 400);
+  assert.equal((await post({ action: 'refresh', draftId: '00000000-0000-4000-8000-000000000001', expectedRevision: 1 })).status, 200);
   assert.equal((await post({ action: 'create', draftId: '00000000-0000-4000-8000-000000000001', creationKey: 'short' })).status, 400);
   assert.equal((await post({ action: 'create', draftId: '00000000-0000-4000-8000-000000000001', creationKey: 'creation-key-1' })).status, 403);
   assert.equal((await post({ action: 'analyze', description: 'Villa R+1 à Sousse' })).status, 200);
-  assert.deepEqual(calls, ['analyze']);
+  assert.deepEqual(calls, ['refresh', 'analyze']);
 });
