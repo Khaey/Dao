@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '../../lib/utils';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tracking/contract';
 import { supabaseBrowser } from '../../lib/supabase-browser';
@@ -22,6 +23,7 @@ type Action = { target: 'inspection' | 'reserve'; id: string; revision: number; 
 
 const field = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-3 py-2.5 text-sm text-ink';
 const button = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50';
+const primary = cn(button, 'border-teal bg-teal text-white hover:bg-teal/90');
 const inspectionStatus: Record<string, string> = { requested: 'Demandé', in_progress: 'En cours', technical_check_complete: 'Contrôle technique terminé', withdrawn: 'Retiré' };
 const reserveStatus: Record<string, string> = { open: 'Ouverte', correction_declared: 'Correction déclarée', recheck_requested: 'Nouveau contrôle demandé', resolved_confirmed: 'Levée confirmée', reopened: 'Rouverte', withdrawn: 'Retirée' };
 const categories: Record<string, string> = { workmanship: 'Mise en œuvre', materials: 'Matériaux', completeness: 'Ouvrage incomplet', safety: 'Sécurité', other: 'Autre' };
@@ -141,7 +143,7 @@ export default function NativeTechnicalQuality({ plan, lot }: { plan: Plan; lot:
     {pending.confirm && <p>{pending.confirm}</p>}
     <label className="block font-semibold">{pending.noteMin ? 'Note (obligatoire)' : 'Note — facultative'}
       <textarea className={field + ' min-h-16'} maxLength={2000} required={pending.noteMin > 0} value={note} disabled={busy} onChange={event => setNote(event.target.value)} /></label>
-    <div className="flex flex-wrap gap-2"><button type="submit" className={button + ' bg-teal text-white'} disabled={busy || note.trim().length < pending.noteMin}>{busy ? 'Envoi…' : pending.label}</button>
+    <div className="flex flex-wrap gap-2"><button type="submit" className={primary} disabled={busy || note.trim().length < pending.noteMin}>{busy ? 'Envoi…' : pending.label}</button>
       <button type="button" className={button} disabled={busy} onClick={() => setPending(null)}>Annuler</button></div>
   </form>;
   const historyBlock = (target: 'inspection' | 'reserve', id: string) => <>
@@ -184,7 +186,7 @@ export default function NativeTechnicalQuality({ plan, lot }: { plan: Plan; lot:
         {canRequest && requestNote === null && <button type="button" className={button} disabled={busy} onClick={() => setRequestNote('')}>Demander un contrôle technique</button>}
         {canRequest && requestNote !== null && <form className="space-y-2" onSubmit={event => { event.preventDefault(); if (!busy) void command('inspections', { award_item_id: awardItemId, note: requestNote.trim() || null }, 'Contrôle technique demandé.'); }}>
           <label className="block text-xs font-semibold">Note — facultative<textarea className={field + ' min-h-16'} maxLength={2000} value={requestNote} disabled={busy} onChange={event => setRequestNote(event.target.value)} /></label>
-          <div className="flex flex-wrap gap-2"><button type="submit" className={button + ' bg-teal text-white'} disabled={busy}>{busy ? 'Envoi…' : 'Envoyer la demande'}</button>
+          <div className="flex flex-wrap gap-2"><button type="submit" className={primary} disabled={busy}>{busy ? 'Envoi…' : 'Envoyer la demande'}</button>
             <button type="button" className={button} disabled={busy} onClick={() => setRequestNote(null)}>Annuler</button></div>
         </form>}
       </section>
@@ -226,7 +228,7 @@ export default function NativeTechnicalQuality({ plan, lot }: { plan: Plan; lot:
           <label className="block text-xs font-semibold">À traiter avant — facultatif<input className={field} type="date" value={reserveForm.dueDate} disabled={busy} onChange={event => setReserveForm({ ...reserveForm, dueDate: event.target.value })} /></label>
           {activeInspections.length > 0 && <label className="block text-xs font-semibold">Contrôle associé — facultatif<select className={field} value={reserveForm.inspectionId} disabled={busy} onChange={event => setReserveForm({ ...reserveForm, inspectionId: event.target.value })}>
             <option value="">Aucun</option>{activeInspections.map(item => <option key={item.id} value={item.id}>Contrôle du {pretty(item.createdAt)}</option>)}</select></label>}
-          <div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" className={button + ' bg-teal text-white'} disabled={busy || !reserveForm.title.trim() || reserveForm.description.trim().length < 3}>{busy ? 'Envoi…' : 'Enregistrer la réserve'}</button>
+          <div className="flex flex-wrap gap-2 sm:col-span-2"><button type="submit" className={primary} disabled={busy || !reserveForm.title.trim() || reserveForm.description.trim().length < 3}>{busy ? 'Envoi…' : 'Enregistrer la réserve'}</button>
             <button type="button" className={button} disabled={busy} onClick={() => setReserveForm(null)}>Annuler</button></div>
         </form>}
       </section>

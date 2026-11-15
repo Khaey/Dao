@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '../../lib/utils';
 import { useState, type FormEvent } from 'react';
 import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tracking/contract';
 import { supabaseBrowser } from '../../lib/supabase-browser';
@@ -13,6 +14,7 @@ type Scope = NonNullable<Installment['scopeRef']>;
 
 const field = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-3 py-2.5 text-sm text-ink';
 const button = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50';
+const primary = cn(button, 'border-teal bg-teal text-white hover:bg-teal/90');
 const typeLabels: Record<ScopeType, string> = { lot: 'Ce lot', sub_lot: 'Un sous-lot de l’offre', milestone: 'Un jalon', period: 'Une période', project_end: 'La fin du chantier' };
 const pretty = (raw: string) => new Date(raw.slice(0, 10) + 'T00:00:00Z').toLocaleDateString('fr-TN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
@@ -106,7 +108,7 @@ export default function NativeInstallmentScopes({ plan, lot, onUpdated }: { plan
             {alreadyAccepted && <p className="mt-1 text-teal">Votre accord est enregistré ; l’autre partie reste libre.</p>}
             {confirm?.id === proposal.id && <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5">
               <p>Confirmer : {confirm.decision === 'accepted' ? 'accepter' : 'refuser'} ce rattachement ?</p>
-              <div className="mt-2 flex flex-wrap gap-2"><button type="button" className={button + ' bg-teal text-white'} disabled={busy} onClick={() => void respond()}>Confirmer</button>
+              <div className="mt-2 flex flex-wrap gap-2"><button type="button" className={primary} disabled={busy} onClick={() => void respond()}>Confirmer</button>
                 <button type="button" className={button} disabled={busy} onClick={() => setConfirm(null)}>Annuler</button></div></div>}
           </div>}
           {!proposal && editing !== installment.number && <button type="button" className={button} disabled={busy} onClick={() => { setEditing(installment.number); setType('lot'); setTarget(''); setPeriodStart(''); setPeriodEnd(''); }}>
@@ -121,7 +123,7 @@ export default function NativeInstallmentScopes({ plan, lot, onUpdated }: { plan
             {type === 'period' && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="block text-xs font-semibold">Du<input className={field} type="date" required value={periodStart} disabled={busy} onChange={event => setPeriodStart(event.target.value)} /></label>
               <label className="block text-xs font-semibold">Au<input className={field} type="date" required min={periodStart || undefined} value={periodEnd} disabled={busy} onChange={event => setPeriodEnd(event.target.value)} /></label></div>}
-            <div className="flex flex-wrap gap-2"><button type="submit" className={button + ' bg-teal text-white'} disabled={busy || formInvalid}>{busy ? 'Envoi…' : 'Proposer'}</button>
+            <div className="flex flex-wrap gap-2"><button type="submit" className={primary} disabled={busy || formInvalid}>{busy ? 'Envoi…' : 'Proposer'}</button>
               <button type="button" className={button} disabled={busy} onClick={() => setEditing(null)}>Annuler</button></div>
           </form>}
         </li>;

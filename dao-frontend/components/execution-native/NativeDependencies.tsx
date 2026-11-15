@@ -1,5 +1,6 @@
 'use client';
 
+import { cn } from '../../lib/utils';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { NativeExecutionPlanDTO } from '../../../dao-backend/src/native-tracking/contract';
 import { supabaseBrowser } from '../../lib/supabase-browser';
@@ -9,6 +10,7 @@ type Link = { id: string; from: string | null; to: string | null; state: string;
 
 const field = 'mt-1 w-full rounded-xl border border-black/15 bg-white px-3 py-2.5 text-sm text-ink';
 const button = 'inline-flex min-h-10 items-center justify-center rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-50';
+const primary = cn(button, 'border-teal bg-teal text-white hover:bg-teal/90');
 const stateLabels: Record<string, string> = {
   effective: 'Active', awaiting_confirmation: 'En attente de confirmation', unresolved: 'Extrémité non planifiée', proposed: 'Proposée', rejected: 'Retirée',
 };
@@ -124,7 +126,7 @@ export default function NativeDependencies({ plan, requestId, canEdit, onUpdated
         {canEdit && removing !== link.id && <button type="button" className={button} disabled={busy} onClick={() => setRemoving(link.id)}>Retirer</button>}
         {removing === link.id && <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs">
           <p>Retirer cette dépendance du planning ?</p>
-          <div className="mt-2 flex flex-wrap gap-2"><button type="button" className={button + ' bg-teal text-white'} disabled={busy} onClick={() => void run({ action: 'remove', linkId: link.id })}>{busy ? 'Retrait…' : 'Confirmer'}</button>
+          <div className="mt-2 flex flex-wrap gap-2"><button type="button" className={primary} disabled={busy} onClick={() => void run({ action: 'remove', linkId: link.id })}>{busy ? 'Retrait…' : 'Confirmer'}</button>
             <button type="button" className={button} disabled={busy} onClick={() => setRemoving(null)}>Annuler</button></div></div>}
       </li>)}</ul>}
     {canEdit && !adding && <button type="button" className={button} disabled={busy} onClick={() => { setAdding(true); setPred(own[0][0]); setSucc(''); }}>Ajouter une dépendance</button>}
@@ -133,7 +135,7 @@ export default function NativeDependencies({ plan, requestId, canEdit, onUpdated
         {[...targets.entries()].map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
       <label className="block text-xs font-semibold">avant le début de<select className={field} required value={succ} disabled={busy} onChange={event => setSucc(event.target.value)}>
         <option value="">Choisir</option>{[...targets.entries()].filter(([key]) => key !== pred).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
-      <div className="flex flex-wrap gap-2"><button type="submit" className={button + ' bg-teal text-white'} disabled={busy || invalid}>{busy ? 'Envoi…' : 'Ajouter'}</button>
+      <div className="flex flex-wrap gap-2"><button type="submit" className={primary} disabled={busy || invalid}>{busy ? 'Envoi…' : 'Ajouter'}</button>
         <button type="button" className={button} disabled={busy} onClick={() => setAdding(false)}>Annuler</button></div>
     </form>}
     {!canEdit && <p className="text-xs text-black/55">Seuls le Client du chantier et le Gestionnaire habilité modifient les dépendances.</p>}
