@@ -26,3 +26,14 @@ ouvrage (ex. « salle de bain » → « Équipements sanitaires »). Le moteur p
 mots-clés ne peut pas déduire qu'une fuite nécessite cet ouvrage. Une
 proposition cochée n'est jamais un diagnostic professionnel. Une recette
 authentifiée mobile/PC doit vérifier la compréhension des choix avant clôture.
+
+# Retour utilisateur du 15/11 — salle de bain
+
+La formule courte « salle de bain rénovation » ne confirmait qu'un ouvrage
+« Équipements sanitaires » ; les travaux possibles étaient cachés parmi les
+autres lots. La proposition présente désormais, sans les cocher, les ouvrages
+publiés liés à une rénovation de salle de bain : dépose sélective, réseaux
+eau/évacuation, équipements sanitaires et carrelage/faïence. Le Client choisit
+chaque ouvrage ; l'API rattache alors ses vrais lot et sous-lot. Une pièce seule
+ne vaut pas commande d'équipements. Étanchéité de toiture, électricité et
+isolation ne sont pas présumées. Il n'y a ni quantité ni prix déduit.

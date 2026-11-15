@@ -131,6 +131,22 @@ export class ProjectAssistantService {
     return this.save(row.id, input.expectedRevision, 'edit', audit.join(' | ').slice(0, 500), state, buildProposal(snapshot, state, lastCommand), governorateId, snapshot);
   }
 
+  /** Rejoue les règles courantes sur le brouillon sans effacer ses choix ni son historique. */
+  async refresh(actorId: string, draftId: string, expectedRevision: number) {
+    const row = await this.load(actorId, draftId);
+    if (row.status !== 'draft') throw new DomainError('Ce brouillon est clos.', 'CONFLICT');
+    const snapshot = await this.snapshot();
+    const previous: Proposal = row.proposal;
+    const state: AssistantState = {
+      projectType: row.project_type, projectTypeStatus: previous.projectTypeStatus ?? 'known', description: row.description,
+      governorateName: row.governorate_id ? previous.detectedGovernorate : null,
+      governorateStatus: row.governorate_id ? previous.governorateStatus : 'missing', decisions: previous.decisions ?? [],
+      questionAnswered: previous.questionAnswered ?? false,
+    };
+    return this.save(row.id, expectedRevision, 'edit', 'actualiser-suggestions', state,
+      buildProposal(snapshot, state), row.governorate_id, snapshot);
+  }
+
   async abandon(actorId: string, draftId: string) {
     await this.load(actorId, draftId);
     const { data, error } = await this.db.rpc('abandon_project_assistant_draft_v1', { p_draft_id: draftId });

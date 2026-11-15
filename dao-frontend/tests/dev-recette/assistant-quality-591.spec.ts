@@ -32,11 +32,14 @@ test("Assistant : rénovation ciblée et réparation sans travaux ajoutés par d
   try {
     await start("Rénovation", "Refaire uniquement la salle de bain de mon appartement à Tunis");
     const selected = page.locator('input[type="checkbox"]:checked');
-    // Un lot, son sous-lot et l'ouvrage explicite ; aucun lot de toiture,
-    // d'isolation ou d'électricité n'est retenu à cause du seul type de projet.
-    expect(await selected.count()).toBeGreaterThan(0);
-    expect(await selected.count()).toBeLessThanOrEqual(4);
+    await expect(page.getByRole("heading", { name: "Ouvrages possibles pour la salle de bain" })).toBeVisible();
+    for (const label of ["Dépose ou démolition sélective", "Réseaux alimentation et évacuation", "Équipements sanitaires", "Carrelage et faïence"])
+      await expect(page.getByRole("checkbox", { name: new RegExp(label) })).toBeVisible();
+    await expect(selected).toHaveCount(0);
     await snap(page, "renovation-ciblee");
+    await page.getByRole("checkbox", { name: /Carrelage et faïence/ }).check();
+    await expect(page.getByText(/1 lot et 1 ouvrage retenus/)).toBeVisible();
+    expect(await selected.count()).toBeLessThanOrEqual(4);
     await abandonOwnDraft();
 
     await start("Réparation", "Réparer une fuite dans la salle de bain de mon appartement à Tunis");
